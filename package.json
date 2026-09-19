@@ -18,19 +18,24 @@
     "db:studio": "drizzle-kit studio",
     "format": "biome format",
     "lint": "biome lint",
-    "check": "biome check"
+    "check": "biome check",
+    "check:fix": "biome check --fix"
   },
   "dependencies": {
     "@tanstack/react-router": "^1.170.35",
     "@tanstack/react-start": "^1.168.52",
     "@vanilla-extract/css": "^1.21.2",
+    "@vanilla-extract/recipes": "^0.5.7",
     "better-auth": "^1.5.3",
+    "clsx": "^2.1.1",
     "destyle.css": "^4.0.1",
+    "dexie": "^4.4.6",
     "drizzle-kit": "^0.31.9",
     "drizzle-orm": "^0.45.1",
     "pg": "^8.16.3",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "valibot": "^1.5.0"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.5",
