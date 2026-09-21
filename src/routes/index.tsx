@@ -1,14 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { ShoppingList } from "../features/shopping/components/shopping-list";
 
-export const Route = createFileRoute("/")({ component: Home });
+export const Route = createFileRoute("/")({
+	component: ShoppingPage,
+});
 
-function Home() {
-	return (
-		<main>
-			<h1>Welcome to TanStack Start</h1>
-			<p>
-				Edit <code>src/routes/index.tsx</code> to get started.
-			</p>
-		</main>
-	);
+function ShoppingPage() {
+	return <ShoppingList />;
 }
