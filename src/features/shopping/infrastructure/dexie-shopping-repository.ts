@@ -3,7 +3,7 @@ import type { ShoppingRepository } from "../application/shopping-repository";
 
 export const dexieShoppingRepository = {
 	async list() {
-		return getLocalDatabase().shoppingItems.orderBy("createdAt").toArray();
+		return getLocalDatabase().shoppingItems.orderBy("sortOrder").toArray();
 	},
 
 	async findById(id) {

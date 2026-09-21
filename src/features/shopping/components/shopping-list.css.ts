@@ -220,3 +220,74 @@ export const deleteButton = style({
 		},
 	},
 });
+
+export const itemActions = style({
+	display: "flex",
+	alignItems: "center",
+	gap: 4,
+});
+
+export const editButton = style({
+	minWidth: 44,
+	minHeight: 44,
+	padding: 8,
+	color: "var(--color-primary)",
+	background: "transparent",
+	border: 0,
+	borderRadius: 8,
+	font: "inherit",
+	cursor: "pointer",
+
+	selectors: {
+		"&:hover": {
+			background: "var(--color-surface-subtle)",
+		},
+
+		"&:focus-visible": {
+			outline: "3px solid var(--color-primary-soft)",
+		},
+	},
+});
+
+export const editForm = style({
+	display: "grid",
+	gridColumn: "1 / -1",
+	gap: 12,
+	width: "100%",
+});
+
+export const editActions = style({
+	display: "flex",
+	justifyContent: "flex-end",
+	gap: 8,
+});
+
+export const cancelButton = style({
+	minHeight: 40,
+	paddingInline: 14,
+	color: "var(--color-text)",
+	background: "var(--color-surface)",
+	border: "1px solid var(--color-border)",
+	borderRadius: 8,
+	font: "inherit",
+	cursor: "pointer",
+});
+
+export const saveButton = style({
+	minHeight: 40,
+	paddingInline: 18,
+	color: "var(--color-primary-text)",
+	background: "var(--color-primary)",
+	border: 0,
+	borderRadius: 8,
+	font: "inherit",
+	fontWeight: 700,
+	cursor: "pointer",
+
+	selectors: {
+		"&:disabled": {
+			cursor: "not-allowed",
+			opacity: 0.6,
+		},
+	},
+});

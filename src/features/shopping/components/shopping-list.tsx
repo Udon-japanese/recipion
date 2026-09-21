@@ -6,6 +6,7 @@ import {
 	createShoppingItem,
 	type ShoppingItem,
 	toggleShoppingItem,
+	updateShoppingItem,
 } from "../domain/shopping-item";
 import { getShoppingItemPresets } from "../domain/shopping-item-preset";
 import { dexieShoppingRepository } from "../infrastructure/dexie-shopping-repository";
@@ -33,6 +34,11 @@ export function ShoppingList({
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [editingItemId, setEditingItemId] = useState<string | null>(null);
+	const [editName, setEditName] = useState("");
+	const [editQuantity, setEditQuantity] = useState("1");
+	const [editUnitLabel, setEditUnitLabel] = useState("");
+	const [isSavingEdit, setIsSavingEdit] = useState(false);
 
 	const presets = getShoppingItemPresets(name);
 
@@ -70,11 +76,22 @@ export function ShoppingList({
 		setIsSubmitting(true);
 
 		try {
-			const item = createShoppingItem({
-				name,
-				quantity: Number(quantity),
-				unitLabel,
-			});
+			const nextSortOrder =
+				items.reduce(
+					(highestSortOrder, item) =>
+						Math.max(highestSortOrder, item.sortOrder),
+					-1,
+				) + 1;
+
+			const item = createShoppingItem(
+				{
+					name,
+					quantity: Number(quantity),
+					unitLabel,
+				},
+				new Date(),
+				nextSortOrder,
+			);
 
 			await repository.save(item);
 
@@ -104,6 +121,52 @@ export function ShoppingList({
 			);
 		} catch (error) {
 			setErrorMessage(getErrorMessage(error));
+		}
+	}
+
+	function handleStartEditing(item: ShoppingItem) {
+		setErrorMessage(null);
+		setEditingItemId(item.id);
+		setEditName(item.name);
+		setEditQuantity(String(item.quantity));
+		setEditUnitLabel(item.unitLabel ?? "");
+	}
+
+	function handleCancelEditing() {
+		setEditingItemId(null);
+		setEditName("");
+		setEditQuantity("1");
+		setEditUnitLabel("");
+	}
+
+	async function handleEditSubmit(
+		event: SubmitEvent<HTMLFormElement>,
+		item: ShoppingItem,
+	) {
+		event.preventDefault();
+		setErrorMessage(null);
+		setIsSavingEdit(true);
+
+		try {
+			const updatedItem = updateShoppingItem(item, {
+				name: editName,
+				quantity: Number(editQuantity),
+				unitLabel: editUnitLabel,
+			});
+
+			await repository.save(updatedItem);
+
+			setItems((currentItems) =>
+				currentItems.map((currentItem) =>
+					currentItem.id === updatedItem.id ? updatedItem : currentItem,
+				),
+			);
+
+			handleCancelEditing();
+		} catch (error) {
+			setErrorMessage(getErrorMessage(error));
+		} finally {
+			setIsSavingEdit(false);
 		}
 	}
 
@@ -240,35 +303,133 @@ export function ShoppingList({
 								className={clsx(styles.item, isChecked && styles.checkedItem)}
 								key={item.id}
 							>
-								<input
-									className={styles.checkbox}
-									type="checkbox"
-									checked={isChecked}
-									aria-label={`${item.name}をチェック`}
-									onChange={() => void handleToggle(item)}
-								/>
+								{editingItemId === item.id ? (
+									<form
+										className={styles.editForm}
+										onSubmit={(event) => void handleEditSubmit(event, item)}
+									>
+										<div className={styles.field}>
+											<label
+												className={styles.fieldLabel}
+												htmlFor={`edit-name-${item.id}`}
+											>
+												商品名
+											</label>
 
-								<span
-									className={clsx(
-										styles.itemName,
-										isChecked && styles.checkedItemName,
-									)}
-								>
-									{item.name}
-									<span className={styles.quantity}>
-										{item.quantity}
-										{item.unitLabel}
-									</span>
-								</span>
+											<input
+												className={styles.input}
+												id={`edit-name-${item.id}`}
+												value={editName}
+												onChange={(event) => setEditName(event.target.value)}
+												autoComplete="off"
+											/>
+										</div>
 
-								<button
-									className={styles.deleteButton}
-									type="button"
-									aria-label={`${item.name}を削除`}
-									onClick={() => void handleRemove(item.id)}
-								>
-									削除
-								</button>
+										<div className={styles.details}>
+											<div className={styles.field}>
+												<label
+													className={styles.fieldLabel}
+													htmlFor={`edit-quantity-${item.id}`}
+												>
+													数量
+												</label>
+
+												<input
+													className={styles.input}
+													id={`edit-quantity-${item.id}`}
+													type="number"
+													inputMode="decimal"
+													min="0"
+													step="any"
+													value={editQuantity}
+													onChange={(event) =>
+														setEditQuantity(event.target.value)
+													}
+												/>
+											</div>
+
+											<div className={styles.field}>
+												<label
+													className={styles.fieldLabel}
+													htmlFor={`edit-unit-${item.id}`}
+												>
+													単位
+												</label>
+
+												<input
+													className={styles.input}
+													id={`edit-unit-${item.id}`}
+													value={editUnitLabel}
+													onChange={(event) =>
+														setEditUnitLabel(event.target.value)
+													}
+													autoComplete="off"
+												/>
+											</div>
+										</div>
+
+										<div className={styles.editActions}>
+											<button
+												className={styles.cancelButton}
+												type="button"
+												onClick={handleCancelEditing}
+												disabled={isSavingEdit}
+											>
+												キャンセル
+											</button>
+
+											<button
+												className={styles.saveButton}
+												type="submit"
+												disabled={isSavingEdit}
+											>
+												保存
+											</button>
+										</div>
+									</form>
+								) : (
+									<>
+										<input
+											className={styles.checkbox}
+											type="checkbox"
+											checked={isChecked}
+											aria-label={`${item.name}をチェック`}
+											onChange={() => void handleToggle(item)}
+										/>
+
+										<span
+											className={clsx(
+												styles.itemName,
+												isChecked && styles.checkedItemName,
+											)}
+										>
+											{item.name}
+											<span className={styles.quantity}>
+												{item.quantity}
+												{item.unitLabel}
+											</span>
+										</span>
+
+										<div className={styles.itemActions}>
+											<button
+												className={styles.editButton}
+												type="button"
+												onClick={() => handleStartEditing(item)}
+											>
+												編集
+											</button>
+
+											<button
+												className={styles.deleteButton}
+												type="button"
+												aria-label={`${item.name}を削除`}
+												onClick={() => void handleRemove(item.id)}
+											>
+												削除
+											</button>
+										</div>
+									</>
+								)}
 							</li>
 						);
 					})}
