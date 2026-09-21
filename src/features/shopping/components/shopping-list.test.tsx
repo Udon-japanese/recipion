@@ -159,4 +159,26 @@ describe("ShoppingList", () => {
 		);
 		expect(repository.save).not.toHaveBeenCalled();
 	});
+
+	it("商品名に応じた数量プリセットを選択できる", async () => {
+		const user = userEvent.setup();
+		const repository = createRepository();
+
+		render(<ShoppingList repository={repository} />);
+
+		await screen.findByText("買うものはまだありません。");
+		await user.type(screen.getByLabelText("買うもの"), "卵");
+
+		const sixEggsButton = screen.getByRole("button", {
+			name: "6個",
+		});
+
+		expect(sixEggsButton).toHaveAttribute("aria-pressed", "false");
+
+		await user.click(sixEggsButton);
+
+		expect(screen.getByLabelText("数量")).toHaveValue(6);
+		expect(screen.getByLabelText("単位")).toHaveValue("個");
+		expect(sixEggsButton).toHaveAttribute("aria-pressed", "true");
+	});
 });

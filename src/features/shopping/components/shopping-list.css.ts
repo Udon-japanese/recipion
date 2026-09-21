@@ -60,6 +60,57 @@ export const input = style({
 	},
 });
 
+export const presets = style({
+	display: "grid",
+	gap: 8,
+	minWidth: 0,
+	margin: 0,
+	padding: 0,
+	border: 0,
+});
+
+export const presetLegend = style({
+	marginBottom: 8,
+	padding: 0,
+	color: "var(--color-text-muted)",
+	fontSize: 14,
+	fontWeight: 600,
+});
+
+export const presetList = style({
+	display: "flex",
+	flexWrap: "wrap",
+	gap: 8,
+});
+
+export const presetButton = style({
+	minHeight: 40,
+	paddingInline: 14,
+	color: "var(--color-text)",
+	background: "var(--color-surface)",
+	border: "1px solid var(--color-border)",
+	borderRadius: 999,
+	font: "inherit",
+	cursor: "pointer",
+
+	selectors: {
+		"&:hover": {
+			borderColor: "var(--color-primary)",
+		},
+
+		"&[aria-pressed='true']": {
+			color: "var(--color-primary-text)",
+			background: "var(--color-primary)",
+			borderColor: "var(--color-primary)",
+		},
+
+		"&:focus-visible": {
+			outline: "3px solid var(--color-primary-soft)",
+			outlineOffset: 2,
+		},
+	},
+});
+
 export const addButton = style({
 	minHeight: 44,
 	paddingInline: 18,

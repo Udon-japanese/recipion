@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { type FormEvent, type SubmitEvent, useEffect, useState } from "react";
+import { type SubmitEvent, useEffect, useState } from "react";
 import * as v from "valibot";
 import type { ShoppingRepository } from "../application/shopping-repository";
 import {
@@ -7,6 +7,7 @@ import {
 	type ShoppingItem,
 	toggleShoppingItem,
 } from "../domain/shopping-item";
+import { getShoppingItemPresets } from "../domain/shopping-item-preset";
 import { dexieShoppingRepository } from "../infrastructure/dexie-shopping-repository";
 import * as styles from "./shopping-list.css";
 
@@ -32,6 +33,8 @@ export function ShoppingList({
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
 	const [isSubmitting, setIsSubmitting] = useState(false);
+
+	const presets = getShoppingItemPresets(name);
 
 	useEffect(() => {
 		let isActive = true;
@@ -175,6 +178,36 @@ export function ShoppingList({
 						/>
 					</div>
 				</div>
+
+				{presets.length > 0 ? (
+					<fieldset className={styles.presets}>
+						<legend className={styles.presetLegend}>よく使う数量</legend>
+
+						<div className={styles.presetList}>
+							{presets.map((preset) => {
+								const isSelected =
+									quantity === String(preset.quantity) &&
+									unitLabel === preset.unitLabel;
+
+								return (
+									<button
+										className={styles.presetButton}
+										type="button"
+										aria-pressed={isSelected}
+										key={`${preset.quantity}-${preset.unitLabel}`}
+										onClick={() => {
+											setQuantity(String(preset.quantity));
+											setUnitLabel(preset.unitLabel);
+										}}
+									>
+										{preset.quantity}
+										{preset.unitLabel}
+									</button>
+								);
+							})}
+						</div>
+					</fieldset>
+				) : null}
 
 				<button
 					className={styles.addButton}
