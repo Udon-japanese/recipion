@@ -11,6 +11,7 @@ const storedItem: ShoppingItem = {
 	quantity: 6,
 	unitLabel: "個",
 	status: "pending",
+	sortOrder: 0,
 	createdAt: "2026-09-21T10:00:00.000Z",
 	updatedAt: "2026-09-21T10:00:00.000Z",
 };
