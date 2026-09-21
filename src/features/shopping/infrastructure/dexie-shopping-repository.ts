@@ -14,6 +14,14 @@ export const dexieShoppingRepository = {
 		await getLocalDatabase().shoppingItems.put(item);
 	},
 
+	async saveAll(items) {
+		const database = getLocalDatabase();
+
+		await database.transaction("rw", database.shoppingItems, async () => {
+			await database.shoppingItems.bulkPut([...items]);
+		});
+	},
+
 	async remove(id) {
 		await getLocalDatabase().shoppingItems.delete(id);
 	},

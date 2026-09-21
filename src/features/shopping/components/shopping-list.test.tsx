@@ -23,6 +23,7 @@ function createRepository(
 		list: vi.fn().mockResolvedValue([]),
 		findById: vi.fn().mockResolvedValue(undefined),
 		save: vi.fn().mockResolvedValue(undefined),
+		saveAll: vi.fn().mockResolvedValue(undefined),
 		remove: vi.fn().mockResolvedValue(undefined),
 		...overrides,
 	};
@@ -181,5 +182,68 @@ describe("ShoppingList", () => {
 		expect(screen.getByLabelText("数量")).toHaveValue(6);
 		expect(screen.getByLabelText("単位")).toHaveValue("個");
 		expect(sixEggsButton).toHaveAttribute("aria-pressed", "true");
+	});
+
+	it("買い物項目を上下に並び替えられる", async () => {
+		const user = userEvent.setup();
+		const secondItem: ShoppingItem = {
+			...storedItem,
+			id: "item-2",
+			name: "牛乳",
+			quantity: 1,
+			unitLabel: "本",
+			sortOrder: 1,
+		};
+
+		const repository = createRepository({
+			list: vi.fn().mockResolvedValue([
+				{
+					...storedItem,
+					sortOrder: 0,
+				},
+				secondItem,
+			]),
+		});
+
+		render(<ShoppingList repository={repository} />);
+
+		const moveDownButton = await screen.findByRole("button", {
+			name: "卵を下へ",
+		});
+
+		expect(
+			screen.getByRole("button", {
+				name: "卵を上へ",
+			}),
+		).toBeDisabled();
+
+		expect(
+			screen.getByRole("button", {
+				name: "牛乳を下へ",
+			}),
+		).toBeDisabled();
+
+		await user.click(moveDownButton);
+
+		await waitFor(() => {
+			expect(repository.saveAll).toHaveBeenCalledWith([
+				expect.objectContaining({
+					id: secondItem.id,
+					sortOrder: 0,
+				}),
+				expect.objectContaining({
+					id: storedItem.id,
+					sortOrder: 1,
+				}),
+			]);
+		});
+
+		await waitFor(() => {
+			expect(
+				screen
+					.getAllByRole("checkbox")
+					.map((checkbox) => checkbox.getAttribute("aria-label")),
+			).toEqual(["牛乳をチェック", "卵をチェック"]);
+		});
 	});
 });

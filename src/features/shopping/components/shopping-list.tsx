@@ -8,6 +8,10 @@ import {
 	toggleShoppingItem,
 	updateShoppingItem,
 } from "../domain/shopping-item";
+import {
+	moveShoppingItem,
+	type ShoppingItemMoveDirection,
+} from "../domain/shopping-item-order";
 import { getShoppingItemPresets } from "../domain/shopping-item-preset";
 import { dexieShoppingRepository } from "../infrastructure/dexie-shopping-repository";
 import * as styles from "./shopping-list.css";
@@ -39,6 +43,7 @@ export function ShoppingList({
 	const [editQuantity, setEditQuantity] = useState("1");
 	const [editUnitLabel, setEditUnitLabel] = useState("");
 	const [isSavingEdit, setIsSavingEdit] = useState(false);
+	const [isReordering, setIsReordering] = useState(false);
 
 	const presets = getShoppingItemPresets(name);
 
@@ -170,6 +175,25 @@ export function ShoppingList({
 		}
 	}
 
+	async function handleMove(
+		itemId: string,
+		direction: ShoppingItemMoveDirection,
+	) {
+		setErrorMessage(null);
+		setIsReordering(true);
+
+		try {
+			const reorderedItems = moveShoppingItem(items, itemId, direction);
+
+			await repository.saveAll(reorderedItems);
+			setItems(reorderedItems);
+		} catch (error) {
+			setErrorMessage(getErrorMessage(error));
+		} finally {
+			setIsReordering(false);
+		}
+	}
+
 	async function handleRemove(id: string) {
 		setErrorMessage(null);
 
@@ -295,8 +319,10 @@ export function ShoppingList({
 
 			{!isLoading && items.length > 0 ? (
 				<ul className={styles.list}>
-					{items.map((item) => {
+					{items.map((item, index) => {
 						const isChecked = item.status === "checked";
+						const isFirst = index === 0;
+						const isLast = index === items.length - 1;
 
 						return (
 							<li
@@ -411,6 +437,26 @@ export function ShoppingList({
 										</span>
 
 										<div className={styles.itemActions}>
+											<button
+												className={styles.moveButton}
+												type="button"
+												aria-label={`${item.name}を上へ`}
+												disabled={isFirst || isReordering}
+												onClick={() => void handleMove(item.id, "up")}
+											>
+												↑
+											</button>
+
+											<button
+												className={styles.moveButton}
+												type="button"
+												aria-label={`${item.name}を下へ`}
+												disabled={isLast || isReordering}
+												onClick={() => void handleMove(item.id, "down")}
+											>
+												↓
+											</button>
+
 											<button
 												className={styles.editButton}
 												type="button"

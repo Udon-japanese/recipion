@@ -222,8 +222,8 @@ export const deleteButton = style({
 });
 
 export const itemActions = style({
-	display: "flex",
-	alignItems: "center",
+	display: "grid",
+	gridTemplateColumns: "repeat(2, 44px)",
 	gap: 4,
 });
 
@@ -241,6 +241,35 @@ export const editButton = style({
 	selectors: {
 		"&:hover": {
 			background: "var(--color-surface-subtle)",
+		},
+
+		"&:focus-visible": {
+			outline: "3px solid var(--color-primary-soft)",
+		},
+	},
+});
+
+export const moveButton = style({
+	width: 44,
+	height: 44,
+	padding: 0,
+	color: "var(--color-text-muted)",
+	background: "transparent",
+	border: 0,
+	borderRadius: 8,
+	font: "inherit",
+	fontSize: 20,
+	cursor: "pointer",
+
+	selectors: {
+		"&:hover:not(:disabled)": {
+			color: "var(--color-primary)",
+			background: "var(--color-surface-subtle)",
+		},
+
+		"&:disabled": {
+			cursor: "not-allowed",
+			opacity: 0.3,
 		},
 
 		"&:focus-visible": {

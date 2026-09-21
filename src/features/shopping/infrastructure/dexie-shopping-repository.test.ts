@@ -81,4 +81,23 @@ describe("dexieShoppingRepository", () => {
 			dexieShoppingRepository.findById(item.id),
 		).resolves.toBeUndefined();
 	});
+
+	it("複数の買い物項目をまとめて保存する", async () => {
+		const firstItem = createShoppingItem(
+			{ name: "卵" },
+			new Date("2026-09-21T10:00:00.000Z"),
+			1,
+		);
+		const secondItem = createShoppingItem(
+			{ name: "牛乳" },
+			new Date("2026-09-21T10:01:00.000Z"),
+			0,
+		);
+
+		await dexieShoppingRepository.saveAll([firstItem, secondItem]);
+
+		const items = await dexieShoppingRepository.list();
+
+		expect(items.map((item) => item.name)).toEqual(["牛乳", "卵"]);
+	});
 });
