@@ -1,4 +1,13 @@
 import * as v from "valibot";
+import {
+	isShoppingCategoryId,
+	type ShoppingCategoryId,
+} from "./shopping-category";
+
+const shoppingCategoryIdSchema = v.custom<ShoppingCategoryId>(
+	(input) => typeof input === "string" && isShoppingCategoryId(input),
+	"商品カテゴリを確認してください",
+);
 
 export type ShoppingItemStatus = "pending" | "checked";
 
@@ -7,6 +16,7 @@ export type ShoppingItem = {
 	name: string;
 	quantity: number;
 	unitLabel: string | null;
+	categoryId: ShoppingCategoryId | null;
 	status: ShoppingItemStatus;
 	sortOrder: number;
 	createdAt: string;
@@ -27,6 +37,7 @@ export const createShoppingItemInputSchema = v.object({
 		),
 	),
 	unitLabel: v.optional(v.nullable(v.pipe(v.string(), v.trim()))),
+	categoryId: v.optional(v.nullable(shoppingCategoryIdSchema)),
 });
 
 export type CreateShoppingItemInput = v.InferInput<
@@ -45,6 +56,7 @@ export const updateShoppingItemInputSchema = v.object({
 		v.gtValue(0, "数量は0より大きい数にしてください"),
 	),
 	unitLabel: v.nullable(v.pipe(v.string(), v.trim())),
+	categoryId: v.optional(v.nullable(shoppingCategoryIdSchema)),
 });
 
 export type UpdateShoppingItemInput = v.InferInput<
@@ -64,6 +76,7 @@ export function createShoppingItem(
 		name: parsedInput.name,
 		quantity: parsedInput.quantity ?? 1,
 		unitLabel: parsedInput.unitLabel || null,
+		categoryId: parsedInput.categoryId ?? null,
 		status: "pending",
 		sortOrder,
 		createdAt: timestamp,
@@ -83,6 +96,10 @@ export function updateShoppingItem(
 		name: parsedInput.name,
 		quantity: parsedInput.quantity,
 		unitLabel: parsedInput.unitLabel || null,
+		categoryId:
+			parsedInput.categoryId === undefined
+				? item.categoryId
+				: parsedInput.categoryId,
 		updatedAt: now.toISOString(),
 	};
 }

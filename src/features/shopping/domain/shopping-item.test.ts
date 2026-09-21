@@ -22,11 +22,30 @@ describe("createShoppingItem", () => {
 			name: "卵",
 			quantity: 1,
 			unitLabel: "個",
+			categoryId: null,
 			status: "pending",
 			sortOrder: 0,
 			createdAt: "2026-09-20T12:00:00.000Z",
 			updatedAt: "2026-09-20T12:00:00.000Z",
 		});
+	});
+
+	it("商品カテゴリを指定できる", () => {
+		const item = createShoppingItem({
+			name: "卵",
+			categoryId: "eggs",
+		});
+
+		expect(item.categoryId).toBe("eggs");
+	});
+
+	it("存在しない商品カテゴリを拒否する", () => {
+		expect(() =>
+			createShoppingItem({
+				name: "謎の商品",
+				categoryId: "unknown",
+			} as never),
+		).toThrow("商品カテゴリを確認してください");
 	});
 
 	it("指定された並び順を設定する", () => {

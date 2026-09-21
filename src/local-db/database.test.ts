@@ -52,11 +52,20 @@ describe("LocalDatabase", () => {
 		expect(
 			items.map((item) => ({
 				id: item.id,
+				categoryId: item.categoryId,
 				sortOrder: item.sortOrder,
 			})),
 		).toEqual([
-			{ id: "older", sortOrder: 0 },
-			{ id: "newer", sortOrder: 1 },
+			{
+				id: "older",
+				categoryId: null,
+				sortOrder: 0,
+			},
+			{
+				id: "newer",
+				categoryId: null,
+				sortOrder: 1,
+			},
 		]);
 
 		migratedDatabase.close();

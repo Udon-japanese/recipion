@@ -10,6 +10,7 @@ const storedItem: ShoppingItem = {
 	name: "卵",
 	quantity: 6,
 	unitLabel: "個",
+	categoryId: "eggs",
 	status: "pending",
 	sortOrder: 0,
 	createdAt: "2026-09-21T10:00:00.000Z",
@@ -79,6 +80,7 @@ describe("ShoppingList", () => {
 		expect(screen.getByLabelText("買うもの")).toHaveValue("");
 		expect(screen.getByLabelText("数量")).toHaveValue(1);
 		expect(screen.getByLabelText("単位")).toHaveValue("");
+		expect(screen.getByLabelText("カテゴリ")).toHaveValue("");
 	});
 
 	it("買い物項目のチェック状態を切り替える", async () => {
@@ -245,5 +247,46 @@ describe("ShoppingList", () => {
 					.map((checkbox) => checkbox.getAttribute("aria-label")),
 			).toEqual(["牛乳をチェック", "卵をチェック"]);
 		});
+	});
+
+	it("商品名からカテゴリを自動選択する", async () => {
+		const user = userEvent.setup();
+		const repository = createRepository();
+
+		render(<ShoppingList repository={repository} />);
+
+		await screen.findByText("買うものはまだありません。");
+		await user.type(screen.getByLabelText("買うもの"), "タマゴ");
+
+		expect(screen.getByLabelText("カテゴリ")).toHaveValue("eggs");
+
+		await user.click(
+			screen.getByRole("button", {
+				name: "追加",
+			}),
+		);
+
+		await waitFor(() => {
+			expect(repository.save).toHaveBeenCalledWith(
+				expect.objectContaining({
+					name: "タマゴ",
+					categoryId: "eggs",
+				}),
+			);
+		});
+	});
+
+	it("手動で選択したカテゴリを商品名で上書きしない", async () => {
+		const user = userEvent.setup();
+		const repository = createRepository();
+
+		render(<ShoppingList repository={repository} />);
+
+		await screen.findByText("買うものはまだありません。");
+
+		await user.selectOptions(screen.getByLabelText("カテゴリ"), "pantry");
+		await user.type(screen.getByLabelText("買うもの"), "卵");
+
+		expect(screen.getByLabelText("カテゴリ")).toHaveValue("pantry");
 	});
 });

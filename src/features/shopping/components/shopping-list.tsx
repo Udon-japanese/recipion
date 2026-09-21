@@ -3,6 +3,11 @@ import { type SubmitEvent, useEffect, useState } from "react";
 import * as v from "valibot";
 import type { ShoppingRepository } from "../application/shopping-repository";
 import {
+	isShoppingCategoryId,
+	type ShoppingCategoryId,
+	shoppingCategories,
+} from "../domain/shopping-category";
+import {
 	createShoppingItem,
 	type ShoppingItem,
 	toggleShoppingItem,
@@ -12,7 +17,10 @@ import {
 	moveShoppingItem,
 	type ShoppingItemMoveDirection,
 } from "../domain/shopping-item-order";
-import { getShoppingItemPresets } from "../domain/shopping-item-preset";
+import {
+	getShoppingItemPresets,
+	inferShoppingCategory,
+} from "../domain/shopping-item-suggestion";
 import { dexieShoppingRepository } from "../infrastructure/dexie-shopping-repository";
 import * as styles from "./shopping-list.css";
 
@@ -44,6 +52,14 @@ export function ShoppingList({
 	const [editUnitLabel, setEditUnitLabel] = useState("");
 	const [isSavingEdit, setIsSavingEdit] = useState(false);
 	const [isReordering, setIsReordering] = useState(false);
+	const [categoryId, setCategoryId] = useState<ShoppingCategoryId | "">("");
+	const [isCategoryManuallySelected, setIsCategoryManuallySelected] =
+		useState(false);
+	const [editCategoryId, setEditCategoryId] = useState<ShoppingCategoryId | "">(
+		"",
+	);
+	const [isEditCategoryManuallySelected, setIsEditCategoryManuallySelected] =
+		useState(false);
 
 	const presets = getShoppingItemPresets(name);
 
@@ -93,6 +109,7 @@ export function ShoppingList({
 					name,
 					quantity: Number(quantity),
 					unitLabel,
+					categoryId: categoryId || null,
 				},
 				new Date(),
 				nextSortOrder,
@@ -104,6 +121,8 @@ export function ShoppingList({
 			setName("");
 			setQuantity("1");
 			setUnitLabel("");
+			setCategoryId("");
+			setIsCategoryManuallySelected(false);
 		} catch (error) {
 			setErrorMessage(getErrorMessage(error));
 		} finally {
@@ -135,6 +154,8 @@ export function ShoppingList({
 		setEditName(item.name);
 		setEditQuantity(String(item.quantity));
 		setEditUnitLabel(item.unitLabel ?? "");
+		setEditCategoryId(item.categoryId ?? "");
+		setIsEditCategoryManuallySelected(item.categoryId !== null);
 	}
 
 	function handleCancelEditing() {
@@ -142,6 +163,8 @@ export function ShoppingList({
 		setEditName("");
 		setEditQuantity("1");
 		setEditUnitLabel("");
+		setEditCategoryId("");
+		setIsEditCategoryManuallySelected(false);
 	}
 
 	async function handleEditSubmit(
@@ -157,6 +180,7 @@ export function ShoppingList({
 				name: editName,
 				quantity: Number(editQuantity),
 				unitLabel: editUnitLabel,
+				categoryId: editCategoryId || null,
 			});
 
 			await repository.save(updatedItem);
@@ -206,6 +230,32 @@ export function ShoppingList({
 		}
 	}
 
+	function handleNameChange(value: string) {
+		setName(value);
+
+		if (!isCategoryManuallySelected) {
+			setCategoryId(inferShoppingCategory(value) ?? "");
+		}
+	}
+
+	function handleCategoryChange(value: string) {
+		setCategoryId(isShoppingCategoryId(value) ? value : "");
+		setIsCategoryManuallySelected(true);
+	}
+
+	function handleEditNameChange(value: string) {
+		setEditName(value);
+
+		if (!isEditCategoryManuallySelected) {
+			setEditCategoryId(inferShoppingCategory(value) ?? "");
+		}
+	}
+
+	function handleEditCategoryChange(value: string) {
+		setEditCategoryId(isShoppingCategoryId(value) ? value : "");
+		setIsEditCategoryManuallySelected(true);
+	}
+
 	return (
 		<main className={styles.container}>
 			<h1 className={styles.title}>買い物メモ</h1>
@@ -221,7 +271,7 @@ export function ShoppingList({
 						id="shopping-item-name"
 						name="name"
 						value={name}
-						onChange={(event) => setName(event.target.value)}
+						onChange={(event) => handleNameChange(event.target.value)}
 						placeholder="卵、牛乳など"
 						autoComplete="off"
 					/>
@@ -263,6 +313,31 @@ export function ShoppingList({
 							placeholder="個、袋、gなど"
 							autoComplete="off"
 						/>
+					</div>
+
+					<div className={styles.field}>
+						<label
+							className={styles.fieldLabel}
+							htmlFor="shopping-item-category"
+						>
+							カテゴリ
+						</label>
+
+						<select
+							className={styles.input}
+							id="shopping-item-category"
+							name="categoryId"
+							value={categoryId}
+							onChange={(event) => handleCategoryChange(event.target.value)}
+						>
+							<option value="">未設定</option>
+
+							{shoppingCategories.map((category) => (
+								<option value={category.id} key={category.id}>
+									{category.label}
+								</option>
+							))}
+						</select>
 					</div>
 				</div>
 
@@ -346,7 +421,9 @@ export function ShoppingList({
 												className={styles.input}
 												id={`edit-name-${item.id}`}
 												value={editName}
-												onChange={(event) => setEditName(event.target.value)}
+												onChange={(event) =>
+													handleEditNameChange(event.target.value)
+												}
 												autoComplete="off"
 											/>
 										</div>
@@ -391,6 +468,32 @@ export function ShoppingList({
 													}
 													autoComplete="off"
 												/>
+											</div>
+
+											<div className={styles.field}>
+												<label
+													className={styles.fieldLabel}
+													htmlFor={`edit-category-${item.id}`}
+												>
+													編集するカテゴリ
+												</label>
+
+												<select
+													className={styles.input}
+													id={`edit-category-${item.id}`}
+													value={editCategoryId}
+													onChange={(event) =>
+														handleEditCategoryChange(event.target.value)
+													}
+												>
+													<option value="">未設定</option>
+
+													{shoppingCategories.map((category) => (
+														<option value={category.id} key={category.id}>
+															{category.label}
+														</option>
+													))}
+												</select>
 											</div>
 										</div>
 
