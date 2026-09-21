@@ -15,13 +15,29 @@ export const title = style({
 
 export const form = style({
 	display: "grid",
-	gridTemplateColumns: "1fr auto",
-	gap: 8,
+	gap: 12,
 	marginBottom: 24,
 });
 
+export const field = style({
+	display: "grid",
+	gap: 6,
+	minWidth: 0,
+});
+
+export const fieldLabel = style({
+	color: "var(--color-text-muted)",
+	fontSize: 14,
+	fontWeight: 600,
+});
+
+export const details = style({
+	display: "grid",
+	gridTemplateColumns: "minmax(96px, 0.4fr) minmax(0, 1fr)",
+	gap: 8,
+});
+
 export const label = style({
-	gridColumn: "1 / -1",
 	color: "var(--color-text)",
 	fontWeight: 600,
 });
@@ -54,6 +70,7 @@ export const addButton = style({
 	font: "inherit",
 	fontWeight: 700,
 	cursor: "pointer",
+	justifySelf: "end",
 
 	selectors: {
 		"&:hover": {
@@ -73,7 +90,6 @@ export const addButton = style({
 });
 
 export const error = style({
-	gridColumn: "1 / -1",
 	margin: 0,
 	color: "#a23030",
 	fontSize: 14,

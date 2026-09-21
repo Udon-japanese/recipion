@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, type SubmitEvent, useEffect, useState } from "react";
 import * as v from "valibot";
 import type { ShoppingRepository } from "../application/shopping-repository";
 import {
@@ -27,6 +27,8 @@ export function ShoppingList({
 }: ShoppingListProps) {
 	const [items, setItems] = useState<ShoppingItem[]>([]);
 	const [name, setName] = useState("");
+	const [quantity, setQuantity] = useState("1");
+	const [unitLabel, setUnitLabel] = useState("");
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
 	const [isSubmitting, setIsSubmitting] = useState(false);
@@ -59,18 +61,24 @@ export function ShoppingList({
 		};
 	}, [repository]);
 
-	async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+	async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
 		event.preventDefault();
 		setErrorMessage(null);
 		setIsSubmitting(true);
 
 		try {
-			const item = createShoppingItem({ name });
+			const item = createShoppingItem({
+				name,
+				quantity: Number(quantity),
+				unitLabel,
+			});
 
 			await repository.save(item);
 
 			setItems((currentItems) => [...currentItems, item]);
 			setName("");
+			setQuantity("1");
+			setUnitLabel("");
 		} catch (error) {
 			setErrorMessage(getErrorMessage(error));
 		} finally {
@@ -113,19 +121,60 @@ export function ShoppingList({
 			<h1 className={styles.title}>買い物メモ</h1>
 
 			<form className={styles.form} onSubmit={handleSubmit}>
-				<label className={styles.label} htmlFor="shopping-item-name">
-					買うもの
-				</label>
+				<div className={styles.field}>
+					<label className={styles.label} htmlFor="shopping-item-name">
+						買うもの
+					</label>
 
-				<input
-					className={styles.input}
-					id="shopping-item-name"
-					name="name"
-					value={name}
-					onChange={(event) => setName(event.target.value)}
-					placeholder="卵、牛乳など"
-					autoComplete="off"
-				/>
+					<input
+						className={styles.input}
+						id="shopping-item-name"
+						name="name"
+						value={name}
+						onChange={(event) => setName(event.target.value)}
+						placeholder="卵、牛乳など"
+						autoComplete="off"
+					/>
+				</div>
+
+				<div className={styles.details}>
+					<div className={styles.field}>
+						<label
+							className={styles.fieldLabel}
+							htmlFor="shopping-item-quantity"
+						>
+							数量
+						</label>
+
+						<input
+							className={styles.input}
+							id="shopping-item-quantity"
+							name="quantity"
+							type="number"
+							inputMode="decimal"
+							min="0"
+							step="any"
+							value={quantity}
+							onChange={(event) => setQuantity(event.target.value)}
+						/>
+					</div>
+
+					<div className={styles.field}>
+						<label className={styles.fieldLabel} htmlFor="shopping-item-unit">
+							単位
+						</label>
+
+						<input
+							className={styles.input}
+							id="shopping-item-unit"
+							name="unitLabel"
+							value={unitLabel}
+							onChange={(event) => setUnitLabel(event.target.value)}
+							placeholder="個、袋、gなど"
+							autoComplete="off"
+						/>
+					</div>
+				</div>
 
 				<button
 					className={styles.addButton}

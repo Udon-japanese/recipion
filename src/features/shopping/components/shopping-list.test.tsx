@@ -51,14 +51,18 @@ describe("ShoppingList", () => {
 		render(<ShoppingList repository={repository} />);
 
 		await screen.findByText("買うものはまだありません。");
-		await user.type(screen.getByLabelText("買うもの"), "牛乳");
+		await user.type(screen.getByLabelText("買うもの"), "卵");
+		await user.clear(screen.getByLabelText("数量"));
+		await user.type(screen.getByLabelText("数量"), "6");
+		await user.type(screen.getByLabelText("単位"), "個");
 		await user.click(screen.getByRole("button", { name: "追加" }));
 
 		await waitFor(() => {
 			expect(repository.save).toHaveBeenCalledWith(
 				expect.objectContaining({
-					name: "牛乳",
-					quantity: 1,
+					name: "卵",
+					quantity: 6,
+					unitLabel: "個",
 					status: "pending",
 				}),
 			);
@@ -66,11 +70,13 @@ describe("ShoppingList", () => {
 
 		expect(
 			screen.getByRole("checkbox", {
-				name: "牛乳をチェック",
+				name: "卵をチェック",
 			}),
 		).toBeInTheDocument();
 
 		expect(screen.getByLabelText("買うもの")).toHaveValue("");
+		expect(screen.getByLabelText("数量")).toHaveValue(1);
+		expect(screen.getByLabelText("単位")).toHaveValue("");
 	});
 
 	it("買い物項目のチェック状態を切り替える", async () => {
@@ -134,5 +140,23 @@ describe("ShoppingList", () => {
 		expect(await screen.findByRole("alert")).toHaveTextContent(
 			"買い物メモを読み込めませんでした",
 		);
+	});
+
+	it("0以下の数量を追加しない", async () => {
+		const user = userEvent.setup();
+		const repository = createRepository();
+
+		render(<ShoppingList repository={repository} />);
+
+		await screen.findByText("買うものはまだありません。");
+		await user.type(screen.getByLabelText("買うもの"), "牛乳");
+		await user.clear(screen.getByLabelText("数量"));
+		await user.type(screen.getByLabelText("数量"), "0");
+		await user.click(screen.getByRole("button", { name: "追加" }));
+
+		expect(await screen.findByRole("alert")).toHaveTextContent(
+			"数量は0より大きい数にしてください",
+		);
+		expect(repository.save).not.toHaveBeenCalled();
 	});
 });
