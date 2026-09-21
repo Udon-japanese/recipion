@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import { type FormEvent, useEffect, useState } from "react";
 import * as v from "valibot";
+import type { ShoppingRepository } from "../application/shopping-repository";
 import {
 	createShoppingItem,
 	type ShoppingItem,
@@ -17,7 +18,13 @@ function getErrorMessage(error: unknown): string {
 	return "処理に失敗しました。もう一度お試しください";
 }
 
-export function ShoppingList() {
+type ShoppingListProps = {
+	repository?: ShoppingRepository;
+};
+
+export function ShoppingList({
+	repository = dexieShoppingRepository,
+}: ShoppingListProps) {
 	const [items, setItems] = useState<ShoppingItem[]>([]);
 	const [name, setName] = useState("");
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -29,7 +36,7 @@ export function ShoppingList() {
 
 		async function loadItems() {
 			try {
-				const storedItems = await dexieShoppingRepository.list();
+				const storedItems = await repository.list();
 
 				if (isActive) {
 					setItems(storedItems);
@@ -50,7 +57,7 @@ export function ShoppingList() {
 		return () => {
 			isActive = false;
 		};
-	}, []);
+	}, [repository]);
 
 	async function handleSubmit(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault();
@@ -60,7 +67,7 @@ export function ShoppingList() {
 		try {
 			const item = createShoppingItem({ name });
 
-			await dexieShoppingRepository.save(item);
+			await repository.save(item);
 
 			setItems((currentItems) => [...currentItems, item]);
 			setName("");
@@ -77,7 +84,7 @@ export function ShoppingList() {
 		try {
 			const updatedItem = toggleShoppingItem(item);
 
-			await dexieShoppingRepository.save(updatedItem);
+			await repository.save(updatedItem);
 
 			setItems((currentItems) =>
 				currentItems.map((currentItem) =>
@@ -93,7 +100,7 @@ export function ShoppingList() {
 		setErrorMessage(null);
 
 		try {
-			await dexieShoppingRepository.remove(id);
+			await repository.remove(id);
 
 			setItems((currentItems) => currentItems.filter((item) => item.id !== id));
 		} catch (error) {
