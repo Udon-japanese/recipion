@@ -1,8 +1,12 @@
 import Dexie, { type Table } from "dexie";
 import type { ShoppingItem } from "../features/shopping/domain/shopping-item";
 
-type MigratingShoppingItem = Omit<ShoppingItem, "categoryId"> & {
+type MigratingShoppingItem = Omit<
+	ShoppingItem,
+	"categoryId" | "categoryAssignment"
+> & {
 	categoryId?: ShoppingItem["categoryId"];
+	categoryAssignment?: ShoppingItem["categoryAssignment"];
 };
 
 export class LocalDatabase extends Dexie {
@@ -48,6 +52,21 @@ export class LocalDatabase extends Dexie {
 
 				await shoppingItems.toCollection().modify((item) => {
 					item.categoryId ??= null;
+				});
+			});
+
+		this.version(4)
+			.stores({
+				shoppingItems:
+					"id, status, categoryId, categoryAssignment, sortOrder, createdAt, updatedAt",
+			})
+			.upgrade(async (transaction) => {
+				const shoppingItems = transaction.table<MigratingShoppingItem, string>(
+					"shoppingItems",
+				);
+
+				await shoppingItems.toCollection().modify((item) => {
+					item.categoryAssignment = item.categoryId == null ? null : "manual";
 				});
 			});
 	}

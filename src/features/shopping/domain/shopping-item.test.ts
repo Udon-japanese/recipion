@@ -23,6 +23,7 @@ describe("createShoppingItem", () => {
 			quantity: 1,
 			unitLabel: "個",
 			categoryId: null,
+			categoryAssignment: null,
 			status: "pending",
 			sortOrder: 0,
 			createdAt: "2026-09-20T12:00:00.000Z",
@@ -37,6 +38,7 @@ describe("createShoppingItem", () => {
 		});
 
 		expect(item.categoryId).toBe("eggs");
+		expect(item.categoryAssignment).toBe("manual");
 	});
 
 	it("存在しない商品カテゴリを拒否する", () => {

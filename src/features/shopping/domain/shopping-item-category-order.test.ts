@@ -81,41 +81,6 @@ describe("sortShoppingItemsByCategory", () => {
 		).toEqual(["卵", "玉ねぎ"]);
 	});
 
-	it("未分類の既存項目を商品名から分類して並べる", () => {
-		const items = [
-			createShoppingItem(
-				{ name: "卵" },
-				new Date("2026-09-21T10:00:00.000Z"),
-				0,
-			),
-			createShoppingItem(
-				{ name: "牛乳" },
-				new Date("2026-09-21T10:01:00.000Z"),
-				1,
-			),
-			createShoppingItem(
-				{ name: "たまご" },
-				new Date("2026-09-21T10:02:00.000Z"),
-				2,
-			),
-		];
-
-		const sortedItems = sortShoppingItemsByCategory(items, {
-			now: new Date("2026-09-21T11:00:00.000Z"),
-		});
-
-		expect(
-			sortedItems.map((item) => ({
-				name: item.name,
-				categoryId: item.categoryId,
-			})),
-		).toEqual([
-			{ name: "牛乳", categoryId: "dairy" },
-			{ name: "卵", categoryId: "eggs" },
-			{ name: "たまご", categoryId: "eggs" },
-		]);
-	});
-
 	it("売り場順を逆回りにできる", () => {
 		const items = [
 			createShoppingItem(

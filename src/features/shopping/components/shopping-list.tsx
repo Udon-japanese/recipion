@@ -13,6 +13,7 @@ import {
 	toggleShoppingItem,
 	updateShoppingItem,
 } from "../domain/shopping-item";
+import { categorizeUnassignedShoppingItems } from "../domain/shopping-item-categorization";
 import {
 	type ShoppingAisleDirection,
 	sortShoppingItemsByCategory,
@@ -73,9 +74,23 @@ export function ShoppingList({
 		async function loadItems() {
 			try {
 				const storedItems = await repository.list();
+				const categorizedItems = categorizeUnassignedShoppingItems(storedItems);
+				const categoryChanged = categorizedItems.some(
+					(item, index) => item !== storedItems[index],
+				);
 
 				if (isActive) {
-					setItems(storedItems);
+					setItems(categorizedItems);
+				}
+
+				if (categoryChanged) {
+					try {
+						await repository.saveAll(categorizedItems);
+					} catch {
+						if (isActive) {
+							setErrorMessage("買い物メモの商品カテゴリを保存できませんでした");
+						}
+					}
 				}
 			} catch {
 				if (isActive) {
@@ -114,6 +129,11 @@ export function ShoppingList({
 					quantity: Number(quantity),
 					unitLabel,
 					categoryId: categoryId || null,
+					categoryAssignment: isCategoryManuallySelected
+						? "manual"
+						: categoryId
+							? "automatic"
+							: null,
 				},
 				new Date(),
 				nextSortOrder,
@@ -159,7 +179,7 @@ export function ShoppingList({
 		setEditQuantity(String(item.quantity));
 		setEditUnitLabel(item.unitLabel ?? "");
 		setEditCategoryId(item.categoryId ?? "");
-		setIsEditCategoryManuallySelected(item.categoryId !== null);
+		setIsEditCategoryManuallySelected(item.categoryAssignment === "manual");
 	}
 
 	function handleCancelEditing() {
@@ -185,6 +205,11 @@ export function ShoppingList({
 				quantity: Number(editQuantity),
 				unitLabel: editUnitLabel,
 				categoryId: editCategoryId || null,
+				categoryAssignment: isEditCategoryManuallySelected
+					? "manual"
+					: editCategoryId
+						? "automatic"
+						: null,
 			});
 
 			await repository.save(updatedItem);

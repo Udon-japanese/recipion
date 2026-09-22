@@ -9,6 +9,8 @@ const shoppingCategoryIdSchema = v.custom<ShoppingCategoryId>(
 	"商品カテゴリを確認してください",
 );
 
+export type ShoppingCategoryAssignment = "automatic" | "manual" | null;
+
 export type ShoppingItemStatus = "pending" | "checked";
 
 export type ShoppingItem = {
@@ -17,11 +19,14 @@ export type ShoppingItem = {
 	quantity: number;
 	unitLabel: string | null;
 	categoryId: ShoppingCategoryId | null;
+	categoryAssignment: ShoppingCategoryAssignment;
 	status: ShoppingItemStatus;
 	sortOrder: number;
 	createdAt: string;
 	updatedAt: string;
 };
+
+const shoppingCategoryAssignmentSchema = v.picklist(["automatic", "manual"]);
 
 export const createShoppingItemInputSchema = v.object({
 	name: v.pipe(
@@ -38,6 +43,7 @@ export const createShoppingItemInputSchema = v.object({
 	),
 	unitLabel: v.optional(v.nullable(v.pipe(v.string(), v.trim()))),
 	categoryId: v.optional(v.nullable(shoppingCategoryIdSchema)),
+	categoryAssignment: v.optional(v.nullable(shoppingCategoryAssignmentSchema)),
 });
 
 export type CreateShoppingItemInput = v.InferInput<
@@ -57,6 +63,7 @@ export const updateShoppingItemInputSchema = v.object({
 	),
 	unitLabel: v.nullable(v.pipe(v.string(), v.trim())),
 	categoryId: v.optional(v.nullable(shoppingCategoryIdSchema)),
+	categoryAssignment: v.optional(v.nullable(shoppingCategoryAssignmentSchema)),
 });
 
 export type UpdateShoppingItemInput = v.InferInput<
@@ -77,6 +84,12 @@ export function createShoppingItem(
 		quantity: parsedInput.quantity ?? 1,
 		unitLabel: parsedInput.unitLabel || null,
 		categoryId: parsedInput.categoryId ?? null,
+		categoryAssignment:
+			parsedInput.categoryAssignment !== undefined
+				? parsedInput.categoryAssignment
+				: parsedInput.categoryId
+					? "manual"
+					: null,
 		status: "pending",
 		sortOrder,
 		createdAt: timestamp,
@@ -90,16 +103,25 @@ export function updateShoppingItem(
 	now = new Date(),
 ): ShoppingItem {
 	const parsedInput = v.parse(updateShoppingItemInputSchema, input);
+	const categoryId =
+		parsedInput.categoryId === undefined
+			? item.categoryId
+			: parsedInput.categoryId;
+
+	const categoryAssignment =
+		parsedInput.categoryAssignment !== undefined
+			? parsedInput.categoryAssignment
+			: parsedInput.categoryId === undefined
+				? item.categoryAssignment
+				: "manual";
 
 	return {
 		...item,
 		name: parsedInput.name,
 		quantity: parsedInput.quantity,
 		unitLabel: parsedInput.unitLabel || null,
-		categoryId:
-			parsedInput.categoryId === undefined
-				? item.categoryId
-				: parsedInput.categoryId,
+		categoryId,
+		categoryAssignment,
 		updatedAt: now.toISOString(),
 	};
 }

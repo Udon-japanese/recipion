@@ -53,17 +53,20 @@ describe("LocalDatabase", () => {
 			items.map((item) => ({
 				id: item.id,
 				categoryId: item.categoryId,
+				categoryAssignment: item.categoryAssignment,
 				sortOrder: item.sortOrder,
 			})),
 		).toEqual([
 			{
 				id: "older",
 				categoryId: null,
+				categoryAssignment: null,
 				sortOrder: 0,
 			},
 			{
 				id: "newer",
 				categoryId: null,
+				categoryAssignment: null,
 				sortOrder: 1,
 			},
 		]);

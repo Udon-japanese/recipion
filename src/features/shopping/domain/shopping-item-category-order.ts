@@ -3,7 +3,6 @@ import {
 	shoppingCategories,
 } from "./shopping-category";
 import type { ShoppingItem } from "./shopping-item";
-import { inferShoppingCategory } from "./shopping-item-suggestion";
 
 export type ShoppingAisleDirection = "forward" | "reverse";
 
@@ -25,26 +24,7 @@ export function sortShoppingItemsByCategory(
 	);
 	const originalIndexes = new Map(items.map((item, index) => [item.id, index]));
 
-	const categorizedItems = items.map((item) => {
-		if (item.categoryId !== null) {
-			return item;
-		}
-
-		const inferredCategoryId = inferShoppingCategory(item.name);
-
-		if (inferredCategoryId === null) {
-			return item;
-		}
-
-		return {
-			...item,
-			categoryId: inferredCategoryId,
-		};
-	});
-
-	const originalItemsById = new Map(items.map((item) => [item.id, item]));
-
-	const sortedItems = [...categorizedItems].sort((left, right) => {
+	const sortedItems = [...items].sort((left, right) => {
 		const leftRank =
 			left.categoryId === null
 				? categoryOrder.length
@@ -72,11 +52,7 @@ export function sortShoppingItemsByCategory(
 	}
 
 	return sortedItems.map((item, index) => {
-		const originalItem = originalItemsById.get(item.id);
-		const categoryChanged = originalItem?.categoryId !== item.categoryId;
-		const orderChanged = item.sortOrder !== index;
-
-		if (!categoryChanged && !orderChanged) {
+		if (item.sortOrder === index) {
 			return item;
 		}
 

@@ -10,7 +10,8 @@ const storedItem: ShoppingItem = {
 	name: "卵",
 	quantity: 6,
 	unitLabel: "個",
-	categoryId: "eggs",
+	categoryId: null,
+	categoryAssignment: "manual",
 	status: "pending",
 	sortOrder: 0,
 	createdAt: "2026-09-21T10:00:00.000Z",
@@ -384,5 +385,58 @@ describe("ShoppingList", () => {
 				.getAllByRole("checkbox")
 				.map((checkbox) => checkbox.getAttribute("aria-label")),
 		).toEqual(["卵をチェック", "玉ねぎをチェック"]);
+	});
+
+	it("未判定の既存項目を読み込み時に分類して保存する", async () => {
+		const repository = createRepository({
+			list: vi.fn().mockResolvedValue([
+				{
+					...storedItem,
+					name: "卵",
+					categoryId: null,
+					categoryAssignment: null,
+				},
+			]),
+		});
+
+		render(<ShoppingList repository={repository} />);
+
+		expect(
+			await screen.findByRole("checkbox", {
+				name: "卵をチェック",
+			}),
+		).toBeInTheDocument();
+
+		await waitFor(() => {
+			expect(repository.saveAll).toHaveBeenCalledWith([
+				expect.objectContaining({
+					categoryId: "eggs",
+					categoryAssignment: "automatic",
+				}),
+			]);
+		});
+	});
+
+	it("手動で未設定にしたカテゴリを自動分類しない", async () => {
+		const repository = createRepository({
+			list: vi.fn().mockResolvedValue([
+				{
+					...storedItem,
+					name: "卵",
+					categoryId: null,
+					categoryAssignment: "manual",
+				},
+			]),
+		});
+
+		render(<ShoppingList repository={repository} />);
+
+		expect(
+			await screen.findByRole("checkbox", {
+				name: "卵をチェック",
+			}),
+		).toBeInTheDocument();
+
+		expect(repository.saveAll).not.toHaveBeenCalled();
 	});
 });
