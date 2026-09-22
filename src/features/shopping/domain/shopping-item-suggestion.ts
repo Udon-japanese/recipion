@@ -2,6 +2,7 @@ import {
 	eggIngredientPreset,
 	milkIngredientPreset,
 } from "#/features/ingredients/domain/ingredient-preset";
+import { normalizeIngredientName } from "#/features/ingredients/domain/normalize-ingredient-name";
 import type { ShoppingCategoryId } from "./shopping-category";
 
 export type ShoppingItemPreset = {
@@ -36,7 +37,12 @@ const shoppingItemSuggestions = [
 ] satisfies readonly ShoppingItemSuggestion[];
 
 function normalizeItemName(itemName: string): string {
-	return itemName.trim().normalize("NFKC");
+	// バリデーションエラーを回避
+	if (itemName.trim().length === 0) {
+		return "";
+	}
+
+	return normalizeIngredientName(itemName);
 }
 
 function findShoppingItemSuggestion(

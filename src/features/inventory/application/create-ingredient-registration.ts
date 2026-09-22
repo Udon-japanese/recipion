@@ -21,6 +21,7 @@ const inputSchema = v.object({
 		v.trim(),
 		v.minLength(1, "表示単位を入力してください"),
 	),
+	trackingMode: v.optional(v.picklist(["exact", "estimated"]), "estimated"),
 });
 
 export type CreateIngredientRegistrationInput = v.InferInput<
@@ -38,6 +39,7 @@ export type IngredientRegistration = {
 	stockUnitCode: InventoryUnitCode;
 	stockUnitLabel: string;
 	aliases: IngredientAliasRegistration[];
+	defaultTrackingMode: "exact" | "estimated";
 };
 
 function createFromPreset(preset: IngredientPreset): IngredientRegistration {
@@ -65,6 +67,7 @@ function createFromPreset(preset: IngredientPreset): IngredientRegistration {
 		stockUnitCode: preset.stockUnitCode as InventoryUnitCode,
 		stockUnitLabel: preset.stockUnitLabel,
 		aliases: [...aliasesByNormalizedName.values()],
+		defaultTrackingMode: preset.defaultTrackingMode,
 	};
 }
 
@@ -91,5 +94,6 @@ export function createIngredientRegistration(
 				isPrimary: true,
 			},
 		],
+		defaultTrackingMode: parsedInput.trackingMode,
 	};
 }

@@ -35,6 +35,7 @@ describe("createIngredientRegistration", () => {
 					isPrimary: false,
 				},
 			],
+			defaultTrackingMode: "exact",
 		});
 	});
 
@@ -56,6 +57,7 @@ describe("createIngredientRegistration", () => {
 			"ミルク",
 			"milk",
 		]);
+		expect(registration.defaultTrackingMode).toBe("estimated");
 	});
 
 	it("未知の食材は入力名を主別名として登録する", () => {
@@ -76,6 +78,18 @@ describe("createIngredientRegistration", () => {
 					isPrimary: true,
 				},
 			],
+			defaultTrackingMode: "estimated",
 		});
+	});
+
+	it("未知の食材では指定された管理方式を使う", () => {
+		const registration = createIngredientRegistration({
+			ingredientName: "ヨーグルト",
+			stockUnitCode: "g",
+			stockUnitLabel: "g",
+			trackingMode: "exact",
+		});
+
+		expect(registration.defaultTrackingMode).toBe("exact");
 	});
 });

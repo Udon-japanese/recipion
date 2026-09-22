@@ -6,6 +6,7 @@ export type IngredientPreset = {
 	aliases: readonly string[];
 	stockUnitCode: string;
 	stockUnitLabel: string;
+	defaultTrackingMode: "exact" | "estimated";
 };
 
 export const eggIngredientPreset = {
@@ -14,6 +15,7 @@ export const eggIngredientPreset = {
 	aliases: ["卵", "たまご", "タマゴ", "玉子"],
 	stockUnitCode: "count",
 	stockUnitLabel: "個",
+	defaultTrackingMode: "exact",
 } as const satisfies IngredientPreset;
 
 export const milkIngredientPreset = {
@@ -22,6 +24,7 @@ export const milkIngredientPreset = {
 	aliases: ["牛乳", "ぎゅうにゅう", "ギュウニュウ", "ミルク", "MILK", "milk"],
 	stockUnitCode: "ml",
 	stockUnitLabel: "ml",
+	defaultTrackingMode: "estimated",
 } as const satisfies IngredientPreset;
 
 export const ingredientPresets = [
