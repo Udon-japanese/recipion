@@ -212,6 +212,7 @@ export const checkedItem = style({
 });
 
 export const checkbox = style({
+	appearance: "auto",
 	width: 22,
 	height: 22,
 	margin: 0,
@@ -260,7 +261,7 @@ export const deleteButton = style({
 
 export const itemActions = style({
 	display: "grid",
-	gridTemplateColumns: "repeat(2, 44px)",
+	gridTemplateColumns: "repeat(2, minmax(56px, auto))",
 	gap: 4,
 });
 

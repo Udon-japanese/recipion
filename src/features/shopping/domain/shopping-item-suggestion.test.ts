@@ -1,69 +1,71 @@
 import { describe, expect, it } from "vitest";
+
+import { normalizeIngredientName } from "#/features/ingredients/domain/normalize-ingredient-name";
+
 import {
 	getShoppingItemPresets,
 	inferShoppingCategory,
+	shoppingItemSuggestions,
 } from "./shopping-item-suggestion";
 
-describe("getShoppingItemPresets", () => {
-	it.each([
-		"卵",
-		"たまご",
-		"タマゴ",
-		"玉子",
-	])("%sには6個と10個の候補を返す", (itemName) => {
-		expect(getShoppingItemPresets(itemName)).toEqual([
-			{ quantity: 6, unitLabel: "個" },
-			{ quantity: 10, unitLabel: "個" },
-		]);
+describe.each(
+	shoppingItemSuggestions,
+)("買い物候補: $categoryId", (suggestion) => {
+	it.each(suggestion.aliases)("%sから同じ数量候補を取得できる", (alias) => {
+		expect(getShoppingItemPresets(alias)).toEqual(suggestion.presets);
 	});
 
-	it("英字の大文字小文字に関係なく牛乳の候補を返す", () => {
-		expect(getShoppingItemPresets("mILK")).toEqual([
-			{ quantity: 1, unitLabel: "本" },
-			{ quantity: 1, unitLabel: "L" },
-			{ quantity: 200, unitLabel: "ml" },
-		]);
+	it.each(suggestion.aliases)("%sを設定されたカテゴリに分類する", (alias) => {
+		expect(inferShoppingCategory(alias)).toBe(suggestion.categoryId);
 	});
 
-	it("未知の商品には候補を返さない", () => {
-		expect(getShoppingItemPresets("謎の商品")).toEqual([]);
+	it("正規化後の別名が重複していない", () => {
+		const normalizedAliases = suggestion.aliases.map(normalizeIngredientName);
+
+		expect(new Set(normalizedAliases).size).toBe(normalizedAliases.length);
+	});
+
+	it("すべての数量候補が有効な値を持つ", () => {
+		for (const preset of suggestion.presets) {
+			expect(preset.label.length).toBeGreaterThan(0);
+			expect(preset.quantity).toBeGreaterThan(0);
+			expect(preset.unitLabel.length).toBeGreaterThan(0);
+			expect(preset.inventoryConversion.inputUnitCode.length).toBeGreaterThan(
+				0,
+			);
+			expect(
+				preset.inventoryConversion.stockQuantityPerInputUnit,
+			).toBeGreaterThan(0);
+		}
 	});
 });
 
-describe("inferShoppingCategory", () => {
+describe("買い物候補の正規化", () => {
 	it.each([
-		"卵",
-		"たまご",
-		"タマゴ",
-		"玉子",
-	])("%sを卵カテゴリに分類する", (itemName) => {
-		expect(inferShoppingCategory(itemName)).toBe("eggs");
-	});
-
-	it.each([
-		"牛乳",
-		"ぎゅうにゅう",
-		"ミルク",
-		"ギュウニュウ",
 		"milk",
 		"Milk",
 		"MILK",
 		"mILK",
-		"MilK",
 		"ＭｉＬＫ",
-	])("%sを乳製品カテゴリに分類する", (itemName) => {
-		expect(inferShoppingCategory(itemName)).toBe("dairy");
+	])("英字の大文字小文字に関係なく%sを牛乳として扱う", (name) => {
+		expect(inferShoppingCategory(name)).toBe("dairy");
 	});
 
 	it("Unicode表現と前後の空白を正規化する", () => {
 		expect(inferShoppingCategory("  タマゴ  ")).toBe("eggs");
 	});
+});
 
-	it("未知の商品は分類しない", () => {
+describe("未登録の商品", () => {
+	it("数量候補を返さない", () => {
+		expect(getShoppingItemPresets("謎の商品")).toEqual([]);
+	});
+
+	it("カテゴリを推測しない", () => {
 		expect(inferShoppingCategory("謎の商品")).toBeNull();
 	});
 
-	it("空の商品名は分類しない", () => {
+	it("空の商品名を分類しない", () => {
 		expect(inferShoppingCategory("　 ")).toBeNull();
 	});
 });

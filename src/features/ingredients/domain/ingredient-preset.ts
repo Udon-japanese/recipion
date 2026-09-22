@@ -21,15 +21,25 @@ export const eggIngredientPreset = {
 export const milkIngredientPreset = {
 	id: "milk",
 	name: "牛乳",
-	aliases: ["牛乳", "ぎゅうにゅう", "ギュウニュウ", "ミルク", "MILK", "milk"],
+	aliases: ["牛乳", "ぎゅうにゅう", "ギュウニュウ", "ミルク", "milk"],
 	stockUnitCode: "ml",
 	stockUnitLabel: "ml",
+	defaultTrackingMode: "estimated",
+} as const satisfies IngredientPreset;
+
+export const hotcakeMixIngredientPreset = {
+	id: "hotcake-mix",
+	name: "ホットケーキミックス",
+	aliases: ["ホットケーキミックス", "ホケミ", "HM"],
+	stockUnitCode: "g",
+	stockUnitLabel: "g",
 	defaultTrackingMode: "estimated",
 } as const satisfies IngredientPreset;
 
 export const ingredientPresets = [
 	eggIngredientPreset,
 	milkIngredientPreset,
+	hotcakeMixIngredientPreset,
 ] as const satisfies readonly IngredientPreset[];
 
 export function findIngredientPreset(
