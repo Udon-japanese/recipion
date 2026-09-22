@@ -11,7 +11,7 @@ const shoppingCategoryIdSchema = v.custom<ShoppingCategoryId>(
 
 export type ShoppingCategoryAssignment = "automatic" | "manual" | null;
 
-export type ShoppingItemStatus = "pending" | "checked";
+export type ShoppingItemStatus = "pending" | "checked" | "purchased";
 
 export type ShoppingItem = {
 	id: string;
@@ -130,9 +130,32 @@ export function toggleShoppingItem(
 	item: ShoppingItem,
 	now = new Date(),
 ): ShoppingItem {
+	if (item.status === "purchased") {
+		return item;
+	}
+
 	return {
 		...item,
 		status: item.status === "pending" ? "checked" : "pending",
+		updatedAt: now.toISOString(),
+	};
+}
+
+export function markShoppingItemAsPurchased(
+	item: ShoppingItem,
+	now = new Date(),
+): ShoppingItem {
+	if (item.status === "pending") {
+		throw new Error("チェック済みの商品だけ購入確定できます");
+	}
+
+	if (item.status === "purchased") {
+		return item;
+	}
+
+	return {
+		...item,
+		status: "purchased",
 		updatedAt: now.toISOString(),
 	};
 }

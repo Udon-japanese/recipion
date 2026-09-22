@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	createShoppingItem,
+	markShoppingItemAsPurchased,
 	toggleShoppingItem,
 	updateShoppingItem,
 } from "./shopping-item";
@@ -146,5 +147,43 @@ describe("toggleShoppingItem", () => {
 		const item = toggleShoppingItem(createShoppingItem({ name: "牛乳" }));
 
 		expect(toggleShoppingItem(item).status).toBe("pending");
+	});
+});
+
+describe("markShoppingItemAsPurchased", () => {
+	it("チェック済み商品を購入済みにする", () => {
+		const item = toggleShoppingItem(createShoppingItem({ name: "卵" }));
+
+		const purchased = markShoppingItemAsPurchased(
+			item,
+			new Date("2026-09-22T14:00:00.000Z"),
+		);
+
+		expect(purchased.status).toBe("purchased");
+		expect(purchased.updatedAt).toBe("2026-09-22T14:00:00.000Z");
+	});
+
+	it("未チェックの商品は購入確定できない", () => {
+		const item = createShoppingItem({
+			name: "卵",
+		});
+
+		expect(() => markShoppingItemAsPurchased(item)).toThrow(
+			"チェック済みの商品だけ購入確定できます",
+		);
+	});
+
+	it("購入済み商品を再度処理しても変更しない", () => {
+		const checked = toggleShoppingItem(createShoppingItem({ name: "卵" }));
+		const purchased = markShoppingItemAsPurchased(checked);
+
+		expect(markShoppingItemAsPurchased(purchased)).toBe(purchased);
+	});
+
+	it("購入済み商品はチェック操作で戻らない", () => {
+		const checked = toggleShoppingItem(createShoppingItem({ name: "卵" }));
+		const purchased = markShoppingItemAsPurchased(checked);
+
+		expect(toggleShoppingItem(purchased)).toBe(purchased);
 	});
 });
