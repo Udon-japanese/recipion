@@ -1,8 +1,17 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
+import * as v from "valibot";
 
 import type { DB } from "#/db/client";
-import { ingredient } from "#/features/ingredients/infrastructure/ingredient.sql";
+import {
+	ingredient,
+	ingredientAlias,
+} from "#/features/ingredients/infrastructure/ingredient.sql";
 
+import { createIngredientRegistration } from "../application/create-ingredient-registration";
+import type {
+	InventoryItemResolver,
+	ResolveOrCreateInventoryItemCommand,
+} from "../application/inventory-item-resolver";
 import type {
 	InventoryAdjustmentCommand,
 	InventoryRepository,
@@ -11,6 +20,10 @@ import {
 	applyInventoryAdjustment,
 	type InventoryTrackingMode,
 } from "../domain/apply-inventory-adjustment";
+import {
+	type InventoryUnitCode,
+	inventoryUnitCodeSchema,
+} from "../domain/inventory-unit";
 import { inventoryItem, inventoryTransaction } from "./inventory.sql";
 
 function parseTrackingMode(value: string): InventoryTrackingMode {
@@ -21,6 +34,10 @@ function parseTrackingMode(value: string): InventoryTrackingMode {
 	throw new Error(`未対応の在庫管理方式です: ${value}`);
 }
 
+function parseInventoryUnitCode(value: string): InventoryUnitCode {
+	return v.parse(inventoryUnitCodeSchema, value);
+}
+
 function toNumeric(value: number): string {
 	return value.toFixed(6);
 }
@@ -28,12 +45,193 @@ function toNumeric(value: number): string {
 export function createDrizzleInventoryRepository(
 	db: DB,
 	userId: string,
-): InventoryRepository {
+): InventoryRepository & InventoryItemResolver {
 	if (userId.trim().length === 0) {
 		throw new Error("ユーザーIDを指定してください");
 	}
 
 	return {
+		async resolveOrCreateInventoryItem(
+			command: ResolveOrCreateInventoryItemCommand,
+		) {
+			const registration = createIngredientRegistration(command);
+
+			const primaryAlias = registration.aliases.find(
+				(alias) => alias.isPrimary,
+			);
+
+			if (!primaryAlias) {
+				throw new Error("食材の主別名がありません");
+			}
+
+			return db.transaction(async (transaction) => {
+				/*
+				 * 同じユーザー・同じ標準食材を同時に作成する処理を
+				 * PostgreSQL内で直列化する。
+				 */
+				const lockKey = `${userId}:${primaryAlias.normalizedName}`;
+
+				await transaction.execute(
+					sql`select pg_advisory_xact_lock(hashtext(${lockKey}))`,
+				);
+
+				const matchingAliases = await transaction
+					.select({
+						ingredientId: ingredientAlias.ingredientId,
+					})
+					.from(ingredientAlias)
+					.where(
+						and(
+							eq(ingredientAlias.userId, userId),
+							inArray(
+								ingredientAlias.normalizedName,
+								registration.aliases.map((alias) => alias.normalizedName),
+							),
+						),
+					);
+
+				const matchingIngredientIds = [
+					...new Set(matchingAliases.map((alias) => alias.ingredientId)),
+				];
+
+				if (matchingIngredientIds.length > 1) {
+					throw new Error("食材の別名が複数の食材に登録されています");
+				}
+
+				let storedIngredient:
+					| {
+							id: string;
+							name: string;
+							stockUnitCode: string;
+							stockUnitLabel: string;
+					  }
+					| undefined;
+
+				const existingIngredientId = matchingIngredientIds[0];
+
+				if (existingIngredientId) {
+					[storedIngredient] = await transaction
+						.select({
+							id: ingredient.id,
+							name: ingredient.name,
+							stockUnitCode: ingredient.stockUnitCode,
+							stockUnitLabel: ingredient.stockUnitLabel,
+						})
+						.from(ingredient)
+						.where(
+							and(
+								eq(ingredient.id, existingIngredientId),
+								eq(ingredient.userId, userId),
+							),
+						)
+						.limit(1);
+
+					if (storedIngredient) {
+						await transaction
+							.update(ingredient)
+							.set({
+								archivedAt: null,
+							})
+							.where(
+								and(
+									eq(ingredient.id, storedIngredient.id),
+									eq(ingredient.userId, userId),
+								),
+							);
+					}
+				} else {
+					[storedIngredient] = await transaction
+						.insert(ingredient)
+						.values({
+							userId,
+							name: registration.name,
+							stockUnitCode: registration.stockUnitCode,
+							stockUnitLabel: registration.stockUnitLabel,
+						})
+						.returning({
+							id: ingredient.id,
+							name: ingredient.name,
+							stockUnitCode: ingredient.stockUnitCode,
+							stockUnitLabel: ingredient.stockUnitLabel,
+						});
+
+					if (!storedIngredient) {
+						throw new Error("食材を作成できませんでした");
+					}
+
+					const createdIngredientId = storedIngredient.id;
+
+					await transaction.insert(ingredientAlias).values(
+						registration.aliases.map((alias) => ({
+							userId,
+							ingredientId: createdIngredientId,
+							name: alias.name,
+							normalizedName: alias.normalizedName,
+							isPrimary: alias.isPrimary,
+						})),
+					);
+				}
+
+				if (!storedIngredient) {
+					throw new Error("食材が見つかりません");
+				}
+
+				const [existingInventoryItem] = await transaction
+					.select({
+						id: inventoryItem.id,
+						trackingMode: inventoryItem.trackingMode,
+					})
+					.from(inventoryItem)
+					.where(
+						and(
+							eq(inventoryItem.userId, userId),
+							eq(inventoryItem.ingredientId, storedIngredient.id),
+						),
+					)
+					.limit(1);
+
+				let resolvedInventoryItem = existingInventoryItem;
+
+				if (existingInventoryItem) {
+					await transaction
+						.update(inventoryItem)
+						.set({
+							archivedAt: null,
+						})
+						.where(
+							and(
+								eq(inventoryItem.id, existingInventoryItem.id),
+								eq(inventoryItem.userId, userId),
+							),
+						);
+				} else {
+					[resolvedInventoryItem] = await transaction
+						.insert(inventoryItem)
+						.values({
+							userId,
+							ingredientId: storedIngredient.id,
+							trackingMode: registration.defaultTrackingMode,
+						})
+						.returning({
+							id: inventoryItem.id,
+							trackingMode: inventoryItem.trackingMode,
+						});
+				}
+
+				if (!resolvedInventoryItem) {
+					throw new Error("在庫項目を作成できませんでした");
+				}
+
+				return {
+					ingredientId: storedIngredient.id,
+					inventoryItemId: resolvedInventoryItem.id,
+					name: storedIngredient.name,
+					stockUnitCode: parseInventoryUnitCode(storedIngredient.stockUnitCode),
+					stockUnitLabel: storedIngredient.stockUnitLabel,
+					trackingMode: parseTrackingMode(resolvedInventoryItem.trackingMode),
+				};
+			});
+		},
 		async applyAdjustment(command: InventoryAdjustmentCommand) {
 			return db.transaction(async (transaction) => {
 				const [existingTransaction] = await transaction
