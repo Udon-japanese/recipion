@@ -1,6 +1,6 @@
 import * as v from "valibot";
 
-export const inventoryUnitCodes = ["piece", "g", "ml"] as const;
+export const inventoryUnitCodes = ["count", "g", "ml"] as const;
 
 export const inventoryUnitCodeSchema = v.picklist(
 	inventoryUnitCodes,

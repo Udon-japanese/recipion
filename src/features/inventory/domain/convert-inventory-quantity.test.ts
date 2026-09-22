@@ -7,12 +7,12 @@ describe("convertInventoryQuantity", () => {
 			convertInventoryQuantity({
 				inputQuantity: 1,
 				inputUnitCode: "pack",
-				stockUnitCode: "piece",
+				stockUnitCode: "count",
 				stockQuantityPerInputUnit: 6,
 			}),
 		).toEqual({
 			quantity: 6,
-			unitCode: "piece",
+			unitCode: "count",
 		});
 	});
 
@@ -71,7 +71,7 @@ describe("convertInventoryQuantity", () => {
 			convertInventoryQuantity({
 				inputQuantity,
 				inputUnitCode: "pack",
-				stockUnitCode: "piece",
+				stockUnitCode: "count",
 				stockQuantityPerInputUnit,
 			}),
 		).toThrow();

@@ -7,7 +7,7 @@ describe("resolveIngredient", () => {
 		const ingredient = {
 			id: crypto.randomUUID(),
 			name: "卵",
-			stockUnitCode: "piece",
+			stockUnitCode: "count",
 		};
 
 		const repository: IngredientRepository = {
