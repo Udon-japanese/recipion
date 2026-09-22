@@ -1,4 +1,5 @@
 import Dexie, { type Table } from "dexie";
+import type { InventoryPurchaseOutboxEntry } from "../features/inventory/infrastructure/inventory-purchase-outbox";
 import type { ShoppingItem } from "../features/shopping/domain/shopping-item";
 
 type MigratingShoppingItem = Omit<
@@ -11,6 +12,7 @@ type MigratingShoppingItem = Omit<
 
 export class LocalDatabase extends Dexie {
 	shoppingItems!: Table<ShoppingItem, string>;
+	inventoryPurchaseOutbox!: Table<InventoryPurchaseOutboxEntry, string>;
 
 	constructor(databaseName = "app-local") {
 		super(databaseName);
@@ -86,6 +88,12 @@ export class LocalDatabase extends Dexie {
 					}
 				});
 			});
+
+		this.version(6).stores({
+			shoppingItems:
+				"id, status, categoryId, categoryAssignment, sortOrder, createdAt, updatedAt",
+			inventoryPurchaseOutbox: "id, ownerScope, status, createdAt, updatedAt",
+		});
 	}
 }
 
