@@ -5,7 +5,7 @@ type MigratingShoppingItem = Omit<
 	ShoppingItem,
 	"categoryId" | "categoryAssignment"
 > & {
-	categoryId?: ShoppingItem["categoryId"];
+	categoryId?: ShoppingItem["categoryId"] | "tofu-noodles";
 	categoryAssignment?: ShoppingItem["categoryAssignment"];
 };
 
@@ -67,6 +67,23 @@ export class LocalDatabase extends Dexie {
 
 				await shoppingItems.toCollection().modify((item) => {
 					item.categoryAssignment = item.categoryId == null ? null : "manual";
+				});
+			});
+
+		this.version(5)
+			.stores({
+				shoppingItems:
+					"id, status, categoryId, categoryAssignment, sortOrder, createdAt, updatedAt",
+			})
+			.upgrade(async (transaction) => {
+				const shoppingItems = transaction.table<MigratingShoppingItem, string>(
+					"shoppingItems",
+				);
+
+				await shoppingItems.toCollection().modify((item) => {
+					if (item.categoryId === "tofu-noodles") {
+						item.categoryId = "chilled";
+					}
 				});
 			});
 	}

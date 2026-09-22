@@ -6,6 +6,25 @@ import {
 } from "./shopping-category";
 
 describe("shoppingCategories", () => {
+	it("標準の売り場順を維持する", () => {
+		expect(shoppingCategories.map((category) => category.id)).toEqual([
+			"produce",
+			"chilled",
+			"household",
+			"meat",
+			"seafood",
+			"dairy",
+			"eggs",
+			"pantry",
+			"frozen",
+			"snacks",
+			"staples",
+			"beverages",
+			"deli",
+			"bakery",
+			"other",
+		]);
+	});
 	it("カテゴリIDが重複していない", () => {
 		const categoryIds = shoppingCategories.map((category) => category.id);
 
