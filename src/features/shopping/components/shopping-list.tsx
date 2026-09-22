@@ -11,6 +11,7 @@ import {
 } from "../domain/shopping-category";
 import {
 	createShoppingItem,
+	preserveShoppingItemInventoryConversion,
 	type ShoppingItem,
 	type ShoppingItemInventoryConversion,
 	toggleShoppingItem,
@@ -29,6 +30,7 @@ import {
 import {
 	getShoppingItemPresets,
 	inferShoppingCategory,
+	isShoppingItemPresetSelected,
 } from "../domain/shopping-item-suggestion";
 import { dexieShoppingRepository } from "../infrastructure/dexie-shopping-repository";
 import * as styles from "./shopping-list.css";
@@ -251,11 +253,10 @@ export function ShoppingList({
 					: editCategoryId
 						? "automatic"
 						: null,
-				inventoryConversion:
-					editName.trim() === item.name &&
-					editUnitLabel.trim() === (item.unitLabel ?? "")
-						? item.inventoryConversion
-						: null,
+				inventoryConversion: preserveShoppingItemInventoryConversion(item, {
+					name: editName,
+					unitLabel: editUnitLabel || null,
+				}),
 			});
 
 			await repository.save(updatedItem);
@@ -481,15 +482,11 @@ export function ShoppingList({
 
 						<div className={styles.presetList}>
 							{presets.map((preset) => {
-								const isSelected =
-									quantity === String(preset.quantity) &&
-									unitLabel === preset.unitLabel &&
-									inventoryConversion?.inputUnitCode ===
-										preset.inventoryConversion.inputUnitCode &&
-									inventoryConversion?.stockUnitCode ===
-										preset.inventoryConversion.stockUnitCode &&
-									inventoryConversion?.stockQuantityPerInputUnit ===
-										preset.inventoryConversion.stockQuantityPerInputUnit;
+								const isSelected = isShoppingItemPresetSelected(preset, {
+									quantity,
+									unitLabel,
+									inventoryConversion,
+								});
 
 								return (
 									<button

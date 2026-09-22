@@ -7,6 +7,28 @@ import { normalizeIngredientName } from "#/features/ingredients/domain/normalize
 import type { ShoppingCategoryId } from "./shopping-category";
 import type { ShoppingItemInventoryConversion } from "./shopping-item";
 
+export type ShoppingItemPresetSelection = {
+	quantity: string;
+	unitLabel: string;
+	inventoryConversion: ShoppingItemInventoryConversion | null;
+};
+
+export function isShoppingItemPresetSelected(
+	preset: ShoppingItemPreset,
+	selection: ShoppingItemPresetSelection,
+): boolean {
+	const conversion = selection.inventoryConversion;
+
+	return (
+		selection.quantity === String(preset.quantity) &&
+		selection.unitLabel === preset.unitLabel &&
+		conversion?.inputUnitCode === preset.inventoryConversion.inputUnitCode &&
+		conversion.stockUnitCode === preset.inventoryConversion.stockUnitCode &&
+		conversion.stockQuantityPerInputUnit ===
+			preset.inventoryConversion.stockQuantityPerInputUnit
+	);
+}
+
 export type ShoppingItemPreset = {
 	label: string;
 	quantity: number;

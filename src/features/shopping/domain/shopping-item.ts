@@ -103,6 +103,25 @@ export type UpdateShoppingItemInput = v.InferInput<
 	typeof updateShoppingItemInputSchema
 >;
 
+export type ShoppingItemEditedIdentity = {
+	name: string;
+	unitLabel: string | null;
+};
+
+export function preserveShoppingItemInventoryConversion(
+	item: ShoppingItem,
+	edited: ShoppingItemEditedIdentity,
+): ShoppingItemInventoryConversion | null {
+	const nameWasChanged = edited.name.trim() !== item.name;
+	const unitWasChanged = edited.unitLabel?.trim() !== item.unitLabel;
+
+	if (nameWasChanged || unitWasChanged) {
+		return null;
+	}
+
+	return item.inventoryConversion;
+}
+
 export function createShoppingItem(
 	input: CreateShoppingItemInput,
 	now = new Date(),
