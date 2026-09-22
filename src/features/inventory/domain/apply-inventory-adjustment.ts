@@ -25,6 +25,11 @@ const adjustmentInputSchema = v.object({
 	),
 	inputQuantity: v.number(),
 	trackingMode: v.picklist(["exact", "estimated"]),
+	transactionId: v.pipe(
+		v.string(),
+		v.trim(),
+		v.minLength(1, "取引IDを指定してください"),
+	),
 	inputUnitCode: v.string(),
 	stockUnitCode: v.string(),
 	stockQuantityPerInputUnit: v.number(),
@@ -94,7 +99,7 @@ export function applyInventoryAdjustment(
 	return {
 		quantity: resultingQuantity,
 		transaction: {
-			id: crypto.randomUUID(),
+			id: parsedInput.transactionId,
 			inventoryItemId: parsedInput.inventoryItemId,
 			inputQuantity: parsedInput.inputQuantity,
 			inputUnitCode: parsedInput.inputUnitCode.trim(),

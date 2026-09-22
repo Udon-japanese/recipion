@@ -13,6 +13,7 @@ describe("applyInventoryAdjustment", () => {
 				inputUnitCode: "pack",
 				stockUnitCode: "piece",
 				trackingMode: "exact",
+				transactionId: "transaction-id",
 				stockQuantityPerInputUnit: 6,
 				operation: "increase",
 				reason: "purchase",
@@ -50,6 +51,7 @@ describe("applyInventoryAdjustment", () => {
 			stockUnitCode: "g",
 			trackingMode: "exact",
 			stockQuantityPerInputUnit: 1,
+			transactionId: "transaction-id",
 			operation: "decrease",
 			reason: "recipe-consumption",
 			sourceType: "recipe",
@@ -70,6 +72,7 @@ describe("applyInventoryAdjustment", () => {
 			inputUnitCode: "piece",
 			stockUnitCode: "piece",
 			stockQuantityPerInputUnit: 1,
+			transactionId: "transaction-id",
 			operation: "increase",
 			reason: "manual-adjustment",
 			trackingMode: "exact",
@@ -88,6 +91,7 @@ describe("applyInventoryAdjustment", () => {
 				inputUnitCode: "pack",
 				stockUnitCode: "piece",
 				stockQuantityPerInputUnit: 6,
+				transactionId: "transaction-id",
 				operation: "decrease",
 				reason: "manual-adjustment",
 				trackingMode: "exact",
@@ -104,6 +108,7 @@ describe("applyInventoryAdjustment", () => {
 			inputUnitCode: "ml",
 			stockUnitCode: "ml",
 			stockQuantityPerInputUnit: 1,
+			transactionId: "transaction-id",
 			operation: "decrease",
 			reason: "recipe-consumption",
 			sourceType: "recipe",
@@ -125,6 +130,7 @@ describe("applyInventoryAdjustment", () => {
 			inputUnitCode: "ml",
 			stockUnitCode: "ml",
 			stockQuantityPerInputUnit: 1,
+			transactionId: "transaction-id",
 			operation: "decrease",
 			reason: "recipe-consumption",
 			sourceType: "recipe",
@@ -135,5 +141,24 @@ describe("applyInventoryAdjustment", () => {
 		expect(result.transaction.requestedQuantityDelta).toBe(-200);
 		expect(result.transaction.quantityDelta).toBe(0);
 		expect(result.transaction.resultingQuantity).toBe(0);
+	});
+
+	it("呼び出し側が発行した取引IDを維持する", () => {
+		const result = applyInventoryAdjustment({
+			transactionId: "offline-operation-id",
+			inventoryItemId: "inventory-item-id",
+			currentQuantity: 0,
+			trackingMode: "exact",
+			inputQuantity: 1,
+			inputUnitCode: "pack",
+			stockUnitCode: "piece",
+			stockQuantityPerInputUnit: 6,
+			operation: "increase",
+			reason: "purchase",
+			sourceType: "shopping-item",
+			sourceId: "shopping-item-id",
+		});
+
+		expect(result.transaction.id).toBe("offline-operation-id");
 	});
 });
