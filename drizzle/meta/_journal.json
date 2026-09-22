@@ -15,6 +15,13 @@
       "when": 1790047581458,
       "tag": "0001_bright_madelyne_pryor",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790054122300,
+      "tag": "0002_lively_gateway",
+      "breakpoints": true
     }
   ]
 }

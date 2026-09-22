@@ -30,6 +30,7 @@ export const inventoryItem = pgTable(
 		})
 			.default("0")
 			.notNull(),
+		trackingMode: text("tracking_mode").default("estimated").notNull(),
 		createdAt: timestamp("created_at", {
 			withTimezone: true,
 		})
@@ -58,6 +59,10 @@ export const inventoryItem = pgTable(
 		),
 		index("inventory_item_user_id_idx").on(table.userId),
 		check("inventory_item_quantity_nonnegative", sql`${table.quantity} >= 0`),
+		check(
+			"inventory_item_tracking_mode_valid",
+			sql`${table.trackingMode} in ('exact', 'estimated')`,
+		),
 	],
 );
 
@@ -77,7 +82,10 @@ export const inventoryTransaction = pgTable(
 			scale: 6,
 		}).notNull(),
 		inputUnitCode: text("input_unit_code").notNull(),
-
+		requestedQuantityDelta: numeric("requested_quantity_delta", {
+			precision: 18,
+			scale: 6,
+		}).notNull(),
 		quantityDelta: numeric("quantity_delta", {
 			precision: 18,
 			scale: 6,
@@ -112,8 +120,8 @@ export const inventoryTransaction = pgTable(
 			sql`${table.inputQuantity} > 0`,
 		),
 		check(
-			"inventory_transaction_delta_nonzero",
-			sql`${table.quantityDelta} <> 0`,
+			"inventory_transaction_requested_delta_nonzero",
+			sql`${table.requestedQuantityDelta} <> 0`,
 		),
 		check(
 			"inventory_transaction_result_nonnegative",

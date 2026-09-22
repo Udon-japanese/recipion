@@ -12,6 +12,7 @@ describe("applyInventoryAdjustment", () => {
 				inputQuantity: 2,
 				inputUnitCode: "pack",
 				stockUnitCode: "piece",
+				trackingMode: "exact",
 				stockQuantityPerInputUnit: 6,
 				operation: "increase",
 				reason: "purchase",
@@ -35,6 +36,7 @@ describe("applyInventoryAdjustment", () => {
 				sourceType: "shopping-item",
 				sourceId: "shopping-item-id",
 				occurredAt: "2026-09-22T12:00:00.000Z",
+				requestedQuantityDelta: 12,
 			},
 		});
 	});
@@ -46,6 +48,7 @@ describe("applyInventoryAdjustment", () => {
 			inputQuantity: 200,
 			inputUnitCode: "g",
 			stockUnitCode: "g",
+			trackingMode: "exact",
 			stockQuantityPerInputUnit: 1,
 			operation: "decrease",
 			reason: "recipe-consumption",
@@ -56,6 +59,7 @@ describe("applyInventoryAdjustment", () => {
 		expect(result.quantity).toBe(300);
 		expect(result.transaction.quantityDelta).toBe(-200);
 		expect(result.transaction.resultingQuantity).toBe(300);
+		expect(result.transaction.requestedQuantityDelta).toBe(-200);
 	});
 
 	it("手動調整では参照元を省略できる", () => {
@@ -68,6 +72,7 @@ describe("applyInventoryAdjustment", () => {
 			stockQuantityPerInputUnit: 1,
 			operation: "increase",
 			reason: "manual-adjustment",
+			trackingMode: "exact",
 		});
 
 		expect(result.transaction.sourceType).toBeNull();
@@ -85,7 +90,50 @@ describe("applyInventoryAdjustment", () => {
 				stockQuantityPerInputUnit: 6,
 				operation: "decrease",
 				reason: "manual-adjustment",
+				trackingMode: "exact",
 			}),
 		).toThrow("在庫数量が不足しています");
+	});
+
+	it("推定在庫が不足すると0まで減らす", () => {
+		const result = applyInventoryAdjustment({
+			inventoryItemId: "inventory-item-id",
+			currentQuantity: 100,
+			trackingMode: "estimated",
+			inputQuantity: 200,
+			inputUnitCode: "ml",
+			stockUnitCode: "ml",
+			stockQuantityPerInputUnit: 1,
+			operation: "decrease",
+			reason: "recipe-consumption",
+			sourceType: "recipe",
+			sourceId: "recipe-id",
+		});
+
+		expect(result.quantity).toBe(0);
+		expect(result.transaction.requestedQuantityDelta).toBe(-200);
+		expect(result.transaction.quantityDelta).toBe(-100);
+		expect(result.transaction.resultingQuantity).toBe(0);
+	});
+
+	it("推定在庫が0でも使用した事実を履歴に残す", () => {
+		const result = applyInventoryAdjustment({
+			inventoryItemId: "inventory-item-id",
+			currentQuantity: 0,
+			trackingMode: "estimated",
+			inputQuantity: 200,
+			inputUnitCode: "ml",
+			stockUnitCode: "ml",
+			stockQuantityPerInputUnit: 1,
+			operation: "decrease",
+			reason: "recipe-consumption",
+			sourceType: "recipe",
+			sourceId: "recipe-id",
+		});
+
+		expect(result.quantity).toBe(0);
+		expect(result.transaction.requestedQuantityDelta).toBe(-200);
+		expect(result.transaction.quantityDelta).toBe(0);
+		expect(result.transaction.resultingQuantity).toBe(0);
 	});
 });

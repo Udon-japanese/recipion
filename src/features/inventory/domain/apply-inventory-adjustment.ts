@@ -1,6 +1,8 @@
 import * as v from "valibot";
 import { convertInventoryQuantity } from "./convert-inventory-quantity";
 
+export type InventoryTrackingMode = "exact" | "estimated";
+
 export type InventoryOperation = "increase" | "decrease";
 
 export type InventoryTransactionReason =
@@ -22,6 +24,7 @@ const adjustmentInputSchema = v.object({
 		v.minValue(0, "現在庫は0以上にしてください"),
 	),
 	inputQuantity: v.number(),
+	trackingMode: v.picklist(["exact", "estimated"]),
 	inputUnitCode: v.string(),
 	stockUnitCode: v.string(),
 	stockQuantityPerInputUnit: v.number(),
@@ -42,6 +45,7 @@ export type InventoryAdjustmentTransaction = {
 	inputUnitCode: string;
 	quantityDelta: number;
 	resultingQuantity: number;
+	requestedQuantityDelta: number;
 	stockUnitCode: string;
 	reason: InventoryTransactionReason;
 	sourceType: InventoryTransactionSourceType | null;
@@ -68,15 +72,23 @@ export function applyInventoryAdjustment(
 	});
 
 	const direction = parsedInput.operation === "increase" ? 1 : -1;
-	const quantityDelta = Number(
+
+	const requestedQuantityDelta = Number(
 		(convertedQuantity.quantity * direction).toFixed(6),
 	);
-	const resultingQuantity = Number(
+
+	let quantityDelta = requestedQuantityDelta;
+	let resultingQuantity = Number(
 		(parsedInput.currentQuantity + quantityDelta).toFixed(6),
 	);
 
 	if (resultingQuantity < 0) {
-		throw new Error("在庫数量が不足しています");
+		if (parsedInput.trackingMode === "exact") {
+			throw new Error("在庫数量が不足しています");
+		}
+
+		quantityDelta = Number((-parsedInput.currentQuantity).toFixed(6));
+		resultingQuantity = 0;
 	}
 
 	return {
@@ -88,6 +100,7 @@ export function applyInventoryAdjustment(
 			inputUnitCode: parsedInput.inputUnitCode.trim(),
 			quantityDelta,
 			resultingQuantity,
+			requestedQuantityDelta,
 			stockUnitCode: convertedQuantity.unitCode,
 			reason: parsedInput.reason,
 			sourceType: parsedInput.sourceType ?? null,
