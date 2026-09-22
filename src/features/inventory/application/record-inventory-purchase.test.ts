@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-
+import type { InventoryAdjustmentRepository } from "./inventory-adjustment-repository";
 import type { InventoryItemResolver } from "./inventory-item-resolver";
-import type { InventoryRepository } from "./inventory-repository";
 import { recordInventoryPurchase } from "./record-inventory-purchase";
 
 describe("recordInventoryPurchase", () => {
@@ -17,7 +16,7 @@ describe("recordInventoryPurchase", () => {
 			}),
 		};
 
-		const inventoryRepository: InventoryRepository = {
+		const inventoryAdjustmentRepository: InventoryAdjustmentRepository = {
 			applyAdjustment: vi.fn().mockResolvedValue({
 				status: "applied",
 				transactionId: "transaction-id",
@@ -39,7 +38,7 @@ describe("recordInventoryPurchase", () => {
 			},
 			{
 				inventoryItemResolver,
-				inventoryRepository,
+				inventoryAdjustmentRepository,
 			},
 		);
 
@@ -52,7 +51,7 @@ describe("recordInventoryPurchase", () => {
 			trackingMode: "exact",
 		});
 
-		expect(inventoryRepository.applyAdjustment).toHaveBeenCalledWith({
+		expect(inventoryAdjustmentRepository.applyAdjustment).toHaveBeenCalledWith({
 			transactionId: "transaction-id",
 			inventoryItemId: "inventory-item-id",
 			inputQuantity: 1,

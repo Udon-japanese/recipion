@@ -1,9 +1,9 @@
 import type { CreateIngredientRegistrationInput } from "./create-ingredient-registration";
-import type { InventoryItemResolver } from "./inventory-item-resolver";
 import type {
+	InventoryAdjustmentRepository,
 	InventoryAdjustmentRepositoryResult,
-	InventoryRepository,
-} from "./inventory-repository";
+} from "./inventory-adjustment-repository";
+import type { InventoryItemResolver } from "./inventory-item-resolver";
 
 export type RecordInventoryPurchaseInput = CreateIngredientRegistrationInput & {
 	transactionId: string;
@@ -15,7 +15,7 @@ export type RecordInventoryPurchaseInput = CreateIngredientRegistrationInput & {
 
 export type RecordInventoryPurchaseDependencies = {
 	inventoryItemResolver: InventoryItemResolver;
-	inventoryRepository: InventoryRepository;
+	inventoryAdjustmentRepository: InventoryAdjustmentRepository;
 };
 
 export async function recordInventoryPurchase(
@@ -30,7 +30,7 @@ export async function recordInventoryPurchase(
 			trackingMode: input.trackingMode,
 		});
 
-	return dependencies.inventoryRepository.applyAdjustment({
+	return dependencies.inventoryAdjustmentRepository.applyAdjustment({
 		transactionId: input.transactionId,
 		inventoryItemId: resolvedInventoryItem.inventoryItemId,
 		inputQuantity: input.inputQuantity,

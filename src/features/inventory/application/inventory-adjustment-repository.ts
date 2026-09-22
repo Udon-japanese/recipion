@@ -11,7 +11,7 @@ export type InventoryAdjustmentRepositoryResult = {
 	quantity: number;
 };
 
-export interface InventoryRepository {
+export interface InventoryAdjustmentRepository {
 	applyAdjustment(
 		command: InventoryAdjustmentCommand,
 	): Promise<InventoryAdjustmentRepositoryResult>;

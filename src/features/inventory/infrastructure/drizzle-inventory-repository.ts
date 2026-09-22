@@ -9,13 +9,13 @@ import {
 
 import { createIngredientRegistration } from "../application/create-ingredient-registration";
 import type {
+	InventoryAdjustmentCommand,
+	InventoryAdjustmentRepository,
+} from "../application/inventory-adjustment-repository";
+import type {
 	InventoryItemResolver,
 	ResolveOrCreateInventoryItemCommand,
 } from "../application/inventory-item-resolver";
-import type {
-	InventoryAdjustmentCommand,
-	InventoryRepository,
-} from "../application/inventory-repository";
 import {
 	applyInventoryAdjustment,
 	type InventoryTrackingMode,
@@ -45,7 +45,7 @@ function toNumeric(value: number): string {
 export function createDrizzleInventoryRepository(
 	db: DB,
 	userId: string,
-): InventoryRepository & InventoryItemResolver {
+): InventoryAdjustmentRepository & InventoryItemResolver {
 	if (userId.trim().length === 0) {
 		throw new Error("ユーザーIDを指定してください");
 	}

@@ -29,6 +29,6 @@ export const recordInventoryPurchaseServerFn = createServerFn({
 
 		return recordInventoryPurchase(data, {
 			inventoryItemResolver: repository,
-			inventoryRepository: repository,
+			inventoryAdjustmentRepository: repository,
 		});
 	});

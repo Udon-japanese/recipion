@@ -1,6 +1,6 @@
 import * as v from "valibot";
 
-import type { InventoryAdjustmentCommand } from "./inventory-repository";
+import type { InventoryAdjustmentCommand } from "./inventory-adjustment-repository";
 
 const positiveQuantitySchema = v.pipe(
 	v.number(),
