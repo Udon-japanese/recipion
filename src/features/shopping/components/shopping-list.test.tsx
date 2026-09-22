@@ -439,4 +439,23 @@ describe("ShoppingList", () => {
 
 		expect(repository.saveAll).not.toHaveBeenCalled();
 	});
+
+	it("買い物項目にドラッグ用ハンドルを表示する", async () => {
+		const repository = createRepository({
+			list: vi.fn().mockResolvedValue([
+				{
+					...storedItem,
+					categoryAssignment: "manual",
+				},
+			]),
+		});
+
+		render(<ShoppingList repository={repository} />);
+
+		expect(
+			await screen.findByRole("button", {
+				name: "卵をドラッグして並び替え",
+			}),
+		).toBeInTheDocument();
+	});
 });

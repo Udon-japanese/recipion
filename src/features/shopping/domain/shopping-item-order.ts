@@ -19,18 +19,37 @@ export function moveShoppingItem(
 
 	const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
 
-	if (targetIndex < 0 || targetIndex >= orderedItems.length) {
+	return moveShoppingItemToIndex(orderedItems, currentIndex, targetIndex, now);
+}
+
+export function moveShoppingItemToIndex(
+	items: readonly ShoppingItem[],
+	fromIndex: number,
+	toIndex: number,
+	now = new Date(),
+): ShoppingItem[] {
+	const orderedItems = [...items].sort(
+		(left, right) => left.sortOrder - right.sortOrder,
+	);
+
+	if (
+		fromIndex < 0 ||
+		fromIndex >= orderedItems.length ||
+		toIndex < 0 ||
+		toIndex >= orderedItems.length ||
+		fromIndex === toIndex
+	) {
 		return orderedItems;
 	}
 
 	const reorderedItems = [...orderedItems];
-	const [movedItem] = reorderedItems.splice(currentIndex, 1);
+	const [movedItem] = reorderedItems.splice(fromIndex, 1);
 
 	if (!movedItem) {
 		return orderedItems;
 	}
 
-	reorderedItems.splice(targetIndex, 0, movedItem);
+	reorderedItems.splice(toIndex, 0, movedItem);
 
 	const timestamp = now.toISOString();
 

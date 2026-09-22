@@ -1,5 +1,7 @@
+import { DragDropProvider } from "@dnd-kit/react";
+import { isSortable, useSortable } from "@dnd-kit/react/sortable";
 import clsx from "clsx";
-import { type SubmitEvent, useEffect, useState } from "react";
+import { type ReactNode, type SubmitEvent, useEffect, useState } from "react";
 import * as v from "valibot";
 import type { ShoppingRepository } from "../application/shopping-repository";
 import {
@@ -20,6 +22,7 @@ import {
 } from "../domain/shopping-item-category-order";
 import {
 	moveShoppingItem,
+	moveShoppingItemToIndex,
 	type ShoppingItemMoveDirection,
 } from "../domain/shopping-item-order";
 import {
@@ -35,6 +38,39 @@ function getErrorMessage(error: unknown): string {
 	}
 
 	return "処理に失敗しました。もう一度お試しください";
+}
+
+type SortableShoppingItemProps = {
+	id: string;
+	index: number;
+	className: string;
+	disabled: boolean;
+	children: (
+		handleRef: ReturnType<typeof useSortable>["handleRef"],
+	) => ReactNode;
+};
+
+function SortableShoppingItem({
+	id,
+	index,
+	className,
+	disabled,
+	children,
+}: SortableShoppingItemProps) {
+	const { ref, handleRef, isDragging } = useSortable({
+		id,
+		index,
+		disabled,
+	});
+
+	return (
+		<li
+			className={clsx(className, isDragging && styles.draggingItem)}
+			ref={ref}
+		>
+			{children(handleRef)}
+		</li>
+	);
 }
 
 type ShoppingListProps = {
@@ -301,6 +337,26 @@ export function ShoppingList({
 		}
 	}
 
+	async function handleDragMove(fromIndex: number, toIndex: number) {
+		if (fromIndex === toIndex) {
+			return;
+		}
+
+		setErrorMessage(null);
+		setIsReordering(true);
+
+		try {
+			const reorderedItems = moveShoppingItemToIndex(items, fromIndex, toIndex);
+
+			await repository.saveAll(reorderedItems);
+			setItems(reorderedItems);
+		} catch (error) {
+			setErrorMessage(getErrorMessage(error));
+		} finally {
+			setIsReordering(false);
+		}
+	}
+
 	return (
 		<main className={styles.container}>
 			<h1 className={styles.title}>買い物メモ</h1>
@@ -457,196 +513,226 @@ export function ShoppingList({
 			) : null}
 
 			{!isLoading && items.length > 0 ? (
-				<ul className={styles.list}>
-					{items.map((item, index) => {
-						const isChecked = item.status === "checked";
-						const isFirst = index === 0;
-						const isLast = index === items.length - 1;
+				<DragDropProvider
+					onDragEnd={(event) => {
+						if (event.canceled) {
+							return;
+						}
 
-						return (
-							<li
-								className={clsx(styles.item, isChecked && styles.checkedItem)}
-								key={item.id}
-							>
-								{editingItemId === item.id ? (
-									<form
-										className={styles.editForm}
-										onSubmit={(event) => void handleEditSubmit(event, item)}
-									>
-										<div className={styles.field}>
-											<label
-												className={styles.fieldLabel}
-												htmlFor={`edit-name-${item.id}`}
+						const { source } = event.operation;
+
+						if (!isSortable(source)) {
+							return;
+						}
+
+						void handleDragMove(source.initialIndex, source.index);
+					}}
+				>
+					<ul className={styles.list}>
+						{items.map((item, index) => {
+							const isChecked = item.status === "checked";
+							const isFirst = index === 0;
+							const isLast = index === items.length - 1;
+
+							return (
+								<SortableShoppingItem
+									id={item.id}
+									index={index}
+									className={clsx(styles.item, isChecked && styles.checkedItem)}
+									disabled={isReordering || editingItemId === item.id}
+									key={item.id}
+								>
+									{(dragHandleRef) =>
+										editingItemId === item.id ? (
+											<form
+												className={styles.editForm}
+												onSubmit={(event) => void handleEditSubmit(event, item)}
 											>
-												商品名
-											</label>
+												<div className={styles.field}>
+													<label
+														className={styles.fieldLabel}
+														htmlFor={`edit-name-${item.id}`}
+													>
+														商品名
+													</label>
 
-											<input
-												className={styles.input}
-												id={`edit-name-${item.id}`}
-												value={editName}
-												onChange={(event) =>
-													handleEditNameChange(event.target.value)
-												}
-												autoComplete="off"
-											/>
-										</div>
+													<input
+														className={styles.input}
+														id={`edit-name-${item.id}`}
+														value={editName}
+														onChange={(event) =>
+															handleEditNameChange(event.target.value)
+														}
+														autoComplete="off"
+													/>
+												</div>
 
-										<div className={styles.details}>
-											<div className={styles.field}>
-												<label
-													className={styles.fieldLabel}
-													htmlFor={`edit-quantity-${item.id}`}
+												<div className={styles.details}>
+													<div className={styles.field}>
+														<label
+															className={styles.fieldLabel}
+															htmlFor={`edit-quantity-${item.id}`}
+														>
+															数量
+														</label>
+
+														<input
+															className={styles.input}
+															id={`edit-quantity-${item.id}`}
+															type="number"
+															inputMode="decimal"
+															min="0"
+															step="any"
+															value={editQuantity}
+															onChange={(event) =>
+																setEditQuantity(event.target.value)
+															}
+														/>
+													</div>
+
+													<div className={styles.field}>
+														<label
+															className={styles.fieldLabel}
+															htmlFor={`edit-unit-${item.id}`}
+														>
+															単位
+														</label>
+
+														<input
+															className={styles.input}
+															id={`edit-unit-${item.id}`}
+															value={editUnitLabel}
+															onChange={(event) =>
+																setEditUnitLabel(event.target.value)
+															}
+															autoComplete="off"
+														/>
+													</div>
+
+													<div className={styles.field}>
+														<label
+															className={styles.fieldLabel}
+															htmlFor={`edit-category-${item.id}`}
+														>
+															編集するカテゴリ
+														</label>
+
+														<select
+															className={styles.input}
+															id={`edit-category-${item.id}`}
+															value={editCategoryId}
+															onChange={(event) =>
+																handleEditCategoryChange(event.target.value)
+															}
+														>
+															<option value="">未設定</option>
+
+															{shoppingCategories.map((category) => (
+																<option value={category.id} key={category.id}>
+																	{category.label}
+																</option>
+															))}
+														</select>
+													</div>
+												</div>
+
+												<div className={styles.editActions}>
+													<button
+														className={styles.cancelButton}
+														type="button"
+														onClick={handleCancelEditing}
+														disabled={isSavingEdit}
+													>
+														キャンセル
+													</button>
+
+													<button
+														className={styles.saveButton}
+														type="submit"
+														disabled={isSavingEdit}
+													>
+														保存
+													</button>
+												</div>
+											</form>
+										) : (
+											<>
+												<button
+													className={styles.dragHandle}
+													type="button"
+													ref={dragHandleRef}
+													aria-label={`${item.name}をドラッグして並び替え`}
+													disabled={isReordering}
 												>
-													数量
-												</label>
-
+													⠿
+												</button>
 												<input
-													className={styles.input}
-													id={`edit-quantity-${item.id}`}
-													type="number"
-													inputMode="decimal"
-													min="0"
-													step="any"
-													value={editQuantity}
-													onChange={(event) =>
-														setEditQuantity(event.target.value)
-													}
+													className={styles.checkbox}
+													type="checkbox"
+													checked={isChecked}
+													aria-label={`${item.name}をチェック`}
+													onChange={() => void handleToggle(item)}
 												/>
-											</div>
 
-											<div className={styles.field}>
-												<label
-													className={styles.fieldLabel}
-													htmlFor={`edit-unit-${item.id}`}
+												<span
+													className={clsx(
+														styles.itemName,
+														isChecked && styles.checkedItemName,
+													)}
 												>
-													単位
-												</label>
+													{item.name}
+													<span className={styles.quantity}>
+														{item.quantity}
+														{item.unitLabel}
+													</span>
+												</span>
 
-												<input
-													className={styles.input}
-													id={`edit-unit-${item.id}`}
-													value={editUnitLabel}
-													onChange={(event) =>
-														setEditUnitLabel(event.target.value)
-													}
-													autoComplete="off"
-												/>
-											</div>
+												<div className={styles.itemActions}>
+													<button
+														className={styles.moveButton}
+														type="button"
+														aria-label={`${item.name}を上へ`}
+														disabled={isFirst || isReordering}
+														onClick={() => void handleMove(item.id, "up")}
+													>
+														↑
+													</button>
 
-											<div className={styles.field}>
-												<label
-													className={styles.fieldLabel}
-													htmlFor={`edit-category-${item.id}`}
-												>
-													編集するカテゴリ
-												</label>
+													<button
+														className={styles.moveButton}
+														type="button"
+														aria-label={`${item.name}を下へ`}
+														disabled={isLast || isReordering}
+														onClick={() => void handleMove(item.id, "down")}
+													>
+														↓
+													</button>
 
-												<select
-													className={styles.input}
-													id={`edit-category-${item.id}`}
-													value={editCategoryId}
-													onChange={(event) =>
-														handleEditCategoryChange(event.target.value)
-													}
-												>
-													<option value="">未設定</option>
+													<button
+														className={styles.editButton}
+														type="button"
+														onClick={() => handleStartEditing(item)}
+													>
+														編集
+													</button>
 
-													{shoppingCategories.map((category) => (
-														<option value={category.id} key={category.id}>
-															{category.label}
-														</option>
-													))}
-												</select>
-											</div>
-										</div>
-
-										<div className={styles.editActions}>
-											<button
-												className={styles.cancelButton}
-												type="button"
-												onClick={handleCancelEditing}
-												disabled={isSavingEdit}
-											>
-												キャンセル
-											</button>
-
-											<button
-												className={styles.saveButton}
-												type="submit"
-												disabled={isSavingEdit}
-											>
-												保存
-											</button>
-										</div>
-									</form>
-								) : (
-									<>
-										<input
-											className={styles.checkbox}
-											type="checkbox"
-											checked={isChecked}
-											aria-label={`${item.name}をチェック`}
-											onChange={() => void handleToggle(item)}
-										/>
-
-										<span
-											className={clsx(
-												styles.itemName,
-												isChecked && styles.checkedItemName,
-											)}
-										>
-											{item.name}
-											<span className={styles.quantity}>
-												{item.quantity}
-												{item.unitLabel}
-											</span>
-										</span>
-
-										<div className={styles.itemActions}>
-											<button
-												className={styles.moveButton}
-												type="button"
-												aria-label={`${item.name}を上へ`}
-												disabled={isFirst || isReordering}
-												onClick={() => void handleMove(item.id, "up")}
-											>
-												↑
-											</button>
-
-											<button
-												className={styles.moveButton}
-												type="button"
-												aria-label={`${item.name}を下へ`}
-												disabled={isLast || isReordering}
-												onClick={() => void handleMove(item.id, "down")}
-											>
-												↓
-											</button>
-
-											<button
-												className={styles.editButton}
-												type="button"
-												onClick={() => handleStartEditing(item)}
-											>
-												編集
-											</button>
-
-											<button
-												className={styles.deleteButton}
-												type="button"
-												aria-label={`${item.name}を削除`}
-												onClick={() => void handleRemove(item.id)}
-											>
-												削除
-											</button>
-										</div>
-									</>
-								)}
-							</li>
-						);
-					})}
-				</ul>
+													<button
+														className={styles.deleteButton}
+														type="button"
+														aria-label={`${item.name}を削除`}
+														onClick={() => void handleRemove(item.id)}
+													>
+														削除
+													</button>
+												</div>
+											</>
+										)
+									}
+								</SortableShoppingItem>
+							);
+						})}
+					</ul>
+				</DragDropProvider>
 			) : null}
 		</main>
 	);

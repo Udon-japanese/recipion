@@ -197,7 +197,7 @@ export const list = style({
 
 export const item = style({
 	display: "grid",
-	gridTemplateColumns: "auto 1fr auto",
+	gridTemplateColumns: "auto auto 1fr auto",
 	alignItems: "center",
 	gap: 12,
 	minHeight: 52,
@@ -354,6 +354,46 @@ export const saveButton = style({
 		"&:disabled": {
 			cursor: "not-allowed",
 			opacity: 0.6,
+		},
+	},
+});
+
+export const draggingItem = style({
+	opacity: 0.65,
+	boxShadow: "0 8px 24px rgb(0 0 0 / 16%)",
+});
+
+export const dragHandle = style({
+	width: 44,
+	height: 44,
+	padding: 0,
+	color: "var(--color-text-muted)",
+	background: "transparent",
+	border: 0,
+	borderRadius: 8,
+	font: "inherit",
+	fontSize: 24,
+	lineHeight: 1,
+	cursor: "grab",
+	touchAction: "none",
+
+	selectors: {
+		"&:hover:not(:disabled)": {
+			color: "var(--color-primary)",
+			background: "var(--color-surface-subtle)",
+		},
+
+		"&:active": {
+			cursor: "grabbing",
+		},
+
+		"&:disabled": {
+			cursor: "not-allowed",
+			opacity: 0.4,
+		},
+
+		"&:focus-visible": {
+			outline: "3px solid var(--color-primary-soft)",
 		},
 	},
 });

@@ -20,10 +20,11 @@
     "lint": "biome lint",
     "check": "biome check",
     "check:fix": "biome check --fix",
-        "test": "vitest run",
+    "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@dnd-kit/react": "^0.5.0",
     "@tanstack/react-router": "^1.170.35",
     "@tanstack/react-start": "^1.168.52",
     "@vanilla-extract/css": "^1.21.2",
