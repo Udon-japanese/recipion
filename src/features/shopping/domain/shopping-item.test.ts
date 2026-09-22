@@ -150,6 +150,55 @@ describe("updateShoppingItem", () => {
 			}),
 		).toThrow("数量は0より大きい数にしてください");
 	});
+
+	it("数量だけ変更した場合は在庫換算を維持する", () => {
+		const item = createShoppingItem({
+			name: "ホットケーキミックス",
+			quantity: 1,
+			unitLabel: "袋",
+			inventoryConversion: {
+				inputUnitCode: "bag",
+				stockUnitCode: "g",
+				stockUnitLabel: "g",
+				stockQuantityPerInputUnit: 200,
+				trackingMode: "estimated",
+			},
+		});
+
+		const updatedItem = updateShoppingItem(item, {
+			name: "ホットケーキミックス",
+			quantity: 2,
+			unitLabel: "袋",
+		});
+
+		expect(updatedItem.inventoryConversion).toEqual(item.inventoryConversion);
+	});
+
+	it.each([
+		["商品名", "ホケミ", "袋"],
+		["単位", "ホットケーキミックス", "箱"],
+	])("%sを変更した場合は在庫換算を解除する", (_, name, unitLabel) => {
+		const item = createShoppingItem({
+			name: "ホットケーキミックス",
+			quantity: 1,
+			unitLabel: "袋",
+			inventoryConversion: {
+				inputUnitCode: "bag",
+				stockUnitCode: "g",
+				stockUnitLabel: "g",
+				stockQuantityPerInputUnit: 200,
+				trackingMode: "estimated",
+			},
+		});
+
+		const updatedItem = updateShoppingItem(item, {
+			name,
+			quantity: 1,
+			unitLabel,
+		});
+
+		expect(updatedItem.inventoryConversion).toBeNull();
+	});
 });
 
 describe("toggleShoppingItem", () => {

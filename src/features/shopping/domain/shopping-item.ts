@@ -108,20 +108,6 @@ export type ShoppingItemEditedIdentity = {
 	unitLabel: string | null;
 };
 
-export function preserveShoppingItemInventoryConversion(
-	item: ShoppingItem,
-	edited: ShoppingItemEditedIdentity,
-): ShoppingItemInventoryConversion | null {
-	const nameWasChanged = edited.name.trim() !== item.name;
-	const unitWasChanged = edited.unitLabel?.trim() !== item.unitLabel;
-
-	if (nameWasChanged || unitWasChanged) {
-		return null;
-	}
-
-	return item.inventoryConversion;
-}
-
 export function createShoppingItem(
 	input: CreateShoppingItemInput,
 	now = new Date(),
@@ -168,17 +154,23 @@ export function updateShoppingItem(
 				? item.categoryAssignment
 				: "manual";
 
+	const unitLabel = parsedInput.unitLabel || null;
+
+	const inventoryConversion =
+		parsedInput.inventoryConversion !== undefined
+			? parsedInput.inventoryConversion
+			: parsedInput.name === item.name && unitLabel === item.unitLabel
+				? item.inventoryConversion
+				: null;
+
 	return {
 		...item,
 		name: parsedInput.name,
 		quantity: parsedInput.quantity,
-		inventoryConversion:
-			parsedInput.inventoryConversion === undefined
-				? item.inventoryConversion
-				: parsedInput.inventoryConversion,
-		unitLabel: parsedInput.unitLabel || null,
+		unitLabel,
 		categoryId,
 		categoryAssignment,
+		inventoryConversion,
 		updatedAt: now.toISOString(),
 	};
 }

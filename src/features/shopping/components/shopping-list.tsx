@@ -12,7 +12,6 @@ import {
 import {
 	createShoppingItem,
 	getShoppingItemConvertedQuantityLabel,
-	preserveShoppingItemInventoryConversion,
 	type ShoppingItem,
 	type ShoppingItemInventoryConversion,
 	toggleShoppingItem,
@@ -172,11 +171,11 @@ export function ShoppingList({
 					unitLabel,
 					inventoryConversion,
 					categoryId: categoryId || null,
-					categoryAssignment: isCategoryManuallySelected
-						? "manual"
-						: categoryId
-							? "automatic"
-							: null,
+					categoryAssignment: categoryId
+						? isCategoryManuallySelected
+							? "manual"
+							: "automatic"
+						: null,
 				},
 				new Date(),
 				nextSortOrder,
@@ -249,15 +248,11 @@ export function ShoppingList({
 				quantity: Number(editQuantity),
 				unitLabel: editUnitLabel,
 				categoryId: editCategoryId || null,
-				categoryAssignment: isEditCategoryManuallySelected
-					? "manual"
-					: editCategoryId
-						? "automatic"
-						: null,
-				inventoryConversion: preserveShoppingItemInventoryConversion(item, {
-					name: editName,
-					unitLabel: editUnitLabel || null,
-				}),
+				categoryAssignment: editCategoryId
+					? isEditCategoryManuallySelected
+						? "manual"
+						: "automatic"
+					: null,
 			});
 
 			await repository.save(updatedItem);
