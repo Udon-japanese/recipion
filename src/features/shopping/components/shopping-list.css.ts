@@ -236,6 +236,11 @@ export const quantity = style({
 	fontSize: 14,
 });
 
+export const convertedQuantity = style({
+	color: "var(--color-text-muted)",
+	whiteSpace: "nowrap",
+});
+
 export const deleteButton = style({
 	minWidth: 44,
 	minHeight: 44,

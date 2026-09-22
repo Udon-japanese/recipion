@@ -216,3 +216,27 @@ export function markShoppingItemAsPurchased(
 		updatedAt: now.toISOString(),
 	};
 }
+
+export function getShoppingItemConvertedQuantityLabel(
+	item: ShoppingItem,
+): string | null {
+	const conversion = item.inventoryConversion;
+
+	if (!conversion) {
+		return null;
+	}
+
+	const isSameUnit =
+		conversion.inputUnitCode === conversion.stockUnitCode &&
+		conversion.stockQuantityPerInputUnit === 1;
+
+	if (isSameUnit) {
+		return null;
+	}
+
+	const convertedQuantity = Number(
+		(item.quantity * conversion.stockQuantityPerInputUnit).toFixed(6),
+	);
+
+	return `${convertedQuantity}${conversion.stockUnitLabel}`;
+}

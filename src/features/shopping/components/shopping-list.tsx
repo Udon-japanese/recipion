@@ -11,6 +11,7 @@ import {
 } from "../domain/shopping-category";
 import {
 	createShoppingItem,
+	getShoppingItemConvertedQuantityLabel,
 	preserveShoppingItemInventoryConversion,
 	type ShoppingItem,
 	type ShoppingItemInventoryConversion,
@@ -550,6 +551,8 @@ export function ShoppingList({
 							const isChecked = item.status === "checked";
 							const isFirst = index === 0;
 							const isLast = index === items.length - 1;
+							const convertedQuantityLabel =
+								getShoppingItemConvertedQuantityLabel(item);
 
 							return (
 								<SortableShoppingItem
@@ -701,6 +704,12 @@ export function ShoppingList({
 													<span className={styles.quantity}>
 														{item.quantity}
 														{item.unitLabel}
+
+														{convertedQuantityLabel ? (
+															<span className={styles.convertedQuantity}>
+																（{convertedQuantityLabel}）
+															</span>
+														) : null}
 													</span>
 												</span>
 

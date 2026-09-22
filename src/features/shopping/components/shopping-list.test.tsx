@@ -211,6 +211,38 @@ describe("ShoppingList", () => {
 		});
 	});
 
+	it("商品の購入単位と在庫換算後の数量を表示する", async () => {
+		const user = userEvent.setup();
+		const repository = createRepository();
+
+		render(<ShoppingList repository={repository} />);
+
+		await screen.findByText("買うものはまだありません。");
+
+		await user.type(screen.getByLabelText("買うもの"), "ホケミ");
+
+		await user.click(
+			screen.getByRole("button", {
+				name: "200g袋",
+			}),
+		);
+
+		await user.click(
+			screen.getByRole("button", {
+				name: "追加",
+			}),
+		);
+
+		expect(
+			await screen.findByRole("checkbox", {
+				name: "ホケミをチェック",
+			}),
+		).toBeInTheDocument();
+
+		expect(screen.getByText("1袋")).toBeInTheDocument();
+		expect(screen.getByText("（200g）")).toBeInTheDocument();
+	});
+
 	it("買い物項目を上下に並び替えられる", async () => {
 		const user = userEvent.setup();
 		const secondItem: ShoppingItem = {
