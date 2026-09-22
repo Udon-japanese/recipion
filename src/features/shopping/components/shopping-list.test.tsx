@@ -186,6 +186,29 @@ describe("ShoppingList", () => {
 		expect(screen.getByLabelText("数量")).toHaveValue(6);
 		expect(screen.getByLabelText("単位")).toHaveValue("個");
 		expect(sixEggsButton).toHaveAttribute("aria-pressed", "true");
+
+		await user.click(
+			screen.getByRole("button", {
+				name: "追加",
+			}),
+		);
+
+		await waitFor(() => {
+			expect(repository.save).toHaveBeenCalledWith(
+				expect.objectContaining({
+					name: "卵",
+					quantity: 6,
+					unitLabel: "個",
+					inventoryConversion: {
+						inputUnitCode: "count",
+						stockUnitCode: "count",
+						stockUnitLabel: "個",
+						stockQuantityPerInputUnit: 1,
+						trackingMode: "exact",
+					},
+				}),
+			);
+		});
 	});
 
 	it("買い物項目を上下に並び替えられる", async () => {
@@ -458,5 +481,40 @@ describe("ShoppingList", () => {
 				name: "卵をドラッグして並び替え",
 			}),
 		).toBeInTheDocument();
+	});
+
+	it("ホケミの包装量を買い物項目へ保存する", async () => {
+		const user = userEvent.setup();
+		const repository = createRepository();
+
+		render(<ShoppingList repository={repository} />);
+
+		await screen.findByText("買うものはまだありません。");
+		await user.type(screen.getByLabelText("買うもの"), "HM");
+		await user.click(
+			screen.getByRole("button", {
+				name: "200g袋",
+			}),
+		);
+		await user.click(
+			screen.getByRole("button", {
+				name: "追加",
+			}),
+		);
+
+		await waitFor(() => {
+			expect(repository.save).toHaveBeenCalledWith(
+				expect.objectContaining({
+					name: "HM",
+					quantity: 1,
+					unitLabel: "袋",
+					inventoryConversion: expect.objectContaining({
+						stockUnitCode: "g",
+						stockQuantityPerInputUnit: 200,
+						trackingMode: "estimated",
+					}),
+				}),
+			);
+		});
 	});
 });

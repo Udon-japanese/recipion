@@ -12,6 +12,7 @@ import {
 import {
 	createShoppingItem,
 	type ShoppingItem,
+	type ShoppingItemInventoryConversion,
 	toggleShoppingItem,
 	updateShoppingItem,
 } from "../domain/shopping-item";
@@ -91,6 +92,8 @@ export function ShoppingList({
 	const [editName, setEditName] = useState("");
 	const [editQuantity, setEditQuantity] = useState("1");
 	const [editUnitLabel, setEditUnitLabel] = useState("");
+	const [inventoryConversion, setInventoryConversion] =
+		useState<ShoppingItemInventoryConversion | null>(null);
 	const [isSavingEdit, setIsSavingEdit] = useState(false);
 	const [isReordering, setIsReordering] = useState(false);
 	const [categoryId, setCategoryId] = useState<ShoppingCategoryId | "">("");
@@ -164,6 +167,7 @@ export function ShoppingList({
 					name,
 					quantity: Number(quantity),
 					unitLabel,
+					inventoryConversion,
 					categoryId: categoryId || null,
 					categoryAssignment: isCategoryManuallySelected
 						? "manual"
@@ -183,6 +187,7 @@ export function ShoppingList({
 			setUnitLabel("");
 			setCategoryId("");
 			setIsCategoryManuallySelected(false);
+			setInventoryConversion(null);
 		} catch (error) {
 			setErrorMessage(getErrorMessage(error));
 		} finally {
@@ -246,6 +251,11 @@ export function ShoppingList({
 					: editCategoryId
 						? "automatic"
 						: null,
+				inventoryConversion:
+					editName.trim() === item.name &&
+					editUnitLabel.trim() === (item.unitLabel ?? "")
+						? item.inventoryConversion
+						: null,
 			});
 
 			await repository.save(updatedItem);
@@ -297,6 +307,7 @@ export function ShoppingList({
 
 	function handleNameChange(value: string) {
 		setName(value);
+		setInventoryConversion(null);
 
 		if (!isCategoryManuallySelected) {
 			setCategoryId(inferShoppingCategory(value) ?? "");
@@ -429,7 +440,10 @@ export function ShoppingList({
 							id="shopping-item-unit"
 							name="unitLabel"
 							value={unitLabel}
-							onChange={(event) => setUnitLabel(event.target.value)}
+							onChange={(event) => {
+								setUnitLabel(event.target.value);
+								setInventoryConversion(null);
+							}}
 							placeholder="個、袋、gなど"
 							autoComplete="off"
 						/>
@@ -469,21 +483,27 @@ export function ShoppingList({
 							{presets.map((preset) => {
 								const isSelected =
 									quantity === String(preset.quantity) &&
-									unitLabel === preset.unitLabel;
+									unitLabel === preset.unitLabel &&
+									inventoryConversion?.inputUnitCode ===
+										preset.inventoryConversion.inputUnitCode &&
+									inventoryConversion?.stockUnitCode ===
+										preset.inventoryConversion.stockUnitCode &&
+									inventoryConversion?.stockQuantityPerInputUnit ===
+										preset.inventoryConversion.stockQuantityPerInputUnit;
 
 								return (
 									<button
 										className={styles.presetButton}
 										type="button"
 										aria-pressed={isSelected}
-										key={`${preset.quantity}-${preset.unitLabel}`}
+										key={preset.label}
 										onClick={() => {
 											setQuantity(String(preset.quantity));
 											setUnitLabel(preset.unitLabel);
+											setInventoryConversion(preset.inventoryConversion);
 										}}
 									>
-										{preset.quantity}
-										{preset.unitLabel}
+										{preset.label}
 									</button>
 								);
 							})}
