@@ -651,4 +651,59 @@ describe("ShoppingList", () => {
 			}),
 		).not.toBeDisabled();
 	});
+
+	it("ログイン済みなら購入確定後に在庫同期を試す", async () => {
+		const user = userEvent.setup();
+
+		const checkedItem: ShoppingItem = {
+			...storedItem,
+			status: "checked",
+			inventoryConversion: {
+				inputUnitCode: "count",
+				stockUnitCode: "count",
+				stockUnitLabel: "個",
+				stockQuantityPerInputUnit: 1,
+				trackingMode: "exact",
+			},
+		};
+
+		const purchasedItem: ShoppingItem = {
+			...checkedItem,
+			status: "purchased",
+		};
+
+		const repository = createRepository({
+			list: vi.fn().mockResolvedValue([checkedItem]),
+		});
+
+		const confirmPurchases = vi.fn().mockResolvedValue({
+			status: "confirmed",
+			items: [purchasedItem],
+		});
+
+		const syncPurchases = vi.fn().mockResolvedValue({
+			syncedCount: 1,
+			failedEntryId: null,
+		});
+
+		render(
+			<ShoppingList
+				repository={repository}
+				ownerScope="user:user-id"
+				confirmPurchases={confirmPurchases}
+				syncPurchases={syncPurchases}
+			/>,
+		);
+
+		await user.click(
+			await screen.findByRole("button", {
+				name: "チェック済みを購入確定（1件）",
+			}),
+		);
+
+		await waitFor(() => {
+			expect(confirmPurchases).toHaveBeenCalledWith("user:user-id");
+			expect(syncPurchases).toHaveBeenCalledWith("user:user-id");
+		});
+	});
 });

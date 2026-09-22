@@ -3,6 +3,7 @@ import { isSortable, useSortable } from "@dnd-kit/react/sortable";
 import clsx from "clsx";
 import { type ReactNode, type SubmitEvent, useEffect, useState } from "react";
 import * as v from "valibot";
+import type { SyncInventoryPurchaseOutboxResult } from "#/features/inventory/application/sync-inventory-purchase-outbox";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/infrastructure/inventory-purchase-outbox";
 import type { ShoppingRepository } from "../application/shopping-repository";
 import {
@@ -81,6 +82,10 @@ function SortableShoppingItem({
 	);
 }
 
+type SyncPurchases = (
+	ownerScope: InventoryPurchaseOwnerScope,
+) => Promise<SyncInventoryPurchaseOutboxResult>;
+
 type ConfirmPurchases = (
 	ownerScope: InventoryPurchaseOwnerScope,
 ) => Promise<ConfirmCheckedShoppingItemsPurchaseResult>;
@@ -88,10 +93,15 @@ type ConfirmPurchases = (
 type ShoppingListProps = {
 	repository?: ShoppingRepository;
 	confirmPurchases?: ConfirmPurchases;
+	syncPurchases?: SyncPurchases;
+	ownerScope?: InventoryPurchaseOwnerScope | null;
 };
+
 export function ShoppingList({
 	repository = dexieShoppingRepository,
 	confirmPurchases = confirmCheckedShoppingItemsPurchase,
+	syncPurchases,
+	ownerScope = "guest",
 }: ShoppingListProps) {
 	const [items, setItems] = useState<ShoppingItem[]>([]);
 	const [name, setName] = useState("");
@@ -230,11 +240,15 @@ export function ShoppingList({
 	}
 
 	async function handleConfirmPurchases() {
+		if (!ownerScope) {
+			return;
+		}
+
 		setErrorMessage(null);
 		setIsConfirmingPurchase(true);
 
 		try {
-			const result = await confirmPurchases("guest");
+			const result = await confirmPurchases(ownerScope);
 
 			if (result.status === "nothing-to-confirm") {
 				return;
@@ -254,6 +268,24 @@ export function ShoppingList({
 			setItems((currentItems) =>
 				currentItems.map((item) => purchasedItemsById.get(item.id) ?? item),
 			);
+
+			if (ownerScope === "guest" || !syncPurchases) {
+				return;
+			}
+
+			try {
+				const syncResult = await syncPurchases(ownerScope);
+
+				if (syncResult.failedEntryId) {
+					setErrorMessage(
+						"購入は保存しました。在庫への反映は通信復旧後に再試行します",
+					);
+				}
+			} catch {
+				setErrorMessage(
+					"購入は保存しました。在庫への反映は通信復旧後に再試行します",
+				);
+			}
 		} catch {
 			setErrorMessage("購入確定を保存できませんでした。もう一度お試しください");
 		} finally {
@@ -569,7 +601,12 @@ export function ShoppingList({
 				<button
 					className={styles.purchaseButton}
 					type="button"
-					disabled={checkedItemCount === 0 || isConfirmingPurchase || isLoading}
+					disabled={
+						checkedItemCount === 0 ||
+						isConfirmingPurchase ||
+						isLoading ||
+						ownerScope === null
+					}
 					onClick={() => void handleConfirmPurchases()}
 				>
 					{isConfirmingPurchase
