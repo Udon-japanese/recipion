@@ -100,4 +100,28 @@ describe("dexieInventoryPurchaseOutboxRepository", () => {
 
 		await expect(repository.list("guest")).resolves.toEqual([]);
 	});
+
+	it("ゲストの在庫反映待ちをユーザーへ引き継ぐ", async () => {
+		const { repository, entry } = createTestContext("guest");
+
+		await repository.enqueue(entry);
+
+		const movedCount = await repository.reassignOwnerScope(
+			"guest",
+			"user:user-id",
+			new Date("2026-09-22T20:00:00.000Z"),
+		);
+
+		expect(movedCount).toBe(1);
+
+		await expect(repository.list("guest")).resolves.toEqual([]);
+
+		await expect(repository.list("user:user-id")).resolves.toEqual([
+			{
+				...entry,
+				ownerScope: "user:user-id",
+				updatedAt: "2026-09-22T20:00:00.000Z",
+			},
+		]);
+	});
 });

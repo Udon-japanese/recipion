@@ -39,6 +39,7 @@ describe("syncInventoryPurchaseOutbox", () => {
 			enqueue: vi.fn(),
 			list: vi.fn().mockResolvedValue([firstEntry, secondEntry]),
 			markFailed: vi.fn(),
+			reassignOwnerScope: vi.fn().mockResolvedValue(0),
 			remove: vi.fn(),
 		};
 
@@ -72,6 +73,7 @@ describe("syncInventoryPurchaseOutbox", () => {
 			enqueue: vi.fn(),
 			list: vi.fn().mockResolvedValue([firstEntry, secondEntry]),
 			markFailed: vi.fn(),
+			reassignOwnerScope: vi.fn().mockResolvedValue(0),
 			remove: vi.fn(),
 		};
 

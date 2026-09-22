@@ -54,6 +54,28 @@ export function createDexieInventoryPurchaseOutboxRepository(
 			);
 		},
 
+		async reassignOwnerScope(from, to, now = new Date()) {
+			if (from === to) {
+				return 0;
+			}
+
+			const timestamp = now.toISOString();
+
+			return database.transaction(
+				"rw",
+				database.inventoryPurchaseOutbox,
+				async () => {
+					return database.inventoryPurchaseOutbox
+						.where("ownerScope")
+						.equals(from)
+						.modify((entry) => {
+							entry.ownerScope = to;
+							entry.updatedAt = timestamp;
+						});
+				},
+			);
+		},
+
 		async remove(id) {
 			await database.inventoryPurchaseOutbox.delete(id);
 		},
