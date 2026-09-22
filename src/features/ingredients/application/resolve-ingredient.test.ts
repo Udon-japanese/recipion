@@ -8,8 +8,8 @@ describe("resolveIngredient", () => {
 			id: crypto.randomUUID(),
 			name: "卵",
 			stockUnitCode: "count",
+			stockUnitLabel: "個",
 		};
-
 		const repository: IngredientRepository = {
 			findByNormalizedAlias: vi.fn().mockResolvedValue(ingredient),
 		};

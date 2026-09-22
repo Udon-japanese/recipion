@@ -22,6 +22,13 @@
       "when": 1790054122300,
       "tag": "0002_lively_gateway",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790058689426,
+      "tag": "0003_violet_wolfsbane",
+      "breakpoints": true
     }
   ]
 }

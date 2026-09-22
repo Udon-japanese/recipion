@@ -23,6 +23,7 @@ export const ingredient = pgTable(
 			}),
 		name: text("name").notNull(),
 		stockUnitCode: text("stock_unit_code").notNull(),
+		stockUnitLabel: text("stock_unit_label").notNull(),
 		createdAt: timestamp("created_at", {
 			withTimezone: true,
 		})
