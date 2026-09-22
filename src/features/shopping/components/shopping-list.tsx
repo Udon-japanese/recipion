@@ -3,6 +3,7 @@ import { isSortable, useSortable } from "@dnd-kit/react/sortable";
 import clsx from "clsx";
 import { type ReactNode, type SubmitEvent, useEffect, useState } from "react";
 import * as v from "valibot";
+import type { InventoryPurchaseOwnerScope } from "#/features/inventory/infrastructure/inventory-purchase-outbox";
 import type { ShoppingRepository } from "../application/shopping-repository";
 import {
 	isShoppingCategoryId,
@@ -32,6 +33,10 @@ import {
 	inferShoppingCategory,
 	isShoppingItemPresetSelected,
 } from "../domain/shopping-item-suggestion";
+import {
+	type ConfirmCheckedShoppingItemsPurchaseResult,
+	confirmCheckedShoppingItemsPurchase,
+} from "../infrastructure/dexie-shopping-purchase";
 import { dexieShoppingRepository } from "../infrastructure/dexie-shopping-repository";
 import * as styles from "./shopping-list.css";
 
@@ -76,12 +81,17 @@ function SortableShoppingItem({
 	);
 }
 
+type ConfirmPurchases = (
+	ownerScope: InventoryPurchaseOwnerScope,
+) => Promise<ConfirmCheckedShoppingItemsPurchaseResult>;
+
 type ShoppingListProps = {
 	repository?: ShoppingRepository;
+	confirmPurchases?: ConfirmPurchases;
 };
-
 export function ShoppingList({
 	repository = dexieShoppingRepository,
+	confirmPurchases = confirmCheckedShoppingItemsPurchase,
 }: ShoppingListProps) {
 	const [items, setItems] = useState<ShoppingItem[]>([]);
 	const [name, setName] = useState("");
@@ -106,8 +116,12 @@ export function ShoppingList({
 	);
 	const [isEditCategoryManuallySelected, setIsEditCategoryManuallySelected] =
 		useState(false);
+	const [isConfirmingPurchase, setIsConfirmingPurchase] = useState(false);
 
 	const presets = getShoppingItemPresets(name);
+	const checkedItemCount = items.filter(
+		(item) => item.status === "checked",
+	).length;
 
 	useEffect(() => {
 		let isActive = true;
@@ -212,6 +226,38 @@ export function ShoppingList({
 			);
 		} catch (error) {
 			setErrorMessage(getErrorMessage(error));
+		}
+	}
+
+	async function handleConfirmPurchases() {
+		setErrorMessage(null);
+		setIsConfirmingPurchase(true);
+
+		try {
+			const result = await confirmPurchases("guest");
+
+			if (result.status === "nothing-to-confirm") {
+				return;
+			}
+
+			if (result.status === "missing-conversion") {
+				const itemNames = result.items.map((item) => item.name).join("、");
+
+				setErrorMessage(`在庫換算を設定してください: ${itemNames}`);
+				return;
+			}
+
+			const purchasedItemsById = new Map(
+				result.items.map((item) => [item.id, item]),
+			);
+
+			setItems((currentItems) =>
+				currentItems.map((item) => purchasedItemsById.get(item.id) ?? item),
+			);
+		} catch {
+			setErrorMessage("購入確定を保存できませんでした。もう一度お試しください");
+		} finally {
+			setIsConfirmingPurchase(false);
 		}
 	}
 
@@ -519,6 +565,19 @@ export function ShoppingList({
 				) : null}
 			</form>
 
+			<div className={styles.purchaseActions}>
+				<button
+					className={styles.purchaseButton}
+					type="button"
+					disabled={checkedItemCount === 0 || isConfirmingPurchase || isLoading}
+					onClick={() => void handleConfirmPurchases()}
+				>
+					{isConfirmingPurchase
+						? "購入確定中…"
+						: `チェック済みを購入確定（${checkedItemCount}件）`}
+				</button>
+			</div>
+
 			{isLoading ? <p className={styles.message}>読み込んでいます…</p> : null}
 
 			{!isLoading && items.length === 0 ? (
@@ -543,7 +602,8 @@ export function ShoppingList({
 				>
 					<ul className={styles.list}>
 						{items.map((item, index) => {
-							const isChecked = item.status === "checked";
+							const isPurchased = item.status === "purchased";
+							const isChecked = item.status === "checked" || isPurchased;
 							const isFirst = index === 0;
 							const isLast = index === items.length - 1;
 							const convertedQuantityLabel =
@@ -685,6 +745,7 @@ export function ShoppingList({
 													className={styles.checkbox}
 													type="checkbox"
 													checked={isChecked}
+													disabled={isPurchased}
 													aria-label={`${item.name}をチェック`}
 													onChange={() => void handleToggle(item)}
 												/>
@@ -706,6 +767,12 @@ export function ShoppingList({
 															</span>
 														) : null}
 													</span>
+
+													{isPurchased ? (
+														<span className={styles.purchasedLabel}>
+															購入済み
+														</span>
+													) : null}
 												</span>
 
 												<div className={styles.itemActions}>

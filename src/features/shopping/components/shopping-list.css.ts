@@ -403,3 +403,48 @@ export const dragHandle = style({
 		},
 	},
 });
+
+export const purchaseActions = style({
+	display: "flex",
+	justifyContent: "flex-end",
+	marginBottom: 24,
+});
+
+export const purchaseButton = style({
+	minHeight: 44,
+	paddingInline: 18,
+	color: "var(--color-primary-text)",
+	background: "var(--color-primary)",
+	border: 0,
+	borderRadius: 8,
+	font: "inherit",
+	fontWeight: 700,
+	cursor: "pointer",
+
+	selectors: {
+		"&:hover:not(:disabled)": {
+			background: "var(--color-primary-hover)",
+		},
+
+		"&:disabled": {
+			cursor: "not-allowed",
+			opacity: 0.5,
+		},
+
+		"&:focus-visible": {
+			outline: "3px solid var(--color-primary-soft)",
+			outlineOffset: 2,
+		},
+	},
+});
+
+export const purchasedLabel = style({
+	display: "inline-block",
+	marginLeft: 8,
+	padding: "2px 6px",
+	color: "var(--color-text-muted)",
+	background: "var(--color-surface-subtle)",
+	borderRadius: 4,
+	fontSize: 12,
+	fontWeight: 600,
+});

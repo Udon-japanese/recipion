@@ -549,4 +549,106 @@ describe("ShoppingList", () => {
 			);
 		});
 	});
+
+	it("チェック済み商品を購入確定する", async () => {
+		const user = userEvent.setup();
+
+		const checkedItem: ShoppingItem = {
+			...storedItem,
+			status: "checked",
+			inventoryConversion: {
+				inputUnitCode: "count",
+				stockUnitCode: "count",
+				stockUnitLabel: "個",
+				stockQuantityPerInputUnit: 1,
+				trackingMode: "exact",
+			},
+		};
+
+		const purchasedItem: ShoppingItem = {
+			...checkedItem,
+			status: "purchased",
+		};
+
+		const repository = createRepository({
+			list: vi.fn().mockResolvedValue([checkedItem]),
+		});
+
+		const confirmPurchases = vi.fn().mockResolvedValue({
+			status: "confirmed",
+			items: [purchasedItem],
+		});
+
+		render(
+			<ShoppingList
+				repository={repository}
+				confirmPurchases={confirmPurchases}
+			/>,
+		);
+
+		await user.click(
+			await screen.findByRole("button", {
+				name: "チェック済みを購入確定（1件）",
+			}),
+		);
+
+		expect(confirmPurchases).toHaveBeenCalledWith("guest");
+
+		expect(
+			screen.getByRole("checkbox", {
+				name: "卵をチェック",
+			}),
+		).toBeChecked();
+
+		expect(
+			screen.getByRole("checkbox", {
+				name: "卵をチェック",
+			}),
+		).toBeDisabled();
+
+		expect(screen.getByText("購入済み")).toBeInTheDocument();
+	});
+
+	it("在庫換算がない商品は購入確定せず案内する", async () => {
+		const user = userEvent.setup();
+
+		const checkedItem: ShoppingItem = {
+			...storedItem,
+			name: "謎の商品",
+			status: "checked",
+			inventoryConversion: null,
+		};
+
+		const repository = createRepository({
+			list: vi.fn().mockResolvedValue([checkedItem]),
+		});
+
+		const confirmPurchases = vi.fn().mockResolvedValue({
+			status: "missing-conversion",
+			items: [checkedItem],
+		});
+
+		render(
+			<ShoppingList
+				repository={repository}
+				confirmPurchases={confirmPurchases}
+			/>,
+		);
+
+		await user.click(
+			await screen.findByRole("button", {
+				name: "チェック済みを購入確定（1件）",
+			}),
+		);
+
+		expect(await screen.findByRole("alert")).toHaveTextContent(
+			"在庫換算を設定してください: 謎の商品",
+		);
+
+		expect(
+			screen.getByRole("checkbox", {
+				name: "謎の商品をチェック",
+			}),
+		).not.toBeDisabled();
+	});
 });
