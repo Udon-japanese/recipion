@@ -1,3 +1,7 @@
+import {
+	eggIngredientPreset,
+	milkIngredientPreset,
+} from "#/features/ingredients/domain/ingredient-preset";
 import type { ShoppingCategoryId } from "./shopping-category";
 
 export type ShoppingItemPreset = {
@@ -13,7 +17,7 @@ type ShoppingItemSuggestion = {
 
 const shoppingItemSuggestions = [
 	{
-		aliases: ["卵", "たまご", "タマゴ", "玉子"],
+		aliases: eggIngredientPreset.aliases,
 		categoryId: "eggs",
 		presets: [
 			{ quantity: 6, unitLabel: "個" },
@@ -21,7 +25,7 @@ const shoppingItemSuggestions = [
 		],
 	},
 	{
-		aliases: ["牛乳", "ぎゅうにゅう", "ミルク", "ギュウニュウ", "MILK", "milk"],
+		aliases: milkIngredientPreset.aliases,
 		categoryId: "dairy",
 		presets: [
 			{ quantity: 1, unitLabel: "本" },
