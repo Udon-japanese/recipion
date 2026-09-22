@@ -20,6 +20,15 @@ const shoppingItemSuggestions = [
 			{ quantity: 10, unitLabel: "個" },
 		],
 	},
+	{
+		aliases: ["牛乳", "ぎゅうにゅう", "ミルク", "ギュウニュウ", "MILK", "milk"],
+		categoryId: "dairy",
+		presets: [
+			{ quantity: 1, unitLabel: "本" },
+			{ quantity: 1, unitLabel: "L" },
+			{ quantity: 200, unitLabel: "ml" },
+		],
+	},
 ] satisfies readonly ShoppingItemSuggestion[];
 
 function normalizeItemName(itemName: string): string {

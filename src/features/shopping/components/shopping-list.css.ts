@@ -13,6 +13,43 @@ export const title = style({
 	lineHeight: 1.2,
 });
 
+export const toolbar = style({
+	display: "flex",
+	flexWrap: "wrap",
+	gap: 8,
+	justifyContent: "flex-end",
+	marginBlock: "-12px 20px",
+});
+
+export const sortButton = style({
+	minHeight: 40,
+	paddingInline: 14,
+	color: "var(--color-primary)",
+	background: "var(--color-surface)",
+	border: "1px solid var(--color-border)",
+	borderRadius: 8,
+	font: "inherit",
+	fontWeight: 600,
+	cursor: "pointer",
+
+	selectors: {
+		"&:hover:not(:disabled)": {
+			borderColor: "var(--color-primary)",
+			background: "var(--color-surface-subtle)",
+		},
+
+		"&:disabled": {
+			cursor: "not-allowed",
+			opacity: 0.5,
+		},
+
+		"&:focus-visible": {
+			outline: "3px solid var(--color-primary-soft)",
+			outlineOffset: 2,
+		},
+	},
+});
+
 export const form = style({
 	display: "grid",
 	gap: 12,

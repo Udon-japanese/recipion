@@ -14,6 +14,10 @@ import {
 	updateShoppingItem,
 } from "../domain/shopping-item";
 import {
+	type ShoppingAisleDirection,
+	sortShoppingItemsByCategory,
+} from "../domain/shopping-item-category-order";
+import {
 	moveShoppingItem,
 	type ShoppingItemMoveDirection,
 } from "../domain/shopping-item-order";
@@ -256,10 +260,45 @@ export function ShoppingList({
 		setIsEditCategoryManuallySelected(true);
 	}
 
+	async function handleSortByCategory(direction: ShoppingAisleDirection) {
+		setErrorMessage(null);
+		setIsReordering(true);
+
+		try {
+			const reorderedItems = sortShoppingItemsByCategory(items, { direction });
+
+			await repository.saveAll(reorderedItems);
+			setItems(reorderedItems);
+		} catch (error) {
+			setErrorMessage(getErrorMessage(error));
+		} finally {
+			setIsReordering(false);
+		}
+	}
+
 	return (
 		<main className={styles.container}>
 			<h1 className={styles.title}>買い物メモ</h1>
 
+			<div className={styles.toolbar}>
+				<button
+					className={styles.sortButton}
+					type="button"
+					disabled={items.length < 2 || isReordering}
+					onClick={() => void handleSortByCategory("forward")}
+				>
+					売り場順
+				</button>
+
+				<button
+					className={styles.sortButton}
+					type="button"
+					disabled={items.length < 2 || isReordering}
+					onClick={() => void handleSortByCategory("reverse")}
+				>
+					逆回り
+				</button>
+			</div>
 			<form className={styles.form} onSubmit={handleSubmit}>
 				<div className={styles.field}>
 					<label className={styles.label} htmlFor="shopping-item-name">

@@ -28,6 +28,17 @@ describe("inferShoppingCategory", () => {
 		expect(inferShoppingCategory(itemName)).toBe("eggs");
 	});
 
+	it.each([
+		"牛乳",
+		"ぎゅうにゅう",
+		"ミルク",
+		"ギュウニュウ",
+		"MILK",
+		"milk",
+	])("%sを乳製品カテゴリに分類する", (itemName) => {
+		expect(inferShoppingCategory(itemName)).toBe("dairy");
+	});
+
 	it("Unicode表現と前後の空白を正規化する", () => {
 		expect(inferShoppingCategory("  タマゴ  ")).toBe("eggs");
 	});

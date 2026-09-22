@@ -289,4 +289,100 @@ describe("ShoppingList", () => {
 
 		expect(screen.getByLabelText("カテゴリ")).toHaveValue("pantry");
 	});
+
+	it("買い物項目を標準的な売り場順に並べる", async () => {
+		const user = userEvent.setup();
+		const eggItem: ShoppingItem = {
+			...storedItem,
+			categoryId: "eggs",
+			sortOrder: 0,
+		};
+		const produceItem: ShoppingItem = {
+			...storedItem,
+			id: "item-2",
+			name: "玉ねぎ",
+			categoryId: "produce",
+			sortOrder: 1,
+		};
+
+		const repository = createRepository({
+			list: vi.fn().mockResolvedValue([eggItem, produceItem]),
+		});
+
+		render(<ShoppingList repository={repository} />);
+
+		await user.click(
+			await screen.findByRole("button", {
+				name: "売り場順",
+			}),
+		);
+
+		await waitFor(() => {
+			expect(repository.saveAll).toHaveBeenCalledWith([
+				expect.objectContaining({
+					id: produceItem.id,
+					sortOrder: 0,
+				}),
+				expect.objectContaining({
+					id: eggItem.id,
+					sortOrder: 1,
+				}),
+			]);
+		});
+
+		expect(
+			screen
+				.getAllByRole("checkbox")
+				.map((checkbox) => checkbox.getAttribute("aria-label")),
+		).toEqual(["玉ねぎをチェック", "卵をチェック"]);
+	});
+
+	it("買い物項目を売り場の逆回り順に並べる", async () => {
+		const user = userEvent.setup();
+		const produceItem: ShoppingItem = {
+			...storedItem,
+			id: "produce",
+			name: "玉ねぎ",
+			categoryId: "produce",
+			sortOrder: 0,
+		};
+		const eggItem: ShoppingItem = {
+			...storedItem,
+			id: "eggs",
+			name: "卵",
+			categoryId: "eggs",
+			sortOrder: 1,
+		};
+
+		const repository = createRepository({
+			list: vi.fn().mockResolvedValue([produceItem, eggItem]),
+		});
+
+		render(<ShoppingList repository={repository} />);
+
+		await user.click(
+			await screen.findByRole("button", {
+				name: "逆回り",
+			}),
+		);
+
+		await waitFor(() => {
+			expect(repository.saveAll).toHaveBeenCalledWith([
+				expect.objectContaining({
+					id: eggItem.id,
+					sortOrder: 0,
+				}),
+				expect.objectContaining({
+					id: produceItem.id,
+					sortOrder: 1,
+				}),
+			]);
+		});
+
+		expect(
+			screen
+				.getAllByRole("checkbox")
+				.map((checkbox) => checkbox.getAttribute("aria-label")),
+		).toEqual(["卵をチェック", "玉ねぎをチェック"]);
+	});
 });
