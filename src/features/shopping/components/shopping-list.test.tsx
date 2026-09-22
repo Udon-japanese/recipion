@@ -11,6 +11,7 @@ const storedItem: ShoppingItem = {
 	quantity: 6,
 	unitLabel: "個",
 	categoryId: null,
+	inventoryConversion: null,
 	categoryAssignment: "manual",
 	status: "pending",
 	sortOrder: 0,

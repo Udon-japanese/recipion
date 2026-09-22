@@ -4,10 +4,11 @@ import type { ShoppingItem } from "../features/shopping/domain/shopping-item";
 
 type MigratingShoppingItem = Omit<
 	ShoppingItem,
-	"categoryId" | "categoryAssignment"
+	"categoryId" | "categoryAssignment" | "inventoryConversion"
 > & {
 	categoryId?: ShoppingItem["categoryId"] | "tofu-noodles";
 	categoryAssignment?: ShoppingItem["categoryAssignment"];
+	inventoryConversion?: ShoppingItem["inventoryConversion"];
 };
 
 export class LocalDatabase extends Dexie {
@@ -94,6 +95,22 @@ export class LocalDatabase extends Dexie {
 				"id, status, categoryId, categoryAssignment, sortOrder, createdAt, updatedAt",
 			inventoryPurchaseOutbox: "id, ownerScope, status, createdAt, updatedAt",
 		});
+
+		this.version(7)
+			.stores({
+				shoppingItems:
+					"id, status, categoryId, categoryAssignment, sortOrder, createdAt, updatedAt",
+				inventoryPurchaseOutbox: "id, ownerScope, status, createdAt, updatedAt",
+			})
+			.upgrade(async (transaction) => {
+				const shoppingItems = transaction.table<MigratingShoppingItem, string>(
+					"shoppingItems",
+				);
+
+				await shoppingItems.toCollection().modify((item) => {
+					item.inventoryConversion ??= null;
+				});
+			});
 	}
 }
 

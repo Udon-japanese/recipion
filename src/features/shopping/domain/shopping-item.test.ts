@@ -24,6 +24,7 @@ describe("createShoppingItem", () => {
 			quantity: 1,
 			unitLabel: "個",
 			categoryId: null,
+			inventoryConversion: null,
 			categoryAssignment: null,
 			status: "pending",
 			sortOrder: 0,
@@ -74,6 +75,29 @@ describe("createShoppingItem", () => {
 				quantity: 0,
 			}),
 		).toThrow("数量は0より大きい数にしてください");
+	});
+
+	it("在庫換算情報を保持する", () => {
+		const item = createShoppingItem({
+			name: "牛乳",
+			quantity: 1,
+			unitLabel: "本",
+			inventoryConversion: {
+				inputUnitCode: "bottle",
+				stockUnitCode: "ml",
+				stockUnitLabel: "ml",
+				stockQuantityPerInputUnit: 1000,
+				trackingMode: "estimated",
+			},
+		});
+
+		expect(item.inventoryConversion).toEqual({
+			inputUnitCode: "bottle",
+			stockUnitCode: "ml",
+			stockUnitLabel: "ml",
+			stockQuantityPerInputUnit: 1000,
+			trackingMode: "estimated",
+		});
 	});
 });
 

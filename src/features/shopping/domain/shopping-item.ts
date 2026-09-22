@@ -1,4 +1,6 @@
 import * as v from "valibot";
+import type { InventoryTrackingMode } from "#/features/inventory/domain/apply-inventory-adjustment";
+import type { InventoryUnitCode } from "#/features/inventory/domain/inventory-unit";
 import {
 	isShoppingCategoryId,
 	type ShoppingCategoryId,
@@ -13,11 +15,20 @@ export type ShoppingCategoryAssignment = "automatic" | "manual" | null;
 
 export type ShoppingItemStatus = "pending" | "checked" | "purchased";
 
+export type ShoppingItemInventoryConversion = {
+	inputUnitCode: string;
+	stockUnitCode: InventoryUnitCode;
+	stockUnitLabel: string;
+	stockQuantityPerInputUnit: number;
+	trackingMode: InventoryTrackingMode;
+};
+
 export type ShoppingItem = {
 	id: string;
 	name: string;
 	quantity: number;
 	unitLabel: string | null;
+	inventoryConversion: ShoppingItemInventoryConversion | null;
 	categoryId: ShoppingCategoryId | null;
 	categoryAssignment: ShoppingCategoryAssignment;
 	status: ShoppingItemStatus;
@@ -25,6 +36,26 @@ export type ShoppingItem = {
 	createdAt: string;
 	updatedAt: string;
 };
+
+const inventoryConversionSchema = v.object({
+	inputUnitCode: v.pipe(
+		v.string(),
+		v.trim(),
+		v.minLength(1, "購入単位を入力してください"),
+	),
+	stockUnitCode: v.picklist(["count", "g", "ml"]),
+	stockUnitLabel: v.pipe(
+		v.string(),
+		v.trim(),
+		v.minLength(1, "在庫の表示単位を入力してください"),
+	),
+	stockQuantityPerInputUnit: v.pipe(
+		v.number(),
+		v.finite("換算数量には有限の数値を指定してください"),
+		v.gtValue(0, "1単位あたりの在庫数量は0より大きくしてください"),
+	),
+	trackingMode: v.picklist(["exact", "estimated"]),
+});
 
 const shoppingCategoryAssignmentSchema = v.picklist(["automatic", "manual"]);
 
@@ -42,6 +73,7 @@ export const createShoppingItemInputSchema = v.object({
 		),
 	),
 	unitLabel: v.optional(v.nullable(v.pipe(v.string(), v.trim()))),
+	inventoryConversion: v.optional(v.nullable(inventoryConversionSchema)),
 	categoryId: v.optional(v.nullable(shoppingCategoryIdSchema)),
 	categoryAssignment: v.optional(v.nullable(shoppingCategoryAssignmentSchema)),
 });
@@ -61,6 +93,7 @@ export const updateShoppingItemInputSchema = v.object({
 		v.finite("数量には有限の数値を指定してください"),
 		v.gtValue(0, "数量は0より大きい数にしてください"),
 	),
+	inventoryConversion: v.optional(v.nullable(inventoryConversionSchema)),
 	unitLabel: v.nullable(v.pipe(v.string(), v.trim())),
 	categoryId: v.optional(v.nullable(shoppingCategoryIdSchema)),
 	categoryAssignment: v.optional(v.nullable(shoppingCategoryAssignmentSchema)),
@@ -84,6 +117,7 @@ export function createShoppingItem(
 		quantity: parsedInput.quantity ?? 1,
 		unitLabel: parsedInput.unitLabel || null,
 		categoryId: parsedInput.categoryId ?? null,
+		inventoryConversion: parsedInput.inventoryConversion ?? null,
 		categoryAssignment:
 			parsedInput.categoryAssignment !== undefined
 				? parsedInput.categoryAssignment
@@ -119,6 +153,10 @@ export function updateShoppingItem(
 		...item,
 		name: parsedInput.name,
 		quantity: parsedInput.quantity,
+		inventoryConversion:
+			parsedInput.inventoryConversion === undefined
+				? item.inventoryConversion
+				: parsedInput.inventoryConversion,
 		unitLabel: parsedInput.unitLabel || null,
 		categoryId,
 		categoryAssignment,
