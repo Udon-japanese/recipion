@@ -5,11 +5,12 @@ import type {
 	InventoryAdjustmentRepositoryResult,
 } from "../application/inventory-adjustment-repository";
 import type { InventoryListItem } from "../application/inventory-query-repository";
+import type { LoadInventoryItemsResult } from "../application/load-inventory-items-with-cache";
 import type { InventoryOperation } from "../domain/apply-inventory-adjustment";
 import type { InventoryPurchaseOwnerScope } from "../infrastructure/inventory-purchase-outbox";
 import * as styles from "./inventory-list.css";
 
-type LoadInventoryItems = () => Promise<InventoryListItem[]>;
+type LoadInventoryItems = () => Promise<LoadInventoryItemsResult>;
 
 type AdjustInventoryItem = (
 	command: InventoryAdjustmentCommand,
@@ -36,14 +37,18 @@ export function InventoryList({
 	const [isLoading, setIsLoading] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [adjustingItemId, setAdjustingItemId] = useState<string | null>(null);
-
 	const [adjustmentQuantity, setAdjustmentQuantity] = useState("1");
-
 	const [isAdjusting, setIsAdjusting] = useState(false);
+	const [itemsSource, setItemsSource] = useState<"network" | "cache">(
+		"network",
+	);
+	const [cachedAt, setCachedAt] = useState<string | null>(null);
 
 	const loadItems = useCallback(async () => {
 		if (!ownerScope || ownerScope === "guest") {
 			setItems([]);
+			setItemsSource("network");
+			setCachedAt(null);
 			setErrorMessage(null);
 			return;
 		}
@@ -52,7 +57,11 @@ export function InventoryList({
 		setErrorMessage(null);
 
 		try {
-			setItems(await loadInventoryItems());
+			const result = await loadInventoryItems();
+
+			setItems(result.items);
+			setItemsSource(result.source);
+			setCachedAt(result.cachedAt);
 		} catch {
 			setErrorMessage("在庫を読み込めませんでした");
 		} finally {
@@ -155,6 +164,21 @@ export function InventoryList({
 				</p>
 			) : null}
 
+			{itemsSource === "cache" && items.length > 0 ? (
+				<output className={styles.message}>
+					通信できないため、保存済みの在庫を表示しています。
+					{cachedAt ? (
+						<>
+							{" "}
+							最終更新:
+							<time dateTime={cachedAt}>
+								{new Date(cachedAt).toLocaleString("ja-JP")}
+							</time>
+						</>
+					) : null}
+				</output>
+			) : null}
+
 			{ownerScope !== null &&
 			ownerScope !== "guest" &&
 			!isLoading &&
@@ -180,7 +204,7 @@ export function InventoryList({
 									<button
 										className={styles.adjustButton}
 										type="button"
-										disabled={isAdjusting}
+										disabled={isAdjusting || itemsSource === "cache"}
 										onClick={() => handleStartAdjustment(item)}
 									>
 										調整

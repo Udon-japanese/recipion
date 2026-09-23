@@ -3,9 +3,11 @@ import { useCallback, useState } from "react";
 import { AuthPanel } from "#/features/auth/components/auth-panel";
 import { adoptGuestInventoryPurchases } from "#/features/inventory/application/adopt-guest-inventory-purchases";
 import type { InventoryAdjustmentCommand } from "#/features/inventory/application/inventory-adjustment-repository";
+import { loadInventoryItemsWithCache } from "#/features/inventory/application/load-inventory-items-with-cache";
 import { GuestPurchaseAdoption } from "#/features/inventory/components/guest-purchase-adoption";
 import { InventoryList } from "#/features/inventory/components/inventory-list";
 import { InventoryPurchaseSync } from "#/features/inventory/components/inventory-purchase-sync";
+import { createDexieInventoryCacheRepository } from "#/features/inventory/infrastructure/dexie-inventory-cache-repository";
 import { createDexieInventoryPurchaseOutboxRepository } from "#/features/inventory/infrastructure/dexie-inventory-purchase-outbox-repository";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/infrastructure/inventory-purchase-outbox";
 import { syncDexieInventoryPurchaseOutbox } from "#/features/inventory/infrastructure/sync-dexie-inventory-purchase-outbox";
@@ -26,10 +28,6 @@ async function loadGuestPurchaseCount(): Promise<number> {
 	return entries.length;
 }
 
-async function loadInventoryItems() {
-	return listInventoryItemsServerFn();
-}
-
 async function adjustInventoryItem(command: InventoryAdjustmentCommand) {
 	return adjustInventoryServerFn({
 		data: command,
@@ -46,6 +44,18 @@ function ShoppingPage() {
 		: session
 			? `user:${session.user.id}`
 			: "guest";
+
+	const loadInventoryItems = useCallback(async () => {
+		if (!ownerScope || ownerScope === "guest") {
+			throw new Error("在庫を取得できるユーザーではありません");
+		}
+
+		return loadInventoryItemsWithCache(
+			ownerScope,
+			() => listInventoryItemsServerFn(),
+			createDexieInventoryCacheRepository(),
+		);
+	}, [ownerScope]);
 
 	const syncPurchases = useCallback(
 		async (scope: InventoryPurchaseOwnerScope) => {

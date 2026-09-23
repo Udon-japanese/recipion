@@ -1,33 +1,43 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-
+import type { InventoryListItem } from "../application/inventory-query-repository";
 import { InventoryList } from "./inventory-list";
+
+function createNetworkResult(items: InventoryListItem[]) {
+	return {
+		items,
+		source: "network" as const,
+		cachedAt: "2026-09-23T00:00:00.000Z",
+	};
+}
 
 describe("InventoryList", () => {
 	it("ログインユーザーの在庫を表示する", async () => {
-		const loadInventoryItems = vi.fn().mockResolvedValue([
-			{
-				inventoryItemId: "inventory-id",
-				ingredientId: "ingredient-id",
-				name: "卵",
-				quantity: 6,
-				stockUnitCode: "count",
-				stockUnitLabel: "個",
-				trackingMode: "exact",
-				updatedAt: "2026-09-23T00:00:00.000Z",
-			},
-			{
-				inventoryItemId: "milk-inventory-id",
-				ingredientId: "milk-ingredient-id",
-				name: "牛乳",
-				quantity: 800,
-				stockUnitCode: "ml",
-				stockUnitLabel: "ml",
-				trackingMode: "estimated",
-				updatedAt: "2026-09-23T00:00:00.000Z",
-			},
-		]);
+		const loadInventoryItems = vi.fn().mockResolvedValue(
+			createNetworkResult([
+				{
+					inventoryItemId: "inventory-id",
+					ingredientId: "ingredient-id",
+					name: "卵",
+					quantity: 6,
+					stockUnitCode: "count",
+					stockUnitLabel: "個",
+					trackingMode: "exact",
+					updatedAt: "2026-09-23T00:00:00.000Z",
+				},
+				{
+					inventoryItemId: "milk-inventory-id",
+					ingredientId: "milk-ingredient-id",
+					name: "牛乳",
+					quantity: 800,
+					stockUnitCode: "ml",
+					stockUnitLabel: "ml",
+					trackingMode: "estimated",
+					updatedAt: "2026-09-23T00:00:00.000Z",
+				},
+			]),
+		);
 
 		render(
 			<InventoryList
@@ -63,7 +73,7 @@ describe("InventoryList", () => {
 		render(
 			<InventoryList
 				ownerScope="user:user-id"
-				loadInventoryItems={() => Promise.resolve([])}
+				loadInventoryItems={() => Promise.resolve(createNetworkResult([]))}
 			/>,
 		);
 
@@ -78,7 +88,7 @@ describe("InventoryList", () => {
 		const loadInventoryItems = vi
 			.fn()
 			.mockRejectedValueOnce(new Error("failed"))
-			.mockResolvedValueOnce([]);
+			.mockResolvedValueOnce(createNetworkResult([]));
 
 		render(
 			<InventoryList
@@ -119,18 +129,20 @@ describe("InventoryList", () => {
 			<InventoryList
 				ownerScope="user:user-id"
 				loadInventoryItems={() =>
-					Promise.resolve([
-						{
-							inventoryItemId: "1fc94e80-a9cf-4458-b0e6-3d72550cce06",
-							ingredientId: "9af9c3eb-1ed5-485c-923e-ddda59dc4190",
-							name: "卵",
-							quantity: 6,
-							stockUnitCode: "count",
-							stockUnitLabel: "個",
-							trackingMode: "exact",
-							updatedAt: "2026-09-23T00:00:00.000Z",
-						},
-					])
+					Promise.resolve(
+						createNetworkResult([
+							{
+								inventoryItemId: "1fc94e80-a9cf-4458-b0e6-3d72550cce06",
+								ingredientId: "9af9c3eb-1ed5-485c-923e-ddda59dc4190",
+								name: "卵",
+								quantity: 6,
+								stockUnitCode: "count",
+								stockUnitLabel: "個",
+								trackingMode: "exact",
+								updatedAt: "2026-09-23T00:00:00.000Z",
+							},
+						]),
+					)
 				}
 				adjustInventoryItem={adjustInventoryItem}
 			/>,
@@ -169,7 +181,9 @@ describe("InventoryList", () => {
 	});
 
 	it("更新番号が変わると在庫を再取得する", async () => {
-		const loadInventoryItems = vi.fn().mockResolvedValue([]);
+		const loadInventoryItems = vi
+			.fn()
+			.mockResolvedValue(createNetworkResult([]));
 
 		const { rerender } = render(
 			<InventoryList
@@ -194,5 +208,44 @@ describe("InventoryList", () => {
 		await waitFor(() => {
 			expect(loadInventoryItems).toHaveBeenCalledTimes(2);
 		});
+	});
+
+	it("通信に失敗した場合は保存済みの在庫だと案内する", async () => {
+		render(
+			<InventoryList
+				ownerScope="user:user-id"
+				loadInventoryItems={() =>
+					Promise.resolve({
+						items: [
+							{
+								inventoryItemId: "inventory-id",
+								ingredientId: "ingredient-id",
+								name: "卵",
+								quantity: 6,
+								stockUnitCode: "count",
+								stockUnitLabel: "個",
+								trackingMode: "exact",
+								updatedAt: "2026-09-23T00:00:00.000Z",
+							},
+						],
+						source: "cache",
+						cachedAt: "2026-09-23T10:00:00.000Z",
+					})
+				}
+				adjustInventoryItem={vi.fn()}
+			/>,
+		);
+
+		expect(
+			await screen.findByText(
+				/通信できないため、保存済みの在庫を表示しています/,
+			),
+		).toBeInTheDocument();
+
+		expect(
+			screen.getByRole("button", {
+				name: "調整",
+			}),
+		).toBeDisabled();
 	});
 });
