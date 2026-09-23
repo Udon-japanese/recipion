@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-
+import { useCallback, useState } from "react";
 import { AuthPanel } from "#/features/auth/components/auth-panel";
 import { adoptGuestInventoryPurchases } from "#/features/inventory/application/adopt-guest-inventory-purchases";
 import type { InventoryAdjustmentCommand } from "#/features/inventory/application/inventory-adjustment-repository";
@@ -26,13 +26,6 @@ async function loadGuestPurchaseCount(): Promise<number> {
 	return entries.length;
 }
 
-async function adoptGuestPurchases(ownerScope: InventoryPurchaseOwnerScope) {
-	return adoptGuestInventoryPurchases(ownerScope, {
-		outboxRepository: createDexieInventoryPurchaseOutboxRepository(),
-		syncPurchases: syncDexieInventoryPurchaseOutbox,
-	});
-}
-
 async function loadInventoryItems() {
 	return listInventoryItemsServerFn();
 }
@@ -44,6 +37,8 @@ async function adjustInventoryItem(command: InventoryAdjustmentCommand) {
 }
 
 function ShoppingPage() {
+	const [inventoryRefreshKey, setInventoryRefreshKey] = useState(0);
+
 	const { data: session, isPending } = authClient.useSession();
 
 	const ownerScope: InventoryPurchaseOwnerScope | null = isPending
@@ -52,6 +47,29 @@ function ShoppingPage() {
 			? `user:${session.user.id}`
 			: "guest";
 
+	const syncPurchases = useCallback(
+		async (scope: InventoryPurchaseOwnerScope) => {
+			const result = await syncDexieInventoryPurchaseOutbox(scope);
+
+			if (result.syncedCount > 0) {
+				setInventoryRefreshKey((currentKey) => currentKey + 1);
+			}
+
+			return result;
+		},
+		[],
+	);
+
+	const adoptGuestPurchasesForUser = useCallback(
+		(scope: InventoryPurchaseOwnerScope) => {
+			return adoptGuestInventoryPurchases(scope, {
+				outboxRepository: createDexieInventoryPurchaseOutboxRepository(),
+				syncPurchases,
+			});
+		},
+		[syncPurchases],
+	);
+
 	return (
 		<>
 			<AuthPanel />
@@ -59,24 +77,22 @@ function ShoppingPage() {
 			<GuestPurchaseAdoption
 				ownerScope={ownerScope}
 				loadGuestPurchaseCount={loadGuestPurchaseCount}
-				adoptGuestPurchases={adoptGuestPurchases}
+				adoptGuestPurchases={adoptGuestPurchasesForUser}
 			/>
 
 			<InventoryPurchaseSync
 				ownerScope={ownerScope}
-				syncPurchases={syncDexieInventoryPurchaseOutbox}
+				syncPurchases={syncPurchases}
 			/>
 
 			<InventoryList
 				ownerScope={ownerScope}
 				loadInventoryItems={loadInventoryItems}
 				adjustInventoryItem={adjustInventoryItem}
+				refreshKey={inventoryRefreshKey}
 			/>
 
-			<ShoppingList
-				ownerScope={ownerScope}
-				syncPurchases={syncDexieInventoryPurchaseOutbox}
-			/>
+			<ShoppingList ownerScope={ownerScope} syncPurchases={syncPurchases} />
 		</>
 	);
 }

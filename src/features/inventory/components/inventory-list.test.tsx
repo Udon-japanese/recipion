@@ -167,4 +167,32 @@ describe("InventoryList", () => {
 
 		expect(await screen.findByText("8個")).toBeInTheDocument();
 	});
+
+	it("更新番号が変わると在庫を再取得する", async () => {
+		const loadInventoryItems = vi.fn().mockResolvedValue([]);
+
+		const { rerender } = render(
+			<InventoryList
+				ownerScope="user:user-id"
+				loadInventoryItems={loadInventoryItems}
+				refreshKey={0}
+			/>,
+		);
+
+		await waitFor(() => {
+			expect(loadInventoryItems).toHaveBeenCalledTimes(1);
+		});
+
+		rerender(
+			<InventoryList
+				ownerScope="user:user-id"
+				loadInventoryItems={loadInventoryItems}
+				refreshKey={1}
+			/>,
+		);
+
+		await waitFor(() => {
+			expect(loadInventoryItems).toHaveBeenCalledTimes(2);
+		});
+	});
 });

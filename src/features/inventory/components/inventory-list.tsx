@@ -19,6 +19,7 @@ type InventoryListProps = {
 	ownerScope: InventoryPurchaseOwnerScope | null;
 	loadInventoryItems: LoadInventoryItems;
 	adjustInventoryItem?: AdjustInventoryItem;
+	refreshKey?: number;
 };
 
 const quantityFormatter = new Intl.NumberFormat("ja-JP", {
@@ -29,6 +30,7 @@ export function InventoryList({
 	ownerScope,
 	loadInventoryItems,
 	adjustInventoryItem,
+	refreshKey = 0,
 }: InventoryListProps) {
 	const [items, setItems] = useState<InventoryListItem[]>([]);
 	const [isLoading, setIsLoading] = useState(false);
@@ -113,9 +115,10 @@ export function InventoryList({
 		}
 	}
 
+	// biome-ignore lint: refreshKeyが変化したら再取得
 	useEffect(() => {
 		void loadItems();
-	}, [loadItems]);
+	}, [loadItems, refreshKey]);
 
 	return (
 		<section className={styles.container}>
