@@ -1,4 +1,4 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import * as v from "valibot";
 
 import type { DB } from "#/db/client";
@@ -16,6 +16,7 @@ import type {
 	InventoryItemResolver,
 	ResolveOrCreateInventoryItemCommand,
 } from "../application/inventory-item-resolver";
+import type { InventoryQueryRepository } from "../application/inventory-query-repository";
 import {
 	applyInventoryAdjustment,
 	type InventoryTrackingMode,
@@ -45,12 +46,55 @@ function toNumeric(value: number): string {
 export function createDrizzleInventoryRepository(
 	db: DB,
 	userId: string,
-): InventoryAdjustmentRepository & InventoryItemResolver {
+): InventoryAdjustmentRepository &
+	InventoryItemResolver &
+	InventoryQueryRepository {
 	if (userId.trim().length === 0) {
 		throw new Error("ユーザーIDを指定してください");
 	}
 
 	return {
+		async list() {
+			const rows = await db
+				.select({
+					inventoryItemId: inventoryItem.id,
+					ingredientId: ingredient.id,
+					name: ingredient.name,
+					quantity: inventoryItem.quantity,
+					stockUnitCode: ingredient.stockUnitCode,
+					stockUnitLabel: ingredient.stockUnitLabel,
+					trackingMode: inventoryItem.trackingMode,
+					updatedAt: inventoryItem.updatedAt,
+				})
+				.from(inventoryItem)
+				.innerJoin(
+					ingredient,
+					and(
+						eq(ingredient.id, inventoryItem.ingredientId),
+						eq(ingredient.userId, inventoryItem.userId),
+					),
+				)
+				.where(
+					and(
+						eq(inventoryItem.userId, userId),
+						isNull(inventoryItem.archivedAt),
+						isNull(ingredient.archivedAt),
+					),
+				)
+				.orderBy(asc(ingredient.name));
+
+			return rows.map((row) => ({
+				inventoryItemId: row.inventoryItemId,
+				ingredientId: row.ingredientId,
+				name: row.name,
+				quantity: Number(row.quantity),
+				stockUnitCode: parseInventoryUnitCode(row.stockUnitCode),
+				stockUnitLabel: row.stockUnitLabel,
+				trackingMode: parseTrackingMode(row.trackingMode),
+				updatedAt: row.updatedAt.toISOString(),
+			}));
+		},
+
 		async resolveOrCreateInventoryItem(
 			command: ResolveOrCreateInventoryItemCommand,
 		) {
