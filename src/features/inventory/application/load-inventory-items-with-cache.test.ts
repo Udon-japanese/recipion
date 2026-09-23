@@ -28,6 +28,7 @@ function createCacheRepository(
 			items: [...items],
 			cachedAt: (now ?? new Date()).toISOString(),
 		})),
+		updateQuantity: vi.fn().mockResolvedValue(undefined),
 	};
 }
 

@@ -95,4 +95,31 @@ describe("dexieInventoryCacheRepository", () => {
 			}),
 		);
 	});
+
+	it("保存済み在庫の数量を更新する", async () => {
+		const { repository } = createTestContext();
+		const now = new Date("2026-09-23T15:00:00.000Z");
+
+		await repository.save("user:user-id", [egg]);
+
+		await repository.updateQuantity(
+			"user:user-id",
+			egg.inventoryItemId,
+			10,
+			now,
+		);
+
+		expect(await repository.find("user:user-id")).toEqual(
+			expect.objectContaining({
+				cachedAt: "2026-09-23T15:00:00.000Z",
+				items: [
+					expect.objectContaining({
+						inventoryItemId: egg.inventoryItemId,
+						quantity: 10,
+						updatedAt: "2026-09-23T15:00:00.000Z",
+					}),
+				],
+			}),
+		);
+	});
 });

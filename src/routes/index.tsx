@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useState } from "react";
 import { AuthPanel } from "#/features/auth/components/auth-panel";
+import { adjustInventoryWithCache } from "#/features/inventory/application/adjust-inventory-with-cache";
 import { adoptGuestInventoryPurchases } from "#/features/inventory/application/adopt-guest-inventory-purchases";
 import type { InventoryAdjustmentCommand } from "#/features/inventory/application/inventory-adjustment-repository";
 import { loadInventoryItemsWithCache } from "#/features/inventory/application/load-inventory-items-with-cache";
@@ -28,12 +29,6 @@ async function loadGuestPurchaseCount(): Promise<number> {
 	return entries.length;
 }
 
-async function adjustInventoryItem(command: InventoryAdjustmentCommand) {
-	return adjustInventoryServerFn({
-		data: command,
-	});
-}
-
 function ShoppingPage() {
 	const [inventoryRefreshKey, setInventoryRefreshKey] = useState(0);
 
@@ -56,6 +51,25 @@ function ShoppingPage() {
 			createDexieInventoryCacheRepository(),
 		);
 	}, [ownerScope]);
+
+	const adjustInventoryItem = useCallback(
+		async (command: InventoryAdjustmentCommand) => {
+			if (!ownerScope || ownerScope === "guest") {
+				throw new Error("在庫を調整できるユーザーではありません");
+			}
+
+			return adjustInventoryWithCache(
+				ownerScope,
+				command,
+				(adjustmentCommand) =>
+					adjustInventoryServerFn({
+						data: adjustmentCommand,
+					}),
+				createDexieInventoryCacheRepository(),
+			);
+		},
+		[ownerScope],
+	);
 
 	const syncPurchases = useCallback(
 		async (scope: InventoryPurchaseOwnerScope) => {

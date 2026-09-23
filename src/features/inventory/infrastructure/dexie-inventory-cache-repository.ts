@@ -25,5 +25,40 @@ export function createDexieInventoryCacheRepository(
 
 			return snapshot;
 		},
+
+		async updateQuantity(
+			ownerScope,
+			inventoryItemId,
+			quantity,
+			now = new Date(),
+		) {
+			await database.transaction(
+				"rw",
+				database.inventorySnapshots,
+				async () => {
+					const snapshot = await database.inventorySnapshots.get(ownerScope);
+
+					if (!snapshot) {
+						return;
+					}
+
+					const items = snapshot.items.map((item) =>
+						item.inventoryItemId === inventoryItemId
+							? {
+									...item,
+									quantity,
+									updatedAt: now.toISOString(),
+								}
+							: item,
+					);
+
+					await database.inventorySnapshots.put({
+						...snapshot,
+						items,
+						cachedAt: now.toISOString(),
+					});
+				},
+			);
+		},
 	};
 }

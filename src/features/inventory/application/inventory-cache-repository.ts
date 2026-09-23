@@ -18,4 +18,11 @@ export interface InventoryCacheRepository {
 		items: readonly InventoryListItem[],
 		now?: Date,
 	): Promise<InventoryCacheSnapshot>;
+
+	updateQuantity(
+		ownerScope: InventoryCacheOwnerScope,
+		inventoryItemId: string,
+		quantity: number,
+		now?: Date,
+	): Promise<void>;
 }
