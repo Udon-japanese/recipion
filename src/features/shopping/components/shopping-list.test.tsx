@@ -642,9 +642,8 @@ describe("ShoppingList", () => {
 		);
 
 		expect(await screen.findByRole("alert")).toHaveTextContent(
-			"在庫換算を設定してください: 謎の商品",
+			"謎の商品の在庫換算を設定してください",
 		);
-
 		expect(
 			screen.getByRole("checkbox", {
 				name: "謎の商品をチェック",
@@ -705,5 +704,91 @@ describe("ShoppingList", () => {
 			expect(confirmPurchases).toHaveBeenCalledWith("user:user-id");
 			expect(syncPurchases).toHaveBeenCalledWith("user:user-id");
 		});
+	});
+
+	it("購入確定時に不足している在庫換算を設定できる", async () => {
+		const user = userEvent.setup();
+
+		const checkedItem: ShoppingItem = {
+			...storedItem,
+			name: "たまご",
+			quantity: 1,
+			unitLabel: null,
+			status: "checked",
+			inventoryConversion: null,
+		};
+
+		const configuredItem: ShoppingItem = {
+			...checkedItem,
+			quantity: 6,
+			unitLabel: "個",
+			inventoryConversion: {
+				inputUnitCode: "count",
+				stockUnitCode: "count",
+				stockUnitLabel: "個",
+				stockQuantityPerInputUnit: 1,
+				trackingMode: "exact",
+			},
+		};
+
+		const purchasedItem: ShoppingItem = {
+			...configuredItem,
+			status: "purchased",
+		};
+
+		const repository = createRepository({
+			list: vi.fn().mockResolvedValue([checkedItem]),
+		});
+
+		const confirmPurchases = vi
+			.fn()
+			.mockResolvedValueOnce({
+				status: "missing-conversion",
+				items: [checkedItem],
+			})
+			.mockResolvedValueOnce({
+				status: "confirmed",
+				items: [purchasedItem],
+			});
+
+		render(
+			<ShoppingList
+				repository={repository}
+				confirmPurchases={confirmPurchases}
+			/>,
+		);
+
+		await user.click(
+			await screen.findByRole("button", {
+				name: "チェック済みを購入確定（1件）",
+			}),
+		);
+
+		expect(
+			await screen.findByRole("heading", {
+				name: "たまごを在庫へ追加する方法",
+			}),
+		).toBeInTheDocument();
+
+		await user.click(
+			screen.getByRole("button", {
+				name: "6個",
+			}),
+		);
+
+		await waitFor(() => {
+			expect(repository.save).toHaveBeenCalledWith(
+				expect.objectContaining({
+					id: checkedItem.id,
+					quantity: 6,
+					unitLabel: "個",
+					inventoryConversion: configuredItem.inventoryConversion,
+				}),
+			);
+
+			expect(confirmPurchases).toHaveBeenCalledTimes(2);
+		});
+
+		expect(await screen.findByText("購入済み")).toBeInTheDocument();
 	});
 });

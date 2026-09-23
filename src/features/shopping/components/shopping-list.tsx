@@ -39,6 +39,10 @@ import {
 	confirmCheckedShoppingItemsPurchase,
 } from "../infrastructure/dexie-shopping-purchase";
 import { dexieShoppingRepository } from "../infrastructure/dexie-shopping-repository";
+import {
+	type ShoppingItemInventoryConfiguration,
+	ShoppingItemInventoryConversionForm,
+} from "./shopping-item-inventory-conversion-form";
 import * as styles from "./shopping-list.css";
 
 function getErrorMessage(error: unknown): string {
@@ -127,11 +131,17 @@ export function ShoppingList({
 	const [isEditCategoryManuallySelected, setIsEditCategoryManuallySelected] =
 		useState(false);
 	const [isConfirmingPurchase, setIsConfirmingPurchase] = useState(false);
+	const [conversionItemId, setConversionItemId] = useState<string | null>(null);
+
+	const [isSavingConversion, setIsSavingConversion] = useState(false);
 
 	const presets = getShoppingItemPresets(name);
 	const checkedItemCount = items.filter(
 		(item) => item.status === "checked",
 	).length;
+	const conversionItem = conversionItemId
+		? items.find((item) => item.id === conversionItemId)
+		: undefined;
 
 	useEffect(() => {
 		let isActive = true;
@@ -255,11 +265,20 @@ export function ShoppingList({
 			}
 
 			if (result.status === "missing-conversion") {
-				const itemNames = result.items.map((item) => item.name).join("、");
+				const firstMissingItem = result.items[0];
 
-				setErrorMessage(`在庫換算を設定してください: ${itemNames}`);
+				setConversionItemId(firstMissingItem?.id ?? null);
+
+				setErrorMessage(
+					firstMissingItem
+						? `${firstMissingItem.name}の在庫換算を設定してください`
+						: "在庫換算を設定してください",
+				);
+
 				return;
 			}
+
+			setConversionItemId(null);
 
 			const purchasedItemsById = new Map(
 				result.items.map((item) => [item.id, item]),
@@ -290,6 +309,43 @@ export function ShoppingList({
 			setErrorMessage("購入確定を保存できませんでした。もう一度お試しください");
 		} finally {
 			setIsConfirmingPurchase(false);
+		}
+	}
+
+	async function handleSaveInventoryConfiguration(
+		item: ShoppingItem,
+		configuration: ShoppingItemInventoryConfiguration,
+	) {
+		setErrorMessage(null);
+		setIsSavingConversion(true);
+
+		try {
+			const updatedItem = updateShoppingItem(item, {
+				name: item.name,
+				quantity: configuration.quantity,
+				unitLabel: configuration.unitLabel,
+				inventoryConversion: configuration.inventoryConversion,
+			});
+
+			await repository.save(updatedItem);
+
+			setItems((currentItems) =>
+				currentItems.map((currentItem) =>
+					currentItem.id === updatedItem.id ? updatedItem : currentItem,
+				),
+			);
+
+			setConversionItemId(null);
+
+			/*
+			 * Dexieへの換算保存が完了しているため、
+			 * 購入確定を最初から再試行する。
+			 */
+			await handleConfirmPurchases();
+		} catch (error) {
+			setErrorMessage(getErrorMessage(error));
+		} finally {
+			setIsSavingConversion(false);
 		}
 	}
 
@@ -596,6 +652,20 @@ export function ShoppingList({
 					</p>
 				) : null}
 			</form>
+
+			{conversionItem ? (
+				<ShoppingItemInventoryConversionForm
+					item={conversionItem}
+					isSaving={isSavingConversion}
+					onSave={(configuration) =>
+						handleSaveInventoryConfiguration(conversionItem, configuration)
+					}
+					onCancel={() => {
+						setConversionItemId(null);
+						setErrorMessage(null);
+					}}
+				/>
+			) : null}
 
 			<div className={styles.purchaseActions}>
 				<button
