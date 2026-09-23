@@ -1,0 +1,19 @@
+{
+	"name": "Recipion",
+	"short_name": "Recipion",
+	"description": "レシピ、買い物メモ、在庫を管理するアプリ",
+	"lang": "ja",
+	"start_url": "/",
+	"scope": "/",
+	"display": "standalone",
+	"background_color": "#ffffff",
+	"theme_color": "#2563eb",
+	"icons": [
+		{
+			"src": "/recipion-icon.svg",
+			"sizes": "any",
+			"type": "image/svg+xml",
+			"purpose": "any maskable"
+		}
+	]
+}
