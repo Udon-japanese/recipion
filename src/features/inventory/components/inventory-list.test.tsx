@@ -105,4 +105,66 @@ describe("InventoryList", () => {
 			await screen.findByText("在庫はまだありません。"),
 		).toBeInTheDocument();
 	});
+
+	it("在庫数量を手動で増やせる", async () => {
+		const user = userEvent.setup();
+
+		const adjustInventoryItem = vi.fn().mockResolvedValue({
+			status: "applied",
+			transactionId: "71af9bc7-03ed-4df4-a783-a45e743a81f7",
+			quantity: 8,
+		});
+
+		render(
+			<InventoryList
+				ownerScope="user:user-id"
+				loadInventoryItems={() =>
+					Promise.resolve([
+						{
+							inventoryItemId: "1fc94e80-a9cf-4458-b0e6-3d72550cce06",
+							ingredientId: "9af9c3eb-1ed5-485c-923e-ddda59dc4190",
+							name: "卵",
+							quantity: 6,
+							stockUnitCode: "count",
+							stockUnitLabel: "個",
+							trackingMode: "exact",
+							updatedAt: "2026-09-23T00:00:00.000Z",
+						},
+					])
+				}
+				adjustInventoryItem={adjustInventoryItem}
+			/>,
+		);
+
+		await user.click(
+			await screen.findByRole("button", {
+				name: "調整",
+			}),
+		);
+
+		await user.clear(screen.getByLabelText("卵の調整数量"));
+
+		await user.type(screen.getByLabelText("卵の調整数量"), "2");
+
+		await user.click(
+			screen.getByRole("button", {
+				name: "増やす",
+			}),
+		);
+
+		await waitFor(() => {
+			expect(adjustInventoryItem).toHaveBeenCalledWith(
+				expect.objectContaining({
+					inventoryItemId: "1fc94e80-a9cf-4458-b0e6-3d72550cce06",
+					inputQuantity: 2,
+					inputUnitCode: "count",
+					stockQuantityPerInputUnit: 1,
+					operation: "increase",
+					reason: "manual-adjustment",
+				}),
+			);
+		});
+
+		expect(await screen.findByText("8個")).toBeInTheDocument();
+	});
 });
