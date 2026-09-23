@@ -3,10 +3,12 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AuthPanel } from "#/features/auth/components/auth-panel";
 import { adoptGuestInventoryPurchases } from "#/features/inventory/application/adopt-guest-inventory-purchases";
 import { GuestPurchaseAdoption } from "#/features/inventory/components/guest-purchase-adoption";
+import { InventoryList } from "#/features/inventory/components/inventory-list";
 import { InventoryPurchaseSync } from "#/features/inventory/components/inventory-purchase-sync";
 import { createDexieInventoryPurchaseOutboxRepository } from "#/features/inventory/infrastructure/dexie-inventory-purchase-outbox-repository";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/infrastructure/inventory-purchase-outbox";
 import { syncDexieInventoryPurchaseOutbox } from "#/features/inventory/infrastructure/sync-dexie-inventory-purchase-outbox";
+import { listInventoryItemsServerFn } from "#/features/inventory/server/list-inventory-items";
 import { ShoppingList } from "#/features/shopping/components/shopping-list";
 import { authClient } from "#/integrations/better-auth/auth-client";
 
@@ -27,6 +29,10 @@ async function adoptGuestPurchases(ownerScope: InventoryPurchaseOwnerScope) {
 		outboxRepository: createDexieInventoryPurchaseOutboxRepository(),
 		syncPurchases: syncDexieInventoryPurchaseOutbox,
 	});
+}
+
+async function loadInventoryItems() {
+	return listInventoryItemsServerFn();
 }
 
 function ShoppingPage() {
@@ -51,6 +57,11 @@ function ShoppingPage() {
 			<InventoryPurchaseSync
 				ownerScope={ownerScope}
 				syncPurchases={syncDexieInventoryPurchaseOutbox}
+			/>
+
+			<InventoryList
+				ownerScope={ownerScope}
+				loadInventoryItems={loadInventoryItems}
 			/>
 
 			<ShoppingList
