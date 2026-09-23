@@ -89,34 +89,42 @@ function resolveLines(lines: readonly string[]): ParsedRecipeIngredientItem[] {
 	return items;
 }
 
-function groupResolvedItems(
-	items: readonly ParsedRecipeIngredientItem[],
+function groupResolvedNodes(
+	nodes: readonly ParsedRecipeIngredientNode[],
 ): ParsedRecipeIngredientNode[] {
-	const nodes: ParsedRecipeIngredientNode[] = [];
+	const groupedNodes: ParsedRecipeIngredientNode[] = [];
 
 	let index = 0;
 
-	while (index < items.length) {
-		const item = items[index];
-		const nextItem = items[index + 1];
+	while (index < nodes.length) {
+		const node = nodes[index];
+		const nextNode = nodes[index + 1];
 
-		if (item.status === "missing-amount" && nextItem?.status === "parsed") {
+		if (
+			node.type === "ingredient" &&
+			node.status === "missing-amount" &&
+			nextNode?.type === "ingredient" &&
+			nextNode.status === "parsed"
+		) {
 			const children: ParsedRecipeIngredientItem[] = [];
 
 			let childIndex = index + 1;
 
-			while (
-				childIndex < items.length &&
-				items[childIndex].status === "parsed"
-			) {
-				children.push(items[childIndex]);
+			while (childIndex < nodes.length) {
+				const childNode = nodes[childIndex];
+
+				if (childNode.type !== "ingredient" || childNode.status !== "parsed") {
+					break;
+				}
+
+				children.push(childNode);
 				childIndex += 1;
 			}
 
-			nodes.push({
+			groupedNodes.push({
 				type: "group",
-				name: item.name,
-				rawText: item.rawText,
+				name: node.name,
+				rawText: node.rawText,
 				inferred: true,
 				children,
 			});
@@ -125,11 +133,11 @@ function groupResolvedItems(
 			continue;
 		}
 
-		nodes.push(item);
+		groupedNodes.push(node);
 		index += 1;
 	}
 
-	return nodes;
+	return groupedNodes;
 }
 
 type IngredientPrefixCandidate = {
@@ -175,13 +183,11 @@ function findIngredientPrefix(name: string): IngredientPrefixCandidate | null {
 	};
 }
 
-function groupPrefixedNodes(
-	nodes: readonly ParsedRecipeIngredientNode[],
+function groupPrefixedItems(
+	items: readonly ParsedRecipeIngredientItem[],
 ): ParsedRecipeIngredientNode[] {
-	const candidates = nodes.map((node) =>
-		node.type === "ingredient" && node.status === "parsed"
-			? findIngredientPrefix(node.name)
-			: null,
+	const candidates = items.map((item) =>
+		item.status === "parsed" ? findIngredientPrefix(item.name) : null,
 	);
 
 	const compactCandidateCount = candidates.filter(
@@ -191,20 +197,16 @@ function groupPrefixedNodes(
 	const result: ParsedRecipeIngredientNode[] = [];
 	const groups = new Map<string, ParsedRecipeIngredientGroup>();
 
-	for (const [index, node] of nodes.entries()) {
+	for (const [index, item] of items.entries()) {
 		const candidate = candidates[index];
 
-		if (
-			node.type !== "ingredient" ||
-			!candidate ||
-			(!candidate.explicit && compactCandidateCount < 2)
-		) {
-			result.push(node);
+		if (!candidate || (!candidate.explicit && compactCandidateCount < 2)) {
+			result.push(item);
 			continue;
 		}
 
 		const ingredient = {
-			...node,
+			...item,
 			name: candidate.ingredientName,
 		};
 
@@ -238,5 +240,5 @@ export function parseRecipeIngredients(
 		.map((line) => line.trim())
 		.filter((line) => line.length > 0);
 
-	return groupPrefixedNodes(groupResolvedItems(resolveLines(lines)));
+	return groupResolvedNodes(groupPrefixedItems(resolveLines(lines)));
 }
