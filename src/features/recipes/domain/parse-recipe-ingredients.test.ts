@@ -148,4 +148,104 @@ describe("parseRecipeIngredients", () => {
 	it("空の文章は空配列を返す", () => {
 		expect(parseRecipeIngredients("　\n ")).toEqual([]);
 	});
+
+	it("区切りなしの接頭辞から材料をグループ化する", () => {
+		expect(
+			parseRecipeIngredients(`
+			Aしょうゆ 大さじ1
+			A砂糖 小さじ1
+			B水 100ml
+			B酒 大さじ1
+		`),
+		).toEqual([
+			expect.objectContaining({
+				type: "group",
+				name: "A",
+				inferred: true,
+				children: [
+					expect.objectContaining({
+						name: "しょうゆ",
+						quantity: 1,
+						unitLabel: "大さじ",
+					}),
+					expect.objectContaining({
+						name: "砂糖",
+						quantity: 1,
+						unitLabel: "小さじ",
+					}),
+				],
+			}),
+			expect.objectContaining({
+				type: "group",
+				name: "B",
+				inferred: true,
+				children: [
+					expect.objectContaining({
+						name: "水",
+						quantity: 100,
+						unitLabel: "ml",
+					}),
+					expect.objectContaining({
+						name: "酒",
+						quantity: 1,
+						unitLabel: "大さじ",
+					}),
+				],
+			}),
+		]);
+	});
+
+	it("一般的な区切り付き接頭辞をグループ化する", () => {
+		expect(
+			parseRecipeIngredients(`
+			[A] しょうゆ 大さじ1
+			Ａ：砂糖 小さじ1
+			【B】水 100ml
+			(B) 酒 大さじ1
+		`),
+		).toEqual([
+			expect.objectContaining({
+				type: "group",
+				name: "A",
+				children: [
+					expect.objectContaining({
+						name: "しょうゆ",
+					}),
+					expect.objectContaining({
+						name: "砂糖",
+					}),
+				],
+			}),
+			expect.objectContaining({
+				type: "group",
+				name: "B",
+				children: [
+					expect.objectContaining({
+						name: "水",
+					}),
+					expect.objectContaining({
+						name: "酒",
+					}),
+				],
+			}),
+		]);
+	});
+
+	it("接頭辞らしき文字が1行だけなら材料名から削除しない", () => {
+		expect(
+			parseRecipeIngredients(`
+			A5ランク牛肉 200g
+			玉ねぎ 1個
+		`),
+		).toEqual([
+			expect.objectContaining({
+				type: "ingredient",
+				name: "A5ランク牛肉",
+			}),
+			expect.objectContaining({
+				type: "ingredient",
+				name: "玉ねぎ",
+			}),
+		]);
+	});
 });

@@ -132,6 +132,104 @@ function groupResolvedItems(
 	return nodes;
 }
 
+type IngredientPrefixCandidate = {
+	prefix: string;
+	ingredientName: string;
+	explicit: boolean;
+};
+
+const explicitPrefixPatterns = [
+	/^\[([A-H1-9])\]\s*(.+)$/iu,
+	/^【([A-H1-9])】\s*(.+)$/iu,
+	/^\(([A-H1-9])\)\s*(.+)$/iu,
+	/^([A-H1-9])[:：]\s*(.+)$/iu,
+];
+
+const compactPrefixPattern = /^([A-H1-9])(.+)$/iu;
+
+function findIngredientPrefix(name: string): IngredientPrefixCandidate | null {
+	const normalizedName = name.normalize("NFKC").trim();
+
+	for (const pattern of explicitPrefixPatterns) {
+		const match = normalizedName.match(pattern);
+
+		if (match) {
+			return {
+				prefix: match[1].toLocaleUpperCase("ja-JP"),
+				ingredientName: match[2].trim(),
+				explicit: true,
+			};
+		}
+	}
+
+	const compactMatch = normalizedName.match(compactPrefixPattern);
+
+	if (!compactMatch) {
+		return null;
+	}
+
+	return {
+		prefix: compactMatch[1].toLocaleUpperCase("ja-JP"),
+		ingredientName: compactMatch[2].trim(),
+		explicit: false,
+	};
+}
+
+function groupPrefixedNodes(
+	nodes: readonly ParsedRecipeIngredientNode[],
+): ParsedRecipeIngredientNode[] {
+	const candidates = nodes.map((node) =>
+		node.type === "ingredient" && node.status === "parsed"
+			? findIngredientPrefix(node.name)
+			: null,
+	);
+
+	const compactCandidateCount = candidates.filter(
+		(candidate) => candidate && !candidate.explicit,
+	).length;
+
+	const result: ParsedRecipeIngredientNode[] = [];
+	const groups = new Map<string, ParsedRecipeIngredientGroup>();
+
+	for (const [index, node] of nodes.entries()) {
+		const candidate = candidates[index];
+
+		if (
+			node.type !== "ingredient" ||
+			!candidate ||
+			(!candidate.explicit && compactCandidateCount < 2)
+		) {
+			result.push(node);
+			continue;
+		}
+
+		const ingredient = {
+			...node,
+			name: candidate.ingredientName,
+		};
+
+		const existingGroup = groups.get(candidate.prefix);
+
+		if (existingGroup) {
+			existingGroup.children.push(ingredient);
+			continue;
+		}
+
+		const group: ParsedRecipeIngredientGroup = {
+			type: "group",
+			name: candidate.prefix,
+			rawText: candidate.prefix,
+			inferred: true,
+			children: [ingredient],
+		};
+
+		groups.set(candidate.prefix, group);
+		result.push(group);
+	}
+
+	return result;
+}
+
 export function parseRecipeIngredients(
 	input: string,
 ): ParsedRecipeIngredientNode[] {
@@ -140,5 +238,5 @@ export function parseRecipeIngredients(
 		.map((line) => line.trim())
 		.filter((line) => line.length > 0);
 
-	return groupResolvedItems(resolveLines(lines));
+	return groupPrefixedNodes(groupResolvedItems(resolveLines(lines)));
 }
