@@ -7,37 +7,38 @@ import type {
 const requiredText = v.pipe(v.string(), v.trim(), v.minLength(1));
 const idSchema = requiredText;
 
-const ingredientSchema: v.GenericSchema = v.lazy(() =>
-	v.union([
-		v.object({
-			type: v.literal("ingredient"),
-			status: v.literal("parsed"),
-			id: idSchema,
-			rawText: requiredText,
-			name: requiredText,
-			amountText: requiredText,
-			quantity: v.nullable(v.pipe(v.number(), v.finite(), v.gtValue(0))),
-			unitLabel: v.nullable(requiredText),
-		}),
-		v.object({
-			type: v.literal("ingredient"),
-			status: v.literal("missing-amount"),
-			id: idSchema,
-			rawText: requiredText,
-			name: requiredText,
-			amountText: v.null(),
-			quantity: v.null(),
-			unitLabel: v.null(),
-		}),
-		v.object({
-			type: v.literal("group"),
-			id: idSchema,
-			name: requiredText,
-			rawText: requiredText,
-			inferred: v.boolean(),
-			children: v.array(ingredientSchema),
-		}),
-	]),
+const ingredientSchema: v.GenericSchema<RecipeEditorIngredientNode> = v.lazy(
+	() =>
+		v.union([
+			v.object({
+				type: v.literal("ingredient"),
+				status: v.literal("parsed"),
+				id: idSchema,
+				rawText: requiredText,
+				name: requiredText,
+				amountText: requiredText,
+				quantity: v.nullable(v.pipe(v.number(), v.finite(), v.gtValue(0))),
+				unitLabel: v.nullable(requiredText),
+			}),
+			v.object({
+				type: v.literal("ingredient"),
+				status: v.literal("missing-amount"),
+				id: idSchema,
+				rawText: requiredText,
+				name: requiredText,
+				amountText: v.null(),
+				quantity: v.null(),
+				unitLabel: v.null(),
+			}),
+			v.object({
+				type: v.literal("group"),
+				id: idSchema,
+				name: requiredText,
+				rawText: requiredText,
+				inferred: v.boolean(),
+				children: v.array(ingredientSchema),
+			}),
+		]),
 );
 const documentSchema = v.object({
 	name: requiredText,
@@ -76,12 +77,15 @@ function validateIngredientIds(
 export function validateRecipeEditorDocument(
 	input: unknown,
 ): RecipeEditorDocument {
-	if (!v.safeParse(documentSchema, input).success) {
+	const result = v.safeParse(documentSchema, input);
+
+	if (!result.success) {
 		throw new Error("レシピの入力内容を確認してください");
 	}
 
-	// 上の構造チェック後だけ、ドメイン型として扱う。
-	const document = input as RecipeEditorDocument;
+	// 再帰的な材料スキーマは GenericSchema として宣言しているため、
+	// ここで検証済みの出力をドメイン型として扱う。
+	const document = result.output;
 	const ids = new Set<string>();
 
 	validateIngredientIds(document.ingredients, ids);

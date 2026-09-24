@@ -14,7 +14,7 @@ describe("validateRecipeEditorDocument", () => {
 	it("正しいレシピを受け取る", () => {
 		const document = createDocument();
 
-		expect(validateRecipeEditorDocument(document)).toBe(document);
+		expect(validateRecipeEditorDocument(document)).toStrictEqual(document);
 	});
 
 	it("名前と人数を確認する", () => {
@@ -55,7 +55,7 @@ describe("validateRecipeEditorDocument", () => {
 			document.instructions[0].id,
 		];
 
-		expect(validateRecipeEditorDocument(document)).toBe(document);
+		expect(validateRecipeEditorDocument(document)).toStrictEqual(document);
 	});
 
 	it("数量のない材料も保持する", () => {
@@ -64,7 +64,7 @@ describe("validateRecipeEditorDocument", () => {
 			ingredientText: "塩",
 		});
 
-		expect(validateRecipeEditorDocument(document)).toBe(document);
+		expect(validateRecipeEditorDocument(document)).toStrictEqual(document);
 	});
 
 	it("材料の数量や解析状態が壊れていたら拒否する", () => {
@@ -96,5 +96,18 @@ describe("validateRecipeEditorDocument", () => {
 				],
 			}),
 		).toThrow("レシピの入力内容を確認してください");
+	});
+
+	it("検証済みの値を返し、余分な項目を保存処理へ渡さない", () => {
+		const document = createDocument();
+
+		const result = validateRecipeEditorDocument({
+			...document,
+			name: "  卵焼き  ",
+			unexpected: "保存しない",
+		});
+
+		expect(result.name).toBe("卵焼き");
+		expect(result).not.toHaveProperty("unexpected");
 	});
 });
