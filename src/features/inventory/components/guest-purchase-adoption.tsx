@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 import type { AdoptGuestInventoryPurchasesResult } from "../application/adopt-guest-inventory-purchases";
-import type { InventoryPurchaseOwnerScope } from "../infrastructure/inventory-purchase-outbox";
+import type { InventoryPurchaseOwnerScope } from "../application/inventory-purchase-outbox";
 import * as styles from "./guest-purchase-adoption.css";
 
 type LoadGuestPurchaseCount = () => Promise<number>;

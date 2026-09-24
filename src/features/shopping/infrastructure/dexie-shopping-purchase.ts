@@ -1,4 +1,4 @@
-import type { InventoryPurchaseOwnerScope } from "#/features/inventory/infrastructure/inventory-purchase-outbox";
+import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import { getLocalDatabase, type LocalDatabase } from "#/local-db/database";
 import { prepareShoppingItemPurchase } from "../application/prepare-shopping-item-purchase";
 import type { ShoppingItem } from "../domain/shopping-item";

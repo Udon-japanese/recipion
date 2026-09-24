@@ -1,6 +1,6 @@
 import Dexie, { type Table } from "dexie";
 import type { InventoryCacheSnapshot } from "../features/inventory/application/inventory-cache-repository";
-import type { InventoryPurchaseOutboxEntry } from "../features/inventory/infrastructure/inventory-purchase-outbox";
+import type { InventoryPurchaseOutboxEntry } from "../features/inventory/application/inventory-purchase-outbox";
 import type { ShoppingItem } from "../features/shopping/domain/shopping-item";
 
 type MigratingShoppingItem = Omit<

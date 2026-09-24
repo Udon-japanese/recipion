@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-
+import type { InventoryPurchaseOwnerScope } from "../application/inventory-purchase-outbox";
 import type { SyncInventoryPurchaseOutboxResult } from "../application/sync-inventory-purchase-outbox";
-import type { InventoryPurchaseOwnerScope } from "../infrastructure/inventory-purchase-outbox";
 import * as styles from "./inventory-purchase-sync.css";
 
 type SyncPurchases = (

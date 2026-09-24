@@ -3,8 +3,8 @@ import { isSortable, useSortable } from "@dnd-kit/react/sortable";
 import clsx from "clsx";
 import { type ReactNode, type SubmitEvent, useEffect, useState } from "react";
 import * as v from "valibot";
+import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import type { SyncInventoryPurchaseOutboxResult } from "#/features/inventory/application/sync-inventory-purchase-outbox";
-import type { InventoryPurchaseOwnerScope } from "#/features/inventory/infrastructure/inventory-purchase-outbox";
 import type { ShoppingRepository } from "../application/shopping-repository";
 import {
 	isShoppingCategoryId,

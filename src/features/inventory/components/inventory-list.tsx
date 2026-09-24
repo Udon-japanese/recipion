@@ -4,10 +4,10 @@ import type {
 	InventoryAdjustmentCommand,
 	InventoryAdjustmentRepositoryResult,
 } from "../application/inventory-adjustment-repository";
+import type { InventoryPurchaseOwnerScope } from "../application/inventory-purchase-outbox";
 import type { InventoryListItem } from "../application/inventory-query-repository";
 import type { LoadInventoryItemsResult } from "../application/load-inventory-items-with-cache";
 import type { InventoryOperation } from "../domain/apply-inventory-adjustment";
-import type { InventoryPurchaseOwnerScope } from "../infrastructure/inventory-purchase-outbox";
 import * as styles from "./inventory-list.css";
 
 type LoadInventoryItems = () => Promise<LoadInventoryItemsResult>;

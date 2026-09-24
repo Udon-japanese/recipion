@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createInventoryPurchaseOutboxEntry } from "../infrastructure/inventory-purchase-outbox";
+import { createInventoryPurchaseOutboxEntry } from "./inventory-purchase-outbox";
 import type { InventoryPurchaseOutboxRepository } from "./inventory-purchase-outbox-repository";
 import {
 	type InventoryPurchaseSender,

@@ -1,7 +1,6 @@
 import { getLocalDatabase, type LocalDatabase } from "#/local-db/database";
-
+import type { InventoryPurchaseOwnerScope } from "../application/inventory-purchase-outbox";
 import type { InventoryPurchaseOutboxRepository } from "../application/inventory-purchase-outbox-repository";
-import type { InventoryPurchaseOwnerScope } from "./inventory-purchase-outbox";
 
 export function createDexieInventoryPurchaseOutboxRepository(
 	database: LocalDatabase = getLocalDatabase(),

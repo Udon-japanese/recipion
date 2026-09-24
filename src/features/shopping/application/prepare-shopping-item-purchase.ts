@@ -2,7 +2,7 @@ import {
 	createInventoryPurchaseOutboxEntry,
 	type InventoryPurchaseOutboxEntry,
 	type InventoryPurchaseOwnerScope,
-} from "#/features/inventory/infrastructure/inventory-purchase-outbox";
+} from "#/features/inventory/application/inventory-purchase-outbox";
 import {
 	markShoppingItemAsPurchased,
 	type ShoppingItem,

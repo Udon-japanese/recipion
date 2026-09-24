@@ -1,4 +1,4 @@
-import type { InventoryPurchaseOwnerScope } from "../infrastructure/inventory-purchase-outbox";
+import type { InventoryPurchaseOwnerScope } from "./inventory-purchase-outbox";
 import type { InventoryPurchaseOutboxRepository } from "./inventory-purchase-outbox-repository";
 import type { RecordInventoryPurchaseInput } from "./record-inventory-purchase";
 

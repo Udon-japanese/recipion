@@ -1,7 +1,7 @@
 import type {
 	InventoryPurchaseOutboxEntry,
 	InventoryPurchaseOwnerScope,
-} from "../infrastructure/inventory-purchase-outbox";
+} from "./inventory-purchase-outbox";
 
 export interface InventoryPurchaseOutboxRepository {
 	enqueue(entry: InventoryPurchaseOutboxEntry): Promise<void>;

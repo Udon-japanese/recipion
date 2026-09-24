@@ -1,12 +1,11 @@
 import { afterEach, describe, expect, it } from "vitest";
 
 import { LocalDatabase } from "#/local-db/database";
-
-import { createDexieInventoryPurchaseOutboxRepository } from "./dexie-inventory-purchase-outbox-repository";
 import {
 	createInventoryPurchaseOutboxEntry,
 	type InventoryPurchaseOwnerScope,
-} from "./inventory-purchase-outbox";
+} from "../application/inventory-purchase-outbox";
+import { createDexieInventoryPurchaseOutboxRepository } from "./dexie-inventory-purchase-outbox-repository";
 
 const databases: LocalDatabase[] = [];
 
