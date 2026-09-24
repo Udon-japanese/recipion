@@ -64,7 +64,7 @@ function createFromPreset(preset: IngredientPreset): IngredientRegistration {
 
 	return {
 		name: formatIngredientName(preset.name),
-		stockUnitCode: preset.stockUnitCode as InventoryUnitCode,
+		stockUnitCode: v.parse(inventoryUnitCodeSchema, preset.stockUnitCode),
 		stockUnitLabel: preset.stockUnitLabel,
 		aliases: [...aliasesByNormalizedName.values()],
 		defaultTrackingMode: preset.defaultTrackingMode,
