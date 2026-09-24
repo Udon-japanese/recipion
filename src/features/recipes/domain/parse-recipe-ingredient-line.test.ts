@@ -56,4 +56,14 @@ describe("parseRecipeIngredientLine", () => {
 	it("空行は無視する", () => {
 		expect(parseRecipeIngredientLine("　 ")).toBeNull();
 	});
+
+	it("お好みで少々をひとつの分量として扱う", () => {
+		expect(parseRecipeIngredientLine("大葉 お好みで少々")).toMatchObject({
+			status: "parsed",
+			name: "大葉",
+			amountText: "お好みで少々",
+			quantity: null,
+			unitLabel: null,
+		});
+	});
 });

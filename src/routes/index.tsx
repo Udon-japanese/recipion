@@ -14,6 +14,8 @@ import type { InventoryPurchaseOwnerScope } from "#/features/inventory/infrastru
 import { syncDexieInventoryPurchaseOutbox } from "#/features/inventory/infrastructure/sync-dexie-inventory-purchase-outbox";
 import { adjustInventory as adjustInventoryServerFn } from "#/features/inventory/server/adjust-inventory";
 import { listInventoryItemsServerFn } from "#/features/inventory/server/list-inventory-items";
+import { RecipeEditor } from "#/features/recipes/components/recipe-editor";
+import { createRecipeServerFn } from "#/features/recipes/server/create-recipe";
 import { ShoppingList } from "#/features/shopping/components/shopping-list";
 import { authClient } from "#/integrations/better-auth/auth-client";
 
@@ -117,6 +119,12 @@ function ShoppingPage() {
 			/>
 
 			<ShoppingList ownerScope={ownerScope} syncPurchases={syncPurchases} />
+
+			{ownerScope !== null && ownerScope !== "guest" ? (
+				<RecipeEditor
+					onSave={(document) => createRecipeServerFn({ data: document })}
+				/>
+			) : null}
 		</>
 	);
 }

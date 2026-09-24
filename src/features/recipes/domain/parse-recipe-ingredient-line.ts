@@ -33,7 +33,7 @@ const measuredAmountPatterns = [
 ];
 
 const descriptiveAmountPattern =
-	/^(?<name>.+?)[\s:：]*(?<amount>適量|少々|ひとつまみ|お好みで)$/u;
+	/^(?<name>.+?)[\s:：]*(?<amount>お好みで\s*少々|適量|少々|ひとつまみ|お好みで)$/u;
 
 const unitPattern = new RegExp(unitToken, "iu");
 const quantityPattern = new RegExp(numericToken, "u");
