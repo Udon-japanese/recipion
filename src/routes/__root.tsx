@@ -5,6 +5,7 @@ import {
 	Outlet,
 	Scripts,
 } from "@tanstack/react-router";
+import { APP_DISPLAY_NAME } from "#/config/app";
 import { AuthPanel } from "#/features/auth/components/auth-panel";
 import { PwaRegister } from "#/features/pwa/components/pwa-register";
 import appCss from "../styles.css?url";
@@ -20,7 +21,7 @@ export const Route = createRootRoute({
 				content: "width=device-width, initial-scale=1",
 			},
 			{
-				title: "Recipion",
+				title: APP_DISPLAY_NAME,
 			},
 			{
 				name: "theme-color",
@@ -58,7 +59,7 @@ export const Route = createRootRoute({
 function RootLayout() {
 	return (
 		<>
-			<Link to="/">Recipion</Link>
+			<Link to="/">{APP_DISPLAY_NAME}</Link>
 
 			<AuthPanel />
 
