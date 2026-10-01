@@ -292,19 +292,19 @@ export function RecipeEditor({ onSave }: RecipeEditorProps) {
 						onChange={(event) => setIngredientText(event.target.value)}
 						placeholder={"肉だね\n豚ひき肉 200g\n玉ねぎ 1/2個"}
 					/>
-					<button
-						type="button"
-						onClick={() => {
-							setIngredients(
-								createRecipeEditorDocument({ ingredientText }).ingredients,
-							);
-							setSavedRecipeId(null);
-						}}
-					>
-						材料を読み取る
-					</button>
-					<p>もう一度読み取ると、下の材料への修正は置き換わります。</p>
 				</label>
+				<button
+					type="button"
+					onClick={() => {
+						setIngredients(
+							createRecipeEditorDocument({ ingredientText }).ingredients,
+						);
+						setSavedRecipeId(null);
+					}}
+				>
+					材料を読み取る
+				</button>
+				<p>もう一度読み取ると、下の材料への修正は置き換わります。</p>
 
 				<label className={styles.field}>
 					<span>下準備</span>
