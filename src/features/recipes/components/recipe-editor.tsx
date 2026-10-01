@@ -52,12 +52,14 @@ function updateIngredientItem(
 	});
 }
 
-function moveIngredientItem(
+function removeIngredientItem(
 	nodes: readonly RecipeEditorIngredientNode[],
 	itemId: string,
-	targetGroupId: string | null,
-): RecipeEditorIngredientNode[] {
-	let movedItem: RecipeEditorIngredientItem | null = null;
+): {
+	remaining: RecipeEditorIngredientNode[];
+	removed: RecipeEditorIngredientItem | null;
+} {
+	let removed: RecipeEditorIngredientItem | null = null;
 
 	function remove(
 		current: readonly RecipeEditorIngredientNode[],
@@ -67,7 +69,7 @@ function moveIngredientItem(
 		for (const node of current) {
 			if (node.type === "ingredient") {
 				if (node.id === itemId) {
-					movedItem = node;
+					removed = node;
 				} else {
 					result.push(node);
 				}
@@ -83,7 +85,15 @@ function moveIngredientItem(
 		return result;
 	}
 
-	const remaining = remove(nodes);
+	return { remaining: remove(nodes), removed };
+}
+
+function moveIngredientItem(
+	nodes: readonly RecipeEditorIngredientNode[],
+	itemId: string,
+	targetGroupId: string | null,
+): RecipeEditorIngredientNode[] {
+	const { remaining, removed: movedItem } = removeIngredientItem(nodes, itemId);
 
 	if (!movedItem) return [...nodes];
 	if (targetGroupId === null) return [...remaining, movedItem];
@@ -127,6 +137,7 @@ function IngredientPreviewNode({
 	groups,
 	onChange,
 	onMove,
+	onRemove,
 }: {
 	node: RecipeEditorIngredientNode;
 	parentGroupId?: string | null;
@@ -136,6 +147,7 @@ function IngredientPreviewNode({
 		changes: { name?: string; amountText?: string },
 	) => void;
 	onMove: (id: string, targetGroupId: string | null) => void;
+	onRemove: (id: string) => void;
 }) {
 	if (node.type === "group") {
 		return (
@@ -150,6 +162,7 @@ function IngredientPreviewNode({
 							groups={groups}
 							onChange={onChange}
 							onMove={onMove}
+							onRemove={onRemove}
 						/>
 					))}
 				</ul>
@@ -193,6 +206,13 @@ function IngredientPreviewNode({
 					</option>
 				))}
 			</select>
+			<button
+				type="button"
+				aria-label={`${node.name}を削除`}
+				onClick={() => onRemove(node.id)}
+			>
+				削除
+			</button>
 		</li>
 	);
 }
@@ -357,6 +377,12 @@ export function RecipeEditor({ onSave }: RecipeEditorProps) {
 									onMove={(id, targetGroupId) => {
 										setIngredients((current) =>
 											moveIngredientItem(current, id, targetGroupId),
+										);
+										setSavedRecipeId(null);
+									}}
+									onRemove={(id) => {
+										setIngredients(
+											(current) => removeIngredientItem(current, id).remaining,
 										);
 										setSavedRecipeId(null);
 									}}

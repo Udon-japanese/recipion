@@ -60,4 +60,37 @@ describe("RecipeEditor", () => {
 			}),
 		);
 	});
+
+	it("不要な材料を削除でき、空になったグループも消える", async () => {
+		const user = userEvent.setup();
+		const onSave = vi.fn(async (_document: RecipeEditorDocument) => ({
+			id: "recipe-1",
+		}));
+
+		render(<RecipeEditor onSave={onSave} />);
+
+		await user.type(
+			screen.getByRole("textbox", { name: "レシピ名" }),
+			"つくね",
+		);
+		await user.type(
+			screen.getByRole("textbox", { name: "材料" }),
+			"肉だね\n豚ひき肉 200g\n玉ねぎ 1/2個",
+		);
+		await user.click(screen.getByRole("button", { name: "材料を読み取る" }));
+
+		await user.click(screen.getByRole("button", { name: "豚ひき肉を削除" }));
+		expect(screen.queryByRole("button", { name: "豚ひき肉を削除" })).toBeNull();
+		expect(screen.getByRole("button", { name: "玉ねぎを削除" })).toBeTruthy();
+
+		await user.click(screen.getByRole("button", { name: "玉ねぎを削除" }));
+		expect(screen.getByText("材料はまだありません。")).toBeTruthy();
+
+		await user.click(screen.getByRole("button", { name: "レシピを保存" }));
+		await screen.findByText("レシピを保存しました。");
+
+		expect(onSave).toHaveBeenCalledWith(
+			expect.objectContaining({ ingredients: [] }),
+		);
+	});
 });

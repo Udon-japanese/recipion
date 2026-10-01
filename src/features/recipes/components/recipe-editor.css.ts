@@ -92,6 +92,6 @@ export const error = style({
 export const ingredientRow = style({
 	display: "grid",
 	gridTemplateColumns:
-		"minmax(0, 1fr) minmax(100px, 0.7fr) minmax(110px, 0.7fr)",
+		"minmax(0, 1fr) minmax(100px, 0.7fr) minmax(110px, 0.7fr) auto",
 	gap: 8,
 });
