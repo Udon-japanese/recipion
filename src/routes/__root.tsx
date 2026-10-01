@@ -1,4 +1,11 @@
-import { createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import {
+	createRootRoute,
+	HeadContent,
+	Link,
+	Outlet,
+	Scripts,
+} from "@tanstack/react-router";
+import { AuthPanel } from "#/features/auth/components/auth-panel";
 import { PwaRegister } from "#/features/pwa/components/pwa-register";
 import appCss from "../styles.css?url";
 
@@ -44,8 +51,21 @@ export const Route = createRootRoute({
 			},
 		],
 	}),
+	component: RootLayout,
 	shellComponent: RootDocument,
 });
+
+function RootLayout() {
+	return (
+		<>
+			<Link to="/">Recipion</Link>
+
+			<AuthPanel />
+
+			<Outlet />
+		</>
+	);
+}
 
 function RootDocument({ children }: { children: React.ReactNode }) {
 	return (
