@@ -52,6 +52,25 @@ function updateIngredientItem(
 	});
 }
 
+function renameIngredientGroup(
+	nodes: readonly RecipeEditorIngredientNode[],
+	groupId: string,
+	name: string,
+): RecipeEditorIngredientNode[] {
+	return nodes.map((node) => {
+		if (node.type !== "group") return node;
+
+		if (node.id === groupId) {
+			return { ...node, name, rawText: name };
+		}
+
+		return {
+			...node,
+			children: renameIngredientGroup(node.children, groupId, name),
+		};
+	});
+}
+
 function removeIngredientItem(
 	nodes: readonly RecipeEditorIngredientNode[],
 	itemId: string,
@@ -138,6 +157,7 @@ function IngredientPreviewNode({
 	onChange,
 	onMove,
 	onRemove,
+	onRenameGroup,
 }: {
 	node: RecipeEditorIngredientNode;
 	parentGroupId?: string | null;
@@ -148,11 +168,18 @@ function IngredientPreviewNode({
 	) => void;
 	onMove: (id: string, targetGroupId: string | null) => void;
 	onRemove: (id: string) => void;
+	onRenameGroup: (id: string, name: string) => void;
 }) {
 	if (node.type === "group") {
 		return (
 			<li>
-				{node.name} {node.inferred ? "（推定グループ）" : ""}
+				<input
+					className={styles.input}
+					aria-label={`${node.name}のグループ名`}
+					value={node.name}
+					onChange={(event) => onRenameGroup(node.id, event.target.value)}
+				/>
+				{node.inferred ? <span>（推定グループ）</span> : null}
 				<ul className={styles.nestedList}>
 					{node.children.map((child) => (
 						<IngredientPreviewNode
@@ -163,6 +190,7 @@ function IngredientPreviewNode({
 							onChange={onChange}
 							onMove={onMove}
 							onRemove={onRemove}
+							onRenameGroup={onRenameGroup}
 						/>
 					))}
 				</ul>
@@ -377,6 +405,12 @@ export function RecipeEditor({ onSave }: RecipeEditorProps) {
 									onMove={(id, targetGroupId) => {
 										setIngredients((current) =>
 											moveIngredientItem(current, id, targetGroupId),
+										);
+										setSavedRecipeId(null);
+									}}
+									onRenameGroup={(id, groupName) => {
+										setIngredients((current) =>
+											renameIngredientGroup(current, id, groupName),
 										);
 										setSavedRecipeId(null);
 									}}

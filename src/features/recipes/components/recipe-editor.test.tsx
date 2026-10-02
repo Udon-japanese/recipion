@@ -93,4 +93,49 @@ describe("RecipeEditor", () => {
 			expect.objectContaining({ ingredients: [] }),
 		);
 	});
+
+	it("推定されたグループ名を直して保存できる", async () => {
+		const user = userEvent.setup();
+		const onSave = vi.fn(async (_document: RecipeEditorDocument) => ({
+			id: "recipe-1",
+		}));
+
+		render(<RecipeEditor onSave={onSave} />);
+
+		await user.type(
+			screen.getByRole("textbox", { name: "レシピ名" }),
+			"つくね",
+		);
+		await user.type(
+			screen.getByRole("textbox", { name: "材料" }),
+			"肉だね\n豚ひき肉 200g\n玉ねぎ 1/2個",
+		);
+		await user.click(screen.getByRole("button", { name: "材料を読み取る" }));
+
+		const groupNameInput = screen.getByRole("textbox", {
+			name: "肉だねのグループ名",
+		});
+		await user.clear(groupNameInput);
+		await user.type(groupNameInput, "つくねのたね");
+
+		// 材料のグループ選択肢にも新しい名前が反映される
+		within(
+			screen.getByRole("combobox", { name: "豚ひき肉のグループ" }),
+		).getByRole("option", { name: "つくねのたね" });
+
+		await user.click(screen.getByRole("button", { name: "レシピを保存" }));
+		await screen.findByText("レシピを保存しました。");
+
+		expect(onSave).toHaveBeenCalledWith(
+			expect.objectContaining({
+				ingredients: [
+					expect.objectContaining({
+						type: "group",
+						name: "つくねのたね",
+						rawText: "つくねのたね",
+					}),
+				],
+			}),
+		);
+	});
 });
