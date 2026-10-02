@@ -192,4 +192,38 @@ describe("RecipeEditor", () => {
 			}),
 		);
 	});
+
+	it("材料の行の入力で Enter を押しても保存されない", async () => {
+		const user = userEvent.setup();
+		const onSave = vi.fn(async (_document: RecipeEditorDocument) => ({
+			id: "recipe-1",
+		}));
+
+		render(<RecipeEditor onSave={onSave} />);
+
+		await user.type(
+			screen.getByRole("textbox", { name: "レシピ名" }),
+			"つくね",
+		);
+		await user.type(
+			screen.getByRole("textbox", { name: "材料" }),
+			"肉だね\n豚ひき肉 200g\n玉ねぎ 1/2個",
+		);
+		await user.click(screen.getByRole("button", { name: "材料を読み取る" }));
+
+		await user.type(
+			screen.getByRole("textbox", { name: "豚ひき肉の材料名" }),
+			"{Enter}",
+		);
+		await user.type(
+			screen.getByRole("textbox", { name: "豚ひき肉の分量" }),
+			"{Enter}",
+		);
+		await user.type(
+			screen.getByRole("textbox", { name: "肉だねのグループ名" }),
+			"{Enter}",
+		);
+
+		expect(onSave).not.toHaveBeenCalled();
+	});
 });

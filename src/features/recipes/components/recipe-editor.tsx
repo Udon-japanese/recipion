@@ -168,6 +168,14 @@ function moveIngredientItem(
 	return foundTarget ? result : [...nodes];
 }
 
+// 材料の行の入力で Enter を押すと、フォーム全体が保存されてしまう。
+// 変換確定中の Enter は IME に任せる。
+function preventSubmitOnEnter(event: KeyboardEvent<HTMLInputElement>) {
+	if (event.key === "Enter" && !event.nativeEvent.isComposing) {
+		event.preventDefault();
+	}
+}
+
 type GroupOption = { id: string; name: string };
 
 function listGroupOptions(
@@ -208,6 +216,7 @@ function IngredientPreviewNode({
 					aria-label={`${node.name}のグループ名`}
 					value={node.name}
 					onChange={(event) => onRenameGroup(node.id, event.target.value)}
+					onKeyDown={preventSubmitOnEnter}
 				/>
 				{node.inferred ? <span>（推定グループ）</span> : null}
 				<ul className={styles.nestedList}>
@@ -235,6 +244,7 @@ function IngredientPreviewNode({
 				aria-label={`${node.name}の材料名`}
 				value={node.name}
 				onChange={(event) => onChange(node.id, { name: event.target.value })}
+				onKeyDown={preventSubmitOnEnter}
 			/>
 			<input
 				className={styles.input}
@@ -243,6 +253,7 @@ function IngredientPreviewNode({
 				onChange={(event) =>
 					onChange(node.id, { amountText: event.target.value })
 				}
+				onKeyDown={preventSubmitOnEnter}
 				placeholder="分量なし"
 			/>
 			<select
