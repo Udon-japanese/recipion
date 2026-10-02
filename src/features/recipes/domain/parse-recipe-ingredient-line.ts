@@ -16,7 +16,8 @@ export type ParsedRecipeIngredientLine =
 			unitLabel: null;
 	  };
 
-const numericToken = String.raw`(?:\d+\s+\d+\/\d+|\d+\/\d+|\d+(?:\.\d+)?)`;
+// 「1 1/2」「1と1/2」（帯分数）、「1/2」、「1.5」「1」。
+const numericToken = String.raw`(?:\d+(?:\s+|と)\d+\/\d+|\d+\/\d+|\d+(?:\.\d+)?)`;
 
 // 「60~70g」「大さじ4〜5」のような範囲。NFKC で ～ は ~ になるが 〜 は変わらない。
 const rangeSeparator = "[~〜]";
@@ -50,7 +51,7 @@ const rangePattern = new RegExp(
 );
 
 function parseNumericQuantity(value: string): number {
-	const normalizedValue = value.trim();
+	const normalizedValue = value.trim().replace("と", " ");
 
 	if (normalizedValue.includes(" ")) {
 		const [wholeNumber, fraction] = normalizedValue.split(/\s+/u);
