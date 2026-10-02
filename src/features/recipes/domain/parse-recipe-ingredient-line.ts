@@ -23,11 +23,11 @@ const numericToken = String.raw`(?:\d+(?:\s+|と)\d+\/\d+|\d+\/\d+|\d+(?:\.\d+)?
 const rangeSeparator = "[~〜]";
 const rangeToken = String.raw`${numericToken}(?:\s*${rangeSeparator}\s*${numericToken})?`;
 
-// 「2本分」「100gくらい」「2本分位」のような、単位のあとに付く語。
-const amountSuffix = "(?:分)?(?:位|くらい|ぐらい)?";
+// 「2本分」「100gくらい」「2本分位」「3cm程度」のような、単位のあとに付く語。
+const amountSuffix = "(?:分)?(?:位|くらい|ぐらい|程度)?";
 
 const unitToken =
-	"大さじ|小さじ|カップ|パック|ひとつまみ|個|枚|本|袋|束|株|片|かけ|玉|丁|缶|瓶|切れ|房|合|kg|g|ml|l|cc";
+	"大さじ|小さじ|カップ|パック|ひとつまみ|個|枚|本|袋|束|株|片|かけ|玉|丁|缶|瓶|切れ|房|合|kg|g|ml|l|cc|cm|つ";
 
 const measuredAmountPatterns = [
 	new RegExp(

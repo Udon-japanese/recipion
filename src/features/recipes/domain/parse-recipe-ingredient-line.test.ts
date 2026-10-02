@@ -35,6 +35,8 @@ describe("parseRecipeIngredientLine", () => {
 		["輪切り唐辛子２本分位", "輪切り唐辛子", "2本分位", 2, "本"],
 		["塩 小さじ1くらい", "塩", "小さじ1くらい", 1, "小さじ"],
 		["水 100mlぐらい", "水", "100mlぐらい", 100, "ml"],
+		["生姜チューブ3cm程度", "生姜チューブ", "3cm程度", 3, "cm"],
+		["卵黄1つ", "卵黄", "1つ", 1, "つ"],
 	])("%sの範囲や「位」付きの使用量を分量として区切る", (input, name, amountText, quantity, unitLabel) => {
 		expect(parseRecipeIngredientLine(input)).toEqual({
 			status: "parsed",
