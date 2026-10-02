@@ -304,4 +304,54 @@ describe("parseRecipeIngredients", () => {
 			expect.objectContaining({ type: "ingredient", name: "*水" }),
 		]);
 	});
+
+	it("cm 付きの行があっても記号グループが途切れない", () => {
+		expect(
+			parseRecipeIngredients(`
+			★ケチャップ 大さじ2
+			★生姜チューブ3cm程度
+			★砂糖 小さじ1
+			`),
+		).toEqual([
+			expect.objectContaining({
+				type: "group",
+				name: "★",
+				children: [
+					expect.objectContaining({ name: "ケチャップ" }),
+					expect.objectContaining({ name: "生姜チューブ", unitLabel: "cm" }),
+					expect.objectContaining({ name: "砂糖" }),
+				],
+			}),
+		]);
+	});
+
+	it("ラベル・食材名・分量の3行が繰り返される形式は同じラベルを1つのグループにまとめる", () => {
+		expect(
+			parseRecipeIngredients(`
+			A
+			酒
+			大さじ2
+			A
+			みりん
+			大さじ2
+			B
+			砂糖
+			大さじ1
+			`),
+		).toEqual([
+			expect.objectContaining({
+				type: "group",
+				name: "A",
+				children: [
+					expect.objectContaining({ name: "酒" }),
+					expect.objectContaining({ name: "みりん" }),
+				],
+			}),
+			expect.objectContaining({
+				type: "group",
+				name: "B",
+				children: [expect.objectContaining({ name: "砂糖" })],
+			}),
+		]);
+	});
 });

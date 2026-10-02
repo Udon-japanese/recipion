@@ -89,6 +89,9 @@ function resolveLines(lines: readonly string[]): ParsedRecipeIngredientItem[] {
 	return items;
 }
 
+// 「A」「B」「★」のように、ラベルだけの行。行ごとに繰り返されるため、同じ名前なら同じグループにまとめる。
+const groupLabelPattern = /^(?:[A-H1-9]|[☆★◎○●◆◇■□▲△])$/iu;
+
 function groupResolvedNodes(
 	nodes: readonly ParsedRecipeIngredientNode[],
 ): ParsedRecipeIngredientNode[] {
@@ -121,13 +124,26 @@ function groupResolvedNodes(
 				childIndex += 1;
 			}
 
-			groupedNodes.push({
-				type: "group",
-				name: node.name,
-				rawText: node.rawText,
-				inferred: true,
-				children,
-			});
+			const existingLabelGroup = groupLabelPattern.test(node.name)
+				? groupedNodes.find(
+						(groupedNode): groupedNode is ParsedRecipeIngredientGroup =>
+							groupedNode.type === "group" &&
+							groupedNode.inferred &&
+							groupedNode.name === node.name,
+					)
+				: undefined;
+
+			if (existingLabelGroup) {
+				existingLabelGroup.children.push(...children);
+			} else {
+				groupedNodes.push({
+					type: "group",
+					name: node.name,
+					rawText: node.rawText,
+					inferred: true,
+					children,
+				});
+			}
 
 			index = childIndex;
 			continue;
