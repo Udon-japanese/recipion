@@ -18,16 +18,23 @@ export type ParsedRecipeIngredientLine =
 
 const numericToken = String.raw`(?:\d+\s+\d+\/\d+|\d+\/\d+|\d+(?:\.\d+)?)`;
 
+// 「60~70g」「大さじ4〜5」のような範囲。NFKC で ～ は ~ になるが 〜 は変わらない。
+const rangeSeparator = "[~〜]";
+const rangeToken = String.raw`${numericToken}(?:\s*${rangeSeparator}\s*${numericToken})?`;
+
+// 「2本分」「100gくらい」「2本分位」のような、単位のあとに付く語。
+const amountSuffix = "(?:分)?(?:位|くらい|ぐらい)?";
+
 const unitToken =
 	"大さじ|小さじ|カップ|パック|ひとつまみ|個|枚|本|袋|束|株|片|かけ|玉|丁|缶|瓶|切れ|房|合|kg|g|ml|l|cc";
 
 const measuredAmountPatterns = [
 	new RegExp(
-		String.raw`^(?<name>.+?)[\s:：]*(?<amount>(?:約\s*)?(?:大さじ|小さじ|カップ)\s*${numericToken})$`,
+		String.raw`^(?<name>.+?)[\s:：]*(?<amount>(?:約\s*)?(?:大さじ|小さじ|カップ)\s*${rangeToken}${amountSuffix})$`,
 		"iu",
 	),
 	new RegExp(
-		String.raw`^(?<name>.+?)[\s:：]*(?<amount>(?:約\s*)?${numericToken}\s*(?:${unitToken}))$`,
+		String.raw`^(?<name>.+?)[\s:：]*(?<amount>(?:約\s*)?${rangeToken}\s*(?:${unitToken})${amountSuffix})$`,
 		"iu",
 	),
 ];
@@ -37,6 +44,10 @@ const descriptiveAmountPattern =
 
 const unitPattern = new RegExp(unitToken, "iu");
 const quantityPattern = new RegExp(numericToken, "u");
+const rangePattern = new RegExp(
+	String.raw`${numericToken}\s*${rangeSeparator}\s*${numericToken}`,
+	"u",
+);
 
 function parseNumericQuantity(value: string): number {
 	const normalizedValue = value.trim();
@@ -85,7 +96,11 @@ function createParsedLine(
 		rawText,
 		name: name.trim(),
 		amountText: amountText.trim(),
-		quantity: quantityMatch ? parseNumericQuantity(quantityMatch[0]) : null,
+		// 範囲は1つの数値にしない。原文は amountText に残る。
+		quantity:
+			quantityMatch && !rangePattern.test(amountText)
+				? parseNumericQuantity(quantityMatch[0])
+				: null,
 		unitLabel: unitMatch ? normalizeUnitLabel(unitMatch[0]) : null,
 	};
 }

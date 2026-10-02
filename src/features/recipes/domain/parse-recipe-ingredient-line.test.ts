@@ -28,6 +28,23 @@ describe("parseRecipeIngredientLine", () => {
 	});
 
 	it.each([
+		["ベーコン 60~70g", "ベーコン", "60~70g", null, "g"],
+		["醤油 大さじ4〜5", "醤油", "大さじ4〜5", null, "大さじ"],
+		["輪切り唐辛子２本分位", "輪切り唐辛子", "2本分位", 2, "本"],
+		["塩 小さじ1くらい", "塩", "小さじ1くらい", 1, "小さじ"],
+		["水 100mlぐらい", "水", "100mlぐらい", 100, "ml"],
+	])("%sの範囲や「位」付きの使用量を分量として区切る", (input, name, amountText, quantity, unitLabel) => {
+		expect(parseRecipeIngredientLine(input)).toEqual({
+			status: "parsed",
+			rawText: input,
+			name,
+			amountText,
+			quantity,
+			unitLabel,
+		});
+	});
+
+	it.each([
 		["塩 少々", "塩", "少々"],
 		["パセリ 適量", "パセリ", "適量"],
 		["こしょう お好みで", "こしょう", "お好みで"],
