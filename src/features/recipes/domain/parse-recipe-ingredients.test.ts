@@ -248,4 +248,60 @@ describe("parseRecipeIngredients", () => {
 			}),
 		]);
 	});
+
+	it("☆などの記号を印にした行をグループ化する", () => {
+		expect(
+			parseRecipeIngredients(`
+			パスタ 150g
+			水 450ml
+			☆卵 2個
+			☆塩 1.5g
+			☆牛乳 200ml
+			`),
+		).toEqual([
+			expect.objectContaining({ type: "ingredient", name: "パスタ" }),
+			expect.objectContaining({ type: "ingredient", name: "水" }),
+			expect.objectContaining({
+				type: "group",
+				name: "☆",
+				rawText: "☆",
+				inferred: true,
+				children: [
+					expect.objectContaining({ name: "卵", quantity: 2, unitLabel: "個" }),
+					expect.objectContaining({ name: "塩" }),
+					expect.objectContaining({ name: "牛乳" }),
+				],
+			}),
+		]);
+	});
+
+	it("記号の行が1行だけでもグループ化する", () => {
+		expect(
+			parseRecipeIngredients(`
+			★ごま油 小さじ1
+			玉ねぎ 1個
+			`),
+		).toEqual([
+			expect.objectContaining({
+				type: "group",
+				name: "★",
+				children: [expect.objectContaining({ name: "ごま油" })],
+			}),
+			expect.objectContaining({ type: "ingredient", name: "玉ねぎ" }),
+		]);
+	});
+
+	it("注記や箇条書きの記号はグループ化せず原文のまま残す", () => {
+		expect(
+			parseRecipeIngredients(`
+			※卵 2個
+			・塩 1g
+			*水 100ml
+			`),
+		).toEqual([
+			expect.objectContaining({ type: "ingredient", name: "※卵" }),
+			expect.objectContaining({ type: "ingredient", name: "・塩" }),
+			expect.objectContaining({ type: "ingredient", name: "*水" }),
+		]);
+	});
 });
