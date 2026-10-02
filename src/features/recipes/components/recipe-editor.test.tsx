@@ -226,4 +226,92 @@ describe("RecipeEditor", () => {
 
 		expect(onSave).not.toHaveBeenCalled();
 	});
+
+	it("グループを新規作成して材料を移し、保存できる", async () => {
+		const user = userEvent.setup();
+		const onSave = vi.fn(async (_document: RecipeEditorDocument) => ({
+			id: "recipe-1",
+		}));
+
+		render(<RecipeEditor onSave={onSave} />);
+
+		await user.type(
+			screen.getByRole("textbox", { name: "レシピ名" }),
+			"つくね",
+		);
+		await user.type(
+			screen.getByRole("textbox", { name: "材料" }),
+			"玉ねぎ 1/2個\n豚ひき肉 200g",
+		);
+		await user.click(screen.getByRole("button", { name: "材料を読み取る" }));
+
+		// 名前が空のうちは作成できない
+		expect(
+			screen.getByRole("button", { name: "グループを追加" }),
+		).toHaveProperty("disabled", true);
+
+		await user.type(
+			screen.getByRole("textbox", { name: "追加するグループ名" }),
+			"肉だね{Enter}",
+		);
+		expect(onSave).not.toHaveBeenCalled();
+
+		await user.selectOptions(
+			screen.getByRole("combobox", { name: "豚ひき肉のグループ" }),
+			"肉だね",
+		);
+
+		await user.click(screen.getByRole("button", { name: "レシピを保存" }));
+		await screen.findByText("レシピを保存しました。");
+
+		expect(onSave).toHaveBeenCalledWith(
+			expect.objectContaining({
+				ingredients: [
+					expect.objectContaining({ type: "ingredient", name: "玉ねぎ" }),
+					expect.objectContaining({
+						type: "group",
+						name: "肉だね",
+						rawText: "肉だね",
+						inferred: false,
+						children: [expect.objectContaining({ name: "豚ひき肉" })],
+					}),
+				],
+			}),
+		);
+	});
+
+	it("材料のない新規グループは保存できず、削除すると保存できる", async () => {
+		const user = userEvent.setup();
+		const onSave = vi.fn(async (_document: RecipeEditorDocument) => ({
+			id: "recipe-1",
+		}));
+
+		render(<RecipeEditor onSave={onSave} />);
+
+		await user.type(
+			screen.getByRole("textbox", { name: "レシピ名" }),
+			"つくね",
+		);
+		await user.type(
+			screen.getByRole("textbox", { name: "追加するグループ名" }),
+			"たれ",
+		);
+		await user.click(screen.getByRole("button", { name: "グループを追加" }));
+
+		await user.click(screen.getByRole("button", { name: "レシピを保存" }));
+		expect((await screen.findByRole("alert")).textContent).toContain(
+			"材料のないグループ",
+		);
+		expect(onSave).not.toHaveBeenCalled();
+
+		await user.click(
+			screen.getByRole("button", { name: "たれのグループを削除" }),
+		);
+		await user.click(screen.getByRole("button", { name: "レシピを保存" }));
+		await screen.findByText("レシピを保存しました。");
+
+		expect(onSave).toHaveBeenCalledWith(
+			expect.objectContaining({ ingredients: [] }),
+		);
+	});
 });

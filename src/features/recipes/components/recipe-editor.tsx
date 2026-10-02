@@ -2,6 +2,7 @@ import { type KeyboardEvent, type SubmitEvent, useMemo, useState } from "react";
 import {
 	createRecipeEditorDocument,
 	type RecipeEditorDocument,
+	type RecipeEditorIngredientGroup,
 	type RecipeEditorIngredientItem,
 	type RecipeEditorIngredientNode,
 } from "../domain/recipe-editor-document";
@@ -82,6 +83,45 @@ function createIngredientItem(
 	};
 }
 
+function createIngredientGroup(
+	id: string,
+	name: string,
+): RecipeEditorIngredientGroup {
+	return {
+		type: "group",
+		id,
+		name,
+		rawText: name,
+		inferred: false,
+		children: [],
+	};
+}
+
+function removeEmptyIngredientGroup(
+	nodes: readonly RecipeEditorIngredientNode[],
+	groupId: string,
+): RecipeEditorIngredientNode[] {
+	return nodes.flatMap<RecipeEditorIngredientNode>((node) => {
+		if (node.type !== "group") return [node];
+
+		if (node.id === groupId && node.children.length === 0) return [];
+
+		return [
+			{ ...node, children: removeEmptyIngredientGroup(node.children, groupId) },
+		];
+	});
+}
+
+function hasEmptyIngredientGroup(
+	nodes: readonly RecipeEditorIngredientNode[],
+): boolean {
+	return nodes.some(
+		(node) =>
+			node.type === "group" &&
+			(node.children.length === 0 || hasEmptyIngredientGroup(node.children)),
+	);
+}
+
 function renameIngredientGroup(
 	nodes: readonly RecipeEditorIngredientNode[],
 	groupId: string,
@@ -126,7 +166,8 @@ function removeIngredientItem(
 			}
 
 			const children = remove(node.children);
-			if (children.length > 0) {
+			// 取り出して空になったグループは消す。もともと空のグループ（作成直後）は残す。
+			if (children.length > 0 || node.children.length === 0) {
 				result.push({ ...node, children });
 			}
 		}
@@ -196,6 +237,7 @@ function IngredientPreviewNode({
 	onMove,
 	onRemove,
 	onRenameGroup,
+	onRemoveGroup,
 }: {
 	node: RecipeEditorIngredientNode;
 	parentGroupId?: string | null;
@@ -207,6 +249,7 @@ function IngredientPreviewNode({
 	onMove: (id: string, targetGroupId: string | null) => void;
 	onRemove: (id: string) => void;
 	onRenameGroup: (id: string, name: string) => void;
+	onRemoveGroup: (id: string) => void;
 }) {
 	if (node.type === "group") {
 		return (
@@ -219,6 +262,15 @@ function IngredientPreviewNode({
 					onKeyDown={preventSubmitOnEnter}
 				/>
 				{node.inferred ? <span>（推定グループ）</span> : null}
+				{node.children.length === 0 ? (
+					<button
+						type="button"
+						aria-label={`${node.name}のグループを削除`}
+						onClick={() => onRemoveGroup(node.id)}
+					>
+						グループを削除
+					</button>
+				) : null}
 				<ul className={styles.nestedList}>
 					{node.children.map((child) => (
 						<IngredientPreviewNode
@@ -230,6 +282,7 @@ function IngredientPreviewNode({
 							onMove={onMove}
 							onRemove={onRemove}
 							onRenameGroup={onRenameGroup}
+							onRemoveGroup={onRemoveGroup}
 						/>
 					))}
 				</ul>
@@ -305,6 +358,7 @@ export function RecipeEditor({ onSave }: RecipeEditorProps) {
 	);
 	const [newIngredientName, setNewIngredientName] = useState("");
 	const [newIngredientAmount, setNewIngredientAmount] = useState("");
+	const [newGroupName, setNewGroupName] = useState("");
 
 	const preview = useMemo(
 		() =>
@@ -332,21 +386,44 @@ export function RecipeEditor({ onSave }: RecipeEditorProps) {
 		setSavedRecipeId(null);
 	}
 
+	function addGroup() {
+		const groupName = newGroupName.trim();
+
+		if (groupName.length === 0) return;
+
+		setIngredients((current) => [
+			...current,
+			createIngredientGroup(crypto.randomUUID(), groupName),
+		]);
+		setNewGroupName("");
+		setSavedRecipeId(null);
+	}
+
 	// Enter でフォーム全体が保存されないようにする。変換確定の Enter では追加しない。
-	function handleAddIngredientKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-		if (event.key !== "Enter") return;
+	function handleEnterToAdd(action: () => void) {
+		return (event: KeyboardEvent<HTMLInputElement>) => {
+			if (event.key !== "Enter") return;
 
-		event.preventDefault();
+			event.preventDefault();
 
-		if (!event.nativeEvent.isComposing) {
-			addIngredient();
-		}
+			if (!event.nativeEvent.isComposing) {
+				action();
+			}
+		};
 	}
 
 	async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
 		event.preventDefault();
 		setErrorMessage(null);
 		setSavedRecipeId(null);
+
+		if (hasEmptyIngredientGroup(ingredients)) {
+			setErrorMessage(
+				"材料のないグループがあります。材料を移すか、グループを削除してください。",
+			);
+			return;
+		}
+
 		setIsSaving(true);
 
 		try {
@@ -485,6 +562,12 @@ export function RecipeEditor({ onSave }: RecipeEditorProps) {
 										);
 										setSavedRecipeId(null);
 									}}
+									onRemoveGroup={(id) => {
+										setIngredients((current) =>
+											removeEmptyIngredientGroup(current, id),
+										);
+										setSavedRecipeId(null);
+									}}
 									onRemove={(id) => {
 										setIngredients(
 											(current) => removeIngredientItem(current, id).remaining,
@@ -503,7 +586,7 @@ export function RecipeEditor({ onSave }: RecipeEditorProps) {
 							placeholder="材料名"
 							value={newIngredientName}
 							onChange={(event) => setNewIngredientName(event.target.value)}
-							onKeyDown={handleAddIngredientKeyDown}
+							onKeyDown={handleEnterToAdd(addIngredient)}
 						/>
 						<input
 							className={styles.input}
@@ -511,7 +594,7 @@ export function RecipeEditor({ onSave }: RecipeEditorProps) {
 							placeholder="分量なし"
 							value={newIngredientAmount}
 							onChange={(event) => setNewIngredientAmount(event.target.value)}
-							onKeyDown={handleAddIngredientKeyDown}
+							onKeyDown={handleEnterToAdd(addIngredient)}
 						/>
 						<button
 							type="button"
@@ -519,6 +602,24 @@ export function RecipeEditor({ onSave }: RecipeEditorProps) {
 							onClick={addIngredient}
 						>
 							材料を追加
+						</button>
+					</div>
+
+					<div className={styles.addGroupRow}>
+						<input
+							className={styles.input}
+							aria-label="追加するグループ名"
+							placeholder="グループ名"
+							value={newGroupName}
+							onChange={(event) => setNewGroupName(event.target.value)}
+							onKeyDown={handleEnterToAdd(addGroup)}
+						/>
+						<button
+							type="button"
+							disabled={newGroupName.trim().length === 0}
+							onClick={addGroup}
+						>
+							グループを追加
 						</button>
 					</div>
 
