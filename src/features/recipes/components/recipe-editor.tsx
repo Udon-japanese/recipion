@@ -1,4 +1,4 @@
-import { type SubmitEvent, useMemo, useState } from "react";
+import { type KeyboardEvent, type SubmitEvent, useMemo, useState } from "react";
 import {
 	createRecipeEditorDocument,
 	type RecipeEditorDocument,
@@ -50,6 +50,36 @@ function updateIngredientItem(
 
 		return updated;
 	});
+}
+
+function createIngredientItem(
+	id: string,
+	name: string,
+	amountText: string,
+): RecipeEditorIngredientItem {
+	if (amountText.length === 0) {
+		return {
+			type: "ingredient",
+			status: "missing-amount",
+			id,
+			name,
+			rawText: name,
+			amountText: null,
+			quantity: null,
+			unitLabel: null,
+		};
+	}
+
+	return {
+		type: "ingredient",
+		status: "parsed",
+		id,
+		name,
+		rawText: `${name} ${amountText}`,
+		amountText,
+		quantity: null,
+		unitLabel: null,
+	};
 }
 
 function renameIngredientGroup(
@@ -262,6 +292,8 @@ export function RecipeEditor({ onSave }: RecipeEditorProps) {
 	const [ingredients, setIngredients] = useState<RecipeEditorIngredientNode[]>(
 		[],
 	);
+	const [newIngredientName, setNewIngredientName] = useState("");
+	const [newIngredientAmount, setNewIngredientAmount] = useState("");
 
 	const preview = useMemo(
 		() =>
@@ -271,6 +303,34 @@ export function RecipeEditor({ onSave }: RecipeEditorProps) {
 			}),
 		[preparationText, instructionText],
 	);
+
+	function addIngredient() {
+		const name = newIngredientName.trim();
+
+		if (name.length === 0) return;
+
+		const item = createIngredientItem(
+			crypto.randomUUID(),
+			name,
+			newIngredientAmount.trim(),
+		);
+
+		setIngredients((current) => [...current, item]);
+		setNewIngredientName("");
+		setNewIngredientAmount("");
+		setSavedRecipeId(null);
+	}
+
+	// Enter でフォーム全体が保存されないようにする。変換確定の Enter では追加しない。
+	function handleAddIngredientKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+		if (event.key !== "Enter") return;
+
+		event.preventDefault();
+
+		if (!event.nativeEvent.isComposing) {
+			addIngredient();
+		}
+	}
 
 	async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
 		event.preventDefault();
@@ -424,6 +484,32 @@ export function RecipeEditor({ onSave }: RecipeEditorProps) {
 							);
 						})}
 					</ul>
+
+					<div className={styles.addIngredientRow}>
+						<input
+							className={styles.input}
+							aria-label="追加する材料名"
+							placeholder="材料名"
+							value={newIngredientName}
+							onChange={(event) => setNewIngredientName(event.target.value)}
+							onKeyDown={handleAddIngredientKeyDown}
+						/>
+						<input
+							className={styles.input}
+							aria-label="追加する材料の分量"
+							placeholder="分量なし"
+							value={newIngredientAmount}
+							onChange={(event) => setNewIngredientAmount(event.target.value)}
+							onKeyDown={handleAddIngredientKeyDown}
+						/>
+						<button
+							type="button"
+							disabled={newIngredientName.trim().length === 0}
+							onClick={addIngredient}
+						>
+							材料を追加
+						</button>
+					</div>
 
 					<h4>下準備</h4>
 					<ul className={styles.list}>

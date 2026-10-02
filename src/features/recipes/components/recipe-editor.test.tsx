@@ -138,4 +138,58 @@ describe("RecipeEditor", () => {
 			}),
 		);
 	});
+
+	it("材料を末尾に追加して保存できる", async () => {
+		const user = userEvent.setup();
+		const onSave = vi.fn(async (_document: RecipeEditorDocument) => ({
+			id: "recipe-1",
+		}));
+
+		render(<RecipeEditor onSave={onSave} />);
+
+		await user.type(
+			screen.getByRole("textbox", { name: "レシピ名" }),
+			"つくね",
+		);
+		await user.type(
+			screen.getByRole("textbox", { name: "材料" }),
+			"玉ねぎ 1/2個",
+		);
+		await user.click(screen.getByRole("button", { name: "材料を読み取る" }));
+
+		// 名前が空のうちは追加できない
+		expect(screen.getByRole("button", { name: "材料を追加" })).toHaveProperty(
+			"disabled",
+			true,
+		);
+
+		const nameInput = screen.getByRole("textbox", { name: "追加する材料名" });
+		const amountInput = screen.getByRole("textbox", {
+			name: "追加する材料の分量",
+		});
+		await user.type(nameInput, "塩");
+		// Enter で追加され、フォームは保存されない
+		await user.type(amountInput, "少々{Enter}");
+
+		expect(onSave).not.toHaveBeenCalled();
+		expect(nameInput).toHaveProperty("value", "");
+		expect(amountInput).toHaveProperty("value", "");
+
+		await user.click(screen.getByRole("button", { name: "レシピを保存" }));
+		await screen.findByText("レシピを保存しました。");
+
+		expect(onSave).toHaveBeenCalledWith(
+			expect.objectContaining({
+				ingredients: [
+					expect.objectContaining({ type: "ingredient", name: "玉ねぎ" }),
+					expect.objectContaining({
+						type: "ingredient",
+						status: "parsed",
+						name: "塩",
+						amountText: "少々",
+					}),
+				],
+			}),
+		);
+	});
 });

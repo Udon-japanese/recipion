@@ -95,3 +95,9 @@ export const ingredientRow = style({
 		"minmax(0, 1fr) minmax(100px, 0.7fr) minmax(110px, 0.7fr) auto",
 	gap: 8,
 });
+
+export const addIngredientRow = style({
+	display: "grid",
+	gridTemplateColumns: "minmax(0, 1fr) minmax(100px, 0.7fr) auto",
+	gap: 8,
+});
