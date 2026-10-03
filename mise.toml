@@ -1,0 +1,9 @@
+# このプロジェクトで使う Node.js と pnpm のバージョン（mise で管理）。
+# 親ディレクトリ（~/workspace/mise.toml）の設定より、このファイルが優先される。
+# 初回は `mise trust` と `mise install` が必要。
+[tools]
+# Node.js 24 は LTS。`scripts/postbuild-app-shell.ts` を `node` で直接実行するため、TypeScript の型の取り除きが既定で有効な 22.18 以降が必要。
+node = "24.21.0"
+# グローバルに入れた pnpm（node の bin 配下）が、mise の pnpm より先に使われる場合がある。
+# その場合は、node のバージョンを新しく入れ直すと、この指定が有効になる。
+"npm:pnpm" = "12.8.1"

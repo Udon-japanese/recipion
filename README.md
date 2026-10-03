@@ -33,7 +33,7 @@
 
 ## セットアップ
 
-必要なもの：Node.js、pnpm、PostgreSQL（Cloudflare Hyperdrive 経由で接続します）。`scripts/postbuild-app-shell.ts` を `node` で直接実行するため、TypeScript の型の取り除きが既定で有効な新しい Node.js が必要です（開発は v26 で確認、22.18 以降が目安）。
+必要なもの：Node.js、pnpm、PostgreSQL（Cloudflare Hyperdrive 経由で接続します）。`scripts/postbuild-app-shell.ts` を `node` で直接実行するため、TypeScript の型の取り除きが既定で有効な新しい Node.js が必要です（22.18 以降が目安です）。バージョンは [mise](https://mise.jdx.dev/) の `mise.toml` で固定しています（初回は `mise trust` と `mise install`）。
 
 ```bash
 pnpm install
