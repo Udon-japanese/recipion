@@ -10,7 +10,7 @@ describe("RecipeEditor", () => {
 	it("取り込んだ材料を既存グループへ移して保存できる", async () => {
 		const user = userEvent.setup();
 		const onSave = vi.fn(async (_document: RecipeEditorDocument) => ({
-			id: "recipe-1",
+			publicId: "recipe-1",
 		}));
 
 		render(<RecipeEditor onSave={onSave} />);
@@ -64,7 +64,7 @@ describe("RecipeEditor", () => {
 	it("不要な材料を削除でき、空になったグループも消える", async () => {
 		const user = userEvent.setup();
 		const onSave = vi.fn(async (_document: RecipeEditorDocument) => ({
-			id: "recipe-1",
+			publicId: "recipe-1",
 		}));
 
 		render(<RecipeEditor onSave={onSave} />);
@@ -97,7 +97,7 @@ describe("RecipeEditor", () => {
 	it("推定されたグループ名を直して保存できる", async () => {
 		const user = userEvent.setup();
 		const onSave = vi.fn(async (_document: RecipeEditorDocument) => ({
-			id: "recipe-1",
+			publicId: "recipe-1",
 		}));
 
 		render(<RecipeEditor onSave={onSave} />);
@@ -142,7 +142,7 @@ describe("RecipeEditor", () => {
 	it("材料を末尾に追加して保存できる", async () => {
 		const user = userEvent.setup();
 		const onSave = vi.fn(async (_document: RecipeEditorDocument) => ({
-			id: "recipe-1",
+			publicId: "recipe-1",
 		}));
 
 		render(<RecipeEditor onSave={onSave} />);
@@ -196,7 +196,7 @@ describe("RecipeEditor", () => {
 	it("材料の行の入力で Enter を押しても保存されない", async () => {
 		const user = userEvent.setup();
 		const onSave = vi.fn(async (_document: RecipeEditorDocument) => ({
-			id: "recipe-1",
+			publicId: "recipe-1",
 		}));
 
 		render(<RecipeEditor onSave={onSave} />);
@@ -230,7 +230,7 @@ describe("RecipeEditor", () => {
 	it("グループを新規作成して材料を移し、保存できる", async () => {
 		const user = userEvent.setup();
 		const onSave = vi.fn(async (_document: RecipeEditorDocument) => ({
-			id: "recipe-1",
+			publicId: "recipe-1",
 		}));
 
 		render(<RecipeEditor onSave={onSave} />);
@@ -283,7 +283,7 @@ describe("RecipeEditor", () => {
 	it("材料のない新規グループは保存できず、削除すると保存できる", async () => {
 		const user = userEvent.setup();
 		const onSave = vi.fn(async (_document: RecipeEditorDocument) => ({
-			id: "recipe-1",
+			publicId: "recipe-1",
 		}));
 
 		render(<RecipeEditor onSave={onSave} />);
@@ -312,6 +312,53 @@ describe("RecipeEditor", () => {
 
 		expect(onSave).toHaveBeenCalledWith(
 			expect.objectContaining({ ingredients: [] }),
+		);
+	});
+
+	it("保存に成功したら、保存したレシピを onSaved に渡す", async () => {
+		const user = userEvent.setup();
+		const onSave = vi.fn(async (_document: RecipeEditorDocument) => ({
+			publicId: "abc123",
+		}));
+		const onSaved = vi.fn();
+
+		render(<RecipeEditor onSave={onSave} onSaved={onSaved} />);
+
+		await user.type(
+			screen.getByRole("textbox", { name: "レシピ名" }),
+			"つくね",
+		);
+		await user.click(screen.getByRole("button", { name: "レシピを保存" }));
+		await screen.findByText("レシピを保存しました。");
+
+		expect(onSaved).toHaveBeenCalledWith({ publicId: "abc123" });
+		// 引用元URLは任意なので、未入力でも保存できる
+		expect(onSave).toHaveBeenCalledWith(
+			expect.objectContaining({ sourceUrl: null }),
+		);
+	});
+
+	it("引用元URLを入力して保存できる", async () => {
+		const user = userEvent.setup();
+		const onSave = vi.fn(async (_document: RecipeEditorDocument) => ({
+			publicId: "abc123",
+		}));
+
+		render(<RecipeEditor onSave={onSave} />);
+
+		await user.type(
+			screen.getByRole("textbox", { name: "レシピ名" }),
+			"つくね",
+		);
+		await user.type(
+			screen.getByRole("textbox", { name: "引用元URL（任意）" }),
+			"https://example.com/recipe/1",
+		);
+		await user.click(screen.getByRole("button", { name: "レシピを保存" }));
+		await screen.findByText("レシピを保存しました。");
+
+		expect(onSave).toHaveBeenCalledWith(
+			expect.objectContaining({ sourceUrl: "https://example.com/recipe/1" }),
 		);
 	});
 });

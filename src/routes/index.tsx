@@ -15,7 +15,7 @@ function HomePage() {
 					<Link to="/inventory">在庫</Link>
 				</li>
 				<li>
-					<Link to="/recipes">レシピ登録</Link>
+					<Link to="/recipes">レシピ</Link>
 				</li>
 			</ul>
 		</nav>

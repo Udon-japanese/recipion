@@ -1,7 +1,9 @@
 import { type SubmitEvent, useState } from "react";
 import * as v from "valibot";
 
+import { clearAppShellCache } from "#/features/pwa/clear-app-shell-cache";
 import { authClient } from "#/integrations/better-auth/auth-client";
+import { useAppSession } from "#/integrations/better-auth/use-app-session";
 import * as styles from "./auth-panel.css";
 
 const signInInputSchema = v.object({
@@ -36,7 +38,7 @@ function getErrorMessage(error: unknown): string {
 }
 
 export function AuthPanel() {
-	const { data: session, isPending, refetch } = authClient.useSession();
+	const { data: session, isPending, refetch } = useAppSession();
 
 	const [mode, setMode] = useState<AuthMode>("sign-in");
 	const [name, setName] = useState("");
@@ -77,6 +79,7 @@ export function AuthPanel() {
 			}
 
 			setPassword("");
+			await clearAppShellCache();
 			await refetch();
 		} catch (error) {
 			setErrorMessage(getErrorMessage(error));
@@ -96,6 +99,7 @@ export function AuthPanel() {
 				throw new Error(result.error.message);
 			}
 
+			await clearAppShellCache();
 			await refetch();
 		} catch (error) {
 			setErrorMessage(getErrorMessage(error));

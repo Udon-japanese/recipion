@@ -339,17 +339,21 @@ function IngredientPreviewNode({
 	);
 }
 
+type SavedRecipe = { publicId: string };
+
 type RecipeEditorProps = {
-	onSave: (document: RecipeEditorDocument) => Promise<{ id: string }>;
+	onSave: (document: RecipeEditorDocument) => Promise<SavedRecipe>;
+	onSaved?: (recipe: SavedRecipe) => void;
 };
 
-export function RecipeEditor({ onSave }: RecipeEditorProps) {
+export function RecipeEditor({ onSave, onSaved }: RecipeEditorProps) {
 	const [name, setName] = useState("");
 	const [servings, setServings] = useState("2");
 	const [ingredientText, setIngredientText] = useState("");
 	const [preparationText, setPreparationText] = useState("");
 	const [instructionText, setInstructionText] = useState("");
 	const [note, setNote] = useState("");
+	const [sourceUrl, setSourceUrl] = useState("");
 	const [isSaving, setIsSaving] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [savedRecipeId, setSavedRecipeId] = useState<string | null>(null);
@@ -434,12 +438,14 @@ export function RecipeEditor({ onSave }: RecipeEditorProps) {
 					preparationText,
 					instructionText,
 					note,
+					sourceUrl,
 				}),
 				ingredients,
 			};
 
 			const result = await onSave(document);
-			setSavedRecipeId(result.id);
+			setSavedRecipeId(result.publicId);
+			onSaved?.(result);
 		} catch (error) {
 			setErrorMessage(
 				error instanceof Error ? error.message : "レシピを保存できませんでした",
@@ -528,6 +534,18 @@ export function RecipeEditor({ onSave }: RecipeEditorProps) {
 						className={styles.textarea}
 						value={note}
 						onChange={(event) => setNote(event.target.value)}
+					/>
+				</label>
+
+				<label className={styles.field}>
+					<span>引用元URL（任意）</span>
+					<input
+						className={styles.input}
+						type="url"
+						inputMode="url"
+						placeholder="https://"
+						value={sourceUrl}
+						onChange={(event) => setSourceUrl(event.target.value)}
 					/>
 				</label>
 

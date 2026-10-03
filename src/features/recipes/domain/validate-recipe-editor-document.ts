@@ -53,6 +53,10 @@ const documentSchema = v.object({
 		}),
 	),
 	note: v.string(),
+	// javascript: などを href に出さないよう、http(s) の URL だけを受け付ける。
+	sourceUrl: v.nullable(
+		v.pipe(v.string(), v.maxLength(2048), v.url(), v.regex(/^https?:\/\//iu)),
+	),
 });
 
 function validateIngredientIds(

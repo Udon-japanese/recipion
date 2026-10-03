@@ -23,12 +23,16 @@ export const recipe = pgTable(
 		userId: text("user_id")
 			.notNull()
 			.references(() => user.id, { onDelete: "cascade" }),
+		// URL など外部に出す ID。内部の参照には id（UUID）を使う。
+		publicId: text("public_id").notNull(),
 		name: text("name").notNull(),
 		servings: numeric("servings", {
 			precision: 10,
 			scale: 3,
 		}).notNull(),
 		note: text("note").default("").notNull(),
+		// 引用元の URL（任意）。
+		sourceUrl: text("source_url"),
 		createdAt: timestamp("created_at", { withTimezone: true })
 			.defaultNow()
 			.notNull(),
@@ -39,6 +43,12 @@ export const recipe = pgTable(
 	},
 	(table) => [
 		unique("recipe_id_user_id_unique").on(table.id, table.userId),
+		unique("recipe_public_id_unique").on(table.publicId),
+		check("recipe_public_id_nonempty", sql`length(${table.publicId}) > 0`),
+		check(
+			"recipe_source_url_http",
+			sql`${table.sourceUrl} IS NULL OR ${table.sourceUrl} ~* '^https?://'`,
+		),
 		index("recipe_user_id_idx").on(table.userId),
 		check("recipe_name_nonempty", sql`length(trim(${table.name})) > 0`),
 		check("recipe_servings_positive", sql`${table.servings} > 0`),

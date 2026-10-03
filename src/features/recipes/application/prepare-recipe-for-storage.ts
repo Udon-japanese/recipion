@@ -22,6 +22,7 @@ export type PreparedRecipeForStorage = {
 	name: string;
 	servings: number;
 	note: string;
+	sourceUrl: string | null;
 	ingredients: StoredRecipeIngredientNode[];
 	preparations: {
 		id: string;
@@ -89,6 +90,7 @@ export function prepareRecipeForStorage(
 		name: document.name.trim(),
 		servings: document.servings,
 		note: document.note,
+		sourceUrl: document.sourceUrl,
 		ingredients,
 		preparations: document.preparations.map((preparation, sortOrder) => ({
 			id: preparation.id,

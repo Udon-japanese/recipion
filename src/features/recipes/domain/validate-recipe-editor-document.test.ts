@@ -29,6 +29,28 @@ describe("validateRecipeEditorDocument", () => {
 		).toThrow("レシピの入力内容を確認してください");
 	});
 
+	it("引用元URLは未入力か、http(s)のURLだけを受け付ける", () => {
+		const document = createDocument();
+
+		expect(validateRecipeEditorDocument(document).sourceUrl).toBeNull();
+		expect(
+			validateRecipeEditorDocument({
+				...document,
+				sourceUrl: "https://example.com/recipe/1",
+			}).sourceUrl,
+		).toBe("https://example.com/recipe/1");
+
+		for (const sourceUrl of [
+			"javascript:alert(1)",
+			"ftp://example.com/recipe",
+			"example.com/recipe",
+		]) {
+			expect(() =>
+				validateRecipeEditorDocument({ ...document, sourceUrl }),
+			).toThrow("レシピの入力内容を確認してください");
+		}
+	});
+
 	it("同じIDを二度使用できない", () => {
 		const document = createDocument();
 
