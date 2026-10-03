@@ -41,6 +41,8 @@ export type RecipeEditorDocument = {
 	preparations: RecipeEditorPreparation[];
 	instructions: RecipeEditorInstruction[];
 	note: string;
+	// 引用元の URL。ユーザーが手で入れる任意項目で、未入力は null。
+	sourceUrl: string | null;
 };
 
 export type CreateRecipeEditorDocumentInput = {
@@ -50,6 +52,7 @@ export type CreateRecipeEditorDocumentInput = {
 	preparationText?: string;
 	instructionText?: string;
 	note?: string;
+	sourceUrl?: string;
 };
 
 type CreateId = () => string;
@@ -100,5 +103,6 @@ export function createRecipeEditorDocument(
 			}),
 		),
 		note: input.note?.trim() ?? "",
+		sourceUrl: input.sourceUrl?.trim() || null,
 	};
 }

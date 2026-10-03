@@ -69,6 +69,24 @@ export function RecipeView({ recipe }: RecipeViewProps) {
 				</section>
 			) : null}
 
+			{recipe.sourceUrl !== null ? (
+				<section className={styles.section}>
+					<h3 className={styles.sectionTitle}>引用元</h3>
+					{/^https?:\/\//iu.test(recipe.sourceUrl) ? (
+						<a
+							className={styles.sourceUrl}
+							href={recipe.sourceUrl}
+							target="_blank"
+							rel="noopener noreferrer"
+						>
+							{recipe.sourceUrl}
+						</a>
+					) : (
+						<p className={styles.sourceUrl}>{recipe.sourceUrl}</p>
+					)}
+				</section>
+			) : null}
+
 			{recipe.note.length > 0 ? (
 				<section className={styles.section}>
 					<h3 className={styles.sectionTitle}>メモ</h3>

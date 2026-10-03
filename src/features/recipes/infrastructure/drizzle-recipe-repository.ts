@@ -66,6 +66,7 @@ export function createDrizzleRecipeRepository(
 						name: command.name,
 						servings: formatRecipeServings(command.servings),
 						note: command.note,
+						sourceUrl: command.sourceUrl,
 					})
 					.returning({ id: recipe.id, publicId: recipe.publicId });
 
@@ -155,6 +156,7 @@ export function createDrizzleRecipeRepository(
 				name: found.name,
 				servings: Number(found.servings),
 				note: found.note,
+				sourceUrl: found.sourceUrl,
 				ingredients: restoreRecipeIngredients(
 					ingredientRows.map((row) => ({
 						id: row.id,

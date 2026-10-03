@@ -353,6 +353,7 @@ export function RecipeEditor({ onSave, onSaved }: RecipeEditorProps) {
 	const [preparationText, setPreparationText] = useState("");
 	const [instructionText, setInstructionText] = useState("");
 	const [note, setNote] = useState("");
+	const [sourceUrl, setSourceUrl] = useState("");
 	const [isSaving, setIsSaving] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [savedRecipeId, setSavedRecipeId] = useState<string | null>(null);
@@ -437,6 +438,7 @@ export function RecipeEditor({ onSave, onSaved }: RecipeEditorProps) {
 					preparationText,
 					instructionText,
 					note,
+					sourceUrl,
 				}),
 				ingredients,
 			};
@@ -532,6 +534,18 @@ export function RecipeEditor({ onSave, onSaved }: RecipeEditorProps) {
 						className={styles.textarea}
 						value={note}
 						onChange={(event) => setNote(event.target.value)}
+					/>
+				</label>
+
+				<label className={styles.field}>
+					<span>引用元URL（任意）</span>
+					<input
+						className={styles.input}
+						type="url"
+						inputMode="url"
+						placeholder="https://"
+						value={sourceUrl}
+						onChange={(event) => setSourceUrl(event.target.value)}
 					/>
 				</label>
 

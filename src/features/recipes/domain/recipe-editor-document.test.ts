@@ -34,6 +34,7 @@ describe("createRecipeEditorDocument", () => {
 					3. フライパンで焼く
 				`,
 				note: " 焼きすぎない ",
+				sourceUrl: " https://example.com/recipe ",
 			},
 			createSequentialIdFactory(),
 		);
@@ -99,6 +100,7 @@ describe("createRecipeEditorDocument", () => {
 				},
 			],
 			note: "焼きすぎない",
+			sourceUrl: "https://example.com/recipe",
 		});
 	});
 
@@ -111,6 +113,7 @@ describe("createRecipeEditorDocument", () => {
 				preparations: [],
 				instructions: [],
 				note: "",
+				sourceUrl: null,
 			},
 		);
 	});

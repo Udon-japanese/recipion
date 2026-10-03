@@ -1,0 +1,2 @@
+ALTER TABLE "recipe" ADD COLUMN "source_url" text;--> statement-breakpoint
+ALTER TABLE "recipe" ADD CONSTRAINT "recipe_source_url_http" CHECK ("recipe"."source_url" IS NULL OR "recipe"."source_url" ~* '^https?://');

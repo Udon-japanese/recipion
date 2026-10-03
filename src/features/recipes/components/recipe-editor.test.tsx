@@ -332,5 +332,33 @@ describe("RecipeEditor", () => {
 		await screen.findByText("レシピを保存しました。");
 
 		expect(onSaved).toHaveBeenCalledWith({ publicId: "abc123" });
+		// 引用元URLは任意なので、未入力でも保存できる
+		expect(onSave).toHaveBeenCalledWith(
+			expect.objectContaining({ sourceUrl: null }),
+		);
+	});
+
+	it("引用元URLを入力して保存できる", async () => {
+		const user = userEvent.setup();
+		const onSave = vi.fn(async (_document: RecipeEditorDocument) => ({
+			publicId: "abc123",
+		}));
+
+		render(<RecipeEditor onSave={onSave} />);
+
+		await user.type(
+			screen.getByRole("textbox", { name: "レシピ名" }),
+			"つくね",
+		);
+		await user.type(
+			screen.getByRole("textbox", { name: "引用元URL（任意）" }),
+			"https://example.com/recipe/1",
+		);
+		await user.click(screen.getByRole("button", { name: "レシピを保存" }));
+		await screen.findByText("レシピを保存しました。");
+
+		expect(onSave).toHaveBeenCalledWith(
+			expect.objectContaining({ sourceUrl: "https://example.com/recipe/1" }),
+		);
 	});
 });

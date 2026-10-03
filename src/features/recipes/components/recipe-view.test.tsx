@@ -10,6 +10,7 @@ const recipe: RecipeDetail = {
 	name: "つくね",
 	servings: 2,
 	note: "人数を変えるときはたれを調整する",
+	sourceUrl: "https://example.com/recipe/1",
 	ingredients: [
 		{
 			type: "ingredient",
@@ -73,6 +74,22 @@ describe("RecipeView", () => {
 		expect(steps).toContain("材料を混ぜる");
 		expect(steps).toContain("フライパンで焼く");
 		expect(screen.getByText("人数を変えるときはたれを調整する")).toBeTruthy();
+	});
+
+	it("引用元URLは別タブで開くリンクとして表示し、なければ見出しを出さない", () => {
+		const { unmount } = render(<RecipeView recipe={recipe} />);
+
+		const link = screen.getByRole("link", {
+			name: "https://example.com/recipe/1",
+		});
+		expect(link.getAttribute("href")).toBe("https://example.com/recipe/1");
+		expect(link.getAttribute("target")).toBe("_blank");
+		expect(link.getAttribute("rel")).toContain("noopener");
+
+		unmount();
+		render(<RecipeView recipe={{ ...recipe, sourceUrl: null }} />);
+
+		expect(screen.queryByRole("heading", { name: "引用元" })).toBeNull();
 	});
 
 	it("下準備・作り方・メモがなければ、その見出しを出さない", () => {

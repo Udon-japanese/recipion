@@ -52,6 +52,10 @@ export const ingredientRow = style({
 	gap: 16,
 });
 
+export const sourceUrl = style({
+	overflowWrap: "anywhere",
+});
+
 export const note = style({
 	whiteSpace: "pre-wrap",
 });
