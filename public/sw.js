@@ -121,7 +121,9 @@ self.addEventListener("fetch", (event) => {
 		url.pathname === "/recipion-icon.svg"
 	) {
 		event.respondWith(
-			caches.match(request).then((cachedResponse) => {
+			// 配信側が Vary: Origin を付けるため、取得経路（CORS の有無）が違うと、
+			// 同じ URL でも既定では一致しない。アセットは URL だけで照合する。
+			caches.match(request, { ignoreVary: true }).then((cachedResponse) => {
 				if (cachedResponse) {
 					return cachedResponse;
 				}
