@@ -1,6 +1,11 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "recipion",
+	// 本番の URL は workers.dev（https://recipion.uj-yos.workers.dev）。
+	"workers_dev": true,
+	// バージョンごとのプレビュー URL は使わない。同じ本番の DB とシークレットに接続でき、
+	// BETTER_AUTH_URL が本番の URL に固定されているため、認証も正しく動かない。
+	"preview_urls": false,
 	"compatibility_date": "2025-09-02",
 	"compatibility_flags": ["nodejs_compat"],
 	"main": "@tanstack/react-start/server-entry",
