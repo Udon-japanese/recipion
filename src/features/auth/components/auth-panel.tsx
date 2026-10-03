@@ -1,7 +1,6 @@
 import { type SubmitEvent, useState } from "react";
 import * as v from "valibot";
 
-import { clearAppShellCache } from "#/features/pwa/clear-app-shell-cache";
 import { authClient } from "#/integrations/better-auth/auth-client";
 import { useAppSession } from "#/integrations/better-auth/use-app-session";
 import * as styles from "./auth-panel.css";
@@ -79,7 +78,6 @@ export function AuthPanel() {
 			}
 
 			setPassword("");
-			await clearAppShellCache();
 			await refetch();
 		} catch (error) {
 			setErrorMessage(getErrorMessage(error));
@@ -99,7 +97,6 @@ export function AuthPanel() {
 				throw new Error(result.error.message);
 			}
 
-			await clearAppShellCache();
 			await refetch();
 		} catch (error) {
 			setErrorMessage(getErrorMessage(error));
