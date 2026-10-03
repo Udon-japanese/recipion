@@ -27,7 +27,7 @@ const rangeToken = String.raw`${numericToken}(?:\s*${rangeSeparator}\s*${numeric
 const amountSuffix = "(?:分)?(?:位|くらい|ぐらい|程度)?";
 
 const unitToken =
-	"大さじ|小さじ|カップ|パック|ひとつまみ|個|枚|本|袋|束|株|片|かけ|玉|丁|缶|瓶|切れ|房|合|kg|g|ml|l|cc|cm|つ";
+	"大さじ|小さじ|カップ|パック|ひとつまみ|個|枚|本|袋|束|株|片|かけ|玉|丁|缶|瓶|切れ|房|合|kg|g|ml|l|cc|cm|つ|キログラム|ミリリットル|センチメートル|センチ|グラム|キロ|ミリ|リットル";
 
 const measuredAmountPatterns = [
 	new RegExp(
@@ -42,6 +42,18 @@ const measuredAmountPatterns = [
 
 const descriptiveAmountPattern =
 	/^(?<name>.+?)[\s:：]*(?<amount>お好みで\s*少々|適量|少々|ひとつまみ|お好みで)$/u;
+
+// カタカナ表記の単位を、既存の単位ラベルへ寄せる。amountText には原文の表記が残る。
+const unitAliases: Record<string, string> = {
+	センチ: "cm",
+	センチメートル: "cm",
+	グラム: "g",
+	キロ: "kg",
+	キログラム: "kg",
+	ミリ: "ml",
+	ミリリットル: "ml",
+	リットル: "l",
+};
 
 const unitPattern = new RegExp(unitToken, "iu");
 const quantityPattern = new RegExp(numericToken, "u");
@@ -70,7 +82,8 @@ function parseNumericQuantity(value: string): number {
 }
 
 function normalizeUnitLabel(unitLabel: string): string {
-	const normalizedUnitLabel = unitLabel.toLocaleLowerCase("ja-JP");
+	const normalizedUnitLabel =
+		unitAliases[unitLabel] ?? unitLabel.toLocaleLowerCase("ja-JP");
 
 	switch (normalizedUnitLabel) {
 		case "kg":
@@ -78,6 +91,7 @@ function normalizeUnitLabel(unitLabel: string): string {
 		case "ml":
 		case "l":
 		case "cc":
+		case "cm":
 			return normalizedUnitLabel;
 		default:
 			return unitLabel;
