@@ -1,0 +1,1 @@
+ALTER TABLE "ingredient" ADD COLUMN "stock_unit_label" text NOT NULL;

@@ -8,6 +8,34 @@
       "when": 1789453966613,
       "tag": "0000_fair_red_skull",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790047581458,
+      "tag": "0001_bright_madelyne_pryor",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790054122300,
+      "tag": "0002_lively_gateway",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790058689426,
+      "tag": "0003_violet_wolfsbane",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790214435941,
+      "tag": "0004_curved_toxin",
+      "breakpoints": true
     }
   ]
 }

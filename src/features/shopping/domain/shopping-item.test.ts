@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
 	createShoppingItem,
+	getShoppingItemConvertedQuantityLabel,
+	markShoppingItemAsPurchased,
 	toggleShoppingItem,
 	updateShoppingItem,
 } from "./shopping-item";
@@ -23,6 +25,7 @@ describe("createShoppingItem", () => {
 			quantity: 1,
 			unitLabel: "個",
 			categoryId: null,
+			inventoryConversion: null,
 			categoryAssignment: null,
 			status: "pending",
 			sortOrder: 0,
@@ -74,6 +77,29 @@ describe("createShoppingItem", () => {
 			}),
 		).toThrow("数量は0より大きい数にしてください");
 	});
+
+	it("在庫換算情報を保持する", () => {
+		const item = createShoppingItem({
+			name: "牛乳",
+			quantity: 1,
+			unitLabel: "本",
+			inventoryConversion: {
+				inputUnitCode: "bottle",
+				stockUnitCode: "ml",
+				stockUnitLabel: "ml",
+				stockQuantityPerInputUnit: 1000,
+				trackingMode: "estimated",
+			},
+		});
+
+		expect(item.inventoryConversion).toEqual({
+			inputUnitCode: "bottle",
+			stockUnitCode: "ml",
+			stockUnitLabel: "ml",
+			stockQuantityPerInputUnit: 1000,
+			trackingMode: "estimated",
+		});
+	});
 });
 
 describe("updateShoppingItem", () => {
@@ -124,6 +150,55 @@ describe("updateShoppingItem", () => {
 			}),
 		).toThrow("数量は0より大きい数にしてください");
 	});
+
+	it("数量だけ変更した場合は在庫換算を維持する", () => {
+		const item = createShoppingItem({
+			name: "ホットケーキミックス",
+			quantity: 1,
+			unitLabel: "袋",
+			inventoryConversion: {
+				inputUnitCode: "bag",
+				stockUnitCode: "g",
+				stockUnitLabel: "g",
+				stockQuantityPerInputUnit: 200,
+				trackingMode: "estimated",
+			},
+		});
+
+		const updatedItem = updateShoppingItem(item, {
+			name: "ホットケーキミックス",
+			quantity: 2,
+			unitLabel: "袋",
+		});
+
+		expect(updatedItem.inventoryConversion).toEqual(item.inventoryConversion);
+	});
+
+	it.each([
+		["商品名", "ホケミ", "袋"],
+		["単位", "ホットケーキミックス", "箱"],
+	])("%sを変更した場合は在庫換算を解除する", (_, name, unitLabel) => {
+		const item = createShoppingItem({
+			name: "ホットケーキミックス",
+			quantity: 1,
+			unitLabel: "袋",
+			inventoryConversion: {
+				inputUnitCode: "bag",
+				stockUnitCode: "g",
+				stockUnitLabel: "g",
+				stockQuantityPerInputUnit: 200,
+				trackingMode: "estimated",
+			},
+		});
+
+		const updatedItem = updateShoppingItem(item, {
+			name,
+			quantity: 1,
+			unitLabel,
+		});
+
+		expect(updatedItem.inventoryConversion).toBeNull();
+	});
 });
 
 describe("toggleShoppingItem", () => {
@@ -146,5 +221,87 @@ describe("toggleShoppingItem", () => {
 		const item = toggleShoppingItem(createShoppingItem({ name: "牛乳" }));
 
 		expect(toggleShoppingItem(item).status).toBe("pending");
+	});
+});
+
+describe("markShoppingItemAsPurchased", () => {
+	it("チェック済み商品を購入済みにする", () => {
+		const item = toggleShoppingItem(createShoppingItem({ name: "卵" }));
+
+		const purchased = markShoppingItemAsPurchased(
+			item,
+			new Date("2026-09-22T14:00:00.000Z"),
+		);
+
+		expect(purchased.status).toBe("purchased");
+		expect(purchased.updatedAt).toBe("2026-09-22T14:00:00.000Z");
+	});
+
+	it("未チェックの商品は購入確定できない", () => {
+		const item = createShoppingItem({
+			name: "卵",
+		});
+
+		expect(() => markShoppingItemAsPurchased(item)).toThrow(
+			"チェック済みの商品だけ購入確定できます",
+		);
+	});
+
+	it("購入済み商品を再度処理しても変更しない", () => {
+		const checked = toggleShoppingItem(createShoppingItem({ name: "卵" }));
+		const purchased = markShoppingItemAsPurchased(checked);
+
+		expect(markShoppingItemAsPurchased(purchased)).toBe(purchased);
+	});
+
+	it("購入済み商品はチェック操作で戻らない", () => {
+		const checked = toggleShoppingItem(createShoppingItem({ name: "卵" }));
+		const purchased = markShoppingItemAsPurchased(checked);
+
+		expect(toggleShoppingItem(purchased)).toBe(purchased);
+	});
+});
+
+describe("getShoppingItemConvertedQuantityLabel", () => {
+	it("袋数から在庫へ入る合計グラム数を返す", () => {
+		const item = createShoppingItem({
+			name: "ホットケーキミックス",
+			quantity: 2,
+			unitLabel: "袋",
+			inventoryConversion: {
+				inputUnitCode: "bag",
+				stockUnitCode: "g",
+				stockUnitLabel: "g",
+				stockQuantityPerInputUnit: 200,
+				trackingMode: "estimated",
+			},
+		});
+
+		expect(getShoppingItemConvertedQuantityLabel(item)).toBe("400g");
+	});
+
+	it("同じ単位を倍率1で換算する場合は重複表示しない", () => {
+		const item = createShoppingItem({
+			name: "卵",
+			quantity: 6,
+			unitLabel: "個",
+			inventoryConversion: {
+				inputUnitCode: "count",
+				stockUnitCode: "count",
+				stockUnitLabel: "個",
+				stockQuantityPerInputUnit: 1,
+				trackingMode: "exact",
+			},
+		});
+
+		expect(getShoppingItemConvertedQuantityLabel(item)).toBeNull();
+	});
+
+	it("換算情報がない場合は表示しない", () => {
+		const item = createShoppingItem({
+			name: "謎の商品",
+		});
+
+		expect(getShoppingItemConvertedQuantityLabel(item)).toBeNull();
 	});
 });

@@ -11,6 +11,7 @@ const storedItem: ShoppingItem = {
 	quantity: 6,
 	unitLabel: "個",
 	categoryId: null,
+	inventoryConversion: null,
 	categoryAssignment: "manual",
 	status: "pending",
 	sortOrder: 0,
@@ -185,6 +186,61 @@ describe("ShoppingList", () => {
 		expect(screen.getByLabelText("数量")).toHaveValue(6);
 		expect(screen.getByLabelText("単位")).toHaveValue("個");
 		expect(sixEggsButton).toHaveAttribute("aria-pressed", "true");
+
+		await user.click(
+			screen.getByRole("button", {
+				name: "追加",
+			}),
+		);
+
+		await waitFor(() => {
+			expect(repository.save).toHaveBeenCalledWith(
+				expect.objectContaining({
+					name: "卵",
+					quantity: 6,
+					unitLabel: "個",
+					inventoryConversion: {
+						inputUnitCode: "count",
+						stockUnitCode: "count",
+						stockUnitLabel: "個",
+						stockQuantityPerInputUnit: 1,
+						trackingMode: "exact",
+					},
+				}),
+			);
+		});
+	});
+
+	it("商品の購入単位と在庫換算後の数量を表示する", async () => {
+		const user = userEvent.setup();
+		const repository = createRepository();
+
+		render(<ShoppingList repository={repository} />);
+
+		await screen.findByText("買うものはまだありません。");
+
+		await user.type(screen.getByLabelText("買うもの"), "ホケミ");
+
+		await user.click(
+			screen.getByRole("button", {
+				name: "200g袋",
+			}),
+		);
+
+		await user.click(
+			screen.getByRole("button", {
+				name: "追加",
+			}),
+		);
+
+		expect(
+			await screen.findByRole("checkbox", {
+				name: "ホケミをチェック",
+			}),
+		).toBeInTheDocument();
+
+		expect(screen.getByText("1袋")).toBeInTheDocument();
+		expect(screen.getByText("（200g）")).toBeInTheDocument();
 	});
 
 	it("買い物項目を上下に並び替えられる", async () => {
@@ -457,5 +513,282 @@ describe("ShoppingList", () => {
 				name: "卵をドラッグして並び替え",
 			}),
 		).toBeInTheDocument();
+	});
+
+	it("ホケミの包装量を買い物項目へ保存する", async () => {
+		const user = userEvent.setup();
+		const repository = createRepository();
+
+		render(<ShoppingList repository={repository} />);
+
+		await screen.findByText("買うものはまだありません。");
+		await user.type(screen.getByLabelText("買うもの"), "HM");
+		await user.click(
+			screen.getByRole("button", {
+				name: "200g袋",
+			}),
+		);
+		await user.click(
+			screen.getByRole("button", {
+				name: "追加",
+			}),
+		);
+
+		await waitFor(() => {
+			expect(repository.save).toHaveBeenCalledWith(
+				expect.objectContaining({
+					name: "HM",
+					quantity: 1,
+					unitLabel: "袋",
+					inventoryConversion: expect.objectContaining({
+						stockUnitCode: "g",
+						stockQuantityPerInputUnit: 200,
+						trackingMode: "estimated",
+					}),
+				}),
+			);
+		});
+	});
+
+	it("チェック済み商品を購入確定する", async () => {
+		const user = userEvent.setup();
+
+		const checkedItem: ShoppingItem = {
+			...storedItem,
+			status: "checked",
+			inventoryConversion: {
+				inputUnitCode: "count",
+				stockUnitCode: "count",
+				stockUnitLabel: "個",
+				stockQuantityPerInputUnit: 1,
+				trackingMode: "exact",
+			},
+		};
+
+		const purchasedItem: ShoppingItem = {
+			...checkedItem,
+			status: "purchased",
+		};
+
+		const repository = createRepository({
+			list: vi.fn().mockResolvedValue([checkedItem]),
+		});
+
+		const confirmPurchases = vi.fn().mockResolvedValue({
+			status: "confirmed",
+			items: [purchasedItem],
+		});
+
+		render(
+			<ShoppingList
+				repository={repository}
+				confirmPurchases={confirmPurchases}
+			/>,
+		);
+
+		await user.click(
+			await screen.findByRole("button", {
+				name: "チェック済みを購入確定（1件）",
+			}),
+		);
+
+		expect(confirmPurchases).toHaveBeenCalledWith("guest");
+
+		expect(
+			screen.getByRole("checkbox", {
+				name: "卵をチェック",
+			}),
+		).toBeChecked();
+
+		expect(
+			screen.getByRole("checkbox", {
+				name: "卵をチェック",
+			}),
+		).toBeDisabled();
+
+		expect(screen.getByText("購入済み")).toBeInTheDocument();
+	});
+
+	it("在庫換算がない商品は購入確定せず案内する", async () => {
+		const user = userEvent.setup();
+
+		const checkedItem: ShoppingItem = {
+			...storedItem,
+			name: "謎の商品",
+			status: "checked",
+			inventoryConversion: null,
+		};
+
+		const repository = createRepository({
+			list: vi.fn().mockResolvedValue([checkedItem]),
+		});
+
+		const confirmPurchases = vi.fn().mockResolvedValue({
+			status: "missing-conversion",
+			items: [checkedItem],
+		});
+
+		render(
+			<ShoppingList
+				repository={repository}
+				confirmPurchases={confirmPurchases}
+			/>,
+		);
+
+		await user.click(
+			await screen.findByRole("button", {
+				name: "チェック済みを購入確定（1件）",
+			}),
+		);
+
+		expect(await screen.findByRole("alert")).toHaveTextContent(
+			"謎の商品の在庫換算を設定してください",
+		);
+		expect(
+			screen.getByRole("checkbox", {
+				name: "謎の商品をチェック",
+			}),
+		).not.toBeDisabled();
+	});
+
+	it("ログイン済みなら購入確定後に在庫同期を試す", async () => {
+		const user = userEvent.setup();
+
+		const checkedItem: ShoppingItem = {
+			...storedItem,
+			status: "checked",
+			inventoryConversion: {
+				inputUnitCode: "count",
+				stockUnitCode: "count",
+				stockUnitLabel: "個",
+				stockQuantityPerInputUnit: 1,
+				trackingMode: "exact",
+			},
+		};
+
+		const purchasedItem: ShoppingItem = {
+			...checkedItem,
+			status: "purchased",
+		};
+
+		const repository = createRepository({
+			list: vi.fn().mockResolvedValue([checkedItem]),
+		});
+
+		const confirmPurchases = vi.fn().mockResolvedValue({
+			status: "confirmed",
+			items: [purchasedItem],
+		});
+
+		const syncPurchases = vi.fn().mockResolvedValue({
+			syncedCount: 1,
+			failedEntryId: null,
+		});
+
+		render(
+			<ShoppingList
+				repository={repository}
+				ownerScope="user:user-id"
+				confirmPurchases={confirmPurchases}
+				syncPurchases={syncPurchases}
+			/>,
+		);
+
+		await user.click(
+			await screen.findByRole("button", {
+				name: "チェック済みを購入確定（1件）",
+			}),
+		);
+
+		await waitFor(() => {
+			expect(confirmPurchases).toHaveBeenCalledWith("user:user-id");
+			expect(syncPurchases).toHaveBeenCalledWith("user:user-id");
+		});
+	});
+
+	it("購入確定時に不足している在庫換算を設定できる", async () => {
+		const user = userEvent.setup();
+
+		const checkedItem: ShoppingItem = {
+			...storedItem,
+			name: "たまご",
+			quantity: 1,
+			unitLabel: null,
+			status: "checked",
+			inventoryConversion: null,
+		};
+
+		const configuredItem: ShoppingItem = {
+			...checkedItem,
+			quantity: 6,
+			unitLabel: "個",
+			inventoryConversion: {
+				inputUnitCode: "count",
+				stockUnitCode: "count",
+				stockUnitLabel: "個",
+				stockQuantityPerInputUnit: 1,
+				trackingMode: "exact",
+			},
+		};
+
+		const purchasedItem: ShoppingItem = {
+			...configuredItem,
+			status: "purchased",
+		};
+
+		const repository = createRepository({
+			list: vi.fn().mockResolvedValue([checkedItem]),
+		});
+
+		const confirmPurchases = vi
+			.fn()
+			.mockResolvedValueOnce({
+				status: "missing-conversion",
+				items: [checkedItem],
+			})
+			.mockResolvedValueOnce({
+				status: "confirmed",
+				items: [purchasedItem],
+			});
+
+		render(
+			<ShoppingList
+				repository={repository}
+				confirmPurchases={confirmPurchases}
+			/>,
+		);
+
+		await user.click(
+			await screen.findByRole("button", {
+				name: "チェック済みを購入確定（1件）",
+			}),
+		);
+
+		expect(
+			await screen.findByRole("heading", {
+				name: "たまごを在庫へ追加する方法",
+			}),
+		).toBeInTheDocument();
+
+		await user.click(
+			screen.getByRole("button", {
+				name: "6個",
+			}),
+		);
+
+		await waitFor(() => {
+			expect(repository.save).toHaveBeenCalledWith(
+				expect.objectContaining({
+					id: checkedItem.id,
+					quantity: 6,
+					unitLabel: "個",
+					inventoryConversion: configuredItem.inventoryConversion,
+				}),
+			);
+
+			expect(confirmPurchases).toHaveBeenCalledTimes(2);
+		});
+
+		expect(await screen.findByText("購入済み")).toBeInTheDocument();
 	});
 });

@@ -1,5 +1,13 @@
-import { createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
-
+import {
+	createRootRoute,
+	HeadContent,
+	Link,
+	Outlet,
+	Scripts,
+} from "@tanstack/react-router";
+import { APP_DISPLAY_NAME } from "#/config/app";
+import { AuthPanel } from "#/features/auth/components/auth-panel";
+import { PwaRegister } from "#/features/pwa/components/pwa-register";
 import appCss from "../styles.css?url";
 
 export const Route = createRootRoute({
@@ -13,7 +21,19 @@ export const Route = createRootRoute({
 				content: "width=device-width, initial-scale=1",
 			},
 			{
-				title: "TanStack Start Starter",
+				title: APP_DISPLAY_NAME,
+			},
+			{
+				name: "theme-color",
+				content: "#2563eb",
+			},
+			{
+				name: "apple-mobile-web-app-capable",
+				content: "yes",
+			},
+			{
+				name: "apple-mobile-web-app-status-bar-style",
+				content: "default",
 			},
 		],
 		links: [
@@ -21,20 +41,42 @@ export const Route = createRootRoute({
 				rel: "stylesheet",
 				href: appCss,
 			},
+			{
+				rel: "manifest",
+				href: "/manifest.webmanifest",
+			},
+			{
+				rel: "icon",
+				href: "/recipion-icon.svg",
+				type: "image/svg+xml",
+			},
 		],
 	}),
+	component: RootLayout,
 	shellComponent: RootDocument,
 });
 
+function RootLayout() {
+	return (
+		<>
+			<Link to="/">{APP_DISPLAY_NAME}</Link>
+
+			<AuthPanel />
+
+			<Outlet />
+		</>
+	);
+}
+
 function RootDocument({ children }: { children: React.ReactNode }) {
 	return (
-		<html lang="en">
+		<html lang="ja">
 			<head>
 				<HeadContent />
 			</head>
 			<body>
 				{children}
-
+				<PwaRegister />
 				<Scripts />
 			</body>
 		</html>

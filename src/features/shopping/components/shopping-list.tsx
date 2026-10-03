@@ -3,6 +3,8 @@ import { isSortable, useSortable } from "@dnd-kit/react/sortable";
 import clsx from "clsx";
 import { type ReactNode, type SubmitEvent, useEffect, useState } from "react";
 import * as v from "valibot";
+import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
+import type { SyncInventoryPurchaseOutboxResult } from "#/features/inventory/application/sync-inventory-purchase-outbox";
 import type { ShoppingRepository } from "../application/shopping-repository";
 import {
 	isShoppingCategoryId,
@@ -11,7 +13,9 @@ import {
 } from "../domain/shopping-category";
 import {
 	createShoppingItem,
+	getShoppingItemConvertedQuantityLabel,
 	type ShoppingItem,
+	type ShoppingItemInventoryConversion,
 	toggleShoppingItem,
 	updateShoppingItem,
 } from "../domain/shopping-item";
@@ -28,8 +32,17 @@ import {
 import {
 	getShoppingItemPresets,
 	inferShoppingCategory,
+	isShoppingItemPresetSelected,
 } from "../domain/shopping-item-suggestion";
+import {
+	type ConfirmCheckedShoppingItemsPurchaseResult,
+	confirmCheckedShoppingItemsPurchase,
+} from "../infrastructure/dexie-shopping-purchase";
 import { dexieShoppingRepository } from "../infrastructure/dexie-shopping-repository";
+import {
+	type ShoppingItemInventoryConfiguration,
+	ShoppingItemInventoryConversionForm,
+} from "./shopping-item-inventory-conversion-form";
 import * as styles from "./shopping-list.css";
 
 function getErrorMessage(error: unknown): string {
@@ -73,12 +86,26 @@ function SortableShoppingItem({
 	);
 }
 
+type SyncPurchases = (
+	ownerScope: InventoryPurchaseOwnerScope,
+) => Promise<SyncInventoryPurchaseOutboxResult>;
+
+type ConfirmPurchases = (
+	ownerScope: InventoryPurchaseOwnerScope,
+) => Promise<ConfirmCheckedShoppingItemsPurchaseResult>;
+
 type ShoppingListProps = {
 	repository?: ShoppingRepository;
+	confirmPurchases?: ConfirmPurchases;
+	syncPurchases?: SyncPurchases;
+	ownerScope?: InventoryPurchaseOwnerScope | null;
 };
 
 export function ShoppingList({
 	repository = dexieShoppingRepository,
+	confirmPurchases = confirmCheckedShoppingItemsPurchase,
+	syncPurchases,
+	ownerScope = "guest",
 }: ShoppingListProps) {
 	const [items, setItems] = useState<ShoppingItem[]>([]);
 	const [name, setName] = useState("");
@@ -91,6 +118,8 @@ export function ShoppingList({
 	const [editName, setEditName] = useState("");
 	const [editQuantity, setEditQuantity] = useState("1");
 	const [editUnitLabel, setEditUnitLabel] = useState("");
+	const [inventoryConversion, setInventoryConversion] =
+		useState<ShoppingItemInventoryConversion | null>(null);
 	const [isSavingEdit, setIsSavingEdit] = useState(false);
 	const [isReordering, setIsReordering] = useState(false);
 	const [categoryId, setCategoryId] = useState<ShoppingCategoryId | "">("");
@@ -101,8 +130,18 @@ export function ShoppingList({
 	);
 	const [isEditCategoryManuallySelected, setIsEditCategoryManuallySelected] =
 		useState(false);
+	const [isConfirmingPurchase, setIsConfirmingPurchase] = useState(false);
+	const [conversionItemId, setConversionItemId] = useState<string | null>(null);
+
+	const [isSavingConversion, setIsSavingConversion] = useState(false);
 
 	const presets = getShoppingItemPresets(name);
+	const checkedItemCount = items.filter(
+		(item) => item.status === "checked",
+	).length;
+	const conversionItem = conversionItemId
+		? items.find((item) => item.id === conversionItemId)
+		: undefined;
 
 	useEffect(() => {
 		let isActive = true;
@@ -164,12 +203,13 @@ export function ShoppingList({
 					name,
 					quantity: Number(quantity),
 					unitLabel,
+					inventoryConversion,
 					categoryId: categoryId || null,
-					categoryAssignment: isCategoryManuallySelected
-						? "manual"
-						: categoryId
-							? "automatic"
-							: null,
+					categoryAssignment: categoryId
+						? isCategoryManuallySelected
+							? "manual"
+							: "automatic"
+						: null,
 				},
 				new Date(),
 				nextSortOrder,
@@ -183,6 +223,7 @@ export function ShoppingList({
 			setUnitLabel("");
 			setCategoryId("");
 			setIsCategoryManuallySelected(false);
+			setInventoryConversion(null);
 		} catch (error) {
 			setErrorMessage(getErrorMessage(error));
 		} finally {
@@ -205,6 +246,106 @@ export function ShoppingList({
 			);
 		} catch (error) {
 			setErrorMessage(getErrorMessage(error));
+		}
+	}
+
+	async function handleConfirmPurchases() {
+		if (!ownerScope) {
+			return;
+		}
+
+		setErrorMessage(null);
+		setIsConfirmingPurchase(true);
+
+		try {
+			const result = await confirmPurchases(ownerScope);
+
+			if (result.status === "nothing-to-confirm") {
+				return;
+			}
+
+			if (result.status === "missing-conversion") {
+				const firstMissingItem = result.items[0];
+
+				setConversionItemId(firstMissingItem?.id ?? null);
+
+				setErrorMessage(
+					firstMissingItem
+						? `${firstMissingItem.name}の在庫換算を設定してください`
+						: "在庫換算を設定してください",
+				);
+
+				return;
+			}
+
+			setConversionItemId(null);
+
+			const purchasedItemsById = new Map(
+				result.items.map((item) => [item.id, item]),
+			);
+
+			setItems((currentItems) =>
+				currentItems.map((item) => purchasedItemsById.get(item.id) ?? item),
+			);
+
+			if (ownerScope === "guest" || !syncPurchases) {
+				return;
+			}
+
+			try {
+				const syncResult = await syncPurchases(ownerScope);
+
+				if (syncResult.failedEntryId) {
+					setErrorMessage(
+						"購入は保存しました。在庫への反映は通信復旧後に再試行します",
+					);
+				}
+			} catch {
+				setErrorMessage(
+					"購入は保存しました。在庫への反映は通信復旧後に再試行します",
+				);
+			}
+		} catch {
+			setErrorMessage("購入確定を保存できませんでした。もう一度お試しください");
+		} finally {
+			setIsConfirmingPurchase(false);
+		}
+	}
+
+	async function handleSaveInventoryConfiguration(
+		item: ShoppingItem,
+		configuration: ShoppingItemInventoryConfiguration,
+	) {
+		setErrorMessage(null);
+		setIsSavingConversion(true);
+
+		try {
+			const updatedItem = updateShoppingItem(item, {
+				name: item.name,
+				quantity: configuration.quantity,
+				unitLabel: configuration.unitLabel,
+				inventoryConversion: configuration.inventoryConversion,
+			});
+
+			await repository.save(updatedItem);
+
+			setItems((currentItems) =>
+				currentItems.map((currentItem) =>
+					currentItem.id === updatedItem.id ? updatedItem : currentItem,
+				),
+			);
+
+			setConversionItemId(null);
+
+			/*
+			 * Dexieへの換算保存が完了しているため、
+			 * 購入確定を最初から再試行する。
+			 */
+			await handleConfirmPurchases();
+		} catch (error) {
+			setErrorMessage(getErrorMessage(error));
+		} finally {
+			setIsSavingConversion(false);
 		}
 	}
 
@@ -241,11 +382,11 @@ export function ShoppingList({
 				quantity: Number(editQuantity),
 				unitLabel: editUnitLabel,
 				categoryId: editCategoryId || null,
-				categoryAssignment: isEditCategoryManuallySelected
-					? "manual"
-					: editCategoryId
-						? "automatic"
-						: null,
+				categoryAssignment: editCategoryId
+					? isEditCategoryManuallySelected
+						? "manual"
+						: "automatic"
+					: null,
 			});
 
 			await repository.save(updatedItem);
@@ -297,6 +438,7 @@ export function ShoppingList({
 
 	function handleNameChange(value: string) {
 		setName(value);
+		setInventoryConversion(null);
 
 		if (!isCategoryManuallySelected) {
 			setCategoryId(inferShoppingCategory(value) ?? "");
@@ -429,7 +571,10 @@ export function ShoppingList({
 							id="shopping-item-unit"
 							name="unitLabel"
 							value={unitLabel}
-							onChange={(event) => setUnitLabel(event.target.value)}
+							onChange={(event) => {
+								setUnitLabel(event.target.value);
+								setInventoryConversion(null);
+							}}
 							placeholder="個、袋、gなど"
 							autoComplete="off"
 						/>
@@ -467,23 +612,25 @@ export function ShoppingList({
 
 						<div className={styles.presetList}>
 							{presets.map((preset) => {
-								const isSelected =
-									quantity === String(preset.quantity) &&
-									unitLabel === preset.unitLabel;
+								const isSelected = isShoppingItemPresetSelected(preset, {
+									quantity,
+									unitLabel,
+									inventoryConversion,
+								});
 
 								return (
 									<button
 										className={styles.presetButton}
 										type="button"
 										aria-pressed={isSelected}
-										key={`${preset.quantity}-${preset.unitLabel}`}
+										key={preset.label}
 										onClick={() => {
 											setQuantity(String(preset.quantity));
 											setUnitLabel(preset.unitLabel);
+											setInventoryConversion(preset.inventoryConversion);
 										}}
 									>
-										{preset.quantity}
-										{preset.unitLabel}
+										{preset.label}
 									</button>
 								);
 							})}
@@ -505,6 +652,38 @@ export function ShoppingList({
 					</p>
 				) : null}
 			</form>
+
+			{conversionItem ? (
+				<ShoppingItemInventoryConversionForm
+					item={conversionItem}
+					isSaving={isSavingConversion}
+					onSave={(configuration) =>
+						handleSaveInventoryConfiguration(conversionItem, configuration)
+					}
+					onCancel={() => {
+						setConversionItemId(null);
+						setErrorMessage(null);
+					}}
+				/>
+			) : null}
+
+			<div className={styles.purchaseActions}>
+				<button
+					className={styles.purchaseButton}
+					type="button"
+					disabled={
+						checkedItemCount === 0 ||
+						isConfirmingPurchase ||
+						isLoading ||
+						ownerScope === null
+					}
+					onClick={() => void handleConfirmPurchases()}
+				>
+					{isConfirmingPurchase
+						? "購入確定中…"
+						: `チェック済みを購入確定（${checkedItemCount}件）`}
+				</button>
+			</div>
 
 			{isLoading ? <p className={styles.message}>読み込んでいます…</p> : null}
 
@@ -530,9 +709,12 @@ export function ShoppingList({
 				>
 					<ul className={styles.list}>
 						{items.map((item, index) => {
-							const isChecked = item.status === "checked";
+							const isPurchased = item.status === "purchased";
+							const isChecked = item.status === "checked" || isPurchased;
 							const isFirst = index === 0;
 							const isLast = index === items.length - 1;
+							const convertedQuantityLabel =
+								getShoppingItemConvertedQuantityLabel(item);
 
 							return (
 								<SortableShoppingItem
@@ -670,6 +852,7 @@ export function ShoppingList({
 													className={styles.checkbox}
 													type="checkbox"
 													checked={isChecked}
+													disabled={isPurchased}
 													aria-label={`${item.name}をチェック`}
 													onChange={() => void handleToggle(item)}
 												/>
@@ -684,7 +867,19 @@ export function ShoppingList({
 													<span className={styles.quantity}>
 														{item.quantity}
 														{item.unitLabel}
+
+														{convertedQuantityLabel ? (
+															<span className={styles.convertedQuantity}>
+																（{convertedQuantityLabel}）
+															</span>
+														) : null}
 													</span>
+
+													{isPurchased ? (
+														<span className={styles.purchasedLabel}>
+															購入済み
+														</span>
+													) : null}
 												</span>
 
 												<div className={styles.itemActions}>

@@ -1,0 +1,98 @@
+import { describe, expect, it } from "vitest";
+
+import { parseRecipeIngredientLine } from "./parse-recipe-ingredient-line";
+
+describe("parseRecipeIngredientLine", () => {
+	it.each([
+		["卵 1個", "卵", "1個", 1, "個"],
+		["卵　1個", "卵", "1個", 1, "個"],
+		["卵:1個", "卵", "1個", 1, "個"],
+		["卵：1個", "卵", "1個", 1, "個"],
+		["卵1個", "卵", "1個", 1, "個"],
+		["牛乳200ml", "牛乳", "200ml", 200, "ml"],
+		["しょうゆ 大さじ1", "しょうゆ", "大さじ1", 1, "大さじ"],
+		["砂糖：小さじ1/2", "砂糖", "小さじ1/2", 0.5, "小さじ"],
+		["玉ねぎ 1/2個", "玉ねぎ", "1/2個", 0.5, "個"],
+		["だし 1 1/2カップ", "だし", "1 1/2カップ", 1.5, "カップ"],
+		["しょうゆ 大さじ1と1/2", "しょうゆ", "大さじ1と1/2", 1.5, "大さじ"],
+		["砂糖 小さじ２と1/4", "砂糖", "小さじ2と1/4", 2.25, "小さじ"],
+		["薄力粉 約200g", "薄力粉", "約200g", 200, "g"],
+		["5枚切り食パン 1枚", "5枚切り食パン", "1枚", 1, "枚"],
+	])("%sを食材名と使用量へ分割する", (input, name, amountText, quantity, unitLabel) => {
+		expect(parseRecipeIngredientLine(input)).toEqual({
+			status: "parsed",
+			rawText: input,
+			name,
+			amountText,
+			quantity,
+			unitLabel,
+		});
+	});
+
+	it.each([
+		["ベーコン 60~70g", "ベーコン", "60~70g", null, "g"],
+		["醤油 大さじ4〜5", "醤油", "大さじ4〜5", null, "大さじ"],
+		["輪切り唐辛子２本分位", "輪切り唐辛子", "2本分位", 2, "本"],
+		["塩 小さじ1くらい", "塩", "小さじ1くらい", 1, "小さじ"],
+		["水 100mlぐらい", "水", "100mlぐらい", 100, "ml"],
+		["生姜チューブ3cm程度", "生姜チューブ", "3cm程度", 3, "cm"],
+		["卵黄1つ", "卵黄", "1つ", 1, "つ"],
+		["生姜チューブ3センチ程度", "生姜チューブ", "3センチ程度", 3, "cm"],
+		["長ねぎ 10センチメートル", "長ねぎ", "10センチメートル", 10, "cm"],
+		["鶏ひき肉 50グラム", "鶏ひき肉", "50グラム", 50, "g"],
+		["水 100ミリ", "水", "100ミリ", 100, "ml"],
+		["牛乳 200ミリリットル", "牛乳", "200ミリリットル", 200, "ml"],
+		["じゃがいも 1キロ", "じゃがいも", "1キロ", 1, "kg"],
+		["小麦粉 1キログラム", "小麦粉", "1キログラム", 1, "kg"],
+		["だし 1リットル", "だし", "1リットル", 1, "l"],
+	])("%sの範囲や「位」付きの使用量を分量として区切る", (input, name, amountText, quantity, unitLabel) => {
+		expect(parseRecipeIngredientLine(input)).toEqual({
+			status: "parsed",
+			rawText: input,
+			name,
+			amountText,
+			quantity,
+			unitLabel,
+		});
+	});
+
+	it.each([
+		["塩 少々", "塩", "少々"],
+		["パセリ 適量", "パセリ", "適量"],
+		["こしょう お好みで", "こしょう", "お好みで"],
+	])("%sの数値化できない使用量も保持する", (input, name, amountText) => {
+		expect(parseRecipeIngredientLine(input)).toEqual({
+			status: "parsed",
+			rawText: input,
+			name,
+			amountText,
+			quantity: null,
+			unitLabel: amountText === "ひとつまみ" ? "ひとつまみ" : null,
+		});
+	});
+
+	it("使用量がなければ未解析として食材名を保持する", () => {
+		expect(parseRecipeIngredientLine("肉だね")).toEqual({
+			status: "missing-amount",
+			rawText: "肉だね",
+			name: "肉だね",
+			amountText: null,
+			quantity: null,
+			unitLabel: null,
+		});
+	});
+
+	it("空行は無視する", () => {
+		expect(parseRecipeIngredientLine("　 ")).toBeNull();
+	});
+
+	it("お好みで少々をひとつの分量として扱う", () => {
+		expect(parseRecipeIngredientLine("大葉 お好みで少々")).toMatchObject({
+			status: "parsed",
+			name: "大葉",
+			amountText: "お好みで少々",
+			quantity: null,
+			unitLabel: null,
+		});
+	});
+});

@@ -1,16 +1,21 @@
 import Dexie, { type Table } from "dexie";
+import type { InventoryCacheSnapshot } from "../features/inventory/application/inventory-cache-repository";
+import type { InventoryPurchaseOutboxEntry } from "../features/inventory/application/inventory-purchase-outbox";
 import type { ShoppingItem } from "../features/shopping/domain/shopping-item";
 
 type MigratingShoppingItem = Omit<
 	ShoppingItem,
-	"categoryId" | "categoryAssignment"
+	"categoryId" | "categoryAssignment" | "inventoryConversion"
 > & {
 	categoryId?: ShoppingItem["categoryId"] | "tofu-noodles";
 	categoryAssignment?: ShoppingItem["categoryAssignment"];
+	inventoryConversion?: ShoppingItem["inventoryConversion"];
 };
 
 export class LocalDatabase extends Dexie {
 	shoppingItems!: Table<ShoppingItem, string>;
+	inventoryPurchaseOutbox!: Table<InventoryPurchaseOutboxEntry, string>;
+	inventorySnapshots!: Table<InventoryCacheSnapshot, string>;
 
 	constructor(databaseName = "app-local") {
 		super(databaseName);
@@ -86,6 +91,35 @@ export class LocalDatabase extends Dexie {
 					}
 				});
 			});
+
+		this.version(6).stores({
+			shoppingItems:
+				"id, status, categoryId, categoryAssignment, sortOrder, createdAt, updatedAt",
+			inventoryPurchaseOutbox: "id, ownerScope, status, createdAt, updatedAt",
+		});
+
+		this.version(7)
+			.stores({
+				shoppingItems:
+					"id, status, categoryId, categoryAssignment, sortOrder, createdAt, updatedAt",
+				inventoryPurchaseOutbox: "id, ownerScope, status, createdAt, updatedAt",
+			})
+			.upgrade(async (transaction) => {
+				const shoppingItems = transaction.table<MigratingShoppingItem, string>(
+					"shoppingItems",
+				);
+
+				await shoppingItems.toCollection().modify((item) => {
+					item.inventoryConversion ??= null;
+				});
+			});
+
+		this.version(8).stores({
+			shoppingItems:
+				"id, status, categoryId, categoryAssignment, sortOrder, createdAt, updatedAt",
+			inventoryPurchaseOutbox: "id, ownerScope, status, createdAt, updatedAt",
+			inventorySnapshots: "ownerScope, cachedAt",
+		});
 	}
 }
 

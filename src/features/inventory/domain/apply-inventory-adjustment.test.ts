@@ -1,0 +1,164 @@
+import { describe, expect, it } from "vitest";
+import { applyInventoryAdjustment } from "./apply-inventory-adjustment";
+
+describe("applyInventoryAdjustment", () => {
+	it("買った数量を在庫へ追加して履歴を作る", () => {
+		const occurredAt = new Date("2026-09-22T12:00:00.000Z");
+
+		const result = applyInventoryAdjustment(
+			{
+				inventoryItemId: "inventory-item-id",
+				currentQuantity: 4,
+				inputQuantity: 2,
+				inputUnitCode: "pack",
+				stockUnitCode: "count",
+				trackingMode: "exact",
+				transactionId: "transaction-id",
+				stockQuantityPerInputUnit: 6,
+				operation: "increase",
+				reason: "purchase",
+				sourceType: "shopping-item",
+				sourceId: "shopping-item-id",
+			},
+			occurredAt,
+		);
+
+		expect(result).toEqual({
+			quantity: 16,
+			transaction: {
+				id: expect.any(String),
+				inventoryItemId: "inventory-item-id",
+				inputQuantity: 2,
+				inputUnitCode: "pack",
+				quantityDelta: 12,
+				resultingQuantity: 16,
+				stockUnitCode: "count",
+				reason: "purchase",
+				sourceType: "shopping-item",
+				sourceId: "shopping-item-id",
+				occurredAt: "2026-09-22T12:00:00.000Z",
+				requestedQuantityDelta: 12,
+			},
+		});
+	});
+
+	it("レシピで使用した数量を在庫から減らす", () => {
+		const result = applyInventoryAdjustment({
+			inventoryItemId: "inventory-item-id",
+			currentQuantity: 500,
+			inputQuantity: 200,
+			inputUnitCode: "g",
+			stockUnitCode: "g",
+			trackingMode: "exact",
+			stockQuantityPerInputUnit: 1,
+			transactionId: "transaction-id",
+			operation: "decrease",
+			reason: "recipe-consumption",
+			sourceType: "recipe",
+			sourceId: "recipe-id",
+		});
+
+		expect(result.quantity).toBe(300);
+		expect(result.transaction.quantityDelta).toBe(-200);
+		expect(result.transaction.resultingQuantity).toBe(300);
+		expect(result.transaction.requestedQuantityDelta).toBe(-200);
+	});
+
+	it("手動調整では参照元を省略できる", () => {
+		const result = applyInventoryAdjustment({
+			inventoryItemId: "inventory-item-id",
+			currentQuantity: 3,
+			inputQuantity: 1,
+			inputUnitCode: "count",
+			stockUnitCode: "count",
+			stockQuantityPerInputUnit: 1,
+			transactionId: "transaction-id",
+			operation: "increase",
+			reason: "manual-adjustment",
+			trackingMode: "exact",
+		});
+
+		expect(result.transaction.sourceType).toBeNull();
+		expect(result.transaction.sourceId).toBeNull();
+	});
+
+	it("在庫が負数になる減算を拒否する", () => {
+		expect(() =>
+			applyInventoryAdjustment({
+				inventoryItemId: "inventory-item-id",
+				currentQuantity: 3,
+				inputQuantity: 1,
+				inputUnitCode: "pack",
+				stockUnitCode: "count",
+				stockQuantityPerInputUnit: 6,
+				transactionId: "transaction-id",
+				operation: "decrease",
+				reason: "manual-adjustment",
+				trackingMode: "exact",
+			}),
+		).toThrow("在庫数量が不足しています");
+	});
+
+	it("推定在庫が不足すると0まで減らす", () => {
+		const result = applyInventoryAdjustment({
+			inventoryItemId: "inventory-item-id",
+			currentQuantity: 100,
+			trackingMode: "estimated",
+			inputQuantity: 200,
+			inputUnitCode: "ml",
+			stockUnitCode: "ml",
+			stockQuantityPerInputUnit: 1,
+			transactionId: "transaction-id",
+			operation: "decrease",
+			reason: "recipe-consumption",
+			sourceType: "recipe",
+			sourceId: "recipe-id",
+		});
+
+		expect(result.quantity).toBe(0);
+		expect(result.transaction.requestedQuantityDelta).toBe(-200);
+		expect(result.transaction.quantityDelta).toBe(-100);
+		expect(result.transaction.resultingQuantity).toBe(0);
+	});
+
+	it("推定在庫が0でも使用した事実を履歴に残す", () => {
+		const result = applyInventoryAdjustment({
+			inventoryItemId: "inventory-item-id",
+			currentQuantity: 0,
+			trackingMode: "estimated",
+			inputQuantity: 200,
+			inputUnitCode: "ml",
+			stockUnitCode: "ml",
+			stockQuantityPerInputUnit: 1,
+			transactionId: "transaction-id",
+			operation: "decrease",
+			reason: "recipe-consumption",
+			sourceType: "recipe",
+			sourceId: "recipe-id",
+		});
+
+		expect(result.quantity).toBe(0);
+		expect(result.transaction.requestedQuantityDelta).toBe(-200);
+		expect(result.transaction.quantityDelta).toBe(0);
+		expect(result.transaction.resultingQuantity).toBe(0);
+	});
+
+	it("呼び出し側が発行した取引IDを維持する", () => {
+		const result = applyInventoryAdjustment({
+			transactionId: "offline-operation-id",
+			inventoryItemId: "inventory-item-id",
+			currentQuantity: 0,
+			trackingMode: "exact",
+			inputQuantity: 1,
+			inputUnitCode: "pack",
+			stockUnitCode: "count",
+			stockQuantityPerInputUnit: 6,
+			operation: "increase",
+			reason: "purchase",
+			sourceType: "shopping-item",
+			sourceId: "shopping-item-id",
+		});
+
+		expect(result.transaction.id).toBe("offline-operation-id");
+	});
+});

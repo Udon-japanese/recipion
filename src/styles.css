@@ -1,16 +1,18 @@
+:root {
+	--color-text: #1c1917;
+	--color-text-muted: #6b6560;
 
+	--color-surface: #ffffff;
+	--color-surface-subtle: #f5f3f1;
+	--color-border: #d6d1cc;
 
-* {
-  box-sizing: border-box;
+	--color-primary: #2563eb;
+	--color-primary-hover: #1d4ed8;
+	--color-primary-text: #ffffff;
+	--color-primary-soft: #bfdbfe;
 }
 
 body {
-  margin: 0;
-  font-family: system-ui, sans-serif;
+	color: var(--color-text);
+	background: var(--color-surface);
 }
-
-main {
-  width: min(42rem, calc(100% - 2rem));
-  margin: 4rem auto;
-}
-

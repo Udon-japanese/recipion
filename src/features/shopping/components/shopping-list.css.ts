@@ -212,6 +212,7 @@ export const checkedItem = style({
 });
 
 export const checkbox = style({
+	appearance: "auto",
 	width: 22,
 	height: 22,
 	margin: 0,
@@ -233,6 +234,11 @@ export const quantity = style({
 	marginLeft: 8,
 	color: "var(--color-text-muted)",
 	fontSize: 14,
+});
+
+export const convertedQuantity = style({
+	color: "var(--color-text-muted)",
+	whiteSpace: "nowrap",
 });
 
 export const deleteButton = style({
@@ -260,7 +266,7 @@ export const deleteButton = style({
 
 export const itemActions = style({
 	display: "grid",
-	gridTemplateColumns: "repeat(2, 44px)",
+	gridTemplateColumns: "repeat(2, minmax(56px, auto))",
 	gap: 4,
 });
 
@@ -396,4 +402,49 @@ export const dragHandle = style({
 			outline: "3px solid var(--color-primary-soft)",
 		},
 	},
+});
+
+export const purchaseActions = style({
+	display: "flex",
+	justifyContent: "flex-end",
+	marginBottom: 24,
+});
+
+export const purchaseButton = style({
+	minHeight: 44,
+	paddingInline: 18,
+	color: "var(--color-primary-text)",
+	background: "var(--color-primary)",
+	border: 0,
+	borderRadius: 8,
+	font: "inherit",
+	fontWeight: 700,
+	cursor: "pointer",
+
+	selectors: {
+		"&:hover:not(:disabled)": {
+			background: "var(--color-primary-hover)",
+		},
+
+		"&:disabled": {
+			cursor: "not-allowed",
+			opacity: 0.5,
+		},
+
+		"&:focus-visible": {
+			outline: "3px solid var(--color-primary-soft)",
+			outlineOffset: 2,
+		},
+	},
+});
+
+export const purchasedLabel = style({
+	display: "inline-block",
+	marginLeft: 8,
+	padding: "2px 6px",
+	color: "var(--color-text-muted)",
+	background: "var(--color-surface-subtle)",
+	borderRadius: 4,
+	fontSize: 12,
+	fontWeight: 600,
 });
