@@ -111,7 +111,7 @@ pnpm run deploy
 
 **初回の本番デプロイの前に確認すること**
 
-- `wrangler.jsonc` の `name` は、テンプレートのままの `tanstack-start-app` です。正式な Worker 名に変更してください。
+- Worker 名は、`wrangler.jsonc` の `name`（`recipion`）です。
 - 本番の DB には、`drizzle/` のマイグレーションを、番号の順に適用します。すでに一部が適用済みの場合は、適用状況の確認と、DB のバックアップを先に行ってください。
 - 本番用の環境変数（`BETTER_AUTH_SECRET`、`BETTER_AUTH_URL`）は、Worker のシークレット・変数として設定します（シークレットは `wrangler secret put <名前>`）。
 - 後工程は、`vite preview` を起動するため、`.env.local` がある環境で実行します。`.env.local` のない環境（将来 CI に載せる場合）で通るかは、未確認です。
