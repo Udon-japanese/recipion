@@ -19,8 +19,8 @@ export type ParsedRecipeIngredientLine =
 // 「1 1/2」「1と1/2」（帯分数）、「1/2」、「1.5」「1」。
 const numericToken = String.raw`(?:\d+(?:\s+|と)\d+\/\d+|\d+\/\d+|\d+(?:\.\d+)?)`;
 
-// 「60~70g」「大さじ4〜5」のような範囲。NFKC で ～ は ~ になるが 〜 は変わらない。
-const rangeSeparator = "[~〜]";
+// 「60~70g」「大さじ4〜5」「70から80g」のような範囲。NFKC で ～ は ~ になるが 〜 は変わらない。
+const rangeSeparator = "(?:[~〜]|から)";
 const rangeToken = String.raw`${numericToken}(?:\s*${rangeSeparator}\s*${numericToken})?`;
 
 // 「2本分」「100gくらい」「2本分位」「3cm程度」のような、単位のあとに付く語。
