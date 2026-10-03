@@ -7,6 +7,10 @@ import { defineConfig } from "vite";
 
 const config = defineConfig({
 	resolve: { tsconfigPaths: true },
+	environments: {
+		// scripts/postbuild-app-shell.ts が、今回のビルドが出したファイルの一覧として読む。
+		client: { build: { manifest: true } },
+	},
 	plugins: [
 		cloudflare({ viteEnvironment: { name: "ssr" } }),
 		tanstackStart(),
