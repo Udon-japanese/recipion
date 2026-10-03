@@ -11,8 +11,10 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as InventoryRouteImport } from './routes/inventory'
-import { Route as RecipesRouteImport } from './routes/recipes'
 import { Route as ShoppingRouteImport } from './routes/shopping'
+import { Route as RecipesIndexRouteImport } from './routes/recipes.index'
+import { Route as RecipesPublicIdRouteImport } from './routes/recipes.$publicId'
+import { Route as RecipesNewRouteImport } from './routes/recipes.new'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
 const IndexRoute = IndexRouteImport.update({
@@ -25,14 +27,24 @@ const InventoryRoute = InventoryRouteImport.update({
   path: '/inventory',
   getParentRoute: () => rootRouteImport,
 } as any)
-const RecipesRoute = RecipesRouteImport.update({
-  id: '/recipes',
-  path: '/recipes',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ShoppingRoute = ShoppingRouteImport.update({
   id: '/shopping',
   path: '/shopping',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecipesIndexRoute = RecipesIndexRouteImport.update({
+  id: '/recipes/',
+  path: '/recipes/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecipesPublicIdRoute = RecipesPublicIdRouteImport.update({
+  id: '/recipes/$publicId',
+  path: '/recipes/$publicId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecipesNewRoute = RecipesNewRouteImport.update({
+  id: '/recipes/new',
+  path: '/recipes/new',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
@@ -44,38 +56,68 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/inventory': typeof InventoryRoute
-  '/recipes': typeof RecipesRoute
   '/shopping': typeof ShoppingRoute
+  '/recipes/$publicId': typeof RecipesPublicIdRoute
+  '/recipes/new': typeof RecipesNewRoute
+  '/recipes/': typeof RecipesIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/inventory': typeof InventoryRoute
-  '/recipes': typeof RecipesRoute
   '/shopping': typeof ShoppingRoute
+  '/recipes/$publicId': typeof RecipesPublicIdRoute
+  '/recipes/new': typeof RecipesNewRoute
+  '/recipes': typeof RecipesIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/inventory': typeof InventoryRoute
-  '/recipes': typeof RecipesRoute
   '/shopping': typeof ShoppingRoute
+  '/recipes/$publicId': typeof RecipesPublicIdRoute
+  '/recipes/new': typeof RecipesNewRoute
+  '/recipes/': typeof RecipesIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/inventory' | '/recipes' | '/shopping' | '/api/auth/$'
+  fullPaths:
+    | '/'
+    | '/inventory'
+    | '/shopping'
+    | '/recipes/$publicId'
+    | '/recipes/new'
+    | '/recipes/'
+    | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/inventory' | '/recipes' | '/shopping' | '/api/auth/$'
-  id: '__root__' | '/' | '/inventory' | '/recipes' | '/shopping' | '/api/auth/$'
+  to:
+    | '/'
+    | '/inventory'
+    | '/shopping'
+    | '/recipes/$publicId'
+    | '/recipes/new'
+    | '/recipes'
+    | '/api/auth/$'
+  id:
+    | '__root__'
+    | '/'
+    | '/inventory'
+    | '/shopping'
+    | '/recipes/$publicId'
+    | '/recipes/new'
+    | '/recipes/'
+    | '/api/auth/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   InventoryRoute: typeof InventoryRoute
-  RecipesRoute: typeof RecipesRoute
   ShoppingRoute: typeof ShoppingRoute
+  RecipesPublicIdRoute: typeof RecipesPublicIdRoute
+  RecipesNewRoute: typeof RecipesNewRoute
+  RecipesIndexRoute: typeof RecipesIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
 
@@ -95,18 +137,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InventoryRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/recipes': {
-      id: '/recipes'
-      path: '/recipes'
-      fullPath: '/recipes'
-      preLoaderRoute: typeof RecipesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/shopping': {
       id: '/shopping'
       path: '/shopping'
       fullPath: '/shopping'
       preLoaderRoute: typeof ShoppingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/recipes/': {
+      id: '/recipes/'
+      path: '/recipes'
+      fullPath: '/recipes/'
+      preLoaderRoute: typeof RecipesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/recipes/$publicId': {
+      id: '/recipes/$publicId'
+      path: '/recipes/$publicId'
+      fullPath: '/recipes/$publicId'
+      preLoaderRoute: typeof RecipesPublicIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/recipes/new': {
+      id: '/recipes/new'
+      path: '/recipes/new'
+      fullPath: '/recipes/new'
+      preLoaderRoute: typeof RecipesNewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/auth/$': {
@@ -122,8 +178,10 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   InventoryRoute: InventoryRoute,
-  RecipesRoute: RecipesRoute,
   ShoppingRoute: ShoppingRoute,
+  RecipesPublicIdRoute: RecipesPublicIdRoute,
+  RecipesNewRoute: RecipesNewRoute,
+  RecipesIndexRoute: RecipesIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
 }
 export const routeTree = rootRouteImport

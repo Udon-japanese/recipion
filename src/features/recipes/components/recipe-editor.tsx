@@ -339,11 +339,14 @@ function IngredientPreviewNode({
 	);
 }
 
+type SavedRecipe = { publicId: string };
+
 type RecipeEditorProps = {
-	onSave: (document: RecipeEditorDocument) => Promise<{ id: string }>;
+	onSave: (document: RecipeEditorDocument) => Promise<SavedRecipe>;
+	onSaved?: (recipe: SavedRecipe) => void;
 };
 
-export function RecipeEditor({ onSave }: RecipeEditorProps) {
+export function RecipeEditor({ onSave, onSaved }: RecipeEditorProps) {
 	const [name, setName] = useState("");
 	const [servings, setServings] = useState("2");
 	const [ingredientText, setIngredientText] = useState("");
@@ -439,7 +442,8 @@ export function RecipeEditor({ onSave }: RecipeEditorProps) {
 			};
 
 			const result = await onSave(document);
-			setSavedRecipeId(result.id);
+			setSavedRecipeId(result.publicId);
+			onSaved?.(result);
 		} catch (error) {
 			setErrorMessage(
 				error instanceof Error ? error.message : "レシピを保存できませんでした",
