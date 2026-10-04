@@ -12,9 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as InventoryRouteImport } from './routes/inventory'
 import { Route as ShoppingRouteImport } from './routes/shopping'
-import { Route as RecipesIndexRouteImport } from './routes/recipes.index'
-import { Route as RecipesPublicIdRouteImport } from './routes/recipes.$publicId'
-import { Route as RecipesNewRouteImport } from './routes/recipes.new'
+import { Route as RecipesIndexRouteImport } from './routes/recipes/index'
+import { Route as RecipesPublicIdRouteImport } from './routes/recipes/$publicId'
+import { Route as RecipesNewRouteImport } from './routes/recipes/new'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
 const IndexRoute = IndexRouteImport.update({
@@ -187,12 +187,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}
