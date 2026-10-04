@@ -1,9 +1,11 @@
 import type { IngredientCatalogEntry } from "../ingredient-catalog";
 import { dairyAndEggsEntries } from "./dairy-and-eggs";
 import { driedGoodsEntries } from "./dried-goods";
+import { ingredientExpiryById } from "./expiry";
 import { frozenVegetablesEntries } from "./frozen-vegetables";
 import { meatAndSeafoodEntries } from "./meat-and-seafood";
 import { powdersAndSpicesEntries } from "./powders-and-spices";
+import { ingredientReadingById } from "./readings";
 import { seasoningsEntries } from "./seasonings";
 import { soyAndProcessedEntries } from "./soy-and-processed";
 import { staplesEntries } from "./staples";
@@ -24,7 +26,7 @@ import { vegetablesEntries } from "./vegetables";
 // `approximate: true` は、出典によって値が違う、個体差・商品差が大きい、または確かな出典を確認できていない値。
 // 計算に使うが、画面では「約」と示す前提にする。出典を確認できなかったものは、コメントで「出典未確認」と書いている
 // （密度・重さを入れず、省いたものもある）。
-export const ingredientCatalogEntries: readonly IngredientCatalogEntry[] = [
+const entriesWithoutExpiry: readonly IngredientCatalogEntry[] = [
 	...dairyAndEggsEntries,
 	...soyAndProcessedEntries,
 	...meatAndSeafoodEntries,
@@ -35,3 +37,16 @@ export const ingredientCatalogEntries: readonly IngredientCatalogEntry[] = [
 	...powdersAndSpicesEntries,
 	...seasoningsEntries,
 ];
+
+// 期限の目安と読み仮名を、食材に付ける（別のファイルで管理している）。
+export const ingredientCatalogEntries: readonly IngredientCatalogEntry[] =
+	entriesWithoutExpiry.map((entry) => {
+		const expiry = ingredientExpiryById[entry.id];
+		const reading = ingredientReadingById[entry.id];
+
+		return {
+			...entry,
+			...(expiry ? { expiry } : {}),
+			...(reading ? { reading } : {}),
+		};
+	});

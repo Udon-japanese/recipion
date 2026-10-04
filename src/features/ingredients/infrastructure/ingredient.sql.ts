@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
 	boolean,
+	check,
 	foreignKey,
 	index,
 	pgTable,
@@ -24,6 +25,9 @@ export const ingredient = pgTable(
 		name: text("name").notNull(),
 		stockUnitCode: text("stock_unit_code").notNull(),
 		stockUnitLabel: text("stock_unit_label").notNull(),
+		// ユーザーが決めた、この食材の期限の種類と、初期の保存方法（空は、カタログの初期値に従う）。
+		defaultExpiryKind: text("default_expiry_kind"),
+		defaultStorage: text("default_storage"),
 		createdAt: timestamp("created_at", {
 			withTimezone: true,
 		})
@@ -42,6 +46,14 @@ export const ingredient = pgTable(
 	(table) => [
 		unique("ingredient_id_user_id_unique").on(table.id, table.userId),
 		index("ingredient_user_id_idx").on(table.userId),
+		check(
+			"ingredient_default_expiry_kind_valid",
+			sql`${table.defaultExpiryKind} is null or ${table.defaultExpiryKind} in ('use-by', 'best-before', 'none')`,
+		),
+		check(
+			"ingredient_default_storage_valid",
+			sql`${table.defaultStorage} is null or ${table.defaultStorage} in ('room', 'fridge', 'freezer')`,
+		),
 	],
 );
 

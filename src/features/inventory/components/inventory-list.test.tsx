@@ -1,8 +1,27 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { InventoryListItem } from "../application/inventory-query-repository";
+import {
+	addDays,
+	type InventoryLot,
+	toDateString,
+} from "../domain/inventory-lot";
 import { InventoryList } from "./inventory-list";
+
+function createLot(
+	overrides: Partial<InventoryLot> & { id: string; quantity: number },
+): InventoryLot {
+	return {
+		acquiredOn: "2026-10-01",
+		storage: null,
+		expiresOn: null,
+		expiryKind: null,
+		expirySource: null,
+		createdAt: "2026-10-01T00:00:00.000Z",
+		...overrides,
+	};
+}
 
 function createNetworkResult(items: InventoryListItem[]) {
 	return {
@@ -21,9 +40,12 @@ describe("InventoryList", () => {
 					ingredientId: "ingredient-id",
 					name: "卵",
 					quantity: 6,
+					lots: [],
 					stockUnitCode: "count",
 					stockUnitLabel: "個",
 					trackingMode: "exact",
+					defaultExpiryKind: null,
+					defaultStorage: null,
 					updatedAt: "2026-09-23T00:00:00.000Z",
 				},
 				{
@@ -31,9 +53,12 @@ describe("InventoryList", () => {
 					ingredientId: "milk-ingredient-id",
 					name: "牛乳",
 					quantity: 800,
+					lots: [],
 					stockUnitCode: "ml",
 					stockUnitLabel: "ml",
 					trackingMode: "estimated",
+					defaultExpiryKind: null,
+					defaultStorage: null,
 					updatedAt: "2026-09-23T00:00:00.000Z",
 				},
 			]),
@@ -123,6 +148,7 @@ describe("InventoryList", () => {
 			status: "applied",
 			transactionId: "71af9bc7-03ed-4df4-a783-a45e743a81f7",
 			quantity: 8,
+			lots: [],
 		});
 
 		render(
@@ -136,9 +162,12 @@ describe("InventoryList", () => {
 								ingredientId: "9af9c3eb-1ed5-485c-923e-ddda59dc4190",
 								name: "卵",
 								quantity: 6,
+								lots: [],
 								stockUnitCode: "count",
 								stockUnitLabel: "個",
 								trackingMode: "exact",
+								defaultExpiryKind: null,
+								defaultStorage: null,
 								updatedAt: "2026-09-23T00:00:00.000Z",
 							},
 						]),
@@ -222,9 +251,12 @@ describe("InventoryList", () => {
 								ingredientId: "ingredient-id",
 								name: "卵",
 								quantity: 6,
+								lots: [],
 								stockUnitCode: "count",
 								stockUnitLabel: "個",
 								trackingMode: "exact",
+								defaultExpiryKind: null,
+								defaultStorage: null,
 								updatedAt: "2026-09-23T00:00:00.000Z",
 							},
 						],
@@ -247,5 +279,218 @@ describe("InventoryList", () => {
 				name: "調整",
 			}),
 		).toBeDisabled();
+	});
+
+	describe("ロット", () => {
+		const eggItem: InventoryListItem = {
+			inventoryItemId: "1fc94e80-a9cf-4458-b0e6-3d72550cce06",
+			ingredientId: "9af9c3eb-1ed5-485c-923e-ddda59dc4190",
+			name: "卵",
+			quantity: 5,
+			lots: [
+				createLot({
+					id: "6b1d4f0e-0a0e-4c85-9a3f-111111111111",
+					quantity: 2,
+					acquiredOn: "2026-10-01",
+				}),
+				createLot({
+					id: "6b1d4f0e-0a0e-4c85-9a3f-222222222222",
+					quantity: 3,
+					acquiredOn: "2026-10-03",
+				}),
+			],
+			stockUnitCode: "count",
+			stockUnitLabel: "個",
+			trackingMode: "exact",
+			defaultExpiryKind: null,
+			defaultStorage: null,
+			updatedAt: "2026-10-03T00:00:00.000Z",
+		};
+
+		it("食材ごとにまとめて、その中に、ロットごとの追加日と数量を表示する", async () => {
+			render(
+				<InventoryList
+					ownerScope="user:user-id"
+					loadInventoryItems={() =>
+						Promise.resolve(createNetworkResult([eggItem]))
+					}
+				/>,
+			);
+
+			expect(await screen.findByText("5個")).toBeInTheDocument();
+
+			const lots = within(screen.getByRole("list", { name: "卵のロット" }));
+
+			expect(lots.getByText("10/1に追加")).toBeInTheDocument();
+			expect(lots.getByText("2個")).toBeInTheDocument();
+			expect(lots.getByText("10/3に追加")).toBeInTheDocument();
+			expect(lots.getByText("3個")).toBeInTheDocument();
+		});
+
+		it("ロットを指定して減らすと、ロットごとの数量を送り、結果のロットを表示する", async () => {
+			const user = userEvent.setup();
+			const adjustInventoryItem = vi.fn().mockResolvedValue({
+				status: "applied",
+				transactionId: "71af9bc7-03ed-4df4-a783-a45e743a81f7",
+				quantity: 3,
+				lots: [
+					createLot({
+						id: "6b1d4f0e-0a0e-4c85-9a3f-111111111111",
+						quantity: 1,
+						acquiredOn: "2026-10-01",
+					}),
+					createLot({
+						id: "6b1d4f0e-0a0e-4c85-9a3f-222222222222",
+						quantity: 2,
+						acquiredOn: "2026-10-03",
+					}),
+				],
+			});
+
+			render(
+				<InventoryList
+					ownerScope="user:user-id"
+					loadInventoryItems={() =>
+						Promise.resolve(createNetworkResult([eggItem]))
+					}
+					adjustInventoryItem={adjustInventoryItem}
+				/>,
+			);
+
+			await user.click(await screen.findByRole("button", { name: "調整" }));
+			await user.click(screen.getByLabelText("ロットを指定して減らす"));
+			await user.type(
+				screen.getByLabelText("10/1に追加のロットから減らす数量"),
+				"1",
+			);
+			await user.type(
+				screen.getByLabelText("10/3に追加のロットから減らす数量"),
+				"1",
+			);
+			await user.click(screen.getByRole("button", { name: "減らす" }));
+
+			await waitFor(() =>
+				expect(adjustInventoryItem).toHaveBeenCalledWith(
+					expect.objectContaining({
+						operation: "decrease",
+						inputQuantity: 2,
+						allocations: [
+							{ lotId: "6b1d4f0e-0a0e-4c85-9a3f-111111111111", quantity: 1 },
+							{ lotId: "6b1d4f0e-0a0e-4c85-9a3f-222222222222", quantity: 1 },
+						],
+					}),
+				),
+			);
+
+			expect(await screen.findByText("3個")).toBeInTheDocument();
+		});
+
+		it("ロットが1つだけなら、ロットの指定は出さない", async () => {
+			const user = userEvent.setup();
+
+			render(
+				<InventoryList
+					ownerScope="user:user-id"
+					loadInventoryItems={() =>
+						Promise.resolve(
+							createNetworkResult([
+								{ ...eggItem, quantity: 2, lots: eggItem.lots.slice(0, 1) },
+							]),
+						)
+					}
+					adjustInventoryItem={vi.fn()}
+				/>,
+			);
+
+			await user.click(await screen.findByRole("button", { name: "調整" }));
+
+			expect(screen.queryByLabelText("ロットを指定して減らす")).toBeNull();
+		});
+
+		it("期限と保存方法を表示する（目安は「約」付き）", async () => {
+			render(
+				<InventoryList
+					ownerScope="user:user-id"
+					loadInventoryItems={() =>
+						Promise.resolve(
+							createNetworkResult([
+								{
+									...eggItem,
+									lots: [
+										createLot({
+											id: "6b1d4f0e-0a0e-4c85-9a3f-333333333333",
+											quantity: 2,
+											storage: "fridge",
+											expiresOn: "2026-10-10",
+											expiryKind: "use-by",
+											expirySource: "estimated",
+										}),
+										createLot({
+											id: "6b1d4f0e-0a0e-4c85-9a3f-444444444444",
+											quantity: 3,
+											expiresOn: "2026-10-20",
+											expiryKind: "best-before",
+											expirySource: "entered",
+										}),
+									],
+								},
+							]),
+						)
+					}
+				/>,
+			);
+
+			const lots = within(
+				await screen.findByRole("list", { name: "卵のロット" }),
+			);
+
+			expect(lots.getByText("消費期限 約 10/10")).toBeInTheDocument();
+			expect(lots.getByText("冷蔵")).toBeInTheDocument();
+			expect(lots.getByText("賞味期限 10/20")).toBeInTheDocument();
+		});
+
+		it("ロットの期限を直すと、入力として保存する", async () => {
+			const user = userEvent.setup();
+			const updateInventoryLot = vi.fn().mockResolvedValue({
+				inventoryItemId: eggItem.inventoryItemId,
+				quantity: 5,
+				lots: eggItem.lots,
+				defaultExpiryKind: null,
+				defaultStorage: null,
+			});
+
+			render(
+				<InventoryList
+					ownerScope="user:user-id"
+					loadInventoryItems={() =>
+						Promise.resolve(createNetworkResult([eggItem]))
+					}
+					updateInventoryLot={updateInventoryLot}
+				/>,
+			);
+
+			await user.click(
+				await screen.findByRole("button", {
+					name: "10/1に追加のロットの期限を編集",
+				}),
+			);
+			await user.click(
+				screen.getByRole("button", { name: "期限を明日にする" }),
+			);
+			await user.selectOptions(screen.getByLabelText("期限の種類"), "use-by");
+			await user.click(screen.getByLabelText(/この食材の初期値にする/u));
+			await user.click(screen.getByRole("button", { name: "保存" }));
+
+			await waitFor(() =>
+				expect(updateInventoryLot).toHaveBeenCalledWith({
+					lotId: "6b1d4f0e-0a0e-4c85-9a3f-111111111111",
+					expiresOn: addDays(toDateString(new Date()), 1),
+					expirySource: "entered",
+					expiryKind: "use-by",
+					storage: null,
+					saveAsIngredientDefault: true,
+				}),
+			);
+		});
 	});
 });

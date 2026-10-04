@@ -1,5 +1,6 @@
 import * as v from "valibot";
 import { inventoryUnitCodeSchema } from "../domain/inventory-unit";
+import { inventoryLotInputSchema } from "./inventory-lot-input";
 import type { RecordInventoryPurchaseInput } from "./record-inventory-purchase";
 
 const positiveQuantitySchema = v.pipe(
@@ -24,6 +25,8 @@ const recordInventoryPurchaseInputSchema = v.object({
 	inputQuantity: positiveQuantitySchema,
 	inputUnitCode: requiredTextSchema,
 	stockQuantityPerInputUnit: positiveQuantitySchema,
+	// 買った日・期限・保存方法（購入確定のときに入力した分）。
+	lot: v.optional(inventoryLotInputSchema),
 });
 
 export function parseRecordInventoryPurchaseInput(

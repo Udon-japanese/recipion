@@ -51,12 +51,46 @@ describe("prepareShoppingItemPurchase", () => {
 				stockUnitLabel: "g",
 				stockQuantityPerInputUnit: 200,
 				trackingMode: "estimated",
+				// 日本時間では 9/23（UTC の 9/22 18:00）。
+				lot: { acquiredOn: "2026-09-23" },
 			},
 			attemptCount: 0,
 			lastAttemptAt: null,
 			lastError: null,
 			createdAt: "2026-09-22T18:00:00.000Z",
 			updatedAt: "2026-09-22T18:00:00.000Z",
+		});
+	});
+
+	it("購入確定のときに入力した期限・保存方法を、買った日と一緒に記録する", () => {
+		const item = toggleShoppingItem(
+			createShoppingItem({
+				name: "鶏もも肉",
+				quantity: 1,
+				unitLabel: "パック",
+				inventoryConversion: {
+					inputUnitCode: "pack",
+					stockUnitCode: "g",
+					stockUnitLabel: "g",
+					stockQuantityPerInputUnit: 300,
+					trackingMode: "estimated",
+				},
+			}),
+		);
+
+		const result = prepareShoppingItemPurchase(
+			item,
+			"guest",
+			new Date("2026-10-05T03:00:00.000Z"),
+			"transaction-id",
+			{ expiresOn: "2026-10-08", expiryKind: "use-by", storage: "fridge" },
+		);
+
+		expect(result.outboxEntry.payload.lot).toEqual({
+			acquiredOn: "2026-10-05",
+			expiresOn: "2026-10-08",
+			expiryKind: "use-by",
+			storage: "fridge",
 		});
 	});
 

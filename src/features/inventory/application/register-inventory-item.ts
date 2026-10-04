@@ -8,6 +8,7 @@ import type {
 	InventoryItemResolver,
 	ResolvedInventoryItem,
 } from "./inventory-item-resolver";
+import { inventoryLotInputSchema } from "./inventory-lot-input";
 
 const requiredTextSchema = v.pipe(
 	v.string(),
@@ -33,6 +34,8 @@ const registerInventoryItemInputSchema = v.object({
 	),
 	// 「ある」の目印だけを付ける（数量を追わない食材向け）。initialQuantity は使わない。
 	markAsAvailable: v.optional(v.boolean(), false),
+	// 追加する数量の、保存方法・期限など。
+	lot: v.optional(inventoryLotInputSchema),
 });
 
 // 「ある」の目印にする数量（在庫の単位で1）。「少々」「適量」の判定は、在庫が0より多いかだけを見る。
@@ -96,6 +99,7 @@ export async function registerInventoryItem(
 			stockQuantityPerInputUnit: 1,
 			operation: "increase",
 			reason: "manual-adjustment",
+			lot: input.lot,
 		});
 
 	return { inventoryItem, adjustment };

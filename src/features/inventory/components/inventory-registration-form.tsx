@@ -1,12 +1,34 @@
-import { type SubmitEvent, useState } from "react";
+import { type SubmitEvent, useEffect, useMemo, useState } from "react";
 import { IngredientNameInput } from "#/features/ingredients/components/ingredient-name-input";
-import { findIngredientCatalogEntry } from "#/features/ingredients/domain/ingredient-catalog";
+import {
+	findIngredientCatalogEntry,
+	type IngredientPurchasePreset,
+} from "#/features/ingredients/domain/ingredient-catalog";
+import { QuantityInput } from "#/features/quantity/components/quantity-input";
+import { formatQuantity } from "#/features/quantity/domain/format-quantity";
+import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
 import {
 	parseRegisterInventoryItemInput,
 	type RegisterInventoryItemInput,
 } from "../application/register-inventory-item";
 import type { InventoryTrackingMode } from "../domain/apply-inventory-adjustment";
+import {
+	buildExpiryPrefill,
+	type IngredientExpiryDefaults,
+} from "../domain/build-expiry-prefill";
+import type { ExpiryEstimateLevel } from "../domain/estimate-lot-expiry";
+import { toDateString } from "../domain/inventory-lot";
 import type { InventoryUnitCode } from "../domain/inventory-unit";
+import {
+	getLearnedRemainingDays,
+	recordExpiryHint,
+} from "../infrastructure/expiry-hints-storage";
+import {
+	ExpiryFields,
+	type ExpiryFieldsValue,
+	emptyExpiryFields,
+	toLotInput,
+} from "./expiry-fields";
 import * as styles from "./inventory-registration-form.css";
 
 type InventoryRegistrationFormProps = {
@@ -14,6 +36,12 @@ type InventoryRegistrationFormProps = {
 		input: RegisterInventoryItemInput,
 	) => Promise<unknown>;
 	onRegistered: () => void;
+	// 期限の目安の自動入力のレベル（省略は「確実なものだけ」）。
+	expiryEstimateLevel?: ExpiryEstimateLevel;
+	// ユーザーが決めた、食材の期限の種類・保存方法（初期値として使う）。
+	lookupIngredientDefaults?: (
+		ingredientName: string,
+	) => IngredientExpiryDefaults | null;
 };
 
 const stockUnitLabels: Record<InventoryUnitCode, string> = {
@@ -26,15 +54,45 @@ const stockUnitLabels: Record<InventoryUnitCode, string> = {
 export function InventoryRegistrationForm({
 	registerInventoryItem,
 	onRegistered,
+	expiryEstimateLevel = "reliable",
+	lookupIngredientDefaults,
 }: InventoryRegistrationFormProps) {
 	const [ingredientName, setIngredientName] = useState("");
 	const [stockUnitCode, setStockUnitCode] = useState<InventoryUnitCode>("g");
 	const [trackingMode, setTrackingMode] =
 		useState<InventoryTrackingMode>("estimated");
 	const [initialQuantity, setInitialQuantity] = useState("");
+	const [expiry, setExpiry] = useState<ExpiryFieldsValue>(emptyExpiryFields);
+	// ユーザーが期限の欄を触ったら、食材名を変えても、目安で上書きしない。
+	const [isExpiryTouched, setIsExpiryTouched] = useState(false);
+	const [presets, setPresets] = useState<readonly IngredientPurchasePreset[]>(
+		[],
+	);
+	// クイック入力の基準になる、今日（日本時間）。
+	const today = useMemo(() => toDateString(new Date()), []);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+	// 食材名・目安の設定が変わったとき、期限の欄（触っていなければ）に、目安を入れ直す。
+	// biome-ignore lint/correctness/useExhaustiveDependencies: 食材名と設定が変わったときだけ、入れ直す。
+	useEffect(() => {
+		if (isExpiryTouched) {
+			return;
+		}
+
+		setExpiry(
+			ingredientName.trim() === ""
+				? emptyExpiryFields
+				: buildExpiryPrefill({
+						ingredientName,
+						acquiredOn: today,
+						level: expiryEstimateLevel,
+						learnedRemainingDays: getLearnedRemainingDays(ingredientName),
+						userDefaults: lookupIngredientDefaults?.(ingredientName) ?? null,
+					}),
+		);
+	}, [ingredientName, expiryEstimateLevel, lookupIngredientDefaults, today]);
 
 	function handleNameChange(value: string) {
 		setIngredientName(value);
@@ -46,6 +104,9 @@ export function InventoryRegistrationForm({
 			setStockUnitCode(entry.stockUnitCode);
 			setTrackingMode(entry.defaultTrackingMode);
 		}
+
+		// カタログにある食材の、買うときの数量（数量ボタン）。
+		setPresets(entry?.presets ?? []);
 	}
 
 	function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
@@ -62,6 +123,17 @@ export function InventoryRegistrationForm({
 		setErrorMessage(null);
 		setSuccessMessage(null);
 
+		// 数量が、数として読めないとき（負の数、文字など）は、送らない。
+		if (
+			!markAsAvailable &&
+			initialQuantity.trim() !== "" &&
+			parseQuantityInput(initialQuantity) === null
+		) {
+			setErrorMessage("数量を確認してください（例：2、0.5、1/2）");
+
+			return;
+		}
+
 		let input: RegisterInventoryItemInput;
 
 		try {
@@ -75,8 +147,9 @@ export function InventoryRegistrationForm({
 				initialQuantity:
 					markAsAvailable || initialQuantity.trim() === ""
 						? 0
-						: Number(initialQuantity),
+						: (parseQuantityInput(initialQuantity) ?? Number.NaN),
 				markAsAvailable,
+				lot: toLotInput(expiry),
 			});
 		} catch (error) {
 			setErrorMessage(
@@ -98,6 +171,19 @@ export function InventoryRegistrationForm({
 			);
 			setIngredientName("");
 			setInitialQuantity("");
+			// 入力した期限（目安ではないもの）は、次の目安のために、覚える。
+			if (expiry.expirySource === "entered" && expiry.expiresOn !== "") {
+				recordExpiryHint({
+					ingredientName: input.ingredientName,
+					acquiredOn: today,
+					expiresOn: expiry.expiresOn,
+					storage: expiry.storage === "" ? null : expiry.storage,
+				});
+			}
+
+			setExpiry(emptyExpiryFields);
+			setIsExpiryTouched(false);
+			setPresets([]);
 			onRegistered();
 		} catch {
 			setErrorMessage("在庫に追加できませんでした。通信を確認してください");
@@ -153,21 +239,56 @@ export function InventoryRegistrationForm({
 					</select>
 				</label>
 
-				<label className={styles.field}>
-					<span className={styles.label}>
+				<div className={styles.field}>
+					<label className={styles.label} htmlFor="inventory-initial-quantity">
 						数量（{stockUnitLabels[stockUnitCode]}）
-					</span>
-					<input
+					</label>
+					<QuantityInput
 						className={styles.input}
-						type="number"
-						inputMode="decimal"
-						min="0"
-						step="any"
+						id="inventory-initial-quantity"
 						value={initialQuantity}
-						onChange={(event) => setInitialQuantity(event.target.value)}
+						onChange={setInitialQuantity}
 					/>
-				</label>
+				</div>
 			</div>
+
+			{presets.length > 0 ? (
+				<fieldset className={styles.presets}>
+					<legend className={styles.label}>よく使う数量</legend>
+					<div className={styles.presetList}>
+						{presets.map((preset) => (
+							<button
+								className={styles.presetButton}
+								type="button"
+								key={preset.label}
+								onClick={() =>
+									// 買った単位の数量を、在庫の単位に換算して、数量の欄に入れる。
+									setInitialQuantity(
+										formatQuantity(
+											preset.quantity *
+												preset.inventoryConversion.stockQuantityPerInputUnit,
+											{ grouping: false },
+										),
+									)
+								}
+							>
+								{preset.label}
+							</button>
+						))}
+					</div>
+				</fieldset>
+			) : null}
+
+			<ExpiryFields
+				idPrefix="inventory-registration"
+				value={expiry}
+				onChange={(value) => {
+					setExpiry(value);
+					setIsExpiryTouched(true);
+				}}
+				today={today}
+				disabled={isSubmitting}
+			/>
 
 			<p className={styles.hint}>
 				数量が空欄のときは、食材だけを登録します。塩や醤油のように、量を追わない食材は、「ある」を押してください（「少々」「適量」で使う食材は、在庫があれば「足りている」と判定します）。

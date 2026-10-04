@@ -21,10 +21,10 @@ export async function adjustInventoryWithCache(
 	const result = await adjustRemoteInventory(command);
 
 	try {
-		await cacheRepository.updateQuantity(
+		await cacheRepository.updateStock(
 			ownerScope,
 			command.inventoryItemId,
-			result.quantity,
+			{ quantity: result.quantity, lots: result.lots },
 			now,
 		);
 	} catch {

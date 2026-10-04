@@ -1,14 +1,25 @@
 import type { InventoryTrackingMode } from "../domain/apply-inventory-adjustment";
+import type {
+	InventoryExpiryKind,
+	InventoryLot,
+	InventoryStorage,
+} from "../domain/inventory-lot";
 import type { InventoryUnitCode } from "../domain/inventory-unit";
 
 export type InventoryListItem = {
 	inventoryItemId: string;
 	ingredientId: string;
 	name: string;
+	// ロットの数量の合計。
 	quantity: number;
+	// 在庫のあるロット（期限の早い順）。
+	lots: InventoryLot[];
 	stockUnitCode: InventoryUnitCode;
 	stockUnitLabel: string;
 	trackingMode: InventoryTrackingMode;
+	// ユーザーが決めた、この食材の期限の種類と初期の保存方法（空は、決めていない）。
+	defaultExpiryKind: InventoryExpiryKind | null;
+	defaultStorage: InventoryStorage | null;
 	updatedAt: string;
 };
 

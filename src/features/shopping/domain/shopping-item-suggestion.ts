@@ -1,5 +1,6 @@
 import { ingredientCatalogEntries } from "#/features/ingredients/domain/ingredient-catalog";
 import { normalizeIngredientName } from "#/features/ingredients/domain/normalize-ingredient-name";
+import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
 import { householdItemNames } from "./household-item-names";
 import type { ShoppingCategoryId } from "./shopping-category";
 import type { ShoppingItemInventoryConversion } from "./shopping-item";
@@ -17,7 +18,7 @@ export function isShoppingItemPresetSelected(
 	const conversion = selection.inventoryConversion;
 
 	return (
-		selection.quantity === String(preset.quantity) &&
+		parseQuantityInput(selection.quantity) === preset.quantity &&
 		selection.unitLabel === preset.unitLabel &&
 		conversion?.inputUnitCode === preset.inventoryConversion.inputUnitCode &&
 		conversion.stockUnitCode === preset.inventoryConversion.stockUnitCode &&

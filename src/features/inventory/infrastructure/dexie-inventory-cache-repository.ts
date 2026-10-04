@@ -26,12 +26,7 @@ export function createDexieInventoryCacheRepository(
 			return snapshot;
 		},
 
-		async updateQuantity(
-			ownerScope,
-			inventoryItemId,
-			quantity,
-			now = new Date(),
-		) {
+		async updateStock(ownerScope, inventoryItemId, stock, now = new Date()) {
 			await database.transaction(
 				"rw",
 				database.inventorySnapshots,
@@ -46,7 +41,14 @@ export function createDexieInventoryCacheRepository(
 						item.inventoryItemId === inventoryItemId
 							? {
 									...item,
-									quantity,
+									quantity: stock.quantity,
+									lots: [...stock.lots],
+									...(stock.defaultExpiryKind !== undefined
+										? { defaultExpiryKind: stock.defaultExpiryKind }
+										: {}),
+									...(stock.defaultStorage !== undefined
+										? { defaultStorage: stock.defaultStorage }
+										: {}),
 									updatedAt: now.toISOString(),
 								}
 							: item,

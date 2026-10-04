@@ -1,4 +1,5 @@
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
+import type { InventoryLotInput } from "#/features/inventory/domain/inventory-lot";
 import { getLocalDatabase, type LocalDatabase } from "#/local-db/database";
 import { prepareShoppingItemPurchase } from "../application/prepare-shopping-item-purchase";
 import {
@@ -20,10 +21,16 @@ export type ConfirmCheckedShoppingItemsPurchaseResult =
 			items: ShoppingItem[];
 	  };
 
+export type ConfirmShoppingPurchasesOptions = {
+	// 購入確定のときに入力した、期限・保存方法（買い物項目の ID ごと）。
+	lotsByItemId?: Record<string, InventoryLotInput>;
+};
+
 export async function confirmCheckedShoppingItemsPurchase(
 	ownerScope: InventoryPurchaseOwnerScope,
 	database: LocalDatabase = getLocalDatabase(),
 	now = new Date(),
+	options: ConfirmShoppingPurchasesOptions = {},
 ): Promise<ConfirmCheckedShoppingItemsPurchaseResult> {
 	return database.transaction(
 		"rw",
@@ -59,7 +66,13 @@ export async function confirmCheckedShoppingItemsPurchase(
 			}
 
 			const preparedPurchases = trackedItems.map((item) =>
-				prepareShoppingItemPurchase(item, ownerScope, now),
+				prepareShoppingItemPurchase(
+					item,
+					ownerScope,
+					now,
+					crypto.randomUUID(),
+					options.lotsByItemId?.[item.id],
+				),
 			);
 
 			const purchasedItems = [

@@ -1,13 +1,33 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { QuantityInput } from "#/features/quantity/components/quantity-input";
+import { formatQuantity } from "#/features/quantity/domain/format-quantity";
+import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
 import { createManualInventoryAdjustment } from "../application/create-manual-inventory-adjustment";
 import type {
 	InventoryAdjustmentCommand,
 	InventoryAdjustmentRepositoryResult,
 } from "../application/inventory-adjustment-repository";
+import type {
+	UpdateInventoryLotCommand,
+	UpdateInventoryLotResult,
+} from "../application/inventory-lot-repository";
 import type { InventoryPurchaseOwnerScope } from "../application/inventory-purchase-outbox";
 import type { InventoryListItem } from "../application/inventory-query-repository";
 import type { LoadInventoryItemsResult } from "../application/load-inventory-items-with-cache";
 import type { InventoryOperation } from "../domain/apply-inventory-adjustment";
+import {
+	expiryKindLabels,
+	formatShortDate,
+	storageLabels,
+} from "../domain/expiry-labels";
+import { type InventoryLot, toDateString } from "../domain/inventory-lot";
+import type { InventoryUnitCode } from "../domain/inventory-unit";
+import { recordExpiryHint } from "../infrastructure/expiry-hints-storage";
+import {
+	ExpiryFields,
+	type ExpiryFieldsValue,
+	emptyExpiryFields,
+} from "./expiry-fields";
 import * as styles from "./inventory-list.css";
 
 type LoadInventoryItems = () => Promise<LoadInventoryItemsResult>;
@@ -16,21 +36,44 @@ type AdjustInventoryItem = (
 	command: InventoryAdjustmentCommand,
 ) => Promise<InventoryAdjustmentRepositoryResult>;
 
+type UpdateInventoryLot = (
+	command: UpdateInventoryLotCommand,
+) => Promise<UpdateInventoryLotResult>;
+
 type InventoryListProps = {
 	ownerScope: InventoryPurchaseOwnerScope | null;
 	loadInventoryItems: LoadInventoryItems;
 	adjustInventoryItem?: AdjustInventoryItem;
+	// ロットの期限・保存方法を更新する（渡さないと、編集のボタンは出ない）。
+	updateInventoryLot?: UpdateInventoryLot;
 	refreshKey?: number;
 };
 
-const quantityFormatter = new Intl.NumberFormat("ja-JP", {
-	maximumFractionDigits: 6,
-});
+// 個数・枚数・本数は、1/2 のような分数で表示する。g と ml は、小数のまま。
+function formatStockQuantity(value: number, stockUnitCode: InventoryUnitCode) {
+	return formatQuantity(value, { allowFractions: stockUnitCode === "count" });
+}
+
+// ロットの期限の表示（「消費期限 10/10」。目安は「約」を付ける）。
+function formatLotExpiry(lot: InventoryLot): string | null {
+	if (!lot.expiresOn) {
+		return lot.expiryKind === "none" ? "期限なし" : null;
+	}
+
+	const kind =
+		lot.expiryKind && lot.expiryKind !== "none"
+			? expiryKindLabels[lot.expiryKind]
+			: "期限";
+	const approximate = lot.expirySource === "estimated" ? "約 " : "";
+
+	return `${kind} ${approximate}${formatShortDate(lot.expiresOn)}`;
+}
 
 export function InventoryList({
 	ownerScope,
 	loadInventoryItems,
 	adjustInventoryItem,
+	updateInventoryLot,
 	refreshKey = 0,
 }: InventoryListProps) {
 	const [items, setItems] = useState<InventoryListItem[]>([]);
@@ -38,7 +81,19 @@ export function InventoryList({
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [adjustingItemId, setAdjustingItemId] = useState<string | null>(null);
 	const [adjustmentQuantity, setAdjustmentQuantity] = useState("1");
+	// 減らすとき、ロットごとに数量を指定するか（複数のロットがあるときだけ選べる）。
+	const [isLotSpecified, setIsLotSpecified] = useState(false);
+	const [lotQuantities, setLotQuantities] = useState<Record<string, string>>(
+		{},
+	);
 	const [isAdjusting, setIsAdjusting] = useState(false);
+	// ロットの期限・保存方法の編集。
+	const [editingLotId, setEditingLotId] = useState<string | null>(null);
+	const [lotExpiry, setLotExpiry] =
+		useState<ExpiryFieldsValue>(emptyExpiryFields);
+	const [saveAsDefault, setSaveAsDefault] = useState(false);
+	const [isSavingLot, setIsSavingLot] = useState(false);
+	const today = useMemo(() => toDateString(new Date()), []);
 	const [itemsSource, setItemsSource] = useState<"network" | "cache">(
 		"network",
 	);
@@ -75,9 +130,84 @@ export function InventoryList({
 		setAdjustmentQuantity("1");
 	}
 
+	function handleStartEditingLot(item: InventoryListItem, lot: InventoryLot) {
+		setErrorMessage(null);
+		setEditingLotId(lot.id);
+		// 空の項目は、食材の初期値（ユーザーが決めたもの）を入れる。
+		setLotExpiry({
+			expiresOn: lot.expiresOn ?? "",
+			expiryKind: lot.expiryKind ?? item.defaultExpiryKind ?? "",
+			storage: lot.storage ?? item.defaultStorage ?? "",
+			// 自動の目安だった日付は、そのまま保存しても、目安のまま（直したときに、入力になる）。
+			expirySource: lot.expirySource ?? "",
+		});
+		setSaveAsDefault(false);
+	}
+
+	function handleCancelEditingLot() {
+		setEditingLotId(null);
+		setLotExpiry(emptyExpiryFields);
+		setSaveAsDefault(false);
+	}
+
+	async function handleSaveLot(item: InventoryListItem, lot: InventoryLot) {
+		if (!updateInventoryLot) {
+			return;
+		}
+
+		setErrorMessage(null);
+		setIsSavingLot(true);
+
+		try {
+			const result = await updateInventoryLot({
+				lotId: lot.id,
+				expiresOn: lotExpiry.expiresOn === "" ? null : lotExpiry.expiresOn,
+				expirySource:
+					lotExpiry.expirySource === "" ? null : lotExpiry.expirySource,
+				expiryKind: lotExpiry.expiryKind === "" ? null : lotExpiry.expiryKind,
+				storage: lotExpiry.storage === "" ? null : lotExpiry.storage,
+				saveAsIngredientDefault: saveAsDefault,
+			});
+
+			setItems((currentItems) =>
+				currentItems.map((currentItem) =>
+					currentItem.inventoryItemId === item.inventoryItemId
+						? {
+								...currentItem,
+								quantity: result.quantity,
+								lots: result.lots,
+								defaultExpiryKind: result.defaultExpiryKind,
+								defaultStorage: result.defaultStorage,
+							}
+						: currentItem,
+				),
+			);
+
+			// 入力した期限（目安ではないもの）は、次の目安のために、覚える。
+			if (lotExpiry.expirySource === "entered" && lotExpiry.expiresOn !== "") {
+				recordExpiryHint({
+					ingredientName: item.name,
+					acquiredOn: lot.acquiredOn,
+					expiresOn: lotExpiry.expiresOn,
+					storage: lotExpiry.storage === "" ? null : lotExpiry.storage,
+				});
+			}
+
+			handleCancelEditingLot();
+		} catch (error) {
+			setErrorMessage(
+				error instanceof Error ? error.message : "ロットを更新できませんでした",
+			);
+		} finally {
+			setIsSavingLot(false);
+		}
+	}
+
 	function handleCancelAdjustment() {
 		setAdjustingItemId(null);
 		setAdjustmentQuantity("1");
+		setIsLotSpecified(false);
+		setLotQuantities({});
 	}
 
 	async function handleAdjustment(
@@ -92,11 +222,34 @@ export function InventoryList({
 		setIsAdjusting(true);
 
 		try {
+			// ロットを指定して減らすときは、数量が入っているロットだけを、そのまま送る。
+			const allocations =
+				operation === "decrease" && isLotSpecified
+					? item.lots.flatMap((lot) => {
+							const quantity =
+								parseQuantityInput(lotQuantities[lot.id] ?? "") ?? 0;
+
+							return quantity > 0 ? [{ lotId: lot.id, quantity }] : [];
+						})
+					: undefined;
+
+			if (allocations && allocations.length === 0) {
+				setErrorMessage("減らすロットの数量を入力してください");
+
+				return;
+			}
+
 			const command = createManualInventoryAdjustment({
 				inventoryItemId: item.inventoryItemId,
-				quantity: Number(adjustmentQuantity),
+				quantity: allocations
+					? allocations.reduce(
+							(sum, allocation) => sum + allocation.quantity,
+							0,
+						)
+					: (parseQuantityInput(adjustmentQuantity) ?? Number.NaN),
 				stockUnitCode: item.stockUnitCode,
 				operation,
+				allocations,
 			});
 
 			const result = await adjustInventoryItem(command);
@@ -107,6 +260,7 @@ export function InventoryList({
 						? {
 								...currentItem,
 								quantity: result.quantity,
+								lots: result.lots,
 							}
 						: currentItem,
 				),
@@ -196,7 +350,7 @@ export function InventoryList({
 
 								<span className={styles.quantity}>
 									{item.trackingMode === "estimated" ? "約 " : ""}
-									{quantityFormatter.format(item.quantity)}
+									{formatStockQuantity(item.quantity, item.stockUnitCode)}
 									{item.stockUnitLabel}
 								</span>
 
@@ -212,29 +366,162 @@ export function InventoryList({
 								) : null}
 							</div>
 
+							{item.lots.length > 0 ? (
+								<ul
+									className={styles.lotList}
+									aria-label={`${item.name}のロット`}
+								>
+									{item.lots.map((lot) => {
+										const expiryText = formatLotExpiry(lot);
+
+										return (
+											<li className={styles.lotItem} key={lot.id}>
+												<div className={styles.lot}>
+													<span className={styles.lotInfo}>
+														<span>{formatShortDate(lot.acquiredOn)}に追加</span>
+														{lot.storage ? (
+															<span className={styles.lotBadge}>
+																{storageLabels[lot.storage]}
+															</span>
+														) : null}
+														{expiryText ? <span>{expiryText}</span> : null}
+													</span>
+
+													<span>
+														{item.trackingMode === "estimated" ? "約 " : ""}
+														{formatStockQuantity(
+															lot.quantity,
+															item.stockUnitCode,
+														)}
+														{item.stockUnitLabel}
+													</span>
+
+													{updateInventoryLot && itemsSource !== "cache" ? (
+														<button
+															className={styles.lotEditButton}
+															type="button"
+															disabled={isSavingLot}
+															aria-label={`${formatShortDate(lot.acquiredOn)}に追加のロットの期限を編集`}
+															onClick={() => handleStartEditingLot(item, lot)}
+														>
+															期限
+														</button>
+													) : null}
+												</div>
+
+												{editingLotId === lot.id ? (
+													<div className={styles.lotEditForm}>
+														<ExpiryFields
+															idPrefix={`lot-${lot.id}`}
+															value={lotExpiry}
+															onChange={setLotExpiry}
+															today={today}
+															disabled={isSavingLot}
+														/>
+
+														<label className={styles.lotSpecificationToggle}>
+															<input
+																type="checkbox"
+																checked={saveAsDefault}
+																onChange={(event) =>
+																	setSaveAsDefault(event.target.checked)
+																}
+															/>
+															この食材の初期値にする（期限の種類・保存方法）
+														</label>
+
+														<div className={styles.adjustmentActions}>
+															<button
+																className={styles.cancelButton}
+																type="button"
+																disabled={isSavingLot}
+																onClick={handleCancelEditingLot}
+															>
+																キャンセル
+															</button>
+															<button
+																className={styles.increaseButton}
+																type="button"
+																disabled={isSavingLot}
+																onClick={() => void handleSaveLot(item, lot)}
+															>
+																保存
+															</button>
+														</div>
+													</div>
+												) : null}
+											</li>
+										);
+									})}
+								</ul>
+							) : null}
+
 							{adjustingItemId === item.inventoryItemId ? (
 								<div className={styles.adjustmentForm}>
-									<label className={styles.adjustmentField}>
+									<div className={styles.adjustmentField}>
 										<span className={styles.adjustmentLabel}>
 											{item.name}の調整数量
 										</span>
 
 										<span className={styles.quantityInput}>
-											<input
+											<QuantityInput
 												className={styles.input}
 												aria-label={`${item.name}の調整数量`}
-												type="number"
-												inputMode="decimal"
-												min="0.000001"
-												step="any"
 												value={adjustmentQuantity}
-												onChange={(event) =>
-													setAdjustmentQuantity(event.target.value)
-												}
+												onChange={setAdjustmentQuantity}
+												showFractionButtons={item.stockUnitCode === "count"}
 											/>
 											<span>{item.stockUnitLabel}</span>
 										</span>
-									</label>
+									</div>
+
+									{item.lots.length > 1 ? (
+										<div className={styles.lotSpecification}>
+											<label className={styles.lotSpecificationToggle}>
+												<input
+													type="checkbox"
+													checked={isLotSpecified}
+													onChange={(event) =>
+														setIsLotSpecified(event.target.checked)
+													}
+												/>
+												ロットを指定して減らす
+											</label>
+
+											{isLotSpecified
+												? item.lots.map((lot) => (
+														<label
+															className={styles.adjustmentField}
+															key={lot.id}
+														>
+															<span className={styles.adjustmentLabel}>
+																{formatShortDate(lot.acquiredOn)}に追加（
+																{formatStockQuantity(
+																	lot.quantity,
+																	item.stockUnitCode,
+																)}
+																{item.stockUnitLabel}）
+															</span>
+															<input
+																className={styles.input}
+																aria-label={`${formatShortDate(lot.acquiredOn)}に追加のロットから減らす数量`}
+																type="number"
+																inputMode="decimal"
+																min="0"
+																step="any"
+																value={lotQuantities[lot.id] ?? ""}
+																onChange={(event) =>
+																	setLotQuantities((current) => ({
+																		...current,
+																		[lot.id]: event.target.value,
+																	}))
+																}
+															/>
+														</label>
+													))
+												: null}
+										</div>
+									) : null}
 
 									<div className={styles.adjustmentActions}>
 										<button

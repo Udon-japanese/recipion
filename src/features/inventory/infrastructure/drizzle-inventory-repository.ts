@@ -16,16 +16,38 @@ import type {
 	InventoryItemResolver,
 	ResolveOrCreateInventoryItemCommand,
 } from "../application/inventory-item-resolver";
+import type {
+	InventoryLotRepository,
+	UpdateInventoryLotCommand,
+} from "../application/inventory-lot-repository";
 import type { InventoryQueryRepository } from "../application/inventory-query-repository";
 import {
 	applyInventoryAdjustment,
 	type InventoryTrackingMode,
 } from "../domain/apply-inventory-adjustment";
+import { convertInventoryQuantity } from "../domain/convert-inventory-quantity";
+import {
+	allocateDecrease,
+	findMergeableLot,
+	type InventoryExpiryKind,
+	type InventoryExpirySource,
+	type InventoryLot,
+	type InventoryStorage,
+	resolveLotConditions,
+	sortLotsForConsumption,
+	sumLotQuantities,
+	toDateString,
+	validateManualAllocations,
+} from "../domain/inventory-lot";
 import {
 	type InventoryUnitCode,
 	inventoryUnitCodeSchema,
 } from "../domain/inventory-unit";
-import { inventoryItem, inventoryTransaction } from "./inventory.sql";
+import {
+	inventoryItem,
+	inventoryLot,
+	inventoryTransaction,
+} from "./inventory.sql";
 
 function parseTrackingMode(value: string): InventoryTrackingMode {
 	if (value === "exact" || value === "estimated") {
@@ -43,11 +65,80 @@ function toNumeric(value: number): string {
 	return value.toFixed(6);
 }
 
+function parseOptionalValue<T extends string>(
+	value: string | null,
+	allowedValues: readonly T[],
+	label: string,
+): T | null {
+	if (value === null) {
+		return null;
+	}
+
+	const matched = allowedValues.find((allowedValue) => allowedValue === value);
+
+	if (matched === undefined) {
+		throw new Error(`未対応の${label}です: ${value}`);
+	}
+
+	return matched;
+}
+
+function toInventoryLot(row: typeof inventoryLot.$inferSelect): InventoryLot {
+	return {
+		id: row.id,
+		quantity: Number(row.quantity),
+		acquiredOn: row.acquiredOn,
+		storage: parseOptionalValue<InventoryStorage>(
+			row.storage,
+			["room", "fridge", "freezer"],
+			"保存方法",
+		),
+		expiresOn: row.expiresOn,
+		expiryKind: parseOptionalValue<InventoryExpiryKind>(
+			row.expiryKind,
+			["use-by", "best-before", "none"],
+			"期限の種類",
+		),
+		expirySource: parseOptionalValue<InventoryExpirySource>(
+			row.expirySource,
+			["entered", "estimated"],
+			"期限の出所",
+		),
+		createdAt: row.createdAt.toISOString(),
+	};
+}
+
+// トランザクションの中でも、通常の接続でも使える、ロットの取得。
+type DbOrTransaction = Pick<DB, "select">;
+
+async function loadLots(
+	executor: DbOrTransaction,
+	userId: string,
+	inventoryItemId: string,
+): Promise<InventoryLot[]> {
+	const rows = await executor
+		.select()
+		.from(inventoryLot)
+		.where(
+			and(
+				eq(inventoryLot.userId, userId),
+				eq(inventoryLot.inventoryItemId, inventoryItemId),
+			),
+		);
+
+	return rows.map(toInventoryLot);
+}
+
+function toStockedLots(lots: readonly InventoryLot[]): InventoryLot[] {
+	return sortLotsForConsumption(lots.filter((lot) => lot.quantity > 0));
+}
+
 export function createDrizzleInventoryRepository(
 	db: DB,
 	userId: string,
 ): InventoryAdjustmentRepository &
 	InventoryItemResolver &
+	InventoryLotRepository &
 	InventoryQueryRepository {
 	if (userId.trim().length === 0) {
 		throw new Error("ユーザーIDを指定してください");
@@ -60,9 +151,10 @@ export function createDrizzleInventoryRepository(
 					inventoryItemId: inventoryItem.id,
 					ingredientId: ingredient.id,
 					name: ingredient.name,
-					quantity: inventoryItem.quantity,
 					stockUnitCode: ingredient.stockUnitCode,
 					stockUnitLabel: ingredient.stockUnitLabel,
+					defaultExpiryKind: ingredient.defaultExpiryKind,
+					defaultStorage: ingredient.defaultStorage,
 					trackingMode: inventoryItem.trackingMode,
 					updatedAt: inventoryItem.updatedAt,
 				})
@@ -83,16 +175,65 @@ export function createDrizzleInventoryRepository(
 				)
 				.orderBy(asc(ingredient.name));
 
-			return rows.map((row) => ({
-				inventoryItemId: row.inventoryItemId,
-				ingredientId: row.ingredientId,
-				name: row.name,
-				quantity: Number(row.quantity),
-				stockUnitCode: parseInventoryUnitCode(row.stockUnitCode),
-				stockUnitLabel: row.stockUnitLabel,
-				trackingMode: parseTrackingMode(row.trackingMode),
-				updatedAt: row.updatedAt.toISOString(),
-			}));
+			// 在庫のあるロットだけを、まとめて取得する。
+			const lotRows = await db
+				.select()
+				.from(inventoryLot)
+				.where(
+					and(
+						eq(inventoryLot.userId, userId),
+						sql`${inventoryLot.quantity} > 0`,
+					),
+				);
+
+			const lotsByItemId = new Map<string, InventoryLot[]>();
+			const lotUpdatedAtByItemId = new Map<string, Date>();
+
+			for (const lotRow of lotRows) {
+				const lots = lotsByItemId.get(lotRow.inventoryItemId) ?? [];
+
+				lots.push(toInventoryLot(lotRow));
+				lotsByItemId.set(lotRow.inventoryItemId, lots);
+
+				const latest = lotUpdatedAtByItemId.get(lotRow.inventoryItemId);
+
+				if (!latest || latest < lotRow.updatedAt) {
+					lotUpdatedAtByItemId.set(lotRow.inventoryItemId, lotRow.updatedAt);
+				}
+			}
+
+			return rows.map((row) => {
+				const lots = sortLotsForConsumption(
+					lotsByItemId.get(row.inventoryItemId) ?? [],
+				);
+				const lotUpdatedAt = lotUpdatedAtByItemId.get(row.inventoryItemId);
+				const updatedAt =
+					lotUpdatedAt && lotUpdatedAt > row.updatedAt
+						? lotUpdatedAt
+						: row.updatedAt;
+
+				return {
+					inventoryItemId: row.inventoryItemId,
+					ingredientId: row.ingredientId,
+					name: row.name,
+					quantity: sumLotQuantities(lots),
+					lots,
+					stockUnitCode: parseInventoryUnitCode(row.stockUnitCode),
+					stockUnitLabel: row.stockUnitLabel,
+					trackingMode: parseTrackingMode(row.trackingMode),
+					defaultExpiryKind: parseOptionalValue<InventoryExpiryKind>(
+						row.defaultExpiryKind,
+						["use-by", "best-before", "none"],
+						"期限の種類",
+					),
+					defaultStorage: parseOptionalValue<InventoryStorage>(
+						row.defaultStorage,
+						["room", "fridge", "freezer"],
+						"保存方法",
+					),
+					updatedAt: updatedAt.toISOString(),
+				};
+			});
 		},
 
 		async resolveOrCreateInventoryItem(
@@ -224,7 +365,6 @@ export function createDrizzleInventoryRepository(
 					.select({
 						id: inventoryItem.id,
 						trackingMode: inventoryItem.trackingMode,
-						quantity: inventoryItem.quantity,
 					})
 					.from(inventoryItem)
 					.where(
@@ -260,13 +400,18 @@ export function createDrizzleInventoryRepository(
 						.returning({
 							id: inventoryItem.id,
 							trackingMode: inventoryItem.trackingMode,
-							quantity: inventoryItem.quantity,
 						});
 				}
 
 				if (!resolvedInventoryItem) {
 					throw new Error("在庫項目を作成できませんでした");
 				}
+
+				const currentLots = await loadLots(
+					transaction,
+					userId,
+					resolvedInventoryItem.id,
+				);
 
 				return {
 					ingredientId: storedIngredient.id,
@@ -275,43 +420,60 @@ export function createDrizzleInventoryRepository(
 					stockUnitCode: parseInventoryUnitCode(storedIngredient.stockUnitCode),
 					stockUnitLabel: storedIngredient.stockUnitLabel,
 					trackingMode: parseTrackingMode(resolvedInventoryItem.trackingMode),
-					quantity: Number(resolvedInventoryItem.quantity),
+					quantity: sumLotQuantities(currentLots),
 				};
 			});
 		},
 		async applyAdjustment(command: InventoryAdjustmentCommand) {
 			return db.transaction(async (transaction) => {
-				const [existingTransaction] = await transaction
-					.select({
-						id: inventoryTransaction.id,
-						inventoryItemId: inventoryTransaction.inventoryItemId,
-						resultingQuantity: inventoryTransaction.resultingQuantity,
-					})
-					.from(inventoryTransaction)
-					.where(
-						and(
-							eq(inventoryTransaction.id, command.transactionId),
-							eq(inventoryTransaction.userId, userId),
-						),
-					)
-					.limit(1);
+				const findExistingTransaction = async () => {
+					const [existing] = await transaction
+						.select({
+							id: inventoryTransaction.id,
+							inventoryItemId: inventoryTransaction.inventoryItemId,
+						})
+						.from(inventoryTransaction)
+						.where(
+							and(
+								eq(inventoryTransaction.id, command.transactionId),
+								eq(inventoryTransaction.userId, userId),
+							),
+						)
+						.limit(1);
 
-				if (existingTransaction) {
-					if (existingTransaction.inventoryItemId !== command.inventoryItemId) {
+					return existing;
+				};
+
+				const toAlreadyApplied = async (existing: {
+					id: string;
+					inventoryItemId: string;
+				}) => {
+					if (existing.inventoryItemId !== command.inventoryItemId) {
 						throw new Error("取引IDが別の在庫操作ですでに使用されています");
 					}
 
+					const lots = toStockedLots(
+						await loadLots(transaction, userId, command.inventoryItemId),
+					);
+
 					return {
 						status: "already-applied" as const,
-						transactionId: existingTransaction.id,
-						quantity: Number(existingTransaction.resultingQuantity),
+						transactionId: existing.id,
+						quantity: sumLotQuantities(lots),
+						lots,
 					};
+				};
+
+				const existingTransaction = await findExistingTransaction();
+
+				if (existingTransaction) {
+					return toAlreadyApplied(existingTransaction);
 				}
 
+				// 食材の行をロックして、同じ食材への操作を直列にする（ロットの増減は、必ず、この行のロックのあとに行う）。
 				const [storedInventoryItem] = await transaction
 					.select({
 						id: inventoryItem.id,
-						quantity: inventoryItem.quantity,
 						trackingMode: inventoryItem.trackingMode,
 						stockUnitCode: ingredient.stockUnitCode,
 					})
@@ -329,7 +491,7 @@ export function createDrizzleInventoryRepository(
 							eq(inventoryItem.userId, userId),
 						),
 					)
-					.for("update")
+					.for("update", { of: inventoryItem })
 					.limit(1);
 
 				if (!storedInventoryItem) {
@@ -340,75 +502,278 @@ export function createDrizzleInventoryRepository(
 				 * 同一取引が並行して届いた場合に備え、
 				 * 在庫行のロック取得後にもう一度確認する。
 				 */
-				const [concurrentTransaction] = await transaction
+				const concurrentTransaction = await findExistingTransaction();
+
+				if (concurrentTransaction) {
+					return toAlreadyApplied(concurrentTransaction);
+				}
+
+				const trackingMode = parseTrackingMode(
+					storedInventoryItem.trackingMode,
+				);
+				const stockUnitCode = storedInventoryItem.stockUnitCode;
+				const allLots = await loadLots(
+					transaction,
+					userId,
+					command.inventoryItemId,
+				);
+
+				// ロットへ、1回分の加減算を適用し、ロットの数量と履歴を保存する。
+				const applyToLot = async (
+					lot: InventoryLot,
+					input: {
+						transactionId: string;
+						inputQuantity: number;
+						inputUnitCode: string;
+						stockQuantityPerInputUnit: number;
+						operation: "increase" | "decrease";
+					},
+				) => {
+					const result = applyInventoryAdjustment({
+						transactionId: input.transactionId,
+						inventoryItemId: command.inventoryItemId,
+						currentQuantity: lot.quantity,
+						inputQuantity: input.inputQuantity,
+						inputUnitCode: input.inputUnitCode,
+						stockUnitCode,
+						stockQuantityPerInputUnit: input.stockQuantityPerInputUnit,
+						operation: input.operation,
+						reason: command.reason,
+						sourceType: command.sourceType,
+						sourceId: command.sourceId,
+						trackingMode,
+					});
+
+					await transaction
+						.update(inventoryLot)
+						.set({ quantity: toNumeric(result.quantity) })
+						.where(
+							and(eq(inventoryLot.id, lot.id), eq(inventoryLot.userId, userId)),
+						);
+
+					await transaction.insert(inventoryTransaction).values({
+						id: result.transaction.id,
+						userId,
+						inventoryItemId: result.transaction.inventoryItemId,
+						inventoryLotId: lot.id,
+						inputQuantity: toNumeric(result.transaction.inputQuantity),
+						inputUnitCode: result.transaction.inputUnitCode,
+						requestedQuantityDelta: toNumeric(
+							result.transaction.requestedQuantityDelta,
+						),
+						quantityDelta: toNumeric(result.transaction.quantityDelta),
+						resultingQuantity: toNumeric(result.transaction.resultingQuantity),
+						stockUnitCode: result.transaction.stockUnitCode,
+						reason: result.transaction.reason,
+						sourceType: result.transaction.sourceType,
+						sourceId: result.transaction.sourceId,
+						occurredAt: new Date(result.transaction.occurredAt),
+					});
+				};
+
+				if (command.operation === "increase") {
+					// 追加：同じ条件のロットがあれば合体、なければ新しいロット。
+					const conditions = resolveLotConditions(
+						command.lot,
+						toDateString(new Date()),
+					);
+
+					let target = findMergeableLot(allLots, conditions);
+
+					if (!target) {
+						const [createdLot] = await transaction
+							.insert(inventoryLot)
+							.values({
+								userId,
+								inventoryItemId: command.inventoryItemId,
+								quantity: toNumeric(0),
+								acquiredOn: conditions.acquiredOn,
+								storage: conditions.storage,
+								expiresOn: conditions.expiresOn,
+								expiryKind: conditions.expiryKind,
+								expirySource: conditions.expirySource,
+							})
+							.returning();
+
+						if (!createdLot) {
+							throw new Error("ロットを作成できませんでした");
+						}
+
+						target = toInventoryLot(createdLot);
+					}
+
+					await applyToLot(target, {
+						transactionId: command.transactionId,
+						inputQuantity: command.inputQuantity,
+						inputUnitCode: command.inputUnitCode,
+						stockQuantityPerInputUnit: command.stockQuantityPerInputUnit,
+						operation: "increase",
+					});
+				} else {
+					// 減らす：ロットの指定があればそれに従い、なければ、期限の早いロットから自動で引く。
+					const requestedStockQuantity = convertInventoryQuantity({
+						inputQuantity: command.inputQuantity,
+						inputUnitCode: command.inputUnitCode,
+						stockUnitCode,
+						stockQuantityPerInputUnit: command.stockQuantityPerInputUnit,
+					}).quantity;
+
+					const allocations = command.allocations
+						? validateManualAllocations(
+								allLots,
+								command.allocations,
+								trackingMode,
+							)
+						: allocateDecrease(allLots, requestedStockQuantity, trackingMode);
+
+					const lotsById = new Map(allLots.map((lot) => [lot.id, lot]));
+
+					for (const [index, allocation] of allocations.entries()) {
+						const lot = lotsById.get(allocation.lotId);
+
+						if (!lot) {
+							throw new Error("ロットが見つかりません");
+						}
+
+						await applyToLot(lot, {
+							// 最初の履歴の ID を、操作の取引 ID にする（再送のとき、これで二重適用を防ぐ）。
+							transactionId:
+								index === 0 ? command.transactionId : crypto.randomUUID(),
+							inputQuantity: allocation.quantity,
+							inputUnitCode: stockUnitCode,
+							stockQuantityPerInputUnit: 1,
+							operation: "decrease",
+						});
+					}
+				}
+
+				const lots = toStockedLots(
+					await loadLots(transaction, userId, command.inventoryItemId),
+				);
+
+				return {
+					status: "applied" as const,
+					transactionId: command.transactionId,
+					quantity: sumLotQuantities(lots),
+					lots,
+				};
+			});
+		},
+
+		async updateLot(command: UpdateInventoryLotCommand) {
+			return db.transaction(async (transaction) => {
+				const [storedLot] = await transaction
 					.select({
-						id: inventoryTransaction.id,
-						inventoryItemId: inventoryTransaction.inventoryItemId,
-						resultingQuantity: inventoryTransaction.resultingQuantity,
+						id: inventoryLot.id,
+						inventoryItemId: inventoryLot.inventoryItemId,
+						ingredientId: inventoryItem.ingredientId,
 					})
-					.from(inventoryTransaction)
+					.from(inventoryLot)
+					.innerJoin(
+						inventoryItem,
+						and(
+							eq(inventoryItem.id, inventoryLot.inventoryItemId),
+							eq(inventoryItem.userId, inventoryLot.userId),
+						),
+					)
 					.where(
 						and(
-							eq(inventoryTransaction.id, command.transactionId),
-							eq(inventoryTransaction.userId, userId),
+							eq(inventoryLot.id, command.lotId),
+							eq(inventoryLot.userId, userId),
 						),
 					)
 					.limit(1);
 
-				if (concurrentTransaction) {
-					if (
-						concurrentTransaction.inventoryItemId !== command.inventoryItemId
-					) {
-						throw new Error("取引IDが別の在庫操作ですでに使用されています");
-					}
-					return {
-						status: "already-applied" as const,
-						transactionId: concurrentTransaction.id,
-						quantity: Number(concurrentTransaction.resultingQuantity),
-					};
+				if (!storedLot) {
+					throw new Error("ロットが見つかりません");
 				}
 
-				const result = applyInventoryAdjustment({
-					...command,
-					currentQuantity: Number(storedInventoryItem.quantity),
-					trackingMode: parseTrackingMode(storedInventoryItem.trackingMode),
-					stockUnitCode: storedInventoryItem.stockUnitCode,
-				});
+				// 食材の行をロックして、加減算と直列にする。
+				await transaction
+					.select({ id: inventoryItem.id })
+					.from(inventoryItem)
+					.where(
+						and(
+							eq(inventoryItem.id, storedLot.inventoryItemId),
+							eq(inventoryItem.userId, userId),
+						),
+					)
+					.for("update")
+					.limit(1);
+
+				// 期限の日付がなければ、出所もなし。種類は、「なし」の指定だけを残す（resolveLotConditions と同じ規則）。
+				const conditions = resolveLotConditions(
+					{
+						expiresOn: command.expiresOn,
+						expiryKind: command.expiryKind,
+						expirySource: command.expirySource,
+						storage: command.storage,
+					},
+					toDateString(new Date()),
+				);
 
 				await transaction
-					.update(inventoryItem)
+					.update(inventoryLot)
 					.set({
-						quantity: toNumeric(result.quantity),
+						storage: conditions.storage,
+						expiresOn: conditions.expiresOn,
+						expiryKind: conditions.expiryKind,
+						expirySource: conditions.expirySource,
 					})
 					.where(
 						and(
-							eq(inventoryItem.id, storedInventoryItem.id),
-							eq(inventoryItem.userId, userId),
+							eq(inventoryLot.id, command.lotId),
+							eq(inventoryLot.userId, userId),
 						),
 					);
 
-				await transaction.insert(inventoryTransaction).values({
-					id: result.transaction.id,
-					userId,
-					inventoryItemId: result.transaction.inventoryItemId,
-					inputQuantity: toNumeric(result.transaction.inputQuantity),
-					inputUnitCode: result.transaction.inputUnitCode,
-					requestedQuantityDelta: toNumeric(
-						result.transaction.requestedQuantityDelta,
-					),
-					quantityDelta: toNumeric(result.transaction.quantityDelta),
-					resultingQuantity: toNumeric(result.transaction.resultingQuantity),
-					stockUnitCode: result.transaction.stockUnitCode,
-					reason: result.transaction.reason,
-					sourceType: result.transaction.sourceType,
-					sourceId: result.transaction.sourceId,
-					occurredAt: new Date(result.transaction.occurredAt),
-				});
+				if (command.saveAsIngredientDefault) {
+					await transaction
+						.update(ingredient)
+						.set({
+							defaultExpiryKind: command.expiryKind,
+							defaultStorage: command.storage,
+						})
+						.where(
+							and(
+								eq(ingredient.id, storedLot.ingredientId),
+								eq(ingredient.userId, userId),
+							),
+						);
+				}
+
+				const [storedIngredient] = await transaction
+					.select({
+						defaultExpiryKind: ingredient.defaultExpiryKind,
+						defaultStorage: ingredient.defaultStorage,
+					})
+					.from(ingredient)
+					.where(
+						and(
+							eq(ingredient.id, storedLot.ingredientId),
+							eq(ingredient.userId, userId),
+						),
+					)
+					.limit(1);
+
+				const lots = toStockedLots(
+					await loadLots(transaction, userId, storedLot.inventoryItemId),
+				);
 
 				return {
-					status: "applied" as const,
-					transactionId: result.transaction.id,
-					quantity: result.quantity,
+					inventoryItemId: storedLot.inventoryItemId,
+					quantity: sumLotQuantities(lots),
+					lots,
+					defaultExpiryKind: parseOptionalValue<InventoryExpiryKind>(
+						storedIngredient?.defaultExpiryKind ?? null,
+						["use-by", "best-before", "none"],
+						"期限の種類",
+					),
+					defaultStorage: parseOptionalValue<InventoryStorage>(
+						storedIngredient?.defaultStorage ?? null,
+						["room", "fridge", "freezer"],
+						"保存方法",
+					),
 				};
 			});
 		},
