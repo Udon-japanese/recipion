@@ -44,6 +44,62 @@ function validateIds(command: CreateRecipeCommand): void {
 	}
 }
 
+type Transaction = Parameters<Parameters<DB["transaction"]>[0]>[0];
+
+async function insertRecipeChildren(
+	transaction: Transaction,
+	userId: string,
+	recipeId: string,
+	command: CreateRecipeCommand,
+): Promise<void> {
+	// 親グループが先に並ぶため、材料は順番に保存する。
+	for (const node of command.ingredients) {
+		await transaction.insert(recipeIngredientNode).values({
+			id: node.id,
+			recipeId,
+			userId,
+			parentId: node.parentId,
+			sortOrder: node.sortOrder,
+			type: node.type,
+			name: node.name,
+			rawText: node.rawText,
+			inferred: node.inferred,
+			status: node.status,
+			amountText: node.amountText,
+			quantity:
+				node.quantity === null
+					? null
+					: formatRecipeIngredientQuantity(node.quantity),
+			unitLabel: node.unitLabel,
+		});
+	}
+
+	if (command.preparations.length > 0) {
+		await transaction.insert(recipePreparation).values(
+			command.preparations.map((item) => ({
+				id: item.id,
+				recipeId,
+				userId,
+				sortOrder: item.sortOrder,
+				text: item.text,
+			})),
+		);
+	}
+
+	if (command.instructions.length > 0) {
+		await transaction.insert(recipeInstruction).values(
+			command.instructions.map((item) => ({
+				id: item.id,
+				recipeId,
+				userId,
+				sortOrder: item.sortOrder,
+				text: item.text,
+				referencedInstructionIds: item.referencedInstructionIds,
+			})),
+		);
+	}
+}
+
 export function createDrizzleRecipeRepository(
 	db: DB,
 	userId: string,
@@ -74,55 +130,63 @@ export function createDrizzleRecipeRepository(
 					throw new Error("レシピを作成できませんでした");
 				}
 
-				// 親グループが先に並ぶため、材料は順番に保存する。
-				for (const node of command.ingredients) {
-					await transaction.insert(recipeIngredientNode).values({
-						id: node.id,
-						recipeId: createdRecipe.id,
-						userId,
-						parentId: node.parentId,
-						sortOrder: node.sortOrder,
-						type: node.type,
-						name: node.name,
-						rawText: node.rawText,
-						inferred: node.inferred,
-						status: node.status,
-						amountText: node.amountText,
-						quantity:
-							node.quantity === null
-								? null
-								: formatRecipeIngredientQuantity(node.quantity),
-						unitLabel: node.unitLabel,
-					});
-				}
-
-				if (command.preparations.length > 0) {
-					await transaction.insert(recipePreparation).values(
-						command.preparations.map((item) => ({
-							id: item.id,
-							recipeId: createdRecipe.id,
-							userId,
-							sortOrder: item.sortOrder,
-							text: item.text,
-						})),
-					);
-				}
-
-				if (command.instructions.length > 0) {
-					await transaction.insert(recipeInstruction).values(
-						command.instructions.map((item) => ({
-							id: item.id,
-							recipeId: createdRecipe.id,
-							userId,
-							sortOrder: item.sortOrder,
-							text: item.text,
-							referencedInstructionIds: item.referencedInstructionIds,
-						})),
-					);
-				}
+				await insertRecipeChildren(
+					transaction,
+					userId,
+					createdRecipe.id,
+					command,
+				);
 
 				return { id: createdRecipe.id, publicId: createdRecipe.publicId };
 			});
+		},
+
+		async update(publicId, command) {
+			validateIds(command);
+
+			return db.transaction(async (transaction) => {
+				const [existing] = await transaction
+					.select({ id: recipe.id })
+					.from(recipe)
+					.where(and(eq(recipe.publicId, publicId), eq(recipe.userId, userId)));
+
+				if (!existing) return null;
+
+				await transaction
+					.update(recipe)
+					.set({
+						name: command.name,
+						servings: formatRecipeServings(command.servings),
+						note: command.note,
+						sourceUrl: command.sourceUrl,
+					})
+					.where(eq(recipe.id, existing.id));
+
+				// 材料・下準備・作り方は、すべて入れ替える（同じ ID で入れ直せる）。
+				await transaction
+					.delete(recipeIngredientNode)
+					.where(eq(recipeIngredientNode.recipeId, existing.id));
+				await transaction
+					.delete(recipePreparation)
+					.where(eq(recipePreparation.recipeId, existing.id));
+				await transaction
+					.delete(recipeInstruction)
+					.where(eq(recipeInstruction.recipeId, existing.id));
+
+				await insertRecipeChildren(transaction, userId, existing.id, command);
+
+				return { publicId };
+			});
+		},
+
+		async delete(publicId) {
+			// 材料・下準備・作り方は、外部キーの CASCADE で一緒に消える。
+			const deleted = await db
+				.delete(recipe)
+				.where(and(eq(recipe.publicId, publicId), eq(recipe.userId, userId)))
+				.returning({ id: recipe.id });
+
+			return deleted.length > 0;
 		},
 
 		async getByPublicId(publicId) {

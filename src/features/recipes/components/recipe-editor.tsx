@@ -1,5 +1,9 @@
 import { type KeyboardEvent, type SubmitEvent, useMemo, useState } from "react";
 import {
+	formatInstructionText,
+	formatPreparationText,
+} from "../domain/format-recipe-editor-text";
+import {
 	createRecipeEditorDocument,
 	type RecipeEditorDocument,
 	type RecipeEditorIngredientGroup,
@@ -344,21 +348,34 @@ type SavedRecipe = { publicId: string };
 type RecipeEditorProps = {
 	onSave: (document: RecipeEditorDocument) => Promise<SavedRecipe>;
 	onSaved?: (recipe: SavedRecipe) => void;
+	// 保存済みのレシピを編集するときの初期値。なければ、新規登録。
+	initialDocument?: RecipeEditorDocument;
 };
 
-export function RecipeEditor({ onSave, onSaved }: RecipeEditorProps) {
-	const [name, setName] = useState("");
-	const [servings, setServings] = useState("2");
+export function RecipeEditor({
+	onSave,
+	onSaved,
+	initialDocument,
+}: RecipeEditorProps) {
+	const isEditing = initialDocument !== undefined;
+	const [name, setName] = useState(initialDocument?.name ?? "");
+	const [servings, setServings] = useState(
+		String(initialDocument?.servings ?? 2),
+	);
 	const [ingredientText, setIngredientText] = useState("");
-	const [preparationText, setPreparationText] = useState("");
-	const [instructionText, setInstructionText] = useState("");
-	const [note, setNote] = useState("");
-	const [sourceUrl, setSourceUrl] = useState("");
+	const [preparationText, setPreparationText] = useState(
+		formatPreparationText(initialDocument?.preparations ?? []),
+	);
+	const [instructionText, setInstructionText] = useState(
+		formatInstructionText(initialDocument?.instructions ?? []),
+	);
+	const [note, setNote] = useState(initialDocument?.note ?? "");
+	const [sourceUrl, setSourceUrl] = useState(initialDocument?.sourceUrl ?? "");
 	const [isSaving, setIsSaving] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [savedRecipeId, setSavedRecipeId] = useState<string | null>(null);
 	const [ingredients, setIngredients] = useState<RecipeEditorIngredientNode[]>(
-		[],
+		initialDocument?.ingredients ?? [],
 	);
 	const [newIngredientName, setNewIngredientName] = useState("");
 	const [newIngredientAmount, setNewIngredientAmount] = useState("");
@@ -457,7 +474,9 @@ export function RecipeEditor({ onSave, onSaved }: RecipeEditorProps) {
 
 	return (
 		<section className={styles.container}>
-			<h2 className={styles.title}>レシピを登録</h2>
+			<h2 className={styles.title}>
+				{isEditing ? "レシピを編集" : "レシピを登録"}
+			</h2>
 
 			<form
 				className={styles.form}

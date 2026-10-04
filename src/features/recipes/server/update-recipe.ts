@@ -1,0 +1,48 @@
+import { createServerFn } from "@tanstack/react-start";
+import { getRequestHeaders } from "@tanstack/react-start/server";
+import * as v from "valibot";
+
+import { createDb } from "#/db/client";
+import { prepareRecipeForStorage } from "#/features/recipes/application/prepare-recipe-for-storage";
+import { validateRecipeEditorDocument } from "#/features/recipes/domain/validate-recipe-editor-document";
+import { createDrizzleRecipeRepository } from "#/features/recipes/infrastructure/drizzle-recipe-repository";
+import { createAuth } from "#/integrations/better-auth/auth";
+
+const updateRecipeInputSchema = v.object({
+	publicId: v.pipe(v.string(), v.maxLength(100)),
+	document: v.unknown(),
+});
+
+export const updateRecipeServerFn = createServerFn({
+	method: "POST",
+})
+	.validator((input) => {
+		const { publicId, document } = v.parse(updateRecipeInputSchema, input);
+
+		return {
+			publicId,
+			recipe: prepareRecipeForStorage(validateRecipeEditorDocument(document)),
+		};
+	})
+	.handler(async ({ data }) => {
+		const { db } = await createDb();
+		const auth = createAuth(db);
+
+		const session = await auth.api.getSession({
+			headers: getRequestHeaders(),
+		});
+
+		if (!session) {
+			throw new Error("認証が必要です");
+		}
+
+		const repository = createDrizzleRecipeRepository(db, session.user.id);
+		const updated = await repository.update(data.publicId, data.recipe);
+
+		// 存在しない場合と、他のユーザーのレシピの場合は、どちらも同じ扱いにする。
+		if (!updated) {
+			throw new Error("レシピが見つかりません");
+		}
+
+		return updated;
+	});

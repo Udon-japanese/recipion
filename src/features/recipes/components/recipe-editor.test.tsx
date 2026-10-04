@@ -1,7 +1,10 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { RecipeEditorDocument } from "../domain/recipe-editor-document";
+import {
+	createRecipeEditorDocument,
+	type RecipeEditorDocument,
+} from "../domain/recipe-editor-document";
 import { RecipeEditor } from "./recipe-editor";
 
 afterEach(cleanup);
@@ -359,6 +362,59 @@ describe("RecipeEditor", () => {
 
 		expect(onSave).toHaveBeenCalledWith(
 			expect.objectContaining({ sourceUrl: "https://example.com/recipe/1" }),
+		);
+	});
+
+	it("保存済みのレシピを初期値として編集し、材料のIDを保ったまま保存できる", async () => {
+		const user = userEvent.setup();
+		const onSave = vi.fn(async (_document: RecipeEditorDocument) => ({
+			publicId: "abc123",
+		}));
+		const initialDocument = createRecipeEditorDocument({
+			name: "つくね",
+			servings: 4,
+			ingredientText: "肉だね\n豚ひき肉 200g\n玉ねぎ 1/2個",
+			preparationText: "玉ねぎをみじん切りにする\n卵を溶いておく",
+			instructionText: "1. 材料を混ぜる\n2. フライパンで焼く\n途中で裏返す",
+			note: "焼きすぎない",
+			sourceUrl: "https://example.com/recipe/1",
+		});
+
+		render(<RecipeEditor onSave={onSave} initialDocument={initialDocument} />);
+
+		// 保存済みの内容が、入力欄に入っている
+		expect(screen.getByRole("heading", { name: "レシピを編集" })).toBeTruthy();
+		expect(screen.getByRole("textbox", { name: "レシピ名" })).toHaveProperty(
+			"value",
+			"つくね",
+		);
+		expect(screen.getByRole("spinbutton", { name: "何人分" })).toHaveProperty(
+			"value",
+			"4",
+		);
+		expect(
+			screen.getByRole("textbox", { name: "豚ひき肉の分量" }),
+		).toHaveProperty("value", "200g");
+
+		const nameInput = screen.getByRole("textbox", { name: "レシピ名" });
+		await user.clear(nameInput);
+		await user.type(nameInput, "鶏つくね");
+		await user.click(screen.getByRole("button", { name: "レシピを保存" }));
+		await screen.findByText("レシピを保存しました。");
+
+		const saved = onSave.mock.calls[0]?.[0];
+
+		expect(saved?.name).toBe("鶏つくね");
+		expect(saved?.servings).toBe(4);
+		expect(saved?.note).toBe("焼きすぎない");
+		// 材料は、グループも含めて、同じ ID のまま保存される
+		expect(saved?.ingredients).toEqual(initialDocument.ingredients);
+		// 下準備・作り方は、複数行の項目も含めて、元の内容に戻る
+		expect(saved?.preparations.map((item) => item.text)).toEqual(
+			initialDocument.preparations.map((item) => item.text),
+		);
+		expect(saved?.instructions.map((item) => item.text)).toEqual(
+			initialDocument.instructions.map((item) => item.text),
 		);
 	});
 });
