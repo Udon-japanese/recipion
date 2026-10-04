@@ -116,6 +116,27 @@ pnpm run deploy
 - 本番用の環境変数（`BETTER_AUTH_SECRET`、`BETTER_AUTH_URL`）は、Worker のシークレット・変数として設定します（シークレットは `wrangler secret put <名前>`）。
 - 後工程は、`vite preview` を起動するため、`.env.local` がある環境で実行します。`.env.local` のない環境（将来 CI に載せる場合）で通るかは、未確認です。
 
+## 公開時の bot 対策
+
+公開すると、bot が `/wp-login.php` や `/.env` などを、繰り返しスキャンします。次の対策を組み合わせます。
+
+**アプリ側（実装済み）**
+
+- セッション Cookie のないリクエストは、**DB に接続せずに**扱います（HTML の読み込み時のセッション確認、サーバー関数の認可）。bot のスキャンで、Neon が起こされることはありません。
+- `public/robots.txt`（全体を `Disallow`）と、`noindex, nofollow` の meta。行儀のよいクローラー向けで、アクセス制御ではありません。
+- `workers_dev: false`（`*.workers.dev` の URL は使わない）と、`preview_urls: false`。ゾーンの保護が及ばない入口を、残しません。
+- Workers Logs（`observability`）を有効にしています。アクセスの量と、エラーを確認できます。
+
+**Cloudflare のダッシュボードで設定する（ゾーン `recipion.app`）**
+
+1. **Security → Bots → Bot Fight Mode をオン**（無料）。
+2. **WAF のカスタムルール**（無料プランは5つまで）で、**このアプリが提供するパス以外を遮断**します（アクション: Block）。式は、次のコマンドで作ります。ルートや `public/` のファイルを足したら、式を作り直して、ルールを更新してください。
+   ```bash
+   nr waf:allowlist
+   ```
+   式の中で `starts_with` と `in` が使えることは、ルールを保存するときに確認します。Worker を起動する前に遮断されるため、Worker のリクエスト数（無料プランは1日10万件）を消費しません。
+3. **レート制限ルール**（無料プランは1つ、10秒の窓、IP 単位）で、`/api/auth/` への連続したアクセスを制限します（例: 10秒に10回を超えたら Block）。メールの送信を伴う認証の制限は、認証の作り直しで、別に実装します。
+
 ## ディレクトリ構成
 
 ```

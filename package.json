@@ -10,6 +10,7 @@
     "generate-routes": "tsr generate",
     "build": "vite build && node scripts/postbuild-app-shell.ts",
     "preview": "vite preview",
+    "waf:allowlist": "node scripts/print-waf-allowlist.ts",
     "deploy": "pnpm run build && wrangler deploy",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
