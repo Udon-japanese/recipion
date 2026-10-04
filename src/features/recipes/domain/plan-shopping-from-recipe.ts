@@ -1,0 +1,229 @@
+import { findInventoryItemByName } from "#/features/inventory/domain/build-expiry-prefill";
+import type { InventoryUnitCode } from "#/features/inventory/domain/inventory-unit";
+import {
+	type IngredientStockJudgment,
+	judgeIngredientStock,
+} from "./judge-ingredient-stock";
+import type { RecipeEditorIngredientNode } from "./recipe-editor-document";
+
+// レシピの材料1行（グループは含まない）。
+export type RecipeShoppingNeed = {
+	id: string;
+	name: string;
+	// 「少々」「適量」「60~70g」など、数量にできない分量は null。
+	quantity: number | null;
+	unitLabel: string | null;
+	amountText: string | null;
+};
+
+// 在庫の1食材（在庫の一覧から、必要な項目だけ）。
+export type RecipeShoppingStockItem = {
+	name: string;
+	quantity: number;
+	stockUnitCode: InventoryUnitCode;
+	stockUnitLabel: string;
+};
+
+// 買い物メモにある項目（未購入だけを渡す）。
+export type RecipeShoppingMemoItem = {
+	id: string;
+	name: string;
+	quantity: number;
+	unitLabel: string | null;
+};
+
+// 買い物メモに、同じ食材がすでにあるときの扱い。
+export type DuplicateMode = "max" | "sum" | "skip";
+
+export type RecipeShoppingStock =
+	// 在庫の情報がない（ログインしていない）。必要なものとして扱う。
+	{ kind: "unknown" } | { kind: "judged"; judgment: IngredientStockJudgment };
+
+export type RecipeShoppingRow = {
+	need: RecipeShoppingNeed;
+	stock: RecipeShoppingStock;
+	// 買い物メモに入れる量（足りない分。比べられないときは、レシピの量）。
+	amount: { quantity: number; unitLabel: string | null };
+	existing: RecipeShoppingMemoItem | null;
+	// add: 新しい項目を作る / update: メモの項目の数量を変える / keep: メモのまま（変更なし）。
+	plan: "add" | "update" | "keep";
+	// keep の理由。
+	keepReason: "already-enough" | "skip-mode" | "incomparable-unit" | null;
+	// update / add のあとの数量。
+	nextQuantity: number;
+	defaultChecked: boolean;
+};
+
+// 料理の計量の単位は、買う単位にならない（買い物メモでは、「1」で入れる）。
+const measuringUnits = new Set([
+	"大さじ",
+	"小さじ",
+	"カップ",
+	"ひとつまみ",
+	"つ",
+	"cm",
+	"合",
+]);
+
+export function flattenRecipeIngredients(
+	nodes: readonly RecipeEditorIngredientNode[],
+): RecipeShoppingNeed[] {
+	const needs: RecipeShoppingNeed[] = [];
+
+	for (const node of nodes) {
+		if (node.type === "group") {
+			needs.push(...flattenRecipeIngredients(node.children));
+		} else if (node.name.trim() !== "") {
+			needs.push({
+				id: node.id,
+				name: node.name,
+				quantity: node.quantity,
+				unitLabel: node.unitLabel,
+				amountText: node.amountText,
+			});
+		}
+	}
+
+	return needs;
+}
+
+// レシピの量を、買い物メモの量にする（計量の単位や、数量にできない量は、「1」にする）。
+function toMemoAmount(need: RecipeShoppingNeed): {
+	quantity: number;
+	unitLabel: string | null;
+} {
+	const isMeasuring =
+		need.unitLabel !== null && measuringUnits.has(need.unitLabel);
+
+	if (need.quantity === null || isMeasuring) {
+		return { quantity: 1, unitLabel: null };
+	}
+
+	return { quantity: need.quantity, unitLabel: need.unitLabel };
+}
+
+function roundQuantity(value: number): number {
+	return Number(value.toFixed(6));
+}
+
+// 買い物メモの項目と、追加する量から、メモの更新を決める（単位が違えば、変えない）。
+function resolveDuplicate(
+	existing: RecipeShoppingMemoItem,
+	amount: { quantity: number; unitLabel: string | null },
+	mode: DuplicateMode,
+): Pick<RecipeShoppingRow, "plan" | "keepReason" | "nextQuantity"> {
+	if (mode === "skip") {
+		return {
+			plan: "keep",
+			keepReason: "skip-mode",
+			nextQuantity: existing.quantity,
+		};
+	}
+
+	if ((existing.unitLabel ?? null) !== (amount.unitLabel ?? null)) {
+		return {
+			plan: "keep",
+			keepReason: "incomparable-unit",
+			nextQuantity: existing.quantity,
+		};
+	}
+
+	const nextQuantity =
+		mode === "sum"
+			? roundQuantity(existing.quantity + amount.quantity)
+			: Math.max(existing.quantity, amount.quantity);
+
+	return nextQuantity === existing.quantity
+		? { plan: "keep", keepReason: "already-enough", nextQuantity }
+		: { plan: "update", keepReason: null, nextQuantity };
+}
+
+export type PlanShoppingFromRecipeInput = {
+	needs: readonly RecipeShoppingNeed[];
+	// 在庫の一覧。null は、在庫の情報がない（ゲスト）。
+	stockItems: readonly RecipeShoppingStockItem[] | null;
+	memoItems: readonly RecipeShoppingMemoItem[];
+	duplicateMode: DuplicateMode;
+};
+
+/**
+ * レシピの材料から、買い物メモへ入れる項目を決める。
+ * - 在庫で足りているか判定する（数量を比べ、比べられなければ、在庫の有無。judgeIngredientStock）。
+ * - 買い物メモに、同じ食材があれば、扱い（多い方に合わせる／合算／追加しない）に従う。
+ * - 人数による量の調整はしない（レシピの量のまま）。
+ */
+export function planShoppingFromRecipe(
+	input: PlanShoppingFromRecipeInput,
+): RecipeShoppingRow[] {
+	return input.needs.map((need) => {
+		const stockItem = input.stockItems
+			? findInventoryItemByName(input.stockItems, need.name)
+			: undefined;
+
+		const stock: RecipeShoppingStock =
+			input.stockItems === null
+				? { kind: "unknown" }
+				: {
+						kind: "judged",
+						judgment: judgeIngredientStock(
+							{
+								name: need.name,
+								quantity: need.quantity,
+								unitLabel: need.unitLabel,
+							},
+							stockItem
+								? {
+										quantity: stockItem.quantity,
+										stockUnitCode: stockItem.stockUnitCode,
+									}
+								: null,
+						),
+					};
+
+		const isNeeded =
+			stock.kind === "unknown" || stock.judgment.status === "short";
+
+		// 足りない分が分かるときは、その量（在庫の単位）。それ以外は、レシピの量。
+		const amount =
+			stock.kind === "judged" &&
+			stock.judgment.status === "short" &&
+			stock.judgment.shortage !== null &&
+			stockItem
+				? {
+						quantity: stock.judgment.shortage,
+						unitLabel: stockItem.stockUnitLabel,
+					}
+				: toMemoAmount(need);
+
+		const existing =
+			input.memoItems.find(
+				(memoItem) =>
+					findInventoryItemByName([memoItem], need.name) !== undefined,
+			) ?? null;
+
+		if (!existing) {
+			return {
+				need,
+				stock,
+				amount,
+				existing: null,
+				plan: "add" as const,
+				keepReason: null,
+				nextQuantity: amount.quantity,
+				defaultChecked: isNeeded,
+			};
+		}
+
+		const resolved = resolveDuplicate(existing, amount, input.duplicateMode);
+
+		return {
+			need,
+			stock,
+			amount,
+			existing,
+			...resolved,
+			// すでにメモにあるものは、変更があるときだけ、初期でチェックする。
+			defaultChecked: isNeeded && resolved.plan === "update",
+		};
+	});
+}
