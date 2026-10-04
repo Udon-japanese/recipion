@@ -11,20 +11,7 @@ export function createDexieInventoryCacheRepository(
 ): InventoryCacheRepository {
 	return {
 		async find(ownerScope: InventoryCacheOwnerScope) {
-			const snapshot = await database.inventorySnapshots.get(ownerScope);
-
-			if (!snapshot) {
-				return undefined;
-			}
-
-			// ロットを持たない、古い保存データは、ロットなしとして読む。
-			return {
-				...snapshot,
-				items: snapshot.items.map((item) => ({
-					...item,
-					lots: item.lots ?? [],
-				})),
-			};
+			return database.inventorySnapshots.get(ownerScope);
 		},
 
 		async save(ownerScope, items, now = new Date()) {

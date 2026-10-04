@@ -134,19 +134,4 @@ describe("dexieInventoryCacheRepository", () => {
 			}),
 		);
 	});
-
-	it("ロットを持たない、古い保存データは、ロットなしとして読む", async () => {
-		const { database, repository } = createTestContext();
-		const { lots: _lots, ...legacyItem } = egg;
-
-		await database.inventorySnapshots.put({
-			ownerScope: "user:user-id",
-			items: [legacyItem as InventoryListItem],
-			cachedAt: "2026-09-23T12:00:00.000Z",
-		});
-
-		const snapshot = await repository.find("user:user-id");
-
-		expect(snapshot?.items[0]?.lots).toEqual([]);
-	});
 });
