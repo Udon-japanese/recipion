@@ -22,6 +22,7 @@ import {
 } from "../domain/expiry-labels";
 import { type InventoryLot, toDateString } from "../domain/inventory-lot";
 import type { InventoryUnitCode } from "../domain/inventory-unit";
+import { recordExpiryHint } from "../infrastructure/expiry-hints-storage";
 import {
 	ExpiryFields,
 	type ExpiryFieldsValue,
@@ -137,6 +138,8 @@ export function InventoryList({
 			expiresOn: lot.expiresOn ?? "",
 			expiryKind: lot.expiryKind ?? item.defaultExpiryKind ?? "",
 			storage: lot.storage ?? item.defaultStorage ?? "",
+			// 自動の目安だった日付は、そのまま保存しても、目安のまま（直したときに、入力になる）。
+			expirySource: lot.expirySource ?? "",
 		});
 		setSaveAsDefault(false);
 	}
@@ -159,6 +162,8 @@ export function InventoryList({
 			const result = await updateInventoryLot({
 				lotId: lot.id,
 				expiresOn: lotExpiry.expiresOn === "" ? null : lotExpiry.expiresOn,
+				expirySource:
+					lotExpiry.expirySource === "" ? null : lotExpiry.expirySource,
 				expiryKind: lotExpiry.expiryKind === "" ? null : lotExpiry.expiryKind,
 				storage: lotExpiry.storage === "" ? null : lotExpiry.storage,
 				saveAsIngredientDefault: saveAsDefault,
@@ -177,6 +182,16 @@ export function InventoryList({
 						: currentItem,
 				),
 			);
+
+			// 入力した期限（目安ではないもの）は、次の目安のために、覚える。
+			if (lotExpiry.expirySource === "entered" && lotExpiry.expiresOn !== "") {
+				recordExpiryHint({
+					ingredientName: item.name,
+					acquiredOn: lot.acquiredOn,
+					expiresOn: lotExpiry.expiresOn,
+					storage: lotExpiry.storage === "" ? null : lotExpiry.storage,
+				});
+			}
 
 			handleCancelEditingLot();
 		} catch (error) {

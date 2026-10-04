@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
 	addDays,
 	allocateDecrease,
+	daysBetween,
 	findMergeableLot,
 	type InventoryLot,
 	isValidDateString,
@@ -212,6 +213,12 @@ describe("日付の計算", () => {
 		expect(isValidDateString("")).toBe(false);
 	});
 
+	it("2つの日付の間の日数を数える", () => {
+		expect(daysBetween("2026-10-05", "2026-10-08")).toBe(3);
+		expect(daysBetween("2026-10-30", "2026-11-02")).toBe(3);
+		expect(daysBetween("2026-10-08", "2026-10-05")).toBe(-3);
+	});
+
 	it("日数を足す（月・年をまたぐ）", () => {
 		expect(addDays("2026-10-05", 3)).toBe("2026-10-08");
 		expect(addDays("2026-10-30", 3)).toBe("2026-11-02");
@@ -245,6 +252,15 @@ describe("resolveLotConditions", () => {
 			expiryKind: "use-by",
 			expirySource: "entered",
 		});
+	});
+
+	it("自動の目安（estimated）は、日付があれば、そのまま残す", () => {
+		expect(
+			resolveLotConditions(
+				{ expiresOn: "2026-10-10", expirySource: "estimated" },
+				today,
+			),
+		).toMatchObject({ expirySource: "estimated" });
 	});
 
 	it("日付がないとき、種類は「なし」だけを残し、出所は付けない", () => {

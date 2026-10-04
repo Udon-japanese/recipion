@@ -7,9 +7,12 @@ import type { InventoryPurchaseOwnerScope } from "#/features/inventory/applicati
 import { loadInventoryItemsWithCache } from "#/features/inventory/application/load-inventory-items-with-cache";
 import type { RegisterInventoryItemInput } from "#/features/inventory/application/register-inventory-item";
 import { updateInventoryLotWithCache } from "#/features/inventory/application/update-inventory-lot-with-cache";
+import { ExpiryEstimateSetting } from "#/features/inventory/components/expiry-estimate-setting";
 import { InventoryList } from "#/features/inventory/components/inventory-list";
 import { InventoryRegistrationForm } from "#/features/inventory/components/inventory-registration-form";
 import { PurchaseOutboxSync } from "#/features/inventory/components/purchase-outbox-sync";
+import { useExpiryEstimateLevel } from "#/features/inventory/hooks/use-expiry-estimate-level";
+import { useIngredientExpiryDefaults } from "#/features/inventory/hooks/use-ingredient-expiry-defaults";
 import { useOwnerScope } from "#/features/inventory/hooks/use-owner-scope";
 import { createDexieInventoryCacheRepository } from "#/features/inventory/infrastructure/dexie-inventory-cache-repository";
 import { syncDexieInventoryPurchaseOutbox } from "#/features/inventory/infrastructure/sync-dexie-inventory-purchase-outbox";
@@ -26,6 +29,9 @@ function InventoryPage() {
 	const [inventoryRefreshKey, setInventoryRefreshKey] = useState(0);
 
 	const ownerScope = useOwnerScope();
+	const [expiryEstimateLevel, setExpiryEstimateLevel] =
+		useExpiryEstimateLevel();
+	const lookupIngredientDefaults = useIngredientExpiryDefaults(ownerScope);
 
 	const loadInventoryItems = useCallback(async () => {
 		if (!ownerScope || ownerScope === "guest") {
@@ -101,7 +107,16 @@ function InventoryPage() {
 			/>
 
 			{ownerScope !== null && ownerScope !== "guest" ? (
+				<ExpiryEstimateSetting
+					level={expiryEstimateLevel}
+					onChange={setExpiryEstimateLevel}
+				/>
+			) : null}
+
+			{ownerScope !== null && ownerScope !== "guest" ? (
 				<InventoryRegistrationForm
+					expiryEstimateLevel={expiryEstimateLevel}
+					lookupIngredientDefaults={lookupIngredientDefaults}
 					registerInventoryItem={registerInventoryItem}
 					onRegistered={() =>
 						setInventoryRefreshKey((currentKey) => currentKey + 1)

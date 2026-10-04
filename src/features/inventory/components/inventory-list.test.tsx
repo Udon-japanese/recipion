@@ -2,7 +2,11 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { InventoryListItem } from "../application/inventory-query-repository";
-import type { InventoryLot } from "../domain/inventory-lot";
+import {
+	addDays,
+	type InventoryLot,
+	toDateString,
+} from "../domain/inventory-lot";
 import { InventoryList } from "./inventory-list";
 
 function createLot(
@@ -401,6 +405,92 @@ describe("InventoryList", () => {
 			await user.click(await screen.findByRole("button", { name: "調整" }));
 
 			expect(screen.queryByLabelText("ロットを指定して減らす")).toBeNull();
+		});
+
+		it("期限と保存方法を表示する（目安は「約」付き）", async () => {
+			render(
+				<InventoryList
+					ownerScope="user:user-id"
+					loadInventoryItems={() =>
+						Promise.resolve(
+							createNetworkResult([
+								{
+									...eggItem,
+									lots: [
+										createLot({
+											id: "6b1d4f0e-0a0e-4c85-9a3f-333333333333",
+											quantity: 2,
+											storage: "fridge",
+											expiresOn: "2026-10-10",
+											expiryKind: "use-by",
+											expirySource: "estimated",
+										}),
+										createLot({
+											id: "6b1d4f0e-0a0e-4c85-9a3f-444444444444",
+											quantity: 3,
+											expiresOn: "2026-10-20",
+											expiryKind: "best-before",
+											expirySource: "entered",
+										}),
+									],
+								},
+							]),
+						)
+					}
+				/>,
+			);
+
+			const lots = within(
+				await screen.findByRole("list", { name: "卵のロット" }),
+			);
+
+			expect(lots.getByText("消費期限 約 10/10")).toBeInTheDocument();
+			expect(lots.getByText("冷蔵")).toBeInTheDocument();
+			expect(lots.getByText("賞味期限 10/20")).toBeInTheDocument();
+		});
+
+		it("ロットの期限を直すと、入力として保存する", async () => {
+			const user = userEvent.setup();
+			const updateInventoryLot = vi.fn().mockResolvedValue({
+				inventoryItemId: eggItem.inventoryItemId,
+				quantity: 5,
+				lots: eggItem.lots,
+				defaultExpiryKind: null,
+				defaultStorage: null,
+			});
+
+			render(
+				<InventoryList
+					ownerScope="user:user-id"
+					loadInventoryItems={() =>
+						Promise.resolve(createNetworkResult([eggItem]))
+					}
+					updateInventoryLot={updateInventoryLot}
+				/>,
+			);
+
+			await user.click(
+				await screen.findByRole("button", {
+					name: "10/1に追加のロットの期限を編集",
+				}),
+			);
+			await user.click(
+				screen.getByRole("button", { name: "期限を明日にする" }),
+			);
+			await user.selectOptions(screen.getByLabelText("期限の種類"), "use-by");
+			await user.click(screen.getByLabelText(/この食材の初期値にする/u));
+			await user.click(screen.getByRole("button", { name: "保存" }));
+
+			await waitFor(() =>
+				expect(updateInventoryLot).toHaveBeenCalledWith({
+					lotId: "6b1d4f0e-0a0e-4c85-9a3f-111111111111",
+					expiresOn: addDays(toDateString(new Date()), 1),
+					expirySource: "entered",
+					expiryKind: "use-by",
+					storage: null,
+					saveAsIngredientDefault: true,
+				}),
+			);
 		});
 	});
 });

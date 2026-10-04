@@ -706,6 +706,7 @@ export function createDrizzleInventoryRepository(
 					{
 						expiresOn: command.expiresOn,
 						expiryKind: command.expiryKind,
+						expirySource: command.expirySource,
 						storage: command.storage,
 					},
 					toDateString(new Date()),

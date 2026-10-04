@@ -1,7 +1,10 @@
+import { ExpiryEstimateSetting } from "#/features/inventory/components/expiry-estimate-setting";
 import {
 	ExpiryFields,
 	type ExpiryFieldsValue,
+	emptyExpiryFields,
 } from "#/features/inventory/components/expiry-fields";
+import type { ExpiryEstimateLevel } from "#/features/inventory/domain/estimate-lot-expiry";
 import type { ShoppingItem } from "../domain/shopping-item";
 import * as styles from "./purchase-expiry-review.css";
 
@@ -11,15 +14,11 @@ type PurchaseExpiryReviewProps = {
 	values: Record<string, ExpiryFieldsValue>;
 	onChangeValue: (itemId: string, value: ExpiryFieldsValue) => void;
 	today: string;
+	estimateLevel: ExpiryEstimateLevel;
+	onChangeEstimateLevel: (level: ExpiryEstimateLevel) => void;
 	isConfirming: boolean;
 	onConfirm: () => void;
 	onCancel: () => void;
-};
-
-const emptyValue: ExpiryFieldsValue = {
-	expiresOn: "",
-	expiryKind: "",
-	storage: "",
 };
 
 // 購入確定の前に、買った食材の、期限と保存方法を、まとめて入れる（すべて任意。入れずに、そのまま確定できる）。
@@ -28,6 +27,8 @@ export function PurchaseExpiryReview({
 	values,
 	onChangeValue,
 	today,
+	estimateLevel,
+	onChangeEstimateLevel,
 	isConfirming,
 	onConfirm,
 	onCancel,
@@ -40,6 +41,11 @@ export function PurchaseExpiryReview({
 				入力は、任意です。入れなくても、そのまま購入確定できます（あとから、在庫の画面で入れられます）。
 			</p>
 
+			<ExpiryEstimateSetting
+				level={estimateLevel}
+				onChange={onChangeEstimateLevel}
+			/>
+
 			<ul className={styles.list}>
 				{items.map((item) => (
 					<li className={styles.item} key={item.id}>
@@ -47,7 +53,7 @@ export function PurchaseExpiryReview({
 
 						<ExpiryFields
 							idPrefix={`purchase-${item.id}`}
-							value={values[item.id] ?? emptyValue}
+							value={values[item.id] ?? emptyExpiryFields}
 							onChange={(value) => onChangeValue(item.id, value)}
 							today={today}
 							disabled={isConfirming}

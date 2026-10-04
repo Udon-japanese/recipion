@@ -57,3 +57,9 @@ export const quickButton = style({
 		},
 	},
 });
+
+export const estimateNote = style({
+	margin: 0,
+	color: "var(--color-text-muted)",
+	fontSize: 13,
+});

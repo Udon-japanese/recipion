@@ -1,7 +1,13 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { addDays, toDateString } from "../domain/inventory-lot";
 import { InventoryRegistrationForm } from "./inventory-registration-form";
+
+afterEach(() => {
+	// 覚えた期限（過去の入力）が、テストの間で残らないようにする。
+	localStorage.clear();
+});
 
 describe("InventoryRegistrationForm", () => {
 	it("カタログにある食材は、単位と管理方法を自動で入れ、数量つきで登録する", async () => {
@@ -164,5 +170,162 @@ describe("InventoryRegistrationForm", () => {
 		expect(screen.getByRole("combobox", { name: "在庫の単位" })).toHaveValue(
 			"ml",
 		);
+	});
+
+	describe("期限の目安", () => {
+		const today = toDateString(new Date());
+
+		it("目安を付けられる食材は、日付を自動で入れ、「約」の注意を出し、出所を目安として送る", async () => {
+			const user = userEvent.setup();
+			const registerInventoryItem = vi.fn().mockResolvedValue({});
+
+			render(
+				<InventoryRegistrationForm
+					registerInventoryItem={registerInventoryItem}
+					onRegistered={() => {}}
+				/>,
+			);
+
+			await user.type(screen.getByLabelText("食材名"), "冷凍ブロッコリー");
+
+			// 冷凍野菜：90日（短め）
+			expect(screen.getByLabelText("期限")).toHaveValue(addDays(today, 90));
+			expect(screen.getByLabelText("期限の種類")).toHaveValue("best-before");
+			expect(screen.getByText(/目安の日付（約）です/u)).toBeInTheDocument();
+
+			await user.click(screen.getByRole("button", { name: "在庫に追加" }));
+
+			await waitFor(() =>
+				expect(registerInventoryItem).toHaveBeenCalledWith(
+					expect.objectContaining({
+						lot: {
+							expiresOn: addDays(today, 90),
+							expirySource: "estimated",
+							expiryKind: "best-before",
+						},
+					}),
+				),
+			);
+		});
+
+		it("日付を直すと、目安ではなく、入力として送る", async () => {
+			const user = userEvent.setup();
+			const registerInventoryItem = vi.fn().mockResolvedValue({});
+
+			render(
+				<InventoryRegistrationForm
+					registerInventoryItem={registerInventoryItem}
+					onRegistered={() => {}}
+				/>,
+			);
+
+			await user.type(screen.getByLabelText("食材名"), "冷凍ブロッコリー");
+			await user.click(
+				screen.getByRole("button", { name: "期限を明日にする" }),
+			);
+
+			expect(screen.queryByText(/目安の日付（約）です/u)).toBeNull();
+
+			await user.click(screen.getByRole("button", { name: "在庫に追加" }));
+
+			await waitFor(() =>
+				expect(registerInventoryItem).toHaveBeenCalledWith(
+					expect.objectContaining({
+						lot: expect.objectContaining({
+							expiresOn: addDays(today, 1),
+							expirySource: "entered",
+						}),
+					}),
+				),
+			);
+		});
+
+		it("「オフ」では、日付を自動で入れない（期限の種類の初期値は入れる）", async () => {
+			const user = userEvent.setup();
+
+			render(
+				<InventoryRegistrationForm
+					registerInventoryItem={vi.fn()}
+					onRegistered={() => {}}
+					expiryEstimateLevel="off"
+				/>,
+			);
+
+			await user.type(screen.getByLabelText("食材名"), "冷凍ブロッコリー");
+
+			expect(screen.getByLabelText("期限")).toHaveValue("");
+			expect(screen.getByLabelText("期限の種類")).toHaveValue("best-before");
+		});
+
+		it("傷みやすい食材は、「確実なものだけ」では日付を入れない。入力した日数は、次回の目安に使う", async () => {
+			const user = userEvent.setup();
+			const registerInventoryItem = vi.fn().mockResolvedValue({});
+
+			render(
+				<InventoryRegistrationForm
+					registerInventoryItem={registerInventoryItem}
+					onRegistered={() => {}}
+				/>,
+			);
+
+			await user.type(screen.getByLabelText("食材名"), "鶏もも肉");
+
+			expect(screen.getByLabelText("期限")).toHaveValue("");
+			expect(screen.getByLabelText("期限の種類")).toHaveValue("use-by");
+
+			// 買ってから3日後の期限を入力して、登録する
+			await user.click(
+				screen.getByRole("button", { name: "期限を+3日にする" }),
+			);
+			await user.click(screen.getByRole("button", { name: "在庫に追加" }));
+			await waitFor(() => expect(registerInventoryItem).toHaveBeenCalled());
+
+			// もう一度、同じ食材：覚えた3日で、目安が入る
+			await user.type(screen.getByLabelText("食材名"), "鶏もも肉");
+
+			await waitFor(() =>
+				expect(screen.getByLabelText("期限")).toHaveValue(addDays(today, 3)),
+			);
+			expect(screen.getByText(/目安の日付（約）です/u)).toBeInTheDocument();
+		});
+
+		it("ユーザーが期限の欄を触ったら、食材名を変えても、上書きしない", async () => {
+			const user = userEvent.setup();
+
+			render(
+				<InventoryRegistrationForm
+					registerInventoryItem={vi.fn()}
+					onRegistered={() => {}}
+				/>,
+			);
+
+			await user.type(screen.getByLabelText("食材名"), "冷凍ブロッコリー");
+			await user.click(
+				screen.getByRole("button", { name: "期限を明日にする" }),
+			);
+			await user.clear(screen.getByLabelText("食材名"));
+			await user.type(screen.getByLabelText("食材名"), "冷凍コーン");
+
+			expect(screen.getByLabelText("期限")).toHaveValue(addDays(today, 1));
+		});
+
+		it("ユーザーが決めた期限の種類を、初期値にする", async () => {
+			const user = userEvent.setup();
+
+			render(
+				<InventoryRegistrationForm
+					registerInventoryItem={vi.fn()}
+					onRegistered={() => {}}
+					lookupIngredientDefaults={() => ({
+						expiryKind: "best-before",
+						storage: null,
+					})}
+				/>,
+			);
+
+			await user.type(screen.getByLabelText("食材名"), "鶏もも肉");
+
+			expect(screen.getByLabelText("期限の種類")).toHaveValue("best-before");
+		});
 	});
 });

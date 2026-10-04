@@ -18,10 +18,18 @@ import {
 	emptyExpiryFields,
 	toLotInput,
 } from "#/features/inventory/components/expiry-fields";
+import { buildExpiryPrefill } from "#/features/inventory/domain/build-expiry-prefill";
+import type { ExpiryEstimateLevel } from "#/features/inventory/domain/estimate-lot-expiry";
 import {
 	type InventoryLotInput,
 	toDateString,
 } from "#/features/inventory/domain/inventory-lot";
+import { useExpiryEstimateLevel } from "#/features/inventory/hooks/use-expiry-estimate-level";
+import { useIngredientExpiryDefaults } from "#/features/inventory/hooks/use-ingredient-expiry-defaults";
+import {
+	getLearnedRemainingDays,
+	recordExpiryHint,
+} from "#/features/inventory/infrastructure/expiry-hints-storage";
 import { QuantityInput } from "#/features/quantity/components/quantity-input";
 import { formatQuantity } from "#/features/quantity/domain/format-quantity";
 import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
@@ -176,6 +184,9 @@ export function ShoppingList({
 	// 在庫換算の設定などで、購入確定をやり直すときに、入力済みの期限を使い回す。
 	const pendingLotsRef = useRef<Record<string, InventoryLotInput>>({});
 	const today = useMemo(() => toDateString(new Date()), []);
+	const [expiryEstimateLevel, setExpiryEstimateLevel] =
+		useExpiryEstimateLevel();
+	const lookupIngredientDefaults = useIngredientExpiryDefaults(ownerScope);
 
 	const presets = getShoppingItemPresets(name);
 	const checkedItemCount = items.filter(
@@ -295,6 +306,39 @@ export function ShoppingList({
 		}
 	}
 
+	// 期限の確認画面の、1商品分の初期値（目安の自動入力。設定がオフなら、種類の初期値だけ）。
+	function buildPrefillFor(
+		item: ShoppingItem,
+		level: ExpiryEstimateLevel,
+	): ExpiryFieldsValue {
+		return buildExpiryPrefill({
+			ingredientName: item.name,
+			acquiredOn: today,
+			level,
+			learnedRemainingDays: getLearnedRemainingDays(item.name),
+			userDefaults: lookupIngredientDefaults(item.name),
+		});
+	}
+
+	// 目安の設定を変えたとき、ユーザーが日付を入力していない商品だけ、目安を入れ直す。
+	function handleChangeEstimateLevel(level: ExpiryEstimateLevel) {
+		setExpiryEstimateLevel(level);
+		setExpiryValues((current) =>
+			Object.fromEntries(
+				checkedTrackedItems.map((item) => {
+					const currentValue = current[item.id];
+
+					return [
+						item.id,
+						currentValue?.expirySource === "entered"
+							? currentValue
+							: buildPrefillFor(item, level),
+					];
+				}),
+			),
+		);
+	}
+
 	// 「チェック済みを購入確定」：在庫に入る商品があれば、先に、期限の確認画面を出す。なければ、そのまま確定する。
 	function handleRequestPurchase() {
 		if (!ownerScope) {
@@ -310,6 +354,16 @@ export function ShoppingList({
 			return;
 		}
 
+		// 開くたびに、目安を入れる。入力済みの値（前に開いたときに入れたもの）は、残す。
+		setExpiryValues((current) => ({
+			...Object.fromEntries(
+				checkedTrackedItems.map((item) => [
+					item.id,
+					buildPrefillFor(item, expiryEstimateLevel),
+				]),
+			),
+			...current,
+		}));
 		setIsReviewingExpiry(true);
 	}
 
@@ -322,6 +376,18 @@ export function ShoppingList({
 
 			if (Object.keys(lot).length > 0) {
 				lotsByItemId[item.id] = lot;
+			}
+
+			// 入力した期限（目安ではないもの）は、次の目安のために、覚える。
+			const value = expiryValues[item.id];
+
+			if (value?.expirySource === "entered" && value.expiresOn !== "") {
+				recordExpiryHint({
+					ingredientName: item.name,
+					acquiredOn: today,
+					expiresOn: value.expiresOn,
+					storage: value.storage === "" ? null : value.storage,
+				});
 			}
 		}
 
@@ -757,6 +823,8 @@ export function ShoppingList({
 						setExpiryValues((current) => ({ ...current, [itemId]: value }))
 					}
 					today={today}
+					estimateLevel={expiryEstimateLevel}
+					onChangeEstimateLevel={handleChangeEstimateLevel}
 					isConfirming={isConfirmingPurchase}
 					onConfirm={handleConfirmWithExpiry}
 					onCancel={() => setIsReviewingExpiry(false)}

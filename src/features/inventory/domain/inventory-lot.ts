@@ -224,6 +224,14 @@ export function addDays(value: string, days: number): string {
 	return date.toISOString().slice(0, 10);
 }
 
+// 2つの日付（YYYY-MM-DD）の間の日数（to − from）。
+export function daysBetween(from: string, to: string): number {
+	const fromTime = new Date(`${from}T00:00:00.000Z`).getTime();
+	const toTime = new Date(`${to}T00:00:00.000Z`).getTime();
+
+	return Math.round((toTime - fromTime) / 86_400_000);
+}
+
 /**
  * ロットの条件の入力を、既定値で補って、確定した条件にする。
  * - 買った日は、省略すると今日。

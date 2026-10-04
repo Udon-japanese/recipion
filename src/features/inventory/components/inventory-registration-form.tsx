@@ -1,4 +1,4 @@
-import { type SubmitEvent, useMemo, useState } from "react";
+import { type SubmitEvent, useEffect, useMemo, useState } from "react";
 import { IngredientNameInput } from "#/features/ingredients/components/ingredient-name-input";
 import {
 	findIngredientCatalogEntry,
@@ -12,8 +12,17 @@ import {
 	type RegisterInventoryItemInput,
 } from "../application/register-inventory-item";
 import type { InventoryTrackingMode } from "../domain/apply-inventory-adjustment";
+import {
+	buildExpiryPrefill,
+	type IngredientExpiryDefaults,
+} from "../domain/build-expiry-prefill";
+import type { ExpiryEstimateLevel } from "../domain/estimate-lot-expiry";
 import { toDateString } from "../domain/inventory-lot";
 import type { InventoryUnitCode } from "../domain/inventory-unit";
+import {
+	getLearnedRemainingDays,
+	recordExpiryHint,
+} from "../infrastructure/expiry-hints-storage";
 import {
 	ExpiryFields,
 	type ExpiryFieldsValue,
@@ -27,6 +36,12 @@ type InventoryRegistrationFormProps = {
 		input: RegisterInventoryItemInput,
 	) => Promise<unknown>;
 	onRegistered: () => void;
+	// 期限の目安の自動入力のレベル（省略は「確実なものだけ」）。
+	expiryEstimateLevel?: ExpiryEstimateLevel;
+	// ユーザーが決めた、食材の期限の種類・保存方法（初期値として使う）。
+	lookupIngredientDefaults?: (
+		ingredientName: string,
+	) => IngredientExpiryDefaults | null;
 };
 
 const stockUnitLabels: Record<InventoryUnitCode, string> = {
@@ -39,6 +54,8 @@ const stockUnitLabels: Record<InventoryUnitCode, string> = {
 export function InventoryRegistrationForm({
 	registerInventoryItem,
 	onRegistered,
+	expiryEstimateLevel = "reliable",
+	lookupIngredientDefaults,
 }: InventoryRegistrationFormProps) {
 	const [ingredientName, setIngredientName] = useState("");
 	const [stockUnitCode, setStockUnitCode] = useState<InventoryUnitCode>("g");
@@ -46,6 +63,8 @@ export function InventoryRegistrationForm({
 		useState<InventoryTrackingMode>("estimated");
 	const [initialQuantity, setInitialQuantity] = useState("");
 	const [expiry, setExpiry] = useState<ExpiryFieldsValue>(emptyExpiryFields);
+	// ユーザーが期限の欄を触ったら、食材名を変えても、目安で上書きしない。
+	const [isExpiryTouched, setIsExpiryTouched] = useState(false);
 	const [presets, setPresets] = useState<readonly IngredientPurchasePreset[]>(
 		[],
 	);
@@ -54,6 +73,26 @@ export function InventoryRegistrationForm({
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+	// 食材名・目安の設定が変わったとき、期限の欄（触っていなければ）に、目安を入れ直す。
+	// biome-ignore lint/correctness/useExhaustiveDependencies: 食材名と設定が変わったときだけ、入れ直す。
+	useEffect(() => {
+		if (isExpiryTouched) {
+			return;
+		}
+
+		setExpiry(
+			ingredientName.trim() === ""
+				? emptyExpiryFields
+				: buildExpiryPrefill({
+						ingredientName,
+						acquiredOn: today,
+						level: expiryEstimateLevel,
+						learnedRemainingDays: getLearnedRemainingDays(ingredientName),
+						userDefaults: lookupIngredientDefaults?.(ingredientName) ?? null,
+					}),
+		);
+	}, [ingredientName, expiryEstimateLevel, lookupIngredientDefaults, today]);
 
 	function handleNameChange(value: string) {
 		setIngredientName(value);
@@ -132,7 +171,18 @@ export function InventoryRegistrationForm({
 			);
 			setIngredientName("");
 			setInitialQuantity("");
+			// 入力した期限（目安ではないもの）は、次の目安のために、覚える。
+			if (expiry.expirySource === "entered" && expiry.expiresOn !== "") {
+				recordExpiryHint({
+					ingredientName: input.ingredientName,
+					acquiredOn: today,
+					expiresOn: expiry.expiresOn,
+					storage: expiry.storage === "" ? null : expiry.storage,
+				});
+			}
+
 			setExpiry(emptyExpiryFields);
+			setIsExpiryTouched(false);
 			setPresets([]);
 			onRegistered();
 		} catch {
@@ -232,7 +282,10 @@ export function InventoryRegistrationForm({
 			<ExpiryFields
 				idPrefix="inventory-registration"
 				value={expiry}
-				onChange={setExpiry}
+				onChange={(value) => {
+					setExpiry(value);
+					setIsExpiryTouched(true);
+				}}
 				today={today}
 				disabled={isSubmitting}
 			/>

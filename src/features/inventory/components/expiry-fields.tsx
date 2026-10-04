@@ -1,23 +1,17 @@
+import {
+	type ExpiryFieldsValue,
+	emptyExpiryFields,
+} from "../domain/build-expiry-prefill";
 import { expiryKindLabels, storageLabels } from "../domain/expiry-labels";
 import {
 	addDays,
 	type InventoryExpiryKind,
+	type InventoryExpirySource,
 	type InventoryStorage,
 } from "../domain/inventory-lot";
 import * as styles from "./expiry-fields.css";
 
-export type ExpiryFieldsValue = {
-	// 期限の日付（YYYY-MM-DD）。空文字は、入力なし。
-	expiresOn: string;
-	expiryKind: InventoryExpiryKind | "";
-	storage: InventoryStorage | "";
-};
-
-export const emptyExpiryFields: ExpiryFieldsValue = {
-	expiresOn: "",
-	expiryKind: "",
-	storage: "",
-};
+export { emptyExpiryFields, type ExpiryFieldsValue };
 
 type ExpiryFieldsProps = {
 	// 項目の ID の接頭辞（同じ画面に複数あるときに、重ならないようにする）。
@@ -37,6 +31,7 @@ const quickOptions = [
 ] as const;
 
 // 期限（日付・消費/賞味）と、保存方法の入力欄。すべて任意。
+// 日付をユーザーが入れる（クイック入力を含む）と、出所は「入力」になる。自動の目安は、「約」と示す。
 export function ExpiryFields({
 	idPrefix,
 	value,
@@ -44,6 +39,14 @@ export function ExpiryFields({
 	today,
 	disabled,
 }: ExpiryFieldsProps) {
+	function setDate(expiresOn: string) {
+		onChange({
+			...value,
+			expiresOn,
+			expirySource: expiresOn === "" ? "" : "entered",
+		});
+	}
+
 	return (
 		<div className={styles.container}>
 			<div className={styles.row}>
@@ -57,9 +60,7 @@ export function ExpiryFields({
 						type="date"
 						value={value.expiresOn}
 						disabled={disabled}
-						onChange={(event) =>
-							onChange({ ...value, expiresOn: event.target.value })
-						}
+						onChange={(event) => setDate(event.target.value)}
 					/>
 				</div>
 
@@ -113,6 +114,12 @@ export function ExpiryFields({
 				</div>
 			</div>
 
+			{value.expirySource === "estimated" && value.expiresOn !== "" ? (
+				<p className={styles.estimateNote}>
+					目安の日付（約）です。パックや袋の表示がある場合は、その日付を入れてください。
+				</p>
+			) : null}
+
 			<div className={styles.quickButtons}>
 				{quickOptions.map((option) => (
 					<button
@@ -121,9 +128,7 @@ export function ExpiryFields({
 						key={option.label}
 						disabled={disabled}
 						aria-label={`期限を${option.label}にする`}
-						onClick={() =>
-							onChange({ ...value, expiresOn: addDays(today, option.days) })
-						}
+						onClick={() => setDate(addDays(today, option.days))}
 					>
 						{option.label}
 					</button>
@@ -134,7 +139,7 @@ export function ExpiryFields({
 						className={styles.quickButton}
 						type="button"
 						disabled={disabled}
-						onClick={() => onChange({ ...value, expiresOn: "" })}
+						onClick={() => setDate("")}
 					>
 						期限を消す
 					</button>
@@ -148,11 +153,22 @@ export function ExpiryFields({
 export function toLotInput(value: ExpiryFieldsValue): {
 	expiresOn?: string;
 	expiryKind?: InventoryExpiryKind;
+	expirySource?: InventoryExpirySource;
 	storage?: InventoryStorage;
 } {
 	return {
-		...(value.expiresOn !== "" ? { expiresOn: value.expiresOn } : {}),
-		...(value.expiryKind !== "" ? { expiryKind: value.expiryKind } : {}),
+		...(value.expiresOn !== ""
+			? {
+					expiresOn: value.expiresOn,
+					expirySource:
+						value.expirySource === "" ? "entered" : value.expirySource,
+				}
+			: {}),
+		// 日付がないときの期限の種類は、「なし」だけが意味を持つ（種類だけを送っても、保存されない）。
+		...(value.expiryKind !== "" &&
+		(value.expiresOn !== "" || value.expiryKind === "none")
+			? { expiryKind: value.expiryKind }
+			: {}),
 		...(value.storage !== "" ? { storage: value.storage } : {}),
 	};
 }

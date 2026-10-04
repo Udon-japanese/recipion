@@ -1,5 +1,6 @@
 import type {
 	InventoryExpiryKind,
+	InventoryExpirySource,
 	InventoryLot,
 	InventoryStorage,
 } from "../domain/inventory-lot";
@@ -8,6 +9,8 @@ export type UpdateInventoryLotCommand = {
 	lotId: string;
 	// 期限の日付（YYYY-MM-DD）。null は、期限を消す。出所は、日付があれば「入力」になる。
 	expiresOn: string | null;
+	// 日付の出所。省略は「入力」（日付があるとき）。自動の目安を、そのまま保存するときは、estimated。
+	expirySource?: InventoryExpirySource | null;
 	expiryKind: InventoryExpiryKind | null;
 	storage: InventoryStorage | null;
 	// true のとき、この期限の種類と保存方法を、食材の初期値にも保存する。
