@@ -1,6 +1,8 @@
 import { type SubmitEvent, useState } from "react";
 import * as v from "valibot";
 
+import { findIngredientCatalogEntry } from "#/features/ingredients/domain/ingredient-catalog";
+
 import type {
 	ShoppingItem,
 	ShoppingItemInventoryConversion,
@@ -54,8 +56,16 @@ export function ShoppingItemInventoryConversionForm({
 }: ShoppingItemInventoryConversionFormProps) {
 	const presets = getShoppingItemPresets(item.name);
 
+	// 数量プリセットのある食材は、在庫の単位が決まっている（在庫の登録がカタログの単位に固定するため、
+	// ここで別の単位を選ぶと、数量が狂う）。
+	const catalogEntry = findIngredientCatalogEntry(item.name);
+	const lockedStockUnitCode =
+		catalogEntry && (catalogEntry.presets?.length ?? 0) > 0
+			? catalogEntry.stockUnitCode
+			: null;
+
 	const [stockUnitCode, setStockUnitCode] = useState<"count" | "g" | "ml">(
-		"count",
+		lockedStockUnitCode ?? "count",
 	);
 
 	const [stockUnitLabel, setStockUnitLabel] = useState(
@@ -66,7 +76,9 @@ export function ShoppingItemInventoryConversionForm({
 		useState("1");
 
 	const [trackingMode, setTrackingMode] = useState<"exact" | "estimated">(
-		"estimated",
+		catalogEntry && lockedStockUnitCode
+			? catalogEntry.defaultTrackingMode
+			: "estimated",
 	);
 
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -160,6 +172,7 @@ export function ShoppingItemInventoryConversionForm({
 					<select
 						className={styles.input}
 						value={stockUnitCode}
+						disabled={lockedStockUnitCode !== null}
 						onChange={(event) =>
 							handleStockUnitChange(event.target.value as "count" | "g" | "ml")
 						}
@@ -169,6 +182,12 @@ export function ShoppingItemInventoryConversionForm({
 						<option value="ml">ミリリットル</option>
 					</select>
 				</label>
+
+				{lockedStockUnitCode !== null ? (
+					<p className={styles.formula}>
+						{item.name}の在庫の単位は、決まっています（変更できません）。
+					</p>
+				) : null}
 
 				<label className={styles.field}>
 					<span className={styles.label}>
