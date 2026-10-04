@@ -1,9 +1,10 @@
 import * as v from "valibot";
 
 import {
-	findIngredientPreset,
-	type IngredientPreset,
-} from "#/features/ingredients/domain/ingredient-preset";
+	findIngredientCatalogEntry,
+	getDefaultStockUnitLabel,
+	type IngredientCatalogEntry,
+} from "#/features/ingredients/domain/ingredient-catalog";
 import {
 	formatIngredientName,
 	normalizeIngredientName,
@@ -42,14 +43,24 @@ export type IngredientRegistration = {
 	defaultTrackingMode: "exact" | "estimated";
 };
 
-function createFromPreset(preset: IngredientPreset): IngredientRegistration {
-	const primaryNormalizedName = normalizeIngredientName(preset.name);
+// カタログにある食材は、名前と別名をカタログに揃える（「しょうゆ」と「醤油」を、同じ食材にする）。
+// 在庫の単位と管理方法は、買うときの数量プリセットがある食材（卵・牛乳など）だけ、カタログに固定する。
+// 換算のプリセットと在庫の単位がずれると、数量が狂うため。それ以外は、入力された単位に従う。
+function createFromCatalogEntry(
+	entry: IngredientCatalogEntry,
+	input: {
+		stockUnitCode: InventoryUnitCode;
+		stockUnitLabel: string;
+		trackingMode: "exact" | "estimated";
+	},
+): IngredientRegistration {
+	const primaryNormalizedName = normalizeIngredientName(entry.name);
 	const aliasesByNormalizedName = new Map<
 		string,
 		IngredientAliasRegistration
 	>();
 
-	for (const alias of [preset.name, ...preset.aliases]) {
+	for (const alias of [entry.name, ...entry.aliases]) {
 		const formattedName = formatIngredientName(alias);
 		const normalizedName = normalizeIngredientName(formattedName);
 
@@ -62,12 +73,20 @@ function createFromPreset(preset: IngredientPreset): IngredientRegistration {
 		}
 	}
 
+	const isUnitFixed = (entry.presets?.length ?? 0) > 0;
+
 	return {
-		name: formatIngredientName(preset.name),
-		stockUnitCode: v.parse(inventoryUnitCodeSchema, preset.stockUnitCode),
-		stockUnitLabel: preset.stockUnitLabel,
+		name: formatIngredientName(entry.name),
+		stockUnitCode: isUnitFixed
+			? v.parse(inventoryUnitCodeSchema, entry.stockUnitCode)
+			: input.stockUnitCode,
+		stockUnitLabel: isUnitFixed
+			? getDefaultStockUnitLabel(entry.stockUnitCode)
+			: input.stockUnitLabel,
 		aliases: [...aliasesByNormalizedName.values()],
-		defaultTrackingMode: preset.defaultTrackingMode,
+		defaultTrackingMode: isUnitFixed
+			? entry.defaultTrackingMode
+			: input.trackingMode,
 	};
 }
 
@@ -75,10 +94,10 @@ export function createIngredientRegistration(
 	input: CreateIngredientRegistrationInput,
 ): IngredientRegistration {
 	const parsedInput = v.parse(inputSchema, input);
-	const preset = findIngredientPreset(parsedInput.ingredientName);
+	const catalogEntry = findIngredientCatalogEntry(parsedInput.ingredientName);
 
-	if (preset) {
-		return createFromPreset(preset);
+	if (catalogEntry) {
+		return createFromCatalogEntry(catalogEntry, parsedInput);
 	}
 
 	const name = formatIngredientName(parsedInput.ingredientName);
