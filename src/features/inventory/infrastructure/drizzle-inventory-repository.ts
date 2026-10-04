@@ -16,6 +16,10 @@ import type {
 	InventoryItemResolver,
 	ResolveOrCreateInventoryItemCommand,
 } from "../application/inventory-item-resolver";
+import type {
+	InventoryLotRepository,
+	UpdateInventoryLotCommand,
+} from "../application/inventory-lot-repository";
 import type { InventoryQueryRepository } from "../application/inventory-query-repository";
 import {
 	applyInventoryAdjustment,
@@ -29,6 +33,7 @@ import {
 	type InventoryExpirySource,
 	type InventoryLot,
 	type InventoryStorage,
+	resolveLotConditions,
 	sortLotsForConsumption,
 	sumLotQuantities,
 	toDateString,
@@ -133,6 +138,7 @@ export function createDrizzleInventoryRepository(
 	userId: string,
 ): InventoryAdjustmentRepository &
 	InventoryItemResolver &
+	InventoryLotRepository &
 	InventoryQueryRepository {
 	if (userId.trim().length === 0) {
 		throw new Error("ユーザーIDを指定してください");
@@ -147,6 +153,8 @@ export function createDrizzleInventoryRepository(
 					name: ingredient.name,
 					stockUnitCode: ingredient.stockUnitCode,
 					stockUnitLabel: ingredient.stockUnitLabel,
+					defaultExpiryKind: ingredient.defaultExpiryKind,
+					defaultStorage: ingredient.defaultStorage,
 					trackingMode: inventoryItem.trackingMode,
 					updatedAt: inventoryItem.updatedAt,
 				})
@@ -213,6 +221,16 @@ export function createDrizzleInventoryRepository(
 					stockUnitCode: parseInventoryUnitCode(row.stockUnitCode),
 					stockUnitLabel: row.stockUnitLabel,
 					trackingMode: parseTrackingMode(row.trackingMode),
+					defaultExpiryKind: parseOptionalValue<InventoryExpiryKind>(
+						row.defaultExpiryKind,
+						["use-by", "best-before", "none"],
+						"期限の種類",
+					),
+					defaultStorage: parseOptionalValue<InventoryStorage>(
+						row.defaultStorage,
+						["room", "fridge", "freezer"],
+						"保存方法",
+					),
 					updatedAt: updatedAt.toISOString(),
 				};
 			});
@@ -555,13 +573,10 @@ export function createDrizzleInventoryRepository(
 
 				if (command.operation === "increase") {
 					// 追加：同じ条件のロットがあれば合体、なければ新しいロット。
-					const conditions = {
-						acquiredOn: toDateString(new Date()),
-						storage: null,
-						expiresOn: null,
-						expiryKind: null,
-						expirySource: null,
-					};
+					const conditions = resolveLotConditions(
+						command.lot,
+						toDateString(new Date()),
+					);
 
 					let target = findMergeableLot(allLots, conditions);
 
@@ -573,6 +588,10 @@ export function createDrizzleInventoryRepository(
 								inventoryItemId: command.inventoryItemId,
 								quantity: toNumeric(0),
 								acquiredOn: conditions.acquiredOn,
+								storage: conditions.storage,
+								expiresOn: conditions.expiresOn,
+								expiryKind: conditions.expiryKind,
+								expirySource: conditions.expirySource,
 							})
 							.returning();
 
@@ -637,6 +656,123 @@ export function createDrizzleInventoryRepository(
 					transactionId: command.transactionId,
 					quantity: sumLotQuantities(lots),
 					lots,
+				};
+			});
+		},
+
+		async updateLot(command: UpdateInventoryLotCommand) {
+			return db.transaction(async (transaction) => {
+				const [storedLot] = await transaction
+					.select({
+						id: inventoryLot.id,
+						inventoryItemId: inventoryLot.inventoryItemId,
+						ingredientId: inventoryItem.ingredientId,
+					})
+					.from(inventoryLot)
+					.innerJoin(
+						inventoryItem,
+						and(
+							eq(inventoryItem.id, inventoryLot.inventoryItemId),
+							eq(inventoryItem.userId, inventoryLot.userId),
+						),
+					)
+					.where(
+						and(
+							eq(inventoryLot.id, command.lotId),
+							eq(inventoryLot.userId, userId),
+						),
+					)
+					.limit(1);
+
+				if (!storedLot) {
+					throw new Error("ロットが見つかりません");
+				}
+
+				// 食材の行をロックして、加減算と直列にする。
+				await transaction
+					.select({ id: inventoryItem.id })
+					.from(inventoryItem)
+					.where(
+						and(
+							eq(inventoryItem.id, storedLot.inventoryItemId),
+							eq(inventoryItem.userId, userId),
+						),
+					)
+					.for("update")
+					.limit(1);
+
+				// 期限の日付がなければ、出所もなし。種類は、「なし」の指定だけを残す（resolveLotConditions と同じ規則）。
+				const conditions = resolveLotConditions(
+					{
+						expiresOn: command.expiresOn,
+						expiryKind: command.expiryKind,
+						storage: command.storage,
+					},
+					toDateString(new Date()),
+				);
+
+				await transaction
+					.update(inventoryLot)
+					.set({
+						storage: conditions.storage,
+						expiresOn: conditions.expiresOn,
+						expiryKind: conditions.expiryKind,
+						expirySource: conditions.expirySource,
+					})
+					.where(
+						and(
+							eq(inventoryLot.id, command.lotId),
+							eq(inventoryLot.userId, userId),
+						),
+					);
+
+				if (command.saveAsIngredientDefault) {
+					await transaction
+						.update(ingredient)
+						.set({
+							defaultExpiryKind: command.expiryKind,
+							defaultStorage: command.storage,
+						})
+						.where(
+							and(
+								eq(ingredient.id, storedLot.ingredientId),
+								eq(ingredient.userId, userId),
+							),
+						);
+				}
+
+				const [storedIngredient] = await transaction
+					.select({
+						defaultExpiryKind: ingredient.defaultExpiryKind,
+						defaultStorage: ingredient.defaultStorage,
+					})
+					.from(ingredient)
+					.where(
+						and(
+							eq(ingredient.id, storedLot.ingredientId),
+							eq(ingredient.userId, userId),
+						),
+					)
+					.limit(1);
+
+				const lots = toStockedLots(
+					await loadLots(transaction, userId, storedLot.inventoryItemId),
+				);
+
+				return {
+					inventoryItemId: storedLot.inventoryItemId,
+					quantity: sumLotQuantities(lots),
+					lots,
+					defaultExpiryKind: parseOptionalValue<InventoryExpiryKind>(
+						storedIngredient?.defaultExpiryKind ?? null,
+						["use-by", "best-before", "none"],
+						"期限の種類",
+					),
+					defaultStorage: parseOptionalValue<InventoryStorage>(
+						storedIngredient?.defaultStorage ?? null,
+						["room", "fridge", "freezer"],
+						"保存方法",
+					),
 				};
 			});
 		},

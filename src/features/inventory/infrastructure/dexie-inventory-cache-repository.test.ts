@@ -28,6 +28,8 @@ const egg: InventoryListItem = {
 	stockUnitCode: "count",
 	stockUnitLabel: "個",
 	trackingMode: "exact",
+	defaultExpiryKind: null,
+	defaultStorage: null,
 	updatedAt: "2026-09-23T00:00:00.000Z",
 };
 

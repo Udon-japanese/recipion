@@ -57,6 +57,13 @@
       "when": 1791107682324,
       "tag": "0007_inventory_lots",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791108589839,
+      "tag": "0008_drop_item_quantity_add_ingredient_defaults",
+      "breakpoints": true
     }
   ]
 }

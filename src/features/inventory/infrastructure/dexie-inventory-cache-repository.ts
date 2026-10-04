@@ -43,6 +43,12 @@ export function createDexieInventoryCacheRepository(
 									...item,
 									quantity: stock.quantity,
 									lots: [...stock.lots],
+									...(stock.defaultExpiryKind !== undefined
+										? { defaultExpiryKind: stock.defaultExpiryKind }
+										: {}),
+									...(stock.defaultStorage !== undefined
+										? { defaultStorage: stock.defaultStorage }
+										: {}),
 									updatedAt: now.toISOString(),
 								}
 							: item,

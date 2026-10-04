@@ -25,12 +25,6 @@ export const inventoryItem = pgTable(
 				onDelete: "cascade",
 			}),
 		ingredientId: uuid("ingredient_id").notNull(),
-		quantity: numeric("quantity", {
-			precision: 18,
-			scale: 6,
-		})
-			.default("0")
-			.notNull(),
 		trackingMode: text("tracking_mode").default("estimated").notNull(),
 		createdAt: timestamp("created_at", {
 			withTimezone: true,
@@ -59,7 +53,6 @@ export const inventoryItem = pgTable(
 			table.ingredientId,
 		),
 		index("inventory_item_user_id_idx").on(table.userId),
-		check("inventory_item_quantity_nonnegative", sql`${table.quantity} >= 0`),
 		check(
 			"inventory_item_tracking_mode_valid",
 			sql`${table.trackingMode} in ('exact', 'estimated')`,
@@ -67,8 +60,7 @@ export const inventoryItem = pgTable(
 	],
 );
 
-// 在庫のロット（買った・追加した単位）。食材の数量は、ロットの数量の合計で、inventory_item.quantity は使わない
-// （移行前の値が残っているだけ。あとのマイグレーションで削除する）。
+// 在庫のロット（買った・追加した単位）。食材の数量は、ロットの数量の合計（保存せず、足し算で出す）。
 export const inventoryLot = pgTable(
 	"inventory_lot",
 	{
