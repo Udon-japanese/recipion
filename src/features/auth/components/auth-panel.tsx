@@ -1,88 +1,156 @@
-import { type SubmitEvent, useState } from "react";
+import { type SubmitEvent, useEffect, useRef, useState } from "react";
 import * as v from "valibot";
-
+import {
+	OTP_EXPIRES_IN_SECONDS,
+	OTP_LENGTH,
+	OTP_RESEND_COOLDOWN_SECONDS,
+} from "#/config/auth";
+import { getTurnstileSiteKey } from "#/config/turnstile";
 import { authClient } from "#/integrations/better-auth/auth-client";
+import { getAuthErrorMessage } from "#/integrations/better-auth/auth-error-message";
 import { useAppSession } from "#/integrations/better-auth/use-app-session";
 import * as styles from "./auth-panel.css";
+import { OtpInput } from "./otp-input";
+import { createEmptyDigits, isComplete, joinDigits } from "./otp-input-logic";
+import { TurnstileWidget } from "./turnstile-widget";
 
-const signInInputSchema = v.object({
-	email: v.pipe(
-		v.string(),
-		v.trim(),
-		v.email("メールアドレスを確認してください"),
-	),
-	password: v.pipe(
-		v.string(),
-		v.minLength(8, "パスワードは8文字以上にしてください"),
-	),
-});
+const emailSchema = v.pipe(
+	v.string(),
+	v.trim(),
+	v.email("メールアドレスを確認してください"),
+);
 
-const signUpInputSchema = v.object({
-	...signInInputSchema.entries,
-	name: v.pipe(v.string(), v.trim(), v.minLength(1, "名前を入力してください")),
-});
+type Step = "email" | "code";
 
-type AuthMode = "sign-in" | "sign-up";
+const captchaPendingMessage =
+	"ボットの判定が完了していません。少し待ってから、お試しください。";
 
-function getErrorMessage(error: unknown): string {
-	if (v.isValiError(error)) {
-		return error.issues[0]?.message ?? "入力内容を確認してください";
-	}
-
-	if (error instanceof Error) {
-		return error.message;
-	}
-
-	return "認証処理に失敗しました";
-}
-
+// パスワードは使わない。メールに届く 6 桁のコードだけでログインする（初めての人は、自動でアカウントが作られる）。
 export function AuthPanel() {
 	const { data: session, isPending, refetch } = useAppSession();
 
-	const [mode, setMode] = useState<AuthMode>("sign-in");
-	const [name, setName] = useState("");
+	const turnstileSiteKey = getTurnstileSiteKey(import.meta.env.DEV);
+
+	const [step, setStep] = useState<Step>("email");
 	const [email, setEmail] = useState("");
-	const [password, setPassword] = useState("");
+	const [digits, setDigits] = useState(() => createEmptyDigits(OTP_LENGTH));
+	const [otpFocusKey, setOtpFocusKey] = useState(0);
+	const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+	const [captchaResetKey, setCaptchaResetKey] = useState(0);
+	const [captchaLoadFailed, setCaptchaLoadFailed] = useState(false);
+	const [cooldown, setCooldown] = useState(0);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
+	const [notice, setNotice] = useState<string | null>(null);
 
-	async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
-		event.preventDefault();
+	// 自動送信（6 桁が揃ったとき）と、ボタンの二重の送信を防ぐ。
+	const isVerifyingRef = useRef(false);
+
+	useEffect(() => {
+		if (cooldown <= 0) return;
+
+		const timer = setTimeout(() => setCooldown((current) => current - 1), 1000);
+
+		return () => clearTimeout(timer);
+	}, [cooldown]);
+
+	function resetToEmailStep() {
+		setStep("email");
+		setDigits(createEmptyDigits(OTP_LENGTH));
+		setCooldown(0);
+		setNotice(null);
+	}
+
+	async function sendCode() {
+		setErrorMessage(null);
+
+		const parsedEmail = v.safeParse(emailSchema, email);
+
+		if (!parsedEmail.success) {
+			setErrorMessage(
+				parsedEmail.issues[0]?.message ?? "メールアドレスを確認してください",
+			);
+
+			return;
+		}
+
+		if (!captchaToken) {
+			setErrorMessage(captchaPendingMessage);
+
+			return;
+		}
+
+		setIsSubmitting(true);
+
+		try {
+			const result = await authClient.emailOtp.sendVerificationOtp(
+				{ email: parsedEmail.output, type: "sign-in" },
+				{ headers: { "x-captcha-response": captchaToken } },
+			);
+
+			if (result.error) {
+				setErrorMessage(getAuthErrorMessage(result.error));
+
+				return;
+			}
+
+			setEmail(parsedEmail.output);
+			setStep("code");
+			setDigits(createEmptyDigits(OTP_LENGTH));
+			setCooldown(OTP_RESEND_COOLDOWN_SECONDS);
+			setOtpFocusKey((current) => current + 1);
+			setNotice(
+				`${parsedEmail.output} に${OTP_LENGTH}桁のコードを送りました（${Math.floor(OTP_EXPIRES_IN_SECONDS / 60)}分間有効）。届かないときは、迷惑メールのフォルダも確認してください。`,
+			);
+		} catch {
+			setErrorMessage(getAuthErrorMessage(null));
+		} finally {
+			setIsSubmitting(false);
+			// Turnstile のトークンは、1 回しか使えない。送信のたびに作り直す。
+			setCaptchaToken(null);
+			setCaptchaResetKey((current) => current + 1);
+		}
+	}
+
+	async function verifyCode(code: string) {
+		if (isVerifyingRef.current) return;
+
+		isVerifyingRef.current = true;
 		setErrorMessage(null);
 		setIsSubmitting(true);
 
 		try {
-			if (mode === "sign-up") {
-				const input = v.parse(signUpInputSchema, {
-					name,
-					email,
-					password,
-				});
+			const result = await authClient.signIn.emailOtp({ email, otp: code });
 
-				const result = await authClient.signUp.email(input);
+			if (result.error) {
+				setErrorMessage(getAuthErrorMessage(result.error));
+				setDigits(createEmptyDigits(OTP_LENGTH));
+				setOtpFocusKey((current) => current + 1);
 
-				if (result.error) {
-					throw new Error(result.error.message);
-				}
-			} else {
-				const input = v.parse(signInInputSchema, {
-					email,
-					password,
-				});
-
-				const result = await authClient.signIn.email(input);
-
-				if (result.error) {
-					throw new Error(result.error.message);
-				}
+				return;
 			}
 
-			setPassword("");
+			resetToEmailStep();
 			await refetch();
-		} catch (error) {
-			setErrorMessage(getErrorMessage(error));
+		} catch {
+			setErrorMessage(getAuthErrorMessage(null));
 		} finally {
+			isVerifyingRef.current = false;
 			setIsSubmitting(false);
+		}
+	}
+
+	function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
+		event.preventDefault();
+
+		if (step === "email") {
+			void sendCode();
+
+			return;
+		}
+
+		if (isComplete(digits)) {
+			void verifyCode(joinDigits(digits));
 		}
 	}
 
@@ -94,12 +162,15 @@ export function AuthPanel() {
 			const result = await authClient.signOut();
 
 			if (result.error) {
-				throw new Error(result.error.message);
+				setErrorMessage(getAuthErrorMessage(result.error));
+
+				return;
 			}
 
+			resetToEmailStep();
 			await refetch();
-		} catch (error) {
-			setErrorMessage(getErrorMessage(error));
+		} catch {
+			setErrorMessage(getAuthErrorMessage(null));
 		} finally {
 			setIsSubmitting(false);
 		}
@@ -142,79 +213,121 @@ export function AuthPanel() {
 		);
 	}
 
+	const canResend = cooldown === 0 && captchaToken !== null && !isSubmitting;
+
 	return (
 		<section className={styles.panel}>
-			<div className={styles.modeButtons}>
-				<button
-					className={styles.modeButton}
-					type="button"
-					aria-pressed={mode === "sign-in"}
-					onClick={() => setMode("sign-in")}
-				>
-					ログイン
-				</button>
+			{/* ブラウザの標準の検証は使わない（メールアドレスの検証と、日本語のメッセージは、こちらで行う）。 */}
+			<form className={styles.form} onSubmit={handleSubmit} noValidate>
+				{step === "email" ? (
+					<>
+						<p className={styles.notice}>
+							メールアドレスに、ログイン用の{OTP_LENGTH}
+							桁のコードを送ります。パスワードは不要です。初めての方は、自動でアカウントが作られます。
+						</p>
 
-				<button
-					className={styles.modeButton}
-					type="button"
-					aria-pressed={mode === "sign-up"}
-					onClick={() => setMode("sign-up")}
-				>
-					新規登録
-				</button>
-			</div>
+						<label className={styles.field}>
+							<span className={styles.label}>メールアドレス</span>
+							<input
+								className={styles.input}
+								name="email"
+								type="email"
+								inputMode="email"
+								value={email}
+								autoComplete="email"
+								onChange={(event) => setEmail(event.target.value)}
+							/>
+						</label>
 
-			<form className={styles.form} onSubmit={handleSubmit}>
-				{mode === "sign-up" ? (
-					<label className={styles.field}>
-						<span className={styles.label}>名前</span>
-						<input
-							className={styles.input}
-							name="name"
-							value={name}
-							autoComplete="name"
-							onChange={(event) => setName(event.target.value)}
+						<button
+							className={styles.primaryButton}
+							type="submit"
+							disabled={
+								isSubmitting ||
+								email.trim() === "" ||
+								turnstileSiteKey === "" ||
+								captchaToken === null
+							}
+						>
+							{isSubmitting ? "送信中…" : "コードを送る"}
+						</button>
+					</>
+				) : (
+					<>
+						{notice ? <p className={styles.notice}>{notice}</p> : null}
+
+						<div className={styles.field}>
+							<span className={styles.label}>
+								ログイン用コード（{OTP_LENGTH}桁）
+							</span>
+							<OtpInput
+								digits={digits}
+								onChange={setDigits}
+								onComplete={(code) => void verifyCode(code)}
+								label={`ログイン用コード（${OTP_LENGTH}桁）`}
+								disabled={isSubmitting}
+								invalid={errorMessage !== null}
+								autoFocus
+								focusRequestKey={otpFocusKey}
+							/>
+						</div>
+
+						<button
+							className={styles.primaryButton}
+							type="submit"
+							disabled={isSubmitting || !isComplete(digits)}
+						>
+							{isSubmitting ? "確認中…" : "ログインする"}
+						</button>
+
+						<div className={styles.actions}>
+							<button
+								className={styles.secondaryButton}
+								type="button"
+								disabled={!canResend}
+								onClick={() => void sendCode()}
+							>
+								{cooldown > 0
+									? `コードを再送（あと${cooldown}秒）`
+									: "コードを再送"}
+							</button>
+
+							<button
+								className={styles.secondaryButton}
+								type="button"
+								disabled={isSubmitting}
+								onClick={() => {
+									setErrorMessage(null);
+									resetToEmailStep();
+								}}
+							>
+								メールアドレスを変更
+							</button>
+						</div>
+					</>
+				)}
+
+				{turnstileSiteKey === "" ? (
+					<p className={styles.error} role="alert">
+						ボットの判定の設定が未完了のため、ログインできません。
+					</p>
+				) : (
+					<>
+						<TurnstileWidget
+							siteKey={turnstileSiteKey}
+							onToken={setCaptchaToken}
+							onLoadError={() => setCaptchaLoadFailed(true)}
+							resetKey={captchaResetKey}
 						/>
-					</label>
-				) : null}
-
-				<label className={styles.field}>
-					<span className={styles.label}>メールアドレス</span>
-					<input
-						className={styles.input}
-						name="email"
-						type="email"
-						value={email}
-						autoComplete="email"
-						onChange={(event) => setEmail(event.target.value)}
-					/>
-				</label>
-
-				<label className={styles.field}>
-					<span className={styles.label}>パスワード</span>
-					<input
-						className={styles.input}
-						name="password"
-						type="password"
-						value={password}
-						autoComplete={
-							mode === "sign-up" ? "new-password" : "current-password"
-						}
-						onChange={(event) => setPassword(event.target.value)}
-					/>
-				</label>
-
-				<button
-					className={styles.primaryButton}
-					type="submit"
-					disabled={isSubmitting}
-				>
-					{isSubmitting
-						? "処理中…"
-						: mode === "sign-up"
-							? "登録する"
-							: "ログインする"}
-				</button>
+						{captchaLoadFailed ? (
+							<p className={styles.error} role="alert">
+								ボットの判定を読み込めませんでした。広告ブロックなどを無効にして、ページを再読み込みしてください。
+							</p>
+						) : captchaToken === null ? (
+							<p className={styles.message}>ボットの判定を確認しています…</p>
+						) : null}
+					</>
+				)}
 
 				{errorMessage ? (
 					<p className={styles.error} role="alert">

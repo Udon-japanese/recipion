@@ -6,36 +6,6 @@ export const panel = style({
 	paddingTop: 24,
 });
 
-export const modeButtons = style({
-	display: "flex",
-	gap: 8,
-	marginBottom: 16,
-});
-
-export const modeButton = style({
-	minHeight: 40,
-	paddingInline: 14,
-	color: "var(--color-text)",
-	background: "var(--color-surface)",
-	border: "1px solid var(--color-border)",
-	borderRadius: 8,
-	font: "inherit",
-	cursor: "pointer",
-
-	selectors: {
-		"&[aria-pressed='true']": {
-			color: "var(--color-primary-text)",
-			background: "var(--color-primary)",
-			borderColor: "var(--color-primary)",
-		},
-
-		"&:focus-visible": {
-			outline: "3px solid var(--color-primary-soft)",
-			outlineOffset: 2,
-		},
-	},
-});
-
 export const form = style({
 	display: "grid",
 	gap: 12,
@@ -140,5 +110,16 @@ export const message = style({
 export const error = style({
 	margin: 0,
 	color: "#a23030",
+	fontSize: 14,
+});
+
+export const actions = style({
+	display: "flex",
+	flexWrap: "wrap",
+	gap: 8,
+});
+
+export const notice = style({
+	color: "var(--color-text)",
 	fontSize: 14,
 });
