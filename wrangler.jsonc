@@ -1,11 +1,18 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "recipion",
-	// 本番の URL は workers.dev（https://recipion.uj-yos.workers.dev）。
-	"workers_dev": true,
+	// 本番の URL は、カスタムドメイン https://recipion.app（Cloudflare Registrar で取得、同じアカウントのゾーン）。
+	// `wrangler deploy` が、DNS レコードと証明書を自動で作る。
+	"routes": [{ "pattern": "recipion.app", "custom_domain": true }],
+	// 旧 URL（https://recipion.uj-yos.workers.dev）は使わない（引き継ぐデータも、アクセスした人もいない）。
+	// workers.dev のホスト名は、公開された証明書の記録などから見つけられて bot に狙われやすく、
+	// ゾーン（recipion.app）の WAF やレート制限の保護も受けられない。
+	"workers_dev": false,
 	// バージョンごとのプレビュー URL は使わない。同じ本番の DB とシークレットに接続でき、
 	// BETTER_AUTH_URL が本番の URL に固定されているため、認証も正しく動かない。
 	"preview_urls": false,
+	// Workers Logs。bot のアクセスの量や、エラーを確認できるようにする。
+	"observability": { "enabled": true },
 	"compatibility_date": "2025-09-02",
 	"compatibility_flags": ["nodejs_compat"],
 	"main": "@tanstack/react-start/server-entry",
