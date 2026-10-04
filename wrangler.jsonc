@@ -13,6 +13,32 @@
 	"preview_urls": false,
 	// Workers Logs。bot のアクセスの量や、エラーを確認できるようにする。
 	"observability": { "enabled": true },
+	"vars": {
+		// ログイン用コードのメールの差出人。ドメイン recipion.app は、Resend で認証済み。
+		"AUTH_EMAIL_FROM": "れしぴょん <login@recipion.app>"
+	},
+	// ログイン用コードの送信と検証のレート制限（auth-rate-limit.ts）。period は 10 か 60 秒のみ。
+	// 場所ごとに数える、結果整合の制限なので、正規のユーザーが不便にならない範囲に、やや緩めに設定している。
+	"ratelimits": [
+		// 同じメールアドレス宛ての送信（メール爆撃の防止）。再送の待ち時間は 60 秒なので、打ち間違いの分だけ余裕を持たせる。
+		{
+			"name": "AUTH_SEND_EMAIL_LIMITER",
+			"namespace_id": "1001",
+			"simple": { "limit": 3, "period": 60 }
+		},
+		// 同じ IP からの送信（宛先を変えた連続送信の防止）。同じネットワークの複数人が使う場合を考えた余裕。
+		{
+			"name": "AUTH_SEND_IP_LIMITER",
+			"namespace_id": "1002",
+			"simple": { "limit": 6, "period": 60 }
+		},
+		// 同じ IP からのコードの検証（総当たりの防止）。コード自体にも、試行回数の上限がある。
+		{
+			"name": "AUTH_VERIFY_IP_LIMITER",
+			"namespace_id": "1003",
+			"simple": { "limit": 15, "period": 60 }
+		}
+	],
 	"compatibility_date": "2025-09-02",
 	"compatibility_flags": ["nodejs_compat"],
 	"main": "@tanstack/react-start/server-entry",
