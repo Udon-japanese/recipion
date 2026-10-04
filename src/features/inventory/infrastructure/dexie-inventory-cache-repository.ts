@@ -11,7 +11,20 @@ export function createDexieInventoryCacheRepository(
 ): InventoryCacheRepository {
 	return {
 		async find(ownerScope: InventoryCacheOwnerScope) {
-			return database.inventorySnapshots.get(ownerScope);
+			const snapshot = await database.inventorySnapshots.get(ownerScope);
+
+			if (!snapshot) {
+				return undefined;
+			}
+
+			// ロットを持たない、古い保存データは、ロットなしとして読む。
+			return {
+				...snapshot,
+				items: snapshot.items.map((item) => ({
+					...item,
+					lots: item.lots ?? [],
+				})),
+			};
 		},
 
 		async save(ownerScope, items, now = new Date()) {
@@ -26,12 +39,7 @@ export function createDexieInventoryCacheRepository(
 			return snapshot;
 		},
 
-		async updateQuantity(
-			ownerScope,
-			inventoryItemId,
-			quantity,
-			now = new Date(),
-		) {
+		async updateStock(ownerScope, inventoryItemId, stock, now = new Date()) {
 			await database.transaction(
 				"rw",
 				database.inventorySnapshots,
@@ -46,7 +54,8 @@ export function createDexieInventoryCacheRepository(
 						item.inventoryItemId === inventoryItemId
 							? {
 									...item,
-									quantity,
+									quantity: stock.quantity,
+									lots: [...stock.lots],
 									updatedAt: now.toISOString(),
 								}
 							: item,

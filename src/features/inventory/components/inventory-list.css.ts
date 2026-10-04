@@ -201,3 +201,34 @@ export const quantity = style({
 	color: "var(--color-text)",
 	fontWeight: 700,
 });
+
+export const lotList = style({
+	display: "grid",
+	gap: 4,
+	margin: 0,
+	paddingBlock: 0,
+	paddingInline: 12,
+	listStyle: "none",
+	borderLeft: "2px solid var(--color-border)",
+});
+
+export const lot = style({
+	display: "flex",
+	justifyContent: "space-between",
+	gap: 12,
+	color: "var(--color-text-muted)",
+	fontSize: 14,
+});
+
+export const lotSpecification = style({
+	display: "grid",
+	gap: 8,
+});
+
+export const lotSpecificationToggle = style({
+	display: "flex",
+	alignItems: "center",
+	gap: 8,
+	color: "var(--color-text)",
+	fontSize: 14,
+});

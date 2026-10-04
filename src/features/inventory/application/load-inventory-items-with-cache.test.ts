@@ -12,6 +12,7 @@ const egg: InventoryListItem = {
 	ingredientId: "ingredient-id",
 	name: "卵",
 	quantity: 6,
+	lots: [],
 	stockUnitCode: "count",
 	stockUnitLabel: "個",
 	trackingMode: "exact",
@@ -28,7 +29,7 @@ function createCacheRepository(
 			items: [...items],
 			cachedAt: (now ?? new Date()).toISOString(),
 		})),
-		updateQuantity: vi.fn().mockResolvedValue(undefined),
+		updateStock: vi.fn().mockResolvedValue(undefined),
 	};
 }
 

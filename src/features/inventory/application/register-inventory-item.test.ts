@@ -20,6 +20,7 @@ function createDependencies(currentQuantity = 0) {
 		status: "applied" as const,
 		transactionId,
 		quantity: 500,
+		lots: [],
 	}));
 
 	return {

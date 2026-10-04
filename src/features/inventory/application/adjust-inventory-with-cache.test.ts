@@ -2,6 +2,19 @@ import { describe, expect, it, vi } from "vitest";
 import { adjustInventoryWithCache } from "./adjust-inventory-with-cache";
 import type { InventoryCacheRepository } from "./inventory-cache-repository";
 
+const lots = [
+	{
+		id: "lot-1",
+		quantity: 8,
+		acquiredOn: "2026-09-23",
+		storage: null,
+		expiresOn: null,
+		expiryKind: null,
+		expirySource: null,
+		createdAt: "2026-09-23T00:00:00.000Z",
+	},
+];
+
 const command = {
 	transactionId: "71af9bc7-03ed-4df4-a783-a45e743a81f7",
 	inventoryItemId: "1fc94e80-a9cf-4458-b0e6-3d72550cce06",
@@ -16,7 +29,7 @@ function createCacheRepository(): InventoryCacheRepository {
 	return {
 		find: vi.fn(),
 		save: vi.fn(),
-		updateQuantity: vi.fn().mockResolvedValue(undefined),
+		updateStock: vi.fn().mockResolvedValue(undefined),
 	};
 }
 
@@ -29,6 +42,7 @@ describe("adjustInventoryWithCache", () => {
 			status: "applied",
 			transactionId: command.transactionId,
 			quantity: 8,
+			lots,
 		});
 
 		const result = await adjustInventoryWithCache(
@@ -39,10 +53,10 @@ describe("adjustInventoryWithCache", () => {
 			now,
 		);
 
-		expect(cacheRepository.updateQuantity).toHaveBeenCalledWith(
+		expect(cacheRepository.updateStock).toHaveBeenCalledWith(
 			"user:user-id",
 			command.inventoryItemId,
-			8,
+			{ quantity: 8, lots },
 			now,
 		);
 
@@ -61,13 +75,13 @@ describe("adjustInventoryWithCache", () => {
 			),
 		).rejects.toThrow("failed");
 
-		expect(cacheRepository.updateQuantity).not.toHaveBeenCalled();
+		expect(cacheRepository.updateStock).not.toHaveBeenCalled();
 	});
 
 	it("キャッシュ更新だけ失敗しても調整結果を返す", async () => {
 		const cacheRepository = createCacheRepository();
 
-		vi.mocked(cacheRepository.updateQuantity).mockRejectedValue(
+		vi.mocked(cacheRepository.updateStock).mockRejectedValue(
 			new Error("cache failed"),
 		);
 
@@ -78,6 +92,7 @@ describe("adjustInventoryWithCache", () => {
 				status: "applied",
 				transactionId: command.transactionId,
 				quantity: 8,
+				lots,
 			}),
 			cacheRepository,
 		);

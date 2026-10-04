@@ -27,6 +27,13 @@ const quantityFormatter = new Intl.NumberFormat("ja-JP", {
 	maximumFractionDigits: 6,
 });
 
+// 「2026-10-01」を「10/1」と表示する。
+function formatAcquiredOn(acquiredOn: string): string {
+	const [, month, day] = acquiredOn.split("-");
+
+	return `${Number(month)}/${Number(day)}`;
+}
+
 export function InventoryList({
 	ownerScope,
 	loadInventoryItems,
@@ -38,6 +45,11 @@ export function InventoryList({
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [adjustingItemId, setAdjustingItemId] = useState<string | null>(null);
 	const [adjustmentQuantity, setAdjustmentQuantity] = useState("1");
+	// 減らすとき、ロットごとに数量を指定するか（複数のロットがあるときだけ選べる）。
+	const [isLotSpecified, setIsLotSpecified] = useState(false);
+	const [lotQuantities, setLotQuantities] = useState<Record<string, string>>(
+		{},
+	);
 	const [isAdjusting, setIsAdjusting] = useState(false);
 	const [itemsSource, setItemsSource] = useState<"network" | "cache">(
 		"network",
@@ -78,6 +90,8 @@ export function InventoryList({
 	function handleCancelAdjustment() {
 		setAdjustingItemId(null);
 		setAdjustmentQuantity("1");
+		setIsLotSpecified(false);
+		setLotQuantities({});
 	}
 
 	async function handleAdjustment(
@@ -92,11 +106,33 @@ export function InventoryList({
 		setIsAdjusting(true);
 
 		try {
+			// ロットを指定して減らすときは、数量が入っているロットだけを、そのまま送る。
+			const allocations =
+				operation === "decrease" && isLotSpecified
+					? item.lots.flatMap((lot) => {
+							const quantity = Number(lotQuantities[lot.id] ?? "0");
+
+							return quantity > 0 ? [{ lotId: lot.id, quantity }] : [];
+						})
+					: undefined;
+
+			if (allocations && allocations.length === 0) {
+				setErrorMessage("減らすロットの数量を入力してください");
+
+				return;
+			}
+
 			const command = createManualInventoryAdjustment({
 				inventoryItemId: item.inventoryItemId,
-				quantity: Number(adjustmentQuantity),
+				quantity: allocations
+					? allocations.reduce(
+							(sum, allocation) => sum + allocation.quantity,
+							0,
+						)
+					: Number(adjustmentQuantity),
 				stockUnitCode: item.stockUnitCode,
 				operation,
+				allocations,
 			});
 
 			const result = await adjustInventoryItem(command);
@@ -107,6 +143,7 @@ export function InventoryList({
 						? {
 								...currentItem,
 								quantity: result.quantity,
+								lots: result.lots,
 							}
 						: currentItem,
 				),
@@ -212,6 +249,24 @@ export function InventoryList({
 								) : null}
 							</div>
 
+							{item.lots.length > 0 ? (
+								<ul
+									className={styles.lotList}
+									aria-label={`${item.name}のロット`}
+								>
+									{item.lots.map((lot) => (
+										<li className={styles.lot} key={lot.id}>
+											<span>{formatAcquiredOn(lot.acquiredOn)}に追加</span>
+											<span>
+												{item.trackingMode === "estimated" ? "約 " : ""}
+												{quantityFormatter.format(lot.quantity)}
+												{item.stockUnitLabel}
+											</span>
+										</li>
+									))}
+								</ul>
+							) : null}
+
 							{adjustingItemId === item.inventoryItemId ? (
 								<div className={styles.adjustmentForm}>
 									<label className={styles.adjustmentField}>
@@ -235,6 +290,51 @@ export function InventoryList({
 											<span>{item.stockUnitLabel}</span>
 										</span>
 									</label>
+
+									{item.lots.length > 1 ? (
+										<div className={styles.lotSpecification}>
+											<label className={styles.lotSpecificationToggle}>
+												<input
+													type="checkbox"
+													checked={isLotSpecified}
+													onChange={(event) =>
+														setIsLotSpecified(event.target.checked)
+													}
+												/>
+												ロットを指定して減らす
+											</label>
+
+											{isLotSpecified
+												? item.lots.map((lot) => (
+														<label
+															className={styles.adjustmentField}
+															key={lot.id}
+														>
+															<span className={styles.adjustmentLabel}>
+																{formatAcquiredOn(lot.acquiredOn)}に追加（
+																{quantityFormatter.format(lot.quantity)}
+																{item.stockUnitLabel}）
+															</span>
+															<input
+																className={styles.input}
+																aria-label={`${formatAcquiredOn(lot.acquiredOn)}に追加のロットから減らす数量`}
+																type="number"
+																inputMode="decimal"
+																min="0"
+																step="any"
+																value={lotQuantities[lot.id] ?? ""}
+																onChange={(event) =>
+																	setLotQuantities((current) => ({
+																		...current,
+																		[lot.id]: event.target.value,
+																	}))
+																}
+															/>
+														</label>
+													))
+												: null}
+										</div>
+									) : null}
 
 									<div className={styles.adjustmentActions}>
 										<button

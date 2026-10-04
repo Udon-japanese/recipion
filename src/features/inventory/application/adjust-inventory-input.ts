@@ -24,10 +24,28 @@ export const adjustInventoryInputSchema = v.object({
 	reason: v.picklist(["purchase", "recipe-consumption", "manual-adjustment"]),
 	sourceType: v.optional(v.picklist(["shopping-item", "recipe"])),
 	sourceId: v.optional(requiredTextSchema),
+	allocations: v.optional(
+		v.pipe(
+			v.array(
+				v.object({
+					lotId: v.pipe(v.string(), v.uuid("ロットIDが不正です")),
+					quantity: positiveQuantitySchema,
+				}),
+			),
+			v.minLength(1, "ロットを指定してください"),
+		),
+	),
 });
 
 export function parseAdjustInventoryInput(
 	input: unknown,
 ): InventoryAdjustmentCommand {
-	return v.parse(adjustInventoryInputSchema, input);
+	const command = v.parse(adjustInventoryInputSchema, input);
+
+	// ロットの指定は、減らすときだけ。
+	if (command.allocations && command.operation !== "decrease") {
+		throw new Error("ロットを指定できるのは、減らすときだけです");
+	}
+
+	return command;
 }

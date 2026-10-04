@@ -24,6 +24,7 @@ const egg: InventoryListItem = {
 	ingredientId: "ingredient-id",
 	name: "卵",
 	quantity: 6,
+	lots: [],
 	stockUnitCode: "count",
 	stockUnitLabel: "個",
 	trackingMode: "exact",
@@ -96,16 +97,26 @@ describe("dexieInventoryCacheRepository", () => {
 		);
 	});
 
-	it("保存済み在庫の数量を更新する", async () => {
+	it("保存済み在庫の数量とロットを更新する", async () => {
 		const { repository } = createTestContext();
 		const now = new Date("2026-09-23T15:00:00.000Z");
+		const lot = {
+			id: "lot-1",
+			quantity: 10,
+			acquiredOn: "2026-09-23",
+			storage: null,
+			expiresOn: null,
+			expiryKind: null,
+			expirySource: null,
+			createdAt: "2026-09-23T00:00:00.000Z",
+		} as const;
 
 		await repository.save("user:user-id", [egg]);
 
-		await repository.updateQuantity(
+		await repository.updateStock(
 			"user:user-id",
 			egg.inventoryItemId,
-			10,
+			{ quantity: 10, lots: [lot] },
 			now,
 		);
 
@@ -116,10 +127,26 @@ describe("dexieInventoryCacheRepository", () => {
 					expect.objectContaining({
 						inventoryItemId: egg.inventoryItemId,
 						quantity: 10,
+						lots: [lot],
 						updatedAt: "2026-09-23T15:00:00.000Z",
 					}),
 				],
 			}),
 		);
+	});
+
+	it("ロットを持たない、古い保存データは、ロットなしとして読む", async () => {
+		const { database, repository } = createTestContext();
+		const { lots: _lots, ...legacyItem } = egg;
+
+		await database.inventorySnapshots.put({
+			ownerScope: "user:user-id",
+			items: [legacyItem as InventoryListItem],
+			cachedAt: "2026-09-23T12:00:00.000Z",
+		});
+
+		const snapshot = await repository.find("user:user-id");
+
+		expect(snapshot?.items[0]?.lots).toEqual([]);
 	});
 });
