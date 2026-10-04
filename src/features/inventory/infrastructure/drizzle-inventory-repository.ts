@@ -224,6 +224,7 @@ export function createDrizzleInventoryRepository(
 					.select({
 						id: inventoryItem.id,
 						trackingMode: inventoryItem.trackingMode,
+						quantity: inventoryItem.quantity,
 					})
 					.from(inventoryItem)
 					.where(
@@ -259,6 +260,7 @@ export function createDrizzleInventoryRepository(
 						.returning({
 							id: inventoryItem.id,
 							trackingMode: inventoryItem.trackingMode,
+							quantity: inventoryItem.quantity,
 						});
 				}
 
@@ -273,6 +275,7 @@ export function createDrizzleInventoryRepository(
 					stockUnitCode: parseInventoryUnitCode(storedIngredient.stockUnitCode),
 					stockUnitLabel: storedIngredient.stockUnitLabel,
 					trackingMode: parseTrackingMode(resolvedInventoryItem.trackingMode),
+					quantity: Number(resolvedInventoryItem.quantity),
 				};
 			});
 		},

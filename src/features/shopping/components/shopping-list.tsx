@@ -3,6 +3,7 @@ import { isSortable, useSortable } from "@dnd-kit/react/sortable";
 import clsx from "clsx";
 import { type ReactNode, type SubmitEvent, useEffect, useState } from "react";
 import * as v from "valibot";
+import { IngredientNameInput } from "#/features/ingredients/components/ingredient-name-input";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import type { SyncInventoryPurchaseOutboxResult } from "#/features/inventory/application/sync-inventory-purchase-outbox";
 import type { ShoppingRepository } from "../application/shopping-repository";
@@ -528,14 +529,13 @@ export function ShoppingList({
 						買うもの
 					</label>
 
-					<input
+					<IngredientNameInput
 						className={styles.input}
 						id="shopping-item-name"
 						name="name"
 						value={name}
-						onChange={(event) => handleNameChange(event.target.value)}
+						onChange={handleNameChange}
 						placeholder="卵、牛乳など"
-						autoComplete="off"
 					/>
 				</div>
 
@@ -738,14 +738,11 @@ export function ShoppingList({
 														商品名
 													</label>
 
-													<input
+													<IngredientNameInput
 														className={styles.input}
 														id={`edit-name-${item.id}`}
 														value={editName}
-														onChange={(event) =>
-															handleEditNameChange(event.target.value)
-														}
-														autoComplete="off"
+														onChange={handleEditNameChange}
 													/>
 												</div>
 

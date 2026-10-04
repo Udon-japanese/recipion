@@ -1,9 +1,6 @@
-import {
-	eggIngredientPreset,
-	hotcakeMixIngredientPreset,
-	milkIngredientPreset,
-} from "#/features/ingredients/domain/ingredient-preset";
+import { ingredientCatalogEntries } from "#/features/ingredients/domain/ingredient-catalog";
 import { normalizeIngredientName } from "#/features/ingredients/domain/normalize-ingredient-name";
+import { householdItemNames } from "./household-item-names";
 import type { ShoppingCategoryId } from "./shopping-category";
 import type { ShoppingItemInventoryConversion } from "./shopping-item";
 
@@ -42,110 +39,41 @@ export type ShoppingItemSuggestion = {
 	presets: readonly ShoppingItemPreset[];
 };
 
-export const shoppingItemSuggestions = [
+function uniqueByNormalizedName(names: readonly string[]): string[] {
+	const uniqueNames = new Map<string, string>();
+
+	for (const name of names) {
+		const normalizedName = normalizeIngredientName(name);
+
+		if (!uniqueNames.has(normalizedName)) {
+			uniqueNames.set(normalizedName, name);
+		}
+	}
+
+	return [...uniqueNames.values()];
+}
+
+// 買い物メモの候補（カテゴリの自動判定と、よく使う数量）。食材は、食材カタログから作る
+// （在庫の登録と同じデータ）。日用品だけは、カタログにない。
+export const shoppingItemSuggestions: readonly ShoppingItemSuggestion[] = [
+	...ingredientCatalogEntries.flatMap((entry) =>
+		entry.categoryId
+			? [
+					{
+						aliases: uniqueByNormalizedName([entry.name, ...entry.aliases]),
+						categoryId: entry.categoryId,
+						presets: entry.presets ?? [],
+					},
+				]
+			: [],
+	),
 	{
-		aliases: eggIngredientPreset.aliases,
-		categoryId: "eggs",
-		presets: [
-			{
-				label: "6個",
-				quantity: 6,
-				unitLabel: "個",
-				inventoryConversion: {
-					inputUnitCode: "count",
-					stockUnitCode: "count",
-					stockUnitLabel: "個",
-					stockQuantityPerInputUnit: 1,
-					trackingMode: "exact",
-				},
-			},
-			{
-				label: "10個",
-				quantity: 10,
-				unitLabel: "個",
-				inventoryConversion: {
-					inputUnitCode: "count",
-					stockUnitCode: "count",
-					stockUnitLabel: "個",
-					stockQuantityPerInputUnit: 1,
-					trackingMode: "exact",
-				},
-			},
-		],
+		// 食材ではない日用品。カテゴリの自動判定だけに使い、数量候補はない。
+		aliases: householdItemNames,
+		categoryId: "household",
+		presets: [],
 	},
-	{
-		aliases: milkIngredientPreset.aliases,
-		categoryId: "dairy",
-		presets: [
-			{
-				label: "200ml",
-				quantity: 200,
-				unitLabel: "ml",
-				inventoryConversion: {
-					inputUnitCode: "ml",
-					stockUnitCode: "ml",
-					stockUnitLabel: "ml",
-					stockQuantityPerInputUnit: 1,
-					trackingMode: "estimated",
-				},
-			},
-			{
-				label: "500ml",
-				quantity: 500,
-				unitLabel: "ml",
-				inventoryConversion: {
-					inputUnitCode: "ml",
-					stockUnitCode: "ml",
-					stockUnitLabel: "ml",
-					stockQuantityPerInputUnit: 1,
-					trackingMode: "estimated",
-				},
-			},
-			{
-				label: "1L",
-				quantity: 1,
-				unitLabel: "L",
-				inventoryConversion: {
-					inputUnitCode: "l",
-					stockUnitCode: "ml",
-					stockUnitLabel: "ml",
-					stockQuantityPerInputUnit: 1000,
-					trackingMode: "estimated",
-				},
-			},
-		],
-	},
-	{
-		aliases: hotcakeMixIngredientPreset.aliases,
-		categoryId: "snacks",
-		presets: [
-			{
-				label: "150g袋",
-				quantity: 1,
-				unitLabel: "袋",
-				inventoryConversion: {
-					inputUnitCode: "bag",
-					stockUnitCode: "g",
-					stockUnitLabel: "g",
-					stockQuantityPerInputUnit: 150,
-					trackingMode: "estimated",
-				},
-			},
-			{
-				label: "200g袋",
-				quantity: 1,
-				unitLabel: "袋",
-				inventoryConversion: {
-					inputUnitCode: "bag",
-					stockUnitCode: "g",
-					stockUnitLabel: "g",
-					stockQuantityPerInputUnit: 200,
-					trackingMode: "estimated",
-				},
-			},
-		],
-	},
-] satisfies readonly ShoppingItemSuggestion[];
+];
 
 function normalizeItemName(itemName: string): string {
 	// バリデーションエラーを回避

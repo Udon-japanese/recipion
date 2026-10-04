@@ -4,13 +4,16 @@ import { adjustInventoryWithCache } from "#/features/inventory/application/adjus
 import type { InventoryAdjustmentCommand } from "#/features/inventory/application/inventory-adjustment-repository";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import { loadInventoryItemsWithCache } from "#/features/inventory/application/load-inventory-items-with-cache";
+import type { RegisterInventoryItemInput } from "#/features/inventory/application/register-inventory-item";
 import { InventoryList } from "#/features/inventory/components/inventory-list";
+import { InventoryRegistrationForm } from "#/features/inventory/components/inventory-registration-form";
 import { PurchaseOutboxSync } from "#/features/inventory/components/purchase-outbox-sync";
 import { useOwnerScope } from "#/features/inventory/hooks/use-owner-scope";
 import { createDexieInventoryCacheRepository } from "#/features/inventory/infrastructure/dexie-inventory-cache-repository";
 import { syncDexieInventoryPurchaseOutbox } from "#/features/inventory/infrastructure/sync-dexie-inventory-purchase-outbox";
 import { adjustInventory as adjustInventoryServerFn } from "#/features/inventory/server/adjust-inventory";
 import { listInventoryItemsServerFn } from "#/features/inventory/server/list-inventory-items";
+import { registerInventoryItemServerFn } from "#/features/inventory/server/register-inventory-item";
 
 export const Route = createFileRoute("/inventory")({
 	component: InventoryPage,
@@ -65,12 +68,27 @@ function InventoryPage() {
 		[],
 	);
 
+	const registerInventoryItem = useCallback(
+		async (input: RegisterInventoryItemInput) =>
+			registerInventoryItemServerFn({ data: input }),
+		[],
+	);
+
 	return (
 		<>
 			<PurchaseOutboxSync
 				ownerScope={ownerScope}
 				syncPurchases={syncPurchases}
 			/>
+
+			{ownerScope !== null && ownerScope !== "guest" ? (
+				<InventoryRegistrationForm
+					registerInventoryItem={registerInventoryItem}
+					onRegistered={() =>
+						setInventoryRefreshKey((currentKey) => currentKey + 1)
+					}
+				/>
+			) : null}
 
 			<InventoryList
 				ownerScope={ownerScope}

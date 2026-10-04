@@ -1,7 +1,11 @@
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import { getLocalDatabase, type LocalDatabase } from "#/local-db/database";
 import { prepareShoppingItemPurchase } from "../application/prepare-shopping-item-purchase";
-import type { ShoppingItem } from "../domain/shopping-item";
+import {
+	isInventoryTrackedShoppingItem,
+	markShoppingItemAsPurchased,
+	type ShoppingItem,
+} from "../domain/shopping-item";
 
 export type ConfirmCheckedShoppingItemsPurchaseResult =
 	| {
@@ -37,7 +41,13 @@ export async function confirmCheckedShoppingItemsPurchase(
 				};
 			}
 
-			const itemsMissingConversion = checkedItems.filter(
+			// 日用品は、在庫に入れない（換算も求めず、購入済みにするだけ）。
+			const trackedItems = checkedItems.filter(isInventoryTrackedShoppingItem);
+			const untrackedItems = checkedItems.filter(
+				(item) => !isInventoryTrackedShoppingItem(item),
+			);
+
+			const itemsMissingConversion = trackedItems.filter(
 				(item) => item.inventoryConversion === null,
 			);
 
@@ -48,19 +58,22 @@ export async function confirmCheckedShoppingItemsPurchase(
 				};
 			}
 
-			const preparedPurchases = checkedItems.map((item) =>
+			const preparedPurchases = trackedItems.map((item) =>
 				prepareShoppingItemPurchase(item, ownerScope, now),
 			);
 
-			const purchasedItems = preparedPurchases.map(
-				(purchase) => purchase.purchasedItem,
-			);
+			const purchasedItems = [
+				...preparedPurchases.map((purchase) => purchase.purchasedItem),
+				...untrackedItems.map((item) => markShoppingItemAsPurchased(item, now)),
+			].sort((a, b) => a.sortOrder - b.sortOrder);
 
 			const outboxEntries = preparedPurchases.map(
 				(purchase) => purchase.outboxEntry,
 			);
 
-			await database.inventoryPurchaseOutbox.bulkAdd(outboxEntries);
+			if (outboxEntries.length > 0) {
+				await database.inventoryPurchaseOutbox.bulkAdd(outboxEntries);
+			}
 			await database.shoppingItems.bulkPut(purchasedItems);
 
 			return {

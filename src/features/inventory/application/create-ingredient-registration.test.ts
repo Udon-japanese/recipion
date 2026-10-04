@@ -84,12 +84,42 @@ describe("createIngredientRegistration", () => {
 
 	it("未知の食材では指定された管理方式を使う", () => {
 		const registration = createIngredientRegistration({
-			ingredientName: "ヨーグルト",
+			ingredientName: "ドラゴンフルーツ",
 			stockUnitCode: "g",
 			stockUnitLabel: "g",
 			trackingMode: "exact",
 		});
 
 		expect(registration.defaultTrackingMode).toBe("exact");
+	});
+
+	it("数量プリセットがある食材は、在庫の単位と管理方式をカタログに固定する", () => {
+		const registration = createIngredientRegistration({
+			ingredientName: "ヨーグルト",
+			stockUnitCode: "count",
+			stockUnitLabel: "個",
+			trackingMode: "exact",
+		});
+
+		expect(registration.stockUnitCode).toBe("g");
+		expect(registration.stockUnitLabel).toBe("g");
+		expect(registration.defaultTrackingMode).toBe("estimated");
+	});
+
+	it("プリセットのない食材は、名前と別名をカタログに揃え、単位は入力に従う", () => {
+		const registration = createIngredientRegistration({
+			ingredientName: "ニンニク",
+			stockUnitCode: "count",
+			stockUnitLabel: "玉",
+			trackingMode: "exact",
+		});
+
+		expect(registration.name).toBe("にんにく");
+		expect(registration.stockUnitCode).toBe("count");
+		expect(registration.stockUnitLabel).toBe("玉");
+		expect(registration.defaultTrackingMode).toBe("exact");
+		expect(registration.aliases.map((alias) => alias.name)).toEqual(
+			expect.arrayContaining(["にんにく", "ニンニク", "大蒜"]),
+		);
 	});
 });

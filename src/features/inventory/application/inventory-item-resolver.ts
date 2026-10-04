@@ -12,6 +12,8 @@ export type ResolvedInventoryItem = {
 	stockUnitCode: InventoryUnitCode;
 	stockUnitLabel: string;
 	trackingMode: InventoryTrackingMode;
+	// 解決した時点の在庫数量（新しく作ったときは 0）。
+	quantity: number;
 };
 
 export interface InventoryItemResolver {

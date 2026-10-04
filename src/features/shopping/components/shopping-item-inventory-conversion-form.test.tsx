@@ -87,4 +87,33 @@ describe("ShoppingItemInventoryConversionForm", () => {
 			},
 		});
 	});
+
+	it("数量プリセットのある食材は、在庫の単位をカタログに固定して、変更できない", () => {
+		render(
+			<ShoppingItemInventoryConversionForm
+				item={createItem({ name: "ヨーグルト", unitLabel: "パック" })}
+				onSave={vi.fn()}
+				onCancel={vi.fn()}
+			/>,
+		);
+
+		const select = screen.getByRole("combobox", { name: "在庫で使う単位" });
+
+		expect(select).toHaveValue("g");
+		expect(select).toBeDisabled();
+	});
+
+	it("カタログにない商品は、在庫の単位を選べる", () => {
+		render(
+			<ShoppingItemInventoryConversionForm
+				item={createItem()}
+				onSave={vi.fn()}
+				onCancel={vi.fn()}
+			/>,
+		);
+
+		expect(
+			screen.getByRole("combobox", { name: "在庫で使う単位" }),
+		).toBeEnabled();
+	});
 });
