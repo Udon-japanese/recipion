@@ -63,3 +63,15 @@ export const estimateNote = style({
 	color: "var(--color-text-muted)",
 	fontSize: 13,
 });
+
+export const labelRow = style({
+	display: "flex",
+	alignItems: "baseline",
+	gap: 8,
+});
+
+export const todayNote = style({
+	color: "var(--color-text-muted)",
+	fontSize: 11,
+	fontWeight: 400,
+});

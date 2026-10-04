@@ -5,6 +5,7 @@ import { ingredientExpiryById } from "./expiry";
 import { frozenVegetablesEntries } from "./frozen-vegetables";
 import { meatAndSeafoodEntries } from "./meat-and-seafood";
 import { powdersAndSpicesEntries } from "./powders-and-spices";
+import { ingredientReadingById } from "./readings";
 import { seasoningsEntries } from "./seasonings";
 import { soyAndProcessedEntries } from "./soy-and-processed";
 import { staplesEntries } from "./staples";
@@ -37,10 +38,15 @@ const entriesWithoutExpiry: readonly IngredientCatalogEntry[] = [
 	...seasoningsEntries,
 ];
 
-// 期限の目安を、食材に付ける（別のファイルで管理している）。
+// 期限の目安と読み仮名を、食材に付ける（別のファイルで管理している）。
 export const ingredientCatalogEntries: readonly IngredientCatalogEntry[] =
 	entriesWithoutExpiry.map((entry) => {
 		const expiry = ingredientExpiryById[entry.id];
+		const reading = ingredientReadingById[entry.id];
 
-		return expiry ? { ...entry, expiry } : entry;
+		return {
+			...entry,
+			...(expiry ? { expiry } : {}),
+			...(reading ? { reading } : {}),
+		};
 	});

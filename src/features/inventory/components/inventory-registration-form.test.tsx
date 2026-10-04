@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { formatDateWithWeekday } from "../domain/expiry-labels";
 import { addDays, toDateString } from "../domain/inventory-lot";
 import { InventoryRegistrationForm } from "./inventory-registration-form";
 
@@ -174,6 +175,19 @@ describe("InventoryRegistrationForm", () => {
 
 	describe("期限の目安", () => {
 		const today = toDateString(new Date());
+
+		it("期限の欄の横に、今日の日付（曜日つき）を、小さく表示する", () => {
+			render(
+				<InventoryRegistrationForm
+					registerInventoryItem={vi.fn()}
+					onRegistered={() => {}}
+				/>,
+			);
+
+			expect(
+				screen.getByText(`今日 ${formatDateWithWeekday(today)}`),
+			).toBeInTheDocument();
+		});
 
 		it("目安を付けられる食材は、日付を自動で入れ、「約」の注意を出し、出所を目安として送る", async () => {
 			const user = userEvent.setup();

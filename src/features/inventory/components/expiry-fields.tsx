@@ -2,7 +2,11 @@ import {
 	type ExpiryFieldsValue,
 	emptyExpiryFields,
 } from "../domain/build-expiry-prefill";
-import { expiryKindLabels, storageLabels } from "../domain/expiry-labels";
+import {
+	expiryKindLabels,
+	formatDateWithWeekday,
+	storageLabels,
+} from "../domain/expiry-labels";
 import {
 	addDays,
 	type InventoryExpiryKind,
@@ -51,9 +55,15 @@ export function ExpiryFields({
 		<div className={styles.container}>
 			<div className={styles.row}>
 				<div className={styles.field}>
-					<label className={styles.label} htmlFor={`${idPrefix}-expires-on`}>
-						期限
-					</label>
+					{/* 期限を入れるときに、今日が何日か、見えるようにする（小さく表示）。 */}
+					<div className={styles.labelRow}>
+						<label className={styles.label} htmlFor={`${idPrefix}-expires-on`}>
+							期限
+						</label>
+						<span className={styles.todayNote}>
+							今日 {formatDateWithWeekday(today)}
+						</span>
+					</div>
 					<input
 						className={styles.input}
 						id={`${idPrefix}-expires-on`}

@@ -6,6 +6,7 @@ import {
 	searchIngredientCatalog,
 } from "./ingredient-catalog";
 import { ingredientExpiryById } from "./ingredient-catalog-data/expiry";
+import { ingredientReadingById } from "./ingredient-catalog-data/readings";
 import { normalizeIngredientName } from "./normalize-ingredient-name";
 
 describe("食材のカタログのデータ", () => {
@@ -210,5 +211,42 @@ describe("期限の目安のデータ", () => {
 		);
 
 		expect(orphaned).toEqual([]);
+	});
+});
+
+describe("読み仮名", () => {
+	it("すべての食材に、ひらがなだけの読み仮名がある", () => {
+		const invalid = ingredientCatalogEntries
+			.filter((entry) => !/^[ぁ-ゖー]+$/u.test(entry.reading ?? ""))
+			.map((entry) => `${entry.id}: ${entry.reading}`);
+
+		expect(invalid).toEqual([]);
+	});
+
+	it("読み仮名のデータに、カタログにない ID がない", () => {
+		const ids = new Set(ingredientCatalogEntries.map((entry) => entry.id));
+		const orphaned = Object.keys(ingredientReadingById).filter(
+			(id) => !ids.has(id),
+		);
+
+		expect(orphaned).toEqual([]);
+	});
+
+	it.each([
+		["しお", "salt"],
+		["とりも", "chicken-thigh"],
+		["たまね", "onion"],
+		["ごぼ", "burdock"],
+		["れいとうぶろ", "frozen-broccoli"],
+		["あぶらあ", "fried-tofu-thin"],
+		["ほうれん", "spinach"],
+	])("ひらがな「%s」の時点で、%s が候補に出る", (query, expectedId) => {
+		expect(
+			searchIngredientCatalog(query, 20).map((entry) => entry.id),
+		).toContain(expectedId);
+	});
+
+	it("ひらがなの完全一致を、先頭にする（「しお」は塩）", () => {
+		expect(searchIngredientCatalog("しお")[0]?.id).toBe("salt");
 	});
 });

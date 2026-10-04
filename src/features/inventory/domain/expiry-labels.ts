@@ -18,3 +18,12 @@ export function formatShortDate(value: string): string {
 
 	return `${Number(month)}/${Number(day)}`;
 }
+
+const weekdays = ["日", "月", "火", "水", "木", "金", "土"] as const;
+
+// 「2026-10-05」を「10/5（月）」と表示する（日付の入力で、今日が何曜日か、分かるようにする）。
+export function formatDateWithWeekday(value: string): string {
+	const date = new Date(`${value}T00:00:00.000Z`);
+
+	return `${formatShortDate(value)}（${weekdays[date.getUTCDay()]}）`;
+}

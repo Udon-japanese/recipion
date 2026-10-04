@@ -68,6 +68,8 @@ export type IngredientCatalogEntry = {
 	// 買うときの、よく使う数量。ある食材は、登録のとき、在庫の単位と管理方法をカタログに固定する
 	// （換算のプリセットと、在庫の単位がずれて、数量が狂うのを防ぐため）。
 	presets?: readonly IngredientPurchasePreset[];
+	// 読み仮名（ひらがな）。ひらがなを入力した時点で、漢字の食材も、候補に出すために使う。
+	reading?: string;
 	// 期限の種類・初期の保存方法・目安の日数。
 	expiry?: IngredientExpiryInfo;
 	// 将来の「材料の説明」の置き場所。
@@ -108,9 +110,14 @@ function foldForSearch(text: string): string {
 		);
 }
 
+// 検索の対象：名前、別名、読み仮名（ひらがな）。
 const searchIndex = ingredientCatalogEntries.map((entry) => ({
 	entry,
-	names: [entry.name, ...entry.aliases].map(foldForSearch),
+	names: [
+		entry.name,
+		...entry.aliases,
+		...(entry.reading ? [entry.reading] : []),
+	].map(foldForSearch),
 }));
 
 /**
