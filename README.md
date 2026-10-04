@@ -11,7 +11,7 @@
 - **買い物メモ**（`/shopping`）：追加・編集・削除・チェック・並び替え（ドラッグ、売り場順）、カテゴリの推定、数量プリセットと別名、仕入れ単位から在庫単位への換算。ゲストでも使えます。
 - **在庫**（`/inventory`）：ログインユーザーごとの食材・在庫の管理、購入確定時の在庫の加算、手動の増減、単位換算、購入記録の同期（オフライン時の再送を含む）。
 - **レシピ**（`/recipes`）：一覧、参照（`/recipes/$publicId`）、登録（`/recipes/new`）、編集（`/recipes/$publicId/edit`）、削除（参照画面から。確認のあとに削除）。材料・下準備・作り方を貼り付けて読み取り、保存前に手で訂正できます（材料名・分量の編集、グループの作成・名前の変更・移動、材料の追加・削除）。引用元の URL を任意で保存できます。
-- **認証**：メールアドレスとパスワードによるログイン・新規登録（Better Auth）。
+- **認証**：パスワードなし。メールに届く6桁のコードでログインします（初めての方は自動でアカウントが作られます。Better Auth の `emailOTP`）。コードの入力は、1桁ずつの欄で、貼り付け・ブラウザの自動入力・自動の送信に対応します。メールは Resend で送り、コードの送信は Cloudflare Turnstile と、Workers のレート制限（`ratelimits`）で保護します。
 - **PWA**：ホーム画面へのインストールと、オフラインでの起動（静的シェルとビルドごとのプリキャッシュ）。
 
 **未実装・構想中**
@@ -47,6 +47,9 @@ pnpm install
 | `CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE` | ローカル（開発サーバー、プレビュー、ビルド）で、Hyperdrive のバインディング `HYPERDRIVE`（`wrangler.jsonc`）が接続する DB |
 | `BETTER_AUTH_SECRET` | Better Auth のシークレット |
 | `BETTER_AUTH_URL` | アプリの URL（ローカルでは開発サーバーの URL） |
+| `RESEND_API_KEY` | （任意）Resend の API キー。ローカルで未設定なら（開発サーバーに限る）、メールは送らず、ログイン用コードを開発サーバーのコンソールに出します |
+
+ローカルの Turnstile は、Cloudflare のテスト用キーを、コードに組み込んであります（常に成功します）。
 
 `BETTER_AUTH_SECRET` は、`pnpm dlx @better-auth/cli secret` で生成できます。`.env.example` は用意していません。
 
@@ -113,7 +116,10 @@ pnpm run deploy
 
 - Worker 名は、`wrangler.jsonc` の `name`（`recipion`）です。
 - 本番の DB には、`drizzle/` のマイグレーションを、番号の順に適用します。すでに一部が適用済みの場合は、適用状況の確認と、DB のバックアップを先に行ってください。
-- 本番用の環境変数（`BETTER_AUTH_SECRET`、`BETTER_AUTH_URL`）は、Worker のシークレット・変数として設定します（シークレットは `wrangler secret put <名前>`）。
+- 本番用の環境変数（`BETTER_AUTH_SECRET`、`BETTER_AUTH_URL`、`RESEND_API_KEY`、`TURNSTILE_SECRET_KEY`）は、Worker のシークレット・変数として設定します（シークレットは `wrangler secret put <名前>`）。送信元（`AUTH_EMAIL_FROM`）は `wrangler.jsonc` の `vars` にあります。
+- Cloudflare の Turnstile で、ホスト名 `recipion.app` のウィジェットを作り、公開のサイトキーを `src/config/turnstile.ts` の `PRODUCTION_TURNSTILE_SITE_KEY` に設定します（空のままだと、本番ではログインできません）。シークレットキーは `TURNSTILE_SECRET_KEY` に設定します。
+- Resend で、送信ドメイン `recipion.app` を認証済みにしておきます。
+- メール送信のレート制限は、`wrangler.jsonc` の `ratelimits`（同じメールアドレス宛て、同じ IP からの送信、同じ IP からの検証）です。デプロイで作られます（wrangler 4.36 以上）。
 - 後工程は、`vite preview` を起動するため、`.env.local` がある環境で実行します。`.env.local` のない環境（将来 CI に載せる場合）で通るかは、未確認です。
 
 ## 公開時の bot 対策
@@ -135,7 +141,7 @@ pnpm run deploy
    nr waf:allowlist
    ```
    式の中で `starts_with` と `in` が使えることは、ルールを保存するときに確認します。Worker を起動する前に遮断されるため、Worker のリクエスト数（無料プランは1日10万件）を消費しません。
-3. **レート制限ルール**（無料プランは1つ、10秒の窓、IP 単位）で、`/api/auth/` への連続したアクセスを制限します（例: 10秒に10回を超えたら Block）。メールの送信を伴う認証の制限は、認証の作り直しで、別に実装します。
+3. **レート制限ルール**（無料プランは1つ、10秒の窓、IP 単位）で、`/api/auth/` への連続したアクセスを制限します（例: 10秒に10回を超えたら Block）。コードの送信と検証の制限は、アプリ側（`ratelimits` のバインディング）にあります。
 
 ## ディレクトリ構成
 
