@@ -1,6 +1,7 @@
 import type { IngredientCatalogEntry } from "../ingredient-catalog";
 import { dairyAndEggsEntries } from "./dairy-and-eggs";
 import { driedGoodsEntries } from "./dried-goods";
+import { frozenVegetablesEntries } from "./frozen-vegetables";
 import { meatAndSeafoodEntries } from "./meat-and-seafood";
 import { powdersAndSpicesEntries } from "./powders-and-spices";
 import { seasoningsEntries } from "./seasonings";
@@ -28,6 +29,7 @@ export const ingredientCatalogEntries: readonly IngredientCatalogEntry[] = [
 	...soyAndProcessedEntries,
 	...meatAndSeafoodEntries,
 	...vegetablesEntries,
+	...frozenVegetablesEntries,
 	...staplesEntries,
 	...driedGoodsEntries,
 	...powdersAndSpicesEntries,
