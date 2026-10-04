@@ -5,6 +5,7 @@ import {
 	ingredientCatalogEntries,
 	searchIngredientCatalog,
 } from "./ingredient-catalog";
+import { ingredientExpiryById } from "./ingredient-catalog-data/expiry";
 import { normalizeIngredientName } from "./normalize-ingredient-name";
 
 describe("食材のカタログのデータ", () => {
@@ -126,5 +127,88 @@ describe("searchIngredientCatalog", () => {
 		expect(searchIngredientCatalog("ー", 3).length).toBeLessThanOrEqual(3);
 		expect(searchIngredientCatalog("   ")).toEqual([]);
 		expect(searchIngredientCatalog("ドラゴンフルーツ")).toEqual([]);
+	});
+});
+
+describe("期限の目安のデータ", () => {
+	it("すべての食材に、期限の目安がある", () => {
+		const missing = ingredientCatalogEntries
+			.filter((entry) => entry.expiry === undefined)
+			.map((entry) => entry.id);
+
+		expect(missing).toEqual([]);
+	});
+
+	it("日数は、1〜730の整数である", () => {
+		const invalid: string[] = [];
+
+		for (const entry of ingredientCatalogEntries) {
+			const days = [
+				entry.expiry?.typicalRemainingDays,
+				entry.expiry?.shelfLifeDays.room,
+				entry.expiry?.shelfLifeDays.fridge,
+				entry.expiry?.shelfLifeDays.freezer,
+			];
+
+			for (const value of days) {
+				if (
+					value !== undefined &&
+					value !== null &&
+					!(Number.isInteger(value) && value >= 1 && value <= 730)
+				) {
+					invalid.push(`${entry.id}: ${value}`);
+				}
+			}
+		}
+
+		expect(invalid).toEqual([]);
+	});
+
+	it("初期の保存方法が冷凍の食材は、冷凍の日数を持つ", () => {
+		const missing = ingredientCatalogEntries
+			.filter(
+				(entry) =>
+					entry.expiry?.defaultStorage === "freezer" &&
+					entry.expiry.shelfLifeDays.freezer === undefined,
+			)
+			.map((entry) => entry.id);
+
+		expect(missing).toEqual([]);
+	});
+
+	it("印字のない食材は、初期の保存方法の日数を持つか、期限の目安を付けない種類（none）である", () => {
+		const invalid = ingredientCatalogEntries
+			.filter(
+				(entry) =>
+					entry.expiry &&
+					!entry.expiry.hasPrintedDate &&
+					entry.expiry.kind !== "none",
+			)
+			.map((entry) => entry.id);
+
+		expect(invalid).toEqual([]);
+	});
+
+	it("印字のある食材の、買った時点の残り日数は、冷蔵・常温の食材に、すべてある（冷凍の食材を除く）", () => {
+		const missing = ingredientCatalogEntries
+			.filter(
+				(entry) =>
+					entry.expiry?.hasPrintedDate &&
+					entry.expiry.defaultStorage !== "freezer" &&
+					entry.expiry.typicalRemainingDays === null,
+			)
+			.map((entry) => entry.id);
+
+		expect(missing).toEqual([]);
+	});
+
+	it("全食材の件数が、期限のデータに余りも不足もない", () => {
+		// 期限のデータにあって、カタログにない ID（食材の名前を変えたときの取りこぼし）を検出する。
+		const ids = new Set(ingredientCatalogEntries.map((entry) => entry.id));
+		const orphaned = Object.keys(ingredientExpiryById).filter(
+			(id) => !ids.has(id),
+		);
+
+		expect(orphaned).toEqual([]);
 	});
 });
