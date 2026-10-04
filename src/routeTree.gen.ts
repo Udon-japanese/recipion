@@ -13,9 +13,10 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as InventoryRouteImport } from './routes/inventory'
 import { Route as ShoppingRouteImport } from './routes/shopping'
 import { Route as RecipesIndexRouteImport } from './routes/recipes/index'
-import { Route as RecipesPublicIdRouteImport } from './routes/recipes/$publicId'
 import { Route as RecipesNewRouteImport } from './routes/recipes/new'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as RecipesPublicIdIndexRouteImport } from './routes/recipes/$publicId/index'
+import { Route as RecipesPublicIdEditRouteImport } from './routes/recipes/$publicId/edit'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -37,11 +38,6 @@ const RecipesIndexRoute = RecipesIndexRouteImport.update({
   path: '/recipes/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const RecipesPublicIdRoute = RecipesPublicIdRouteImport.update({
-  id: '/recipes/$publicId',
-  path: '/recipes/$publicId',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const RecipesNewRoute = RecipesNewRouteImport.update({
   id: '/recipes/new',
   path: '/recipes/new',
@@ -52,34 +48,47 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RecipesPublicIdIndexRoute = RecipesPublicIdIndexRouteImport.update({
+  id: '/recipes/$publicId/',
+  path: '/recipes/$publicId/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecipesPublicIdEditRoute = RecipesPublicIdEditRouteImport.update({
+  id: '/recipes/$publicId/edit',
+  path: '/recipes/$publicId/edit',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/inventory': typeof InventoryRoute
   '/shopping': typeof ShoppingRoute
-  '/recipes/$publicId': typeof RecipesPublicIdRoute
   '/recipes/new': typeof RecipesNewRoute
   '/recipes/': typeof RecipesIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/recipes/$publicId/edit': typeof RecipesPublicIdEditRoute
+  '/recipes/$publicId/': typeof RecipesPublicIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/inventory': typeof InventoryRoute
   '/shopping': typeof ShoppingRoute
-  '/recipes/$publicId': typeof RecipesPublicIdRoute
   '/recipes/new': typeof RecipesNewRoute
   '/recipes': typeof RecipesIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/recipes/$publicId/edit': typeof RecipesPublicIdEditRoute
+  '/recipes/$publicId': typeof RecipesPublicIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/inventory': typeof InventoryRoute
   '/shopping': typeof ShoppingRoute
-  '/recipes/$publicId': typeof RecipesPublicIdRoute
   '/recipes/new': typeof RecipesNewRoute
   '/recipes/': typeof RecipesIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/recipes/$publicId/edit': typeof RecipesPublicIdEditRoute
+  '/recipes/$publicId/': typeof RecipesPublicIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -87,38 +96,42 @@ export interface FileRouteTypes {
     | '/'
     | '/inventory'
     | '/shopping'
-    | '/recipes/$publicId'
     | '/recipes/new'
     | '/recipes/'
     | '/api/auth/$'
+    | '/recipes/$publicId/edit'
+    | '/recipes/$publicId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/inventory'
     | '/shopping'
-    | '/recipes/$publicId'
     | '/recipes/new'
     | '/recipes'
     | '/api/auth/$'
+    | '/recipes/$publicId/edit'
+    | '/recipes/$publicId'
   id:
     | '__root__'
     | '/'
     | '/inventory'
     | '/shopping'
-    | '/recipes/$publicId'
     | '/recipes/new'
     | '/recipes/'
     | '/api/auth/$'
+    | '/recipes/$publicId/edit'
+    | '/recipes/$publicId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   InventoryRoute: typeof InventoryRoute
   ShoppingRoute: typeof ShoppingRoute
-  RecipesPublicIdRoute: typeof RecipesPublicIdRoute
   RecipesNewRoute: typeof RecipesNewRoute
   RecipesIndexRoute: typeof RecipesIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  RecipesPublicIdEditRoute: typeof RecipesPublicIdEditRoute
+  RecipesPublicIdIndexRoute: typeof RecipesPublicIdIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -151,13 +164,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RecipesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/recipes/$publicId': {
-      id: '/recipes/$publicId'
-      path: '/recipes/$publicId'
-      fullPath: '/recipes/$publicId'
-      preLoaderRoute: typeof RecipesPublicIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/recipes/new': {
       id: '/recipes/new'
       path: '/recipes/new'
@@ -172,6 +178,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/recipes/$publicId/': {
+      id: '/recipes/$publicId/'
+      path: '/recipes/$publicId'
+      fullPath: '/recipes/$publicId/'
+      preLoaderRoute: typeof RecipesPublicIdIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/recipes/$publicId/edit': {
+      id: '/recipes/$publicId/edit'
+      path: '/recipes/$publicId/edit'
+      fullPath: '/recipes/$publicId/edit'
+      preLoaderRoute: typeof RecipesPublicIdEditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -179,10 +199,11 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   InventoryRoute: InventoryRoute,
   ShoppingRoute: ShoppingRoute,
-  RecipesPublicIdRoute: RecipesPublicIdRoute,
   RecipesNewRoute: RecipesNewRoute,
   RecipesIndexRoute: RecipesIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  RecipesPublicIdEditRoute: RecipesPublicIdEditRoute,
+  RecipesPublicIdIndexRoute: RecipesPublicIdIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
