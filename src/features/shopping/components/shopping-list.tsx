@@ -1,11 +1,30 @@
 import { DragDropProvider } from "@dnd-kit/react";
 import { isSortable, useSortable } from "@dnd-kit/react/sortable";
 import clsx from "clsx";
-import { type ReactNode, type SubmitEvent, useEffect, useState } from "react";
+import {
+	type ReactNode,
+	type SubmitEvent,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import * as v from "valibot";
 import { IngredientNameInput } from "#/features/ingredients/components/ingredient-name-input";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import type { SyncInventoryPurchaseOutboxResult } from "#/features/inventory/application/sync-inventory-purchase-outbox";
+import {
+	type ExpiryFieldsValue,
+	emptyExpiryFields,
+	toLotInput,
+} from "#/features/inventory/components/expiry-fields";
+import {
+	type InventoryLotInput,
+	toDateString,
+} from "#/features/inventory/domain/inventory-lot";
+import { QuantityInput } from "#/features/quantity/components/quantity-input";
+import { formatQuantity } from "#/features/quantity/domain/format-quantity";
+import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
 import type { ShoppingRepository } from "../application/shopping-repository";
 import {
 	isShoppingCategoryId,
@@ -15,6 +34,7 @@ import {
 import {
 	createShoppingItem,
 	getShoppingItemConvertedQuantityLabel,
+	isInventoryTrackedShoppingItem,
 	type ShoppingItem,
 	type ShoppingItemInventoryConversion,
 	toggleShoppingItem,
@@ -37,9 +57,11 @@ import {
 } from "../domain/shopping-item-suggestion";
 import {
 	type ConfirmCheckedShoppingItemsPurchaseResult,
+	type ConfirmShoppingPurchasesOptions,
 	confirmCheckedShoppingItemsPurchase,
 } from "../infrastructure/dexie-shopping-purchase";
 import { dexieShoppingRepository } from "../infrastructure/dexie-shopping-repository";
+import { PurchaseExpiryReview } from "./purchase-expiry-review";
 import {
 	type ShoppingItemInventoryConfiguration,
 	ShoppingItemInventoryConversionForm,
@@ -93,7 +115,17 @@ type SyncPurchases = (
 
 type ConfirmPurchases = (
 	ownerScope: InventoryPurchaseOwnerScope,
+	options?: ConfirmShoppingPurchasesOptions,
 ) => Promise<ConfirmCheckedShoppingItemsPurchaseResult>;
+
+// 既定の購入確定（ローカルの DB に保存する）。期限・保存方法のオプションを渡せるようにする。
+const defaultConfirmPurchases: ConfirmPurchases = (ownerScope, options) =>
+	confirmCheckedShoppingItemsPurchase(
+		ownerScope,
+		undefined,
+		undefined,
+		options,
+	);
 
 type ShoppingListProps = {
 	repository?: ShoppingRepository;
@@ -104,7 +136,7 @@ type ShoppingListProps = {
 
 export function ShoppingList({
 	repository = dexieShoppingRepository,
-	confirmPurchases = confirmCheckedShoppingItemsPurchase,
+	confirmPurchases = defaultConfirmPurchases,
 	syncPurchases,
 	ownerScope = "guest",
 }: ShoppingListProps) {
@@ -136,10 +168,23 @@ export function ShoppingList({
 
 	const [isSavingConversion, setIsSavingConversion] = useState(false);
 
+	// 購入確定の前に、期限・保存方法を確認する画面（任意入力）。
+	const [isReviewingExpiry, setIsReviewingExpiry] = useState(false);
+	const [expiryValues, setExpiryValues] = useState<
+		Record<string, ExpiryFieldsValue>
+	>({});
+	// 在庫換算の設定などで、購入確定をやり直すときに、入力済みの期限を使い回す。
+	const pendingLotsRef = useRef<Record<string, InventoryLotInput>>({});
+	const today = useMemo(() => toDateString(new Date()), []);
+
 	const presets = getShoppingItemPresets(name);
 	const checkedItemCount = items.filter(
 		(item) => item.status === "checked",
 	).length;
+	// 在庫に入る、チェック済みの商品（日用品は、在庫に入れない）。
+	const checkedTrackedItems = items.filter(
+		(item) => item.status === "checked" && isInventoryTrackedShoppingItem(item),
+	);
 	const conversionItem = conversionItemId
 		? items.find((item) => item.id === conversionItemId)
 		: undefined;
@@ -202,7 +247,7 @@ export function ShoppingList({
 			const item = createShoppingItem(
 				{
 					name,
-					quantity: Number(quantity),
+					quantity: parseQuantityInput(quantity) ?? Number.NaN,
 					unitLabel,
 					inventoryConversion,
 					categoryId: categoryId || null,
@@ -250,6 +295,41 @@ export function ShoppingList({
 		}
 	}
 
+	// 「チェック済みを購入確定」：在庫に入る商品があれば、先に、期限の確認画面を出す。なければ、そのまま確定する。
+	function handleRequestPurchase() {
+		if (!ownerScope) {
+			return;
+		}
+
+		setErrorMessage(null);
+
+		if (checkedTrackedItems.length === 0) {
+			pendingLotsRef.current = {};
+			void handleConfirmPurchases();
+
+			return;
+		}
+
+		setIsReviewingExpiry(true);
+	}
+
+	// 期限の確認画面で「購入確定」を押したとき。入力のある項目だけを、購入の記録に載せる。
+	function handleConfirmWithExpiry() {
+		const lotsByItemId: Record<string, InventoryLotInput> = {};
+
+		for (const item of checkedTrackedItems) {
+			const lot = toLotInput(expiryValues[item.id] ?? emptyExpiryFields);
+
+			if (Object.keys(lot).length > 0) {
+				lotsByItemId[item.id] = lot;
+			}
+		}
+
+		pendingLotsRef.current = lotsByItemId;
+		setIsReviewingExpiry(false);
+		void handleConfirmPurchases();
+	}
+
 	async function handleConfirmPurchases() {
 		if (!ownerScope) {
 			return;
@@ -259,7 +339,9 @@ export function ShoppingList({
 		setIsConfirmingPurchase(true);
 
 		try {
-			const result = await confirmPurchases(ownerScope);
+			const result = await confirmPurchases(ownerScope, {
+				lotsByItemId: pendingLotsRef.current,
+			});
 
 			if (result.status === "nothing-to-confirm") {
 				return;
@@ -280,6 +362,8 @@ export function ShoppingList({
 			}
 
 			setConversionItemId(null);
+			pendingLotsRef.current = {};
+			setExpiryValues({});
 
 			const purchasedItemsById = new Map(
 				result.items.map((item) => [item.id, item]),
@@ -354,7 +438,7 @@ export function ShoppingList({
 		setErrorMessage(null);
 		setEditingItemId(item.id);
 		setEditName(item.name);
-		setEditQuantity(String(item.quantity));
+		setEditQuantity(formatQuantity(item.quantity, { grouping: false }));
 		setEditUnitLabel(item.unitLabel ?? "");
 		setEditCategoryId(item.categoryId ?? "");
 		setIsEditCategoryManuallySelected(item.categoryAssignment === "manual");
@@ -380,7 +464,7 @@ export function ShoppingList({
 		try {
 			const updatedItem = updateShoppingItem(item, {
 				name: editName,
-				quantity: Number(editQuantity),
+				quantity: parseQuantityInput(editQuantity) ?? Number.NaN,
 				unitLabel: editUnitLabel,
 				categoryId: editCategoryId || null,
 				categoryAssignment: editCategoryId
@@ -548,16 +632,12 @@ export function ShoppingList({
 							数量
 						</label>
 
-						<input
+						<QuantityInput
 							className={styles.input}
 							id="shopping-item-quantity"
 							name="quantity"
-							type="number"
-							inputMode="decimal"
-							min="0"
-							step="any"
 							value={quantity}
-							onChange={(event) => setQuantity(event.target.value)}
+							onChange={setQuantity}
 						/>
 					</div>
 
@@ -625,7 +705,9 @@ export function ShoppingList({
 										aria-pressed={isSelected}
 										key={preset.label}
 										onClick={() => {
-											setQuantity(String(preset.quantity));
+											setQuantity(
+												formatQuantity(preset.quantity, { grouping: false }),
+											);
 											setUnitLabel(preset.unitLabel);
 											setInventoryConversion(preset.inventoryConversion);
 										}}
@@ -667,6 +749,20 @@ export function ShoppingList({
 				/>
 			) : null}
 
+			{isReviewingExpiry ? (
+				<PurchaseExpiryReview
+					items={checkedTrackedItems}
+					values={expiryValues}
+					onChangeValue={(itemId, value) =>
+						setExpiryValues((current) => ({ ...current, [itemId]: value }))
+					}
+					today={today}
+					isConfirming={isConfirmingPurchase}
+					onConfirm={handleConfirmWithExpiry}
+					onCancel={() => setIsReviewingExpiry(false)}
+				/>
+			) : null}
+
 			<div className={styles.purchaseActions}>
 				<button
 					className={styles.purchaseButton}
@@ -677,7 +773,7 @@ export function ShoppingList({
 						isLoading ||
 						ownerScope === null
 					}
-					onClick={() => void handleConfirmPurchases()}
+					onClick={handleRequestPurchase}
 				>
 					{isConfirmingPurchase
 						? "購入確定中…"
@@ -755,17 +851,11 @@ export function ShoppingList({
 															数量
 														</label>
 
-														<input
+														<QuantityInput
 															className={styles.input}
 															id={`edit-quantity-${item.id}`}
-															type="number"
-															inputMode="decimal"
-															min="0"
-															step="any"
 															value={editQuantity}
-															onChange={(event) =>
-																setEditQuantity(event.target.value)
-															}
+															onChange={setEditQuantity}
 														/>
 													</div>
 

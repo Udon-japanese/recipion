@@ -26,7 +26,7 @@ describe("InventoryRegistrationForm", () => {
 			"exact",
 		);
 
-		await user.type(screen.getByRole("spinbutton", { name: /数量/u }), "6");
+		await user.type(screen.getByLabelText(/^数量/u), "6");
 		await user.click(screen.getByRole("button", { name: "在庫に追加" }));
 
 		await waitFor(() =>
@@ -85,10 +85,12 @@ describe("InventoryRegistrationForm", () => {
 		);
 
 		await user.type(screen.getByLabelText("食材名"), "塩");
-		await user.type(screen.getByRole("spinbutton", { name: /数量/u }), "-5");
+		await user.type(screen.getByLabelText(/^数量/u), "-5");
 		await user.click(screen.getByRole("button", { name: "在庫に追加" }));
 
-		expect((await screen.findByRole("alert")).textContent).toContain("0以上");
+		expect((await screen.findByRole("alert")).textContent).toContain(
+			"数量を確認してください",
+		);
 		expect(registerInventoryItem).not.toHaveBeenCalled();
 	});
 
@@ -126,7 +128,7 @@ describe("InventoryRegistrationForm", () => {
 		);
 
 		await user.type(screen.getByLabelText("食材名"), "塩");
-		await user.type(screen.getByRole("spinbutton", { name: /数量/u }), "500");
+		await user.type(screen.getByLabelText(/^数量/u), "500");
 		await user.click(screen.getByRole("button", { name: /^ある/u }));
 
 		await waitFor(() =>

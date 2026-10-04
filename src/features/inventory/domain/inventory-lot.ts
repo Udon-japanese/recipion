@@ -28,6 +28,15 @@ export type InventoryLotConditions = Pick<
 	"acquiredOn" | "storage" | "expiresOn" | "expiryKind" | "expirySource"
 >;
 
+// 追加するときの、ロットの条件の入力（すべて任意）。省略した項目は、既定値になる。
+export type InventoryLotInput = {
+	acquiredOn?: string;
+	storage?: InventoryStorage | null;
+	expiresOn?: string | null;
+	expiryKind?: InventoryExpiryKind | null;
+	expirySource?: InventoryExpirySource | null;
+};
+
 export type InventoryLotAllocation = {
 	lotId: string;
 	// 在庫の単位での数量。
@@ -187,4 +196,57 @@ export function validateManualAllocations(
 	}
 
 	return allocations.map((allocation) => ({ ...allocation }));
+}
+
+const datePattern = /^(\d{4})-(\d{2})-(\d{2})$/u;
+
+// 「2026-02-30」のような、存在しない日付を弾く。
+export function isValidDateString(value: string): boolean {
+	const match = datePattern.exec(value);
+
+	if (!match) {
+		return false;
+	}
+
+	const date = new Date(`${value}T00:00:00.000Z`);
+
+	return (
+		!Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
+	);
+}
+
+// 日付（YYYY-MM-DD）に、日数を足す（クイック入力の「+3日」など）。
+export function addDays(value: string, days: number): string {
+	const date = new Date(`${value}T00:00:00.000Z`);
+
+	date.setUTCDate(date.getUTCDate() + days);
+
+	return date.toISOString().slice(0, 10);
+}
+
+/**
+ * ロットの条件の入力を、既定値で補って、確定した条件にする。
+ * - 買った日は、省略すると今日。
+ * - 期限の日付があるときの出所は、省略すると「入力」。日付がなければ、出所はなし。
+ * - 日付がないときの期限の種類は、「なし」の指定だけを残す（種類だけでは、意味がないため）。
+ */
+export function resolveLotConditions(
+	input: InventoryLotInput | undefined,
+	today: string,
+): InventoryLotConditions {
+	const expiresOn = input?.expiresOn ?? null;
+
+	return {
+		acquiredOn: input?.acquiredOn ?? today,
+		storage: input?.storage ?? null,
+		expiresOn,
+		expiryKind:
+			expiresOn !== null
+				? (input?.expiryKind ?? null)
+				: input?.expiryKind === "none"
+					? "none"
+					: null,
+		expirySource:
+			expiresOn !== null ? (input?.expirySource ?? "entered") : null,
+	};
 }

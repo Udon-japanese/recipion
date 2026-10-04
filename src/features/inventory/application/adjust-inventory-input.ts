@@ -1,6 +1,7 @@
 import * as v from "valibot";
 
 import type { InventoryAdjustmentCommand } from "./inventory-adjustment-repository";
+import { inventoryLotInputSchema } from "./inventory-lot-input";
 
 const positiveQuantitySchema = v.pipe(
 	v.number(),
@@ -24,6 +25,8 @@ export const adjustInventoryInputSchema = v.object({
 	reason: v.picklist(["purchase", "recipe-consumption", "manual-adjustment"]),
 	sourceType: v.optional(v.picklist(["shopping-item", "recipe"])),
 	sourceId: v.optional(requiredTextSchema),
+	// 追加するとき、ロットの条件（保存方法・期限など）を指定する。
+	lot: v.optional(inventoryLotInputSchema),
 	allocations: v.optional(
 		v.pipe(
 			v.array(
@@ -45,6 +48,10 @@ export function parseAdjustInventoryInput(
 	// ロットの指定は、減らすときだけ。
 	if (command.allocations && command.operation !== "decrease") {
 		throw new Error("ロットを指定できるのは、減らすときだけです");
+	}
+
+	if (command.lot && command.operation !== "increase") {
+		throw new Error("ロットの条件を指定できるのは、追加するときだけです");
 	}
 
 	return command;

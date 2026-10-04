@@ -47,6 +47,8 @@ test("ドラッグ操作で買い物項目を並び替える", async () => {
 	];
 	const repository = createRepository(items);
 
+	// 入力フォームが縦に長くなっても、並び替えの項目が、画面の外に出ないようにする。
+	await page.viewport(900, 1600);
 	await render(<ShoppingList repository={repository} />);
 
 	const dragHandle = page.getByRole("button", {

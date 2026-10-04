@@ -99,3 +99,29 @@ export const error = style({
 	margin: 0,
 	color: "#a23030",
 });
+
+export const presets = style({
+	display: "grid",
+	gap: 6,
+	margin: 0,
+	padding: 0,
+	border: 0,
+});
+
+export const presetList = style({
+	display: "flex",
+	flexWrap: "wrap",
+	gap: 6,
+});
+
+export const presetButton = style({
+	minHeight: 36,
+	paddingInline: 12,
+	color: "var(--color-primary)",
+	background: "var(--color-surface)",
+	border: "1px solid var(--color-border)",
+	borderRadius: 18,
+	font: "inherit",
+	fontSize: 14,
+	cursor: "pointer",
+});

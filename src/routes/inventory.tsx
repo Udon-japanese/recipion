@@ -2,9 +2,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useState } from "react";
 import { adjustInventoryWithCache } from "#/features/inventory/application/adjust-inventory-with-cache";
 import type { InventoryAdjustmentCommand } from "#/features/inventory/application/inventory-adjustment-repository";
+import type { UpdateInventoryLotCommand } from "#/features/inventory/application/inventory-lot-repository";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import { loadInventoryItemsWithCache } from "#/features/inventory/application/load-inventory-items-with-cache";
 import type { RegisterInventoryItemInput } from "#/features/inventory/application/register-inventory-item";
+import { updateInventoryLotWithCache } from "#/features/inventory/application/update-inventory-lot-with-cache";
 import { InventoryList } from "#/features/inventory/components/inventory-list";
 import { InventoryRegistrationForm } from "#/features/inventory/components/inventory-registration-form";
 import { PurchaseOutboxSync } from "#/features/inventory/components/purchase-outbox-sync";
@@ -14,6 +16,7 @@ import { syncDexieInventoryPurchaseOutbox } from "#/features/inventory/infrastru
 import { adjustInventory as adjustInventoryServerFn } from "#/features/inventory/server/adjust-inventory";
 import { listInventoryItemsServerFn } from "#/features/inventory/server/list-inventory-items";
 import { registerInventoryItemServerFn } from "#/features/inventory/server/register-inventory-item";
+import { updateInventoryLotServerFn } from "#/features/inventory/server/update-inventory-lot";
 
 export const Route = createFileRoute("/inventory")({
 	component: InventoryPage,
@@ -49,6 +52,22 @@ function InventoryPage() {
 					adjustInventoryServerFn({
 						data: adjustmentCommand,
 					}),
+				createDexieInventoryCacheRepository(),
+			);
+		},
+		[ownerScope],
+	);
+
+	const updateInventoryLot = useCallback(
+		async (command: UpdateInventoryLotCommand) => {
+			if (!ownerScope || ownerScope === "guest") {
+				throw new Error("ロットを更新できるユーザーではありません");
+			}
+
+			return updateInventoryLotWithCache(
+				ownerScope,
+				command,
+				(updateCommand) => updateInventoryLotServerFn({ data: updateCommand }),
 				createDexieInventoryCacheRepository(),
 			);
 		},
@@ -94,6 +113,7 @@ function InventoryPage() {
 				ownerScope={ownerScope}
 				loadInventoryItems={loadInventoryItems}
 				adjustInventoryItem={adjustInventoryItem}
+				updateInventoryLot={updateInventoryLot}
 				refreshKey={inventoryRefreshKey}
 			/>
 		</>

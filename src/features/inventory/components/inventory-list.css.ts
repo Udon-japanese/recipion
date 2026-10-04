@@ -232,3 +232,43 @@ export const lotSpecificationToggle = style({
 	color: "var(--color-text)",
 	fontSize: 14,
 });
+
+export const lotItem = style({
+	display: "grid",
+	gap: 8,
+});
+
+export const lotInfo = style({
+	display: "flex",
+	flexWrap: "wrap",
+	alignItems: "center",
+	gap: 8,
+});
+
+export const lotBadge = style({
+	paddingInline: 6,
+	color: "var(--color-text-muted)",
+	border: "1px solid var(--color-border)",
+	borderRadius: 4,
+	fontSize: 12,
+});
+
+export const lotEditButton = style({
+	minHeight: 28,
+	paddingInline: 8,
+	color: "var(--color-primary)",
+	background: "transparent",
+	border: "1px solid var(--color-border)",
+	borderRadius: 6,
+	font: "inherit",
+	fontSize: 13,
+	cursor: "pointer",
+});
+
+export const lotEditForm = style({
+	display: "grid",
+	gap: 10,
+	padding: 10,
+	border: "1px solid var(--color-border)",
+	borderRadius: 8,
+});

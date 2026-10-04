@@ -24,7 +24,12 @@ export interface InventoryCacheRepository {
 	updateStock(
 		ownerScope: InventoryCacheOwnerScope,
 		inventoryItemId: string,
-		stock: { quantity: number; lots: readonly InventoryLot[] },
+		stock: {
+			quantity: number;
+			lots: readonly InventoryLot[];
+			defaultExpiryKind?: InventoryListItem["defaultExpiryKind"];
+			defaultStorage?: InventoryListItem["defaultStorage"];
+		},
 		now?: Date,
 	): Promise<void>;
 }

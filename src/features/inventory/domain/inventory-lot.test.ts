@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+	addDays,
 	allocateDecrease,
 	findMergeableLot,
 	type InventoryLot,
+	isValidDateString,
+	resolveLotConditions,
 	sortLotsForConsumption,
 	sumLotQuantities,
 	toDateString,
@@ -198,5 +201,62 @@ describe("toDateString", () => {
 		expect(toDateString(new Date("2026-10-01T10:00:00.000Z"))).toBe(
 			"2026-10-01",
 		);
+	});
+});
+
+describe("日付の計算", () => {
+	it("存在する日付だけを有効とする", () => {
+		expect(isValidDateString("2026-10-05")).toBe(true);
+		expect(isValidDateString("2026-02-30")).toBe(false);
+		expect(isValidDateString("2026-1-5")).toBe(false);
+		expect(isValidDateString("")).toBe(false);
+	});
+
+	it("日数を足す（月・年をまたぐ）", () => {
+		expect(addDays("2026-10-05", 3)).toBe("2026-10-08");
+		expect(addDays("2026-10-30", 3)).toBe("2026-11-02");
+		expect(addDays("2026-12-30", 7)).toBe("2027-01-06");
+	});
+});
+
+describe("resolveLotConditions", () => {
+	const today = "2026-10-05";
+
+	it("何も指定しなければ、今日に買った、期限なしのロットにする", () => {
+		expect(resolveLotConditions(undefined, today)).toEqual({
+			acquiredOn: today,
+			storage: null,
+			expiresOn: null,
+			expiryKind: null,
+			expirySource: null,
+		});
+	});
+
+	it("期限の日付があれば、出所は「入力」を既定にし、指定した種類・保存方法を残す", () => {
+		expect(
+			resolveLotConditions(
+				{ expiresOn: "2026-10-10", expiryKind: "use-by", storage: "fridge" },
+				today,
+			),
+		).toEqual({
+			acquiredOn: today,
+			storage: "fridge",
+			expiresOn: "2026-10-10",
+			expiryKind: "use-by",
+			expirySource: "entered",
+		});
+	});
+
+	it("日付がないとき、種類は「なし」だけを残し、出所は付けない", () => {
+		expect(
+			resolveLotConditions(
+				{ expiryKind: "use-by", expirySource: "estimated" },
+				today,
+			),
+		).toMatchObject({ expiryKind: null, expirySource: null });
+		expect(resolveLotConditions({ expiryKind: "none" }, today)).toMatchObject({
+			expiryKind: "none",
+			expirySource: null,
+		});
 	});
 });

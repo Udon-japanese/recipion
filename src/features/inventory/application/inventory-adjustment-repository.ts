@@ -2,6 +2,7 @@ import type { ApplyInventoryAdjustmentInput } from "../domain/apply-inventory-ad
 import type {
 	InventoryLot,
 	InventoryLotAllocation,
+	InventoryLotInput,
 } from "../domain/inventory-lot";
 
 export type InventoryAdjustmentCommand = Omit<
@@ -11,6 +12,8 @@ export type InventoryAdjustmentCommand = Omit<
 	// 減らすとき、ロットごとの数量（在庫の単位）を指定する。省略すると、期限の早いロットから自動で引く。
 	// 指定したときは、inputQuantity などの入力は、記録のためだけに使う。
 	allocations?: InventoryLotAllocation[];
+	// 追加するとき、ロットの条件（保存方法・期限・買った日）を指定する。省略は、期限なしのロット（今日）。
+	lot?: InventoryLotInput;
 };
 
 export type InventoryAdjustmentRepositoryResult = {

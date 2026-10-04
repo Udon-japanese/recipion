@@ -1,3 +1,4 @@
+import type { InventoryLotInput } from "../domain/inventory-lot";
 import type { CreateIngredientRegistrationInput } from "./create-ingredient-registration";
 import type {
 	InventoryAdjustmentRepository,
@@ -11,6 +12,7 @@ export type RecordInventoryPurchaseInput = CreateIngredientRegistrationInput & {
 	inputQuantity: number;
 	inputUnitCode: string;
 	stockQuantityPerInputUnit: number;
+	lot?: InventoryLotInput;
 };
 
 export type RecordInventoryPurchaseDependencies = {
@@ -40,5 +42,6 @@ export async function recordInventoryPurchase(
 		reason: "purchase",
 		sourceType: "shopping-item",
 		sourceId: input.shoppingItemId,
+		lot: input.lot,
 	});
 }
