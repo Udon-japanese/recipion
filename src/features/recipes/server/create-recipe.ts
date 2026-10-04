@@ -1,11 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getRequestHeaders } from "@tanstack/react-start/server";
-
-import { createDb } from "#/db/client";
 import { prepareRecipeForStorage } from "#/features/recipes/application/prepare-recipe-for-storage";
 import { validateRecipeEditorDocument } from "#/features/recipes/domain/validate-recipe-editor-document";
 import { createDrizzleRecipeRepository } from "#/features/recipes/infrastructure/drizzle-recipe-repository";
-import { createAuth } from "#/integrations/better-auth/auth";
+import { requireSession } from "#/integrations/better-auth/require-session";
 
 export const createRecipeServerFn = createServerFn({
 	method: "POST",
@@ -14,18 +11,9 @@ export const createRecipeServerFn = createServerFn({
 		prepareRecipeForStorage(validateRecipeEditorDocument(input)),
 	)
 	.handler(async ({ data }) => {
-		const { db } = await createDb();
-		const auth = createAuth(db);
+		const { db, userId } = await requireSession();
 
-		const session = await auth.api.getSession({
-			headers: getRequestHeaders(),
-		});
-
-		if (!session) {
-			throw new Error("認証が必要です");
-		}
-
-		const repository = createDrizzleRecipeRepository(db, session.user.id);
+		const repository = createDrizzleRecipeRepository(db, userId);
 
 		return repository.create(data);
 	});
