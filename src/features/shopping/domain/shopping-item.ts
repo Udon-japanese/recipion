@@ -190,6 +190,11 @@ export function toggleShoppingItem(
 	};
 }
 
+// 日用品（トイレットペーパーなど）は、食材の在庫に入れない。購入確定でも、在庫換算を求めない。
+export function isInventoryTrackedShoppingItem(item: ShoppingItem): boolean {
+	return item.categoryId !== "household";
+}
+
 export function markShoppingItemAsPurchased(
 	item: ShoppingItem,
 	now = new Date(),

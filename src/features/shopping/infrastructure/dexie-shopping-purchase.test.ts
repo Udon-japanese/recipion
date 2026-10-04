@@ -92,6 +92,46 @@ describe("confirmCheckedShoppingItemsPurchase", () => {
 		);
 	});
 
+	it("日用品は、在庫換算がなくても購入済みにし、outboxへは追加しない", async () => {
+		const database = createDatabase();
+		const household = toggleShoppingItem(
+			createShoppingItem({
+				name: "トイレットペーパー",
+				categoryId: "household",
+			}),
+		);
+		const food = createCheckedHotcakeMix();
+
+		await database.shoppingItems.bulkAdd([household, food]);
+
+		const result = await confirmCheckedShoppingItemsPurchase("guest", database);
+
+		expect(result.status).toBe("confirmed");
+		await expect(database.shoppingItems.get(household.id)).resolves.toEqual(
+			expect.objectContaining({ status: "purchased" }),
+		);
+
+		// 在庫に積まれるのは、食品だけ
+		const outboxEntries = await database.inventoryPurchaseOutbox.toArray();
+
+		expect(outboxEntries).toHaveLength(1);
+		expect(outboxEntries[0]?.payload.shoppingItemId).toBe(food.id);
+	});
+
+	it("日用品だけでも購入確定でき、outboxは空のまま", async () => {
+		const database = createDatabase();
+		const household = toggleShoppingItem(
+			createShoppingItem({ name: "アルミホイル", categoryId: "household" }),
+		);
+
+		await database.shoppingItems.add(household);
+
+		const result = await confirmCheckedShoppingItemsPurchase("guest", database);
+
+		expect(result.status).toBe("confirmed");
+		await expect(database.inventoryPurchaseOutbox.count()).resolves.toBe(0);
+	});
+
 	it("在庫換算がない商品があれば何も保存しない", async () => {
 		const database = createDatabase();
 		const checkedItem = toggleShoppingItem(

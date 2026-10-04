@@ -69,3 +69,18 @@ describe("未登録の商品", () => {
 		expect(inferShoppingCategory("　 ")).toBeNull();
 	});
 });
+
+describe("日用品のカテゴリ判定", () => {
+	it.each([
+		"トイレットペーパー",
+		"アルミホイル",
+		"ラップ",
+		"ラップ 22cm",
+		"洗濯洗剤 詰め替え",
+		"ジッパー付き保存袋M",
+		"可燃ゴミ袋",
+	])("%sを日用品に分類し、数量候補は出さない", (name) => {
+		expect(inferShoppingCategory(name)).toBe("household");
+		expect(getShoppingItemPresets(name)).toEqual([]);
+	});
+});
