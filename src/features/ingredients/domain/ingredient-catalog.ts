@@ -110,6 +110,10 @@ function foldForSearch(text: string): string {
 		);
 }
 
+export function foldIngredientSearchText(text: string): string {
+	return foldForSearch(text);
+}
+
 // 検索の対象：名前、別名、読み仮名（ひらがな）。
 const searchIndex = ingredientCatalogEntries.map((entry) => ({
 	entry,
@@ -119,6 +123,21 @@ const searchIndex = ingredientCatalogEntries.map((entry) => ({
 		...(entry.reading ? [entry.reading] : []),
 	].map(foldForSearch),
 }));
+
+// カタログにある食材なら、名前・別名・読み仮名（検索用にそろえたもの）。なければ空。
+export function listIngredientSearchTerms(name: string): string[] {
+	const entry = findIngredientCatalogEntry(name);
+
+	if (!entry) {
+		return [];
+	}
+
+	return [
+		entry.name,
+		...entry.aliases,
+		...(entry.reading ? [entry.reading] : []),
+	].map(foldForSearch);
+}
 
 /**
  * 入力した文字に合う食材を、近い順に返す（名前の候補表示用）。
