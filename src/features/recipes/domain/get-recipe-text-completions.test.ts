@@ -95,20 +95,23 @@ describe("getRecipeTextCompletion（材料の名前）", () => {
 		expect(labelsAtEnd("＜メモ＞\n玉ね")).toEqual([]);
 	});
 
-	it("カーソルの後ろに文字があるときは、出さない（入力済みの文章の途中）", () => {
-		const cases: [string, number, string[]][] = [
-			["＜材料＞\n玉ねぎ", 6, []],
-			["＜材料＞\nたまね 1個", 8, []],
-			["＜材料＞\nほし 1個", 7, []],
-			["＜作り方＞\n1. 玉ねを入れる", 11, ["玉ねぎ"]],
-			["ほしい", 2, []],
-		];
-		const failed = cases.filter(
-			([text, caret, names]) =>
-				getRecipeTextCompletion(text, caret, names) !== null,
-		);
+	it("カーソルの前後の文字を合わせた、書き終えていない名前には、出す", () => {
+		const text = "＜材料＞\nたまね 1個";
+		const completion = requireCompletion(text, "＜材料＞\nたまね".length);
 
-		expect(failed).toEqual([]);
+		expect(completion.items.map((item) => item.label)).toContain("玉ねぎ");
+		expect(applyRecipeTextCompletion(text, completion, 0).text).toBe(
+			"＜材料＞\n玉ねぎ 1個",
+		);
+	});
+
+	it("カーソルの後ろの文字も含めて、置き換える", () => {
+		const text = "＜材料＞\nたま|ね 1個".replace("|", "");
+		const completion = requireCompletion(text, "＜材料＞\nたま".length);
+
+		expect(applyRecipeTextCompletion(text, completion, 0).text).toBe(
+			"＜材料＞\n玉ねぎ 1個",
+		);
 	});
 
 	it("カーソルの後ろに文字がなければ、次の行に文字があっても、出す", () => {
@@ -121,11 +124,21 @@ describe("getRecipeTextCompletion（材料の名前）", () => {
 		).toContain("玉ねぎ");
 	});
 
-	it("書いた見出しの途中では、出さない（文字が重複しない）", () => {
-		// 「＜下|準備＞」「＜|下準備＞」「＜下準備|＞ 」の途中や、見出しの後ろに文字があるとき
+	it("書き終えた見出しの途中（前後で見出しが完成する）では、出さない", () => {
 		expect(getRecipeTextCompletion("＜下準備＞", 2)).toBeNull();
 		expect(getRecipeTextCompletion("＜下準備＞", 1)).toBeNull();
+		expect(getRecipeTextCompletion("＜材料＞", 4)).toBeNull();
 		expect(getRecipeTextCompletion("＜作 メモ", 2)).toBeNull();
+	});
+
+	it("書きかけの見出しは、カーソルの後ろの文字も含めて、置き換える", () => {
+		const text = "＜材";
+		const completion = requireCompletion(text, 1);
+
+		expect(applyRecipeTextCompletion(text, completion, 0).text).toBe(
+			"＜材料＞\n",
+		);
+		expect(getRecipeTextCompletion("＜材＞", 1)).not.toBeNull();
 	});
 
 	it("見出しの補完は、後ろの閉じ括弧があっても出す", () => {
@@ -151,6 +164,43 @@ describe("getRecipeTextCompletion（作り方・下準備の中の、材料の�
 	it("1文字では出さず、名前が完成したあとは出さない", () => {
 		expect(labelsAtEnd("＜作り方＞\n1. 玉", names)).toEqual([]);
 		expect(labelsAtEnd("＜作り方＞\n1. 玉ねぎ", names)).toEqual([]);
+	});
+
+	it("カーソルの前後の文字を合わせて、書き終えていれば出さず、途中なら出す", () => {
+		const tomato = ["トマト"];
+
+		expect(
+			getRecipeTextCompletion("＜作り方＞\n最初に、トマトを切る", 11, tomato),
+		).toBeNull();
+		expect(
+			getRecipeTextCompletion("＜作り方＞\n最初に、トマを切る", 12, tomato),
+		).not.toBeNull();
+	});
+
+	it("文章に同じ材料名が書いてあっても、途中まで打った名前には、前後の文字を合わせて出す", () => {
+		const onion = ["玉ねぎ"];
+		const cases: [string, string][] = [
+			["玉ねぎをた|までほげほげする", "玉ねぎを玉ねぎでほげほげする"],
+			["玉ねぎをたま|でほげほげする", "玉ねぎを玉ねぎでほげほげする"],
+			["玉ねぎをた|まねでほげほげする", "玉ねぎを玉ねぎでほげほげする"],
+		];
+		const results = cases.map(([marked, expected]) => {
+			const text = `＜作り方＞\n${marked.replace("|", "")}`;
+			const caret = `＜作り方＞\n${marked.slice(0, marked.indexOf("|"))}`
+				.length;
+			const completion = getRecipeTextCompletion(text, caret, onion);
+
+			return {
+				actual: completion
+					? applyRecipeTextCompletion(text, completion, 0).text
+					: null,
+				expected: `＜作り方＞\n${expected}`,
+			};
+		});
+
+		expect(results.map((result) => result.actual)).toEqual(
+			results.map((result) => result.expected),
+		);
 	});
 
 	it("入れると、打った部分だけが、名前に置き換わる", () => {

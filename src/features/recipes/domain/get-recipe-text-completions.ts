@@ -18,14 +18,14 @@ export type RecipeTextCompletionItem = {
 	label: string;
 	// 本文に入れる文字列。
 	insert: string;
-	// 入れ替える範囲の始まり（終わりは、補完の `to`）。
+	// 入れ替える範囲（カーソルの前の文字から、後ろの文字まで）。
 	from: number;
+	to: number;
 	// 見出しの候補は、入れたあとに、次の行へ移る。
 	isHeading?: boolean;
 };
 
 export type RecipeTextCompletion = {
-	to: number;
 	items: RecipeTextCompletionItem[];
 };
 
@@ -64,7 +64,6 @@ function foldToHiragana(text: string): string {
 // 見出しの飾りの、開く側。これを打つと、見出しの候補を出す。
 const headingOpenerPattern =
 	/^(\s*)[＜<【[［■□◆◇▼▽●○◎＃#《〈]\s*([^＞>】\]］》〉]*)$/u;
-const headingCloserPattern = /^[＞>】\]］》〉]/u;
 
 const headingKinds: RecipeSectionKind[] = [
 	"ingredients",
@@ -133,32 +132,33 @@ function completeHeading(
 	after: string,
 ): RecipeTextCompletion | null {
 	const match = before.match(headingOpenerPattern);
+	// カーソルの後ろは、見出しの文字（と、閉じ括弧）だけのとき。それ以外は、見出しではない。
+	const afterMatch = after.match(/^([^＞>】\]］》〉]*)([＞>】\]］》〉])?$/u);
 
-	// 後ろに、閉じ括弧以外の文字があるとき（書いた見出しの途中）は、出さない。
-	if (!match || !/^[＞>】\]］》〉]?$/u.test(after)) {
+	if (!match || !afterMatch) {
 		return null;
 	}
 
-	const typed = match[2].trim();
+	// カーソルの前後の文字を合わせたものが、打った文字列。
+	const typed = `${match[2]}${afterMatch[1]}`.trim();
 	const items = headingKinds
 		.filter((kind) => recipeHeadingLabels[kind].startsWith(typed))
+		// 書き終えた見出し（＜｜材料＞、＜材料｜＞）は、出さない。
+		.filter((kind) => after === "" || recipeHeadingLabels[kind] !== typed)
 		.map((kind) => ({
 			label: formatHeading(kind),
 			insert: formatHeading(kind),
 			from: lineStart + match[1].length,
+			to: caret + after.length,
 			isHeading: true,
 		}));
 
-	if (items.length === 0) {
-		return null;
-	}
-
-	// 自動で閉じ括弧が入っていたら、一緒に置き換える。
-	return { to: caret + (headingCloserPattern.test(after) ? 1 : 0), items };
+	return items.length === 0 ? null : { items };
 }
 
 function completeIngredientName(
 	before: string,
+	after: string,
 	caret: number,
 ): RecipeTextCompletion | null {
 	const token = before.trimStart().replace(bulletPattern, "");
@@ -171,54 +171,119 @@ function completeIngredientName(
 		return null;
 	}
 
-	const items = searchIngredientCatalog(token, maxItems + 1)
-		.filter((entry) => entry.name !== token)
+	// カーソルの後ろに続く文字（分量などの手前まで）も、打った文字列に含める。
+	const afterToken = takeWhile(after, (char) => !nameBreakPattern.test(char));
+	const typed = `${token}${afterToken}`;
+	const items = searchIngredientCatalog(typed, maxItems + 1)
+		.filter((entry) => entry.name !== typed)
 		.slice(0, maxItems)
 		.map((entry) => ({
 			label: entry.name,
 			insert: entry.name,
 			from: caret - token.length,
+			to: caret + afterToken.length,
 		}));
 
-	return items.length === 0 ? null : { to: caret, items };
+	return items.length === 0 ? null : { items };
 }
 
-// 作り方・下準備の中で、材料名（と、カタログにある食材の別名・読み仮名）の始まりを打つと、その材料名を出す。
+// 文字列の先頭から、条件に合う文字が続く部分（上限つき）。
+function takeWhile(
+	text: string,
+	isIncluded: (char: string) => boolean,
+	limit = Number.POSITIVE_INFINITY,
+): string {
+	let end = 0;
+
+	while (end < text.length && end < limit && isIncluded(text[end])) {
+		end += 1;
+	}
+
+	return text.slice(0, end);
+}
+
+// 文字列の末尾から、条件に合う文字が続く部分（上限つき）。
+function takeWhileEnd(
+	text: string,
+	isIncluded: (char: string) => boolean,
+	limit: number,
+): string {
+	let start = text.length;
+
+	while (
+		start > 0 &&
+		text.length - start < limit &&
+		isIncluded(text[start - 1])
+	) {
+		start -= 1;
+	}
+
+	return text.slice(start);
+}
+
+// カーソルの前の文字（1文字以上）と、後ろの文字を合わせた長さが、長い順に並べた組み合わせ。
+function* listTypedSpans(
+	segment: string,
+	afterSegment: string,
+	minLength: number,
+): Generator<{ before: number; after: number }> {
+	for (
+		let total = segment.length + afterSegment.length;
+		total >= minLength;
+		total -= 1
+	) {
+		for (
+			let before = Math.min(total, segment.length);
+			before >= Math.max(1, total - afterSegment.length);
+			before -= 1
+		) {
+			yield { before, after: total - before };
+		}
+	}
+}
+
+// 作り方・下準備の中で、材料名（と、カタログにある食材の別名・読み仮名）の始まりを、カーソルの前後の文字から探して、その材料名を出す。
 function completeRecipeName(
 	before: string,
+	after: string,
 	caret: number,
 	recipeNames: readonly string[],
 ): RecipeTextCompletion | null {
-	let segmentStart = before.length;
-
-	while (
-		segmentStart > 0 &&
-		before.length - segmentStart < maxSegmentLength &&
-		!segmentBreakPattern.test(before[segmentStart - 1])
-	) {
-		segmentStart -= 1;
-	}
-
-	const segment = before.slice(segmentStart);
-	const candidates: { name: string; typedLength: number }[] = [];
+	const segment = takeWhileEnd(
+		before,
+		(char) => !segmentBreakPattern.test(char),
+		maxSegmentLength,
+	);
+	const afterSegment = takeWhile(
+		after,
+		(char) => !segmentBreakPattern.test(char),
+		maxSegmentLength,
+	);
+	const candidates: RecipeTextCompletionItem[] = [];
 
 	for (const name of new Set(recipeNames)) {
 		const foldedName = foldIngredientSearchText(name);
 		const terms = [foldedName, ...listIngredientSearchTerms(name)];
 
-		// 入力した文字列の末尾が、名前・別名・読み仮名の始まりと一致する、いちばん長い部分。
-		for (let length = segment.length; length >= 2; length -= 1) {
+		// カーソルの前後の文字が、名前・別名・読み仮名の始まりと一致する、いちばん長い部分。
+		for (const span of listTypedSpans(segment, afterSegment, 2)) {
 			const typed = foldIngredientSearchText(
-				segment.slice(segment.length - length),
+				segment.slice(segment.length - span.before) +
+					afterSegment.slice(0, span.after),
 			);
 
-			// 材料名を、打ち終えたあとは、出さない。
+			// 材料名を、書き終えているときは、出さない。
 			if (typed === foldedName) {
 				break;
 			}
 
 			if (terms.some((term) => term.startsWith(typed))) {
-				candidates.push({ name, typedLength: length });
+				candidates.push({
+					label: name,
+					insert: name,
+					from: caret - span.before,
+					to: caret + span.after,
+				});
 				break;
 			}
 		}
@@ -229,41 +294,38 @@ function completeRecipeName(
 	}
 
 	return {
-		to: caret,
 		items: candidates
-			.sort((a, b) => b.typedLength - a.typedLength)
-			.slice(0, maxItems)
-			.map(({ name, typedLength }) => ({
-				label: name,
-				insert: name,
-				from: caret - typedLength,
-			})),
+			.sort((a, b) => b.to - b.from - (a.to - a.from))
+			.slice(0, maxItems),
 	};
 }
 
-// 末尾の「ほし」「すたー」のような読み仮名から、記号の候補を出す（2文字以上）。
+// カーソルの前後の「ほし」「すたー」のような読み仮名から、記号の候補を出す（2文字以上）。
 function completeSymbol(
 	before: string,
+	after: string,
 	caret: number,
 ): RecipeTextCompletion | null {
-	let segmentStart = before.length;
+	const segment = takeWhileEnd(
+		before,
+		(char) => !segmentBreakPattern.test(char),
+		maxSymbolReadingLength,
+	);
+	const afterSegment = takeWhile(
+		after,
+		(char) => !segmentBreakPattern.test(char),
+		maxSymbolReadingLength,
+	);
 
-	while (
-		segmentStart > 0 &&
-		before.length - segmentStart < maxSymbolReadingLength &&
-		!segmentBreakPattern.test(before[segmentStart - 1])
-	) {
-		segmentStart -= 1;
-	}
-
-	const segment = before.slice(segmentStart);
-
-	for (
-		let length = segment.length;
-		length >= minSymbolReadingLength;
-		length -= 1
-	) {
-		const typed = foldToHiragana(segment.slice(segment.length - length));
+	for (const span of listTypedSpans(
+		segment,
+		afterSegment,
+		minSymbolReadingLength,
+	)) {
+		const typed = foldToHiragana(
+			segment.slice(segment.length - span.before) +
+				afterSegment.slice(0, span.after),
+		);
 		const items = symbolReadings
 			.filter(({ readings }) =>
 				readings.some((reading) => reading.startsWith(typed)),
@@ -271,11 +333,12 @@ function completeSymbol(
 			.map(({ symbol, readings }) => ({
 				label: `${symbol}（${readings[0]}）`,
 				insert: symbol,
-				from: caret - length,
+				from: caret - span.before,
+				to: caret + span.after,
 			}));
 
 		if (items.length > 0) {
-			return { to: caret, items };
+			return { items };
 		}
 	}
 
@@ -294,13 +357,13 @@ function mergeCompletions(
 	}
 
 	return {
-		to: found[0].to,
 		items: found.flatMap((completion) => completion.items).slice(0, maxItems),
 	};
 }
 
 // カーソルの位置に応じた、補完の候補（なければ null）。
-// 見出しの補完は、後ろが空か、閉じ括弧だけのとき。ほかは、カーソルと同じ行の、後ろに文字がないときだけ出す。
+// 打った文字列は、カーソルの前の文字と、すぐ後ろに続く文字を合わせたもの（前に1文字以上、合計2文字以上。見出しは0文字から）。
+// 書き終えた名前・見出し（＜｜材料＞、ト｜マト）では出さず、途中（＜｜材、トマ｜を切る）では出す。
 // - 見出しの飾り（＜ など）を打つと、見出し
 // - ＜材料＞の中の行の先頭では、カタログの食材名（ひらがなでも出る）
 // - ＜下準備＞＜作り方＞の中では、材料の名前とグループ名
@@ -328,24 +391,19 @@ export function getRecipeTextCompletion(
 		return headingCompletion;
 	}
 
-	// 見出し以外は、入力済みの文章の途中では、出さない（カーソルの後ろに文字がないときだけ）。
-	if (after !== "") {
-		return null;
-	}
-
-	const symbolCompletion = completeSymbol(before, caret);
+	const symbolCompletion = completeSymbol(before, after, caret);
 
 	switch (findSection(text, lineStart)) {
 		case "ingredients":
 			return mergeCompletions(
 				symbolCompletion,
-				completeIngredientName(before, caret),
+				completeIngredientName(before, after, caret),
 			);
 		case "preparations":
 		case "instructions":
 			return mergeCompletions(
 				symbolCompletion,
-				completeRecipeName(before, caret, recipeNames),
+				completeRecipeName(before, after, caret, recipeNames),
 			);
 		default:
 			return symbolCompletion;
@@ -360,7 +418,7 @@ export function applyRecipeTextCompletion(
 ): { text: string; caret: number } {
 	const item = completion.items[index];
 	const head = text.slice(0, item.from);
-	const tail = text.slice(completion.to);
+	const tail = text.slice(item.to);
 
 	if (item.isHeading) {
 		// 見出しは、入れたあと、次の行へ移る（次の行が、すでにあれば、そこへ）。

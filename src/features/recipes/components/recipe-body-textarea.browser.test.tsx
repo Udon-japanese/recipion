@@ -50,3 +50,27 @@ test("補完で入れた文字を、元に戻せる", async () => {
 
 	expect(textareaValue()).toBe("＜作");
 });
+
+// IME の変換中は、補完を出さない。確定したあとに出す。
+test("変換中は補完を出さず、確定したあとに出す", async () => {
+	await render(<Harness />);
+
+	await userEvent.click(page.getByRole("textbox", { name: "レシピの本文" }));
+
+	const textarea = document.querySelector("textarea") as HTMLTextAreaElement;
+	const candidateList = () =>
+		document.querySelector('[aria-label="補完の候補"]');
+
+	textarea.dispatchEvent(
+		new CompositionEvent("compositionstart", { bubbles: true }),
+	);
+	await userEvent.keyboard("＜作");
+
+	expect(candidateList()).toBeNull();
+
+	textarea.dispatchEvent(
+		new CompositionEvent("compositionend", { bubbles: true }),
+	);
+
+	await expect.poll(candidateList).not.toBeNull();
+});

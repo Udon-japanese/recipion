@@ -82,6 +82,8 @@ export function RecipeBodyTextarea({
 	const pendingCaret = useRef<number | null>(null);
 	const [caret, setCaret] = useState(0);
 	const [isFocused, setIsFocused] = useState(false);
+	// IME の変換中。確定するまでは、補完を出さない（Tab などは IME が使うため）。
+	const [isComposing, setIsComposing] = useState(false);
 	const [activeIndex, setActiveIndex] = useState<number | null>(null);
 	// Esc で閉じた位置。本文かカーソルが動くまで、出さない。
 	const [closedAt, setClosedAt] = useState<{
@@ -95,6 +97,7 @@ export function RecipeBodyTextarea({
 	);
 	const isOpen =
 		isFocused &&
+		!isComposing &&
 		completion !== null &&
 		!(closedAt?.value === value && closedAt.caret === caret);
 
@@ -231,6 +234,8 @@ export function RecipeBodyTextarea({
 					onChange={handleChange}
 					onSelect={(event) => syncCaret(event.currentTarget)}
 					onKeyDown={handleKeyDown}
+					onCompositionStart={() => setIsComposing(true)}
+					onCompositionEnd={() => setIsComposing(false)}
 					onFocus={() => setIsFocused(true)}
 					onBlur={() => setIsFocused(false)}
 				/>
