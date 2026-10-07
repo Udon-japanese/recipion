@@ -1,347 +1,46 @@
 import { type KeyboardEvent, type SubmitEvent, useMemo, useState } from "react";
 import {
-	formatInstructionText,
-	formatPreparationText,
+	createIngredientGroup,
+	createIngredientItem,
+	hasEmptyIngredientGroup,
+	moveIngredientItem,
+	removeEmptyIngredientGroup,
+	removeIngredientItem,
+	renameIngredientGroup,
+	updateIngredientItem,
+} from "../domain/edit-recipe-ingredients";
+import {
+	formatRecipeEditorText,
+	formatRecipeTemplateText,
 } from "../domain/format-recipe-editor-text";
+import { parseRecipeIngredients } from "../domain/parse-recipe-ingredients";
+import { parseRecipeInstructions } from "../domain/parse-recipe-instructions";
+import { parseRecipePreparations } from "../domain/parse-recipe-preparations";
 import {
 	createRecipeEditorDocument,
 	type RecipeEditorDocument,
-	type RecipeEditorIngredientGroup,
-	type RecipeEditorIngredientItem,
 	type RecipeEditorIngredientNode,
 } from "../domain/recipe-editor-document";
+import {
+	createIngredientSyncState,
+	emptyIngredientSyncState,
+	type IngredientSyncState,
+	normalizeGroupName,
+	reconcileRecipeIngredients,
+} from "../domain/reconcile-recipe-ingredients";
+import { splitRecipeSections } from "../domain/split-recipe-sections";
+import {
+	readTemplatePreference,
+	writeTemplatePreference,
+} from "../infrastructure/recipe-editor-preferences";
+import { RecipeBodyTextarea } from "./recipe-body-textarea";
 import * as styles from "./recipe-editor.css";
-
-function updateIngredientItem(
-	nodes: readonly RecipeEditorIngredientNode[],
-	id: string,
-	changes: { name?: string; amountText?: string },
-): RecipeEditorIngredientNode[] {
-	return nodes.map((node) => {
-		if (node.type === "group") {
-			return {
-				...node,
-				children: updateIngredientItem(node.children, id, changes),
-			};
-		}
-
-		if (node.id !== id) return node;
-
-		const name = changes.name ?? node.name;
-		const amountText = changes.amountText ?? node.amountText ?? "";
-		const hasAmount = amountText.trim().length > 0;
-
-		const updated: RecipeEditorIngredientItem = hasAmount
-			? {
-					type: "ingredient",
-					status: "parsed",
-					id: node.id,
-					name,
-					rawText: `${name} ${amountText}`,
-					amountText,
-					quantity: changes.amountText === undefined ? node.quantity : null,
-					unitLabel: changes.amountText === undefined ? node.unitLabel : null,
-				}
-			: {
-					type: "ingredient",
-					status: "missing-amount",
-					id: node.id,
-					name,
-					rawText: name,
-					amountText: null,
-					quantity: null,
-					unitLabel: null,
-				};
-
-		return updated;
-	});
-}
-
-function createIngredientItem(
-	id: string,
-	name: string,
-	amountText: string,
-): RecipeEditorIngredientItem {
-	if (amountText.length === 0) {
-		return {
-			type: "ingredient",
-			status: "missing-amount",
-			id,
-			name,
-			rawText: name,
-			amountText: null,
-			quantity: null,
-			unitLabel: null,
-		};
-	}
-
-	return {
-		type: "ingredient",
-		status: "parsed",
-		id,
-		name,
-		rawText: `${name} ${amountText}`,
-		amountText,
-		quantity: null,
-		unitLabel: null,
-	};
-}
-
-function createIngredientGroup(
-	id: string,
-	name: string,
-): RecipeEditorIngredientGroup {
-	return {
-		type: "group",
-		id,
-		name,
-		rawText: name,
-		inferred: false,
-		children: [],
-	};
-}
-
-function removeEmptyIngredientGroup(
-	nodes: readonly RecipeEditorIngredientNode[],
-	groupId: string,
-): RecipeEditorIngredientNode[] {
-	return nodes.flatMap<RecipeEditorIngredientNode>((node) => {
-		if (node.type !== "group") return [node];
-
-		if (node.id === groupId && node.children.length === 0) return [];
-
-		return [
-			{ ...node, children: removeEmptyIngredientGroup(node.children, groupId) },
-		];
-	});
-}
-
-function hasEmptyIngredientGroup(
-	nodes: readonly RecipeEditorIngredientNode[],
-): boolean {
-	return nodes.some(
-		(node) =>
-			node.type === "group" &&
-			(node.children.length === 0 || hasEmptyIngredientGroup(node.children)),
-	);
-}
-
-function renameIngredientGroup(
-	nodes: readonly RecipeEditorIngredientNode[],
-	groupId: string,
-	name: string,
-): RecipeEditorIngredientNode[] {
-	return nodes.map((node) => {
-		if (node.type !== "group") return node;
-
-		if (node.id === groupId) {
-			return { ...node, name, rawText: name };
-		}
-
-		return {
-			...node,
-			children: renameIngredientGroup(node.children, groupId, name),
-		};
-	});
-}
-
-function removeIngredientItem(
-	nodes: readonly RecipeEditorIngredientNode[],
-	itemId: string,
-): {
-	remaining: RecipeEditorIngredientNode[];
-	removed: RecipeEditorIngredientItem | null;
-} {
-	let removed: RecipeEditorIngredientItem | null = null;
-
-	function remove(
-		current: readonly RecipeEditorIngredientNode[],
-	): RecipeEditorIngredientNode[] {
-		const result: RecipeEditorIngredientNode[] = [];
-
-		for (const node of current) {
-			if (node.type === "ingredient") {
-				if (node.id === itemId) {
-					removed = node;
-				} else {
-					result.push(node);
-				}
-				continue;
-			}
-
-			const children = remove(node.children);
-			// 取り出して空になったグループは消す。もともと空のグループ（作成直後）は残す。
-			if (children.length > 0 || node.children.length === 0) {
-				result.push({ ...node, children });
-			}
-		}
-
-		return result;
-	}
-
-	return { remaining: remove(nodes), removed };
-}
-
-function moveIngredientItem(
-	nodes: readonly RecipeEditorIngredientNode[],
-	itemId: string,
-	targetGroupId: string | null,
-): RecipeEditorIngredientNode[] {
-	const { remaining, removed: movedItem } = removeIngredientItem(nodes, itemId);
-
-	if (!movedItem) return [...nodes];
-	if (targetGroupId === null) return [...remaining, movedItem];
-
-	let foundTarget = false;
-
-	function insert(
-		current: readonly RecipeEditorIngredientNode[],
-	): RecipeEditorIngredientNode[] {
-		return current.map((node) => {
-			if (node.type !== "group") return node;
-
-			if (node.id === targetGroupId && movedItem !== null) {
-				foundTarget = true;
-				return { ...node, children: [...node.children, movedItem] };
-			}
-
-			return { ...node, children: insert(node.children) };
-		});
-	}
-
-	const result = insert(remaining);
-	return foundTarget ? result : [...nodes];
-}
-
-// 材料の行の入力で Enter を押すと、フォーム全体が保存されてしまう。
-// 変換確定中の Enter は IME に任せる。
-function preventSubmitOnEnter(event: KeyboardEvent<HTMLInputElement>) {
-	if (event.key === "Enter" && !event.nativeEvent.isComposing) {
-		event.preventDefault();
-	}
-}
-
-type GroupOption = { id: string; name: string };
-
-function listGroupOptions(
-	nodes: readonly RecipeEditorIngredientNode[],
-): GroupOption[] {
-	return nodes.flatMap((node) =>
-		node.type === "group"
-			? [{ id: node.id, name: node.name }, ...listGroupOptions(node.children)]
-			: [],
-	);
-}
-
-function IngredientPreviewNode({
-	node,
-	parentGroupId = null,
-	groups,
-	onChange,
-	onMove,
-	onRemove,
-	onRenameGroup,
-	onRemoveGroup,
-}: {
-	node: RecipeEditorIngredientNode;
-	parentGroupId?: string | null;
-	groups: readonly GroupOption[];
-	onChange: (
-		id: string,
-		changes: { name?: string; amountText?: string },
-	) => void;
-	onMove: (id: string, targetGroupId: string | null) => void;
-	onRemove: (id: string) => void;
-	onRenameGroup: (id: string, name: string) => void;
-	onRemoveGroup: (id: string) => void;
-}) {
-	if (node.type === "group") {
-		return (
-			<li>
-				<input
-					className={styles.input}
-					aria-label={`${node.name}のグループ名`}
-					value={node.name}
-					onChange={(event) => onRenameGroup(node.id, event.target.value)}
-					onKeyDown={preventSubmitOnEnter}
-				/>
-				{node.inferred ? <span>（推定グループ）</span> : null}
-				{node.children.length === 0 ? (
-					<button
-						type="button"
-						aria-label={`${node.name}のグループを削除`}
-						onClick={() => onRemoveGroup(node.id)}
-					>
-						グループを削除
-					</button>
-				) : null}
-				<ul className={styles.nestedList}>
-					{node.children.map((child) => (
-						<IngredientPreviewNode
-							key={child.id}
-							node={child}
-							parentGroupId={node.id}
-							groups={groups}
-							onChange={onChange}
-							onMove={onMove}
-							onRemove={onRemove}
-							onRenameGroup={onRenameGroup}
-							onRemoveGroup={onRemoveGroup}
-						/>
-					))}
-				</ul>
-			</li>
-		);
-	}
-
-	return (
-		<li className={styles.ingredientRow}>
-			<input
-				className={styles.input}
-				aria-label={`${node.name}の材料名`}
-				value={node.name}
-				onChange={(event) => onChange(node.id, { name: event.target.value })}
-				onKeyDown={preventSubmitOnEnter}
-			/>
-			<input
-				className={styles.input}
-				aria-label={`${node.name}の分量`}
-				value={node.amountText ?? ""}
-				onChange={(event) =>
-					onChange(node.id, { amountText: event.target.value })
-				}
-				onKeyDown={preventSubmitOnEnter}
-				placeholder="分量なし"
-			/>
-			<select
-				className={styles.input}
-				aria-label={`${node.name}のグループ`}
-				value={parentGroupId ?? ""}
-				onChange={(event) => {
-					const targetGroupId = event.target.value || null;
-
-					if (targetGroupId !== parentGroupId) {
-						onMove(node.id, targetGroupId);
-					}
-				}}
-			>
-				<option value="">グループ外</option>
-				{groups.map((group) => (
-					<option key={group.id} value={group.id}>
-						{group.name}
-					</option>
-				))}
-			</select>
-			<button
-				type="button"
-				aria-label={`${node.name}を削除`}
-				onClick={() => onRemove(node.id)}
-			>
-				削除
-			</button>
-		</li>
-	);
-}
+import {
+	IngredientPreviewNode,
+	listGroupOptions,
+	preventSubmitOnEnter,
+} from "./recipe-ingredient-preview";
+import { RecipeTitleInput } from "./recipe-title-input";
 
 type SavedRecipe = { publicId: string };
 
@@ -352,43 +51,177 @@ type RecipeEditorProps = {
 	initialDocument?: RecipeEditorDocument;
 };
 
+type ActiveTab = "input" | "preview";
+
+function reconcileFromText(
+	sync: IngredientSyncState,
+	text: string,
+): IngredientSyncState {
+	return reconcileRecipeIngredients(
+		sync,
+		parseRecipeIngredients(splitRecipeSections(text).ingredientText),
+	);
+}
+
+// 作り方・下準備の補完に使う、材料名とグループ名。
+function collectRecipeNames(
+	nodes: readonly RecipeEditorIngredientNode[],
+): string[] {
+	return nodes.flatMap((node) =>
+		node.type === "group"
+			? [normalizeGroupName(node.name), ...collectRecipeNames(node.children)]
+			: [node.name],
+	);
+}
+
+function createInitialState(
+	initialDocument: RecipeEditorDocument | undefined,
+): {
+	text: string;
+	sync: IngredientSyncState;
+} {
+	if (!initialDocument) {
+		const text = readTemplatePreference() ? formatRecipeTemplateText() : "";
+
+		return { text, sync: reconcileFromText(emptyIngredientSyncState, text) };
+	}
+
+	const text = formatRecipeEditorText(initialDocument);
+
+	return {
+		text,
+		sync: reconcileFromText(
+			createIngredientSyncState(initialDocument.ingredients),
+			text,
+		),
+	};
+}
+
 export function RecipeEditor({
 	onSave,
 	onSaved,
 	initialDocument,
 }: RecipeEditorProps) {
 	const isEditing = initialDocument !== undefined;
-	const [name, setName] = useState(initialDocument?.name ?? "");
+	const [initialState] = useState(() => createInitialState(initialDocument));
+	const [title, setTitle] = useState(initialDocument?.name ?? "");
+	const [isTitleEditing, setIsTitleEditing] = useState(false);
 	const [servings, setServings] = useState(
 		String(initialDocument?.servings ?? 2),
 	);
-	const [ingredientText, setIngredientText] = useState("");
-	const [preparationText, setPreparationText] = useState(
-		formatPreparationText(initialDocument?.preparations ?? []),
-	);
-	const [instructionText, setInstructionText] = useState(
-		formatInstructionText(initialDocument?.instructions ?? []),
-	);
-	const [note, setNote] = useState(initialDocument?.note ?? "");
+	// 見出しの「材料（2人分）」から人数を入れるのは、人数を自分で触るまで。
+	const [isServingsTouched, setIsServingsTouched] = useState(isEditing);
 	const [sourceUrl, setSourceUrl] = useState(initialDocument?.sourceUrl ?? "");
+	const [text, setText] = useState(initialState.text);
+	const [sync, setSync] = useState(initialState.sync);
+	const [useTemplate, setUseTemplate] = useState(readTemplatePreference);
+	const [activeTab, setActiveTab] = useState<ActiveTab>("input");
 	const [isSaving, setIsSaving] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [savedRecipeId, setSavedRecipeId] = useState<string | null>(null);
-	const [ingredients, setIngredients] = useState<RecipeEditorIngredientNode[]>(
-		initialDocument?.ingredients ?? [],
-	);
 	const [newIngredientName, setNewIngredientName] = useState("");
 	const [newIngredientAmount, setNewIngredientAmount] = useState("");
 	const [newGroupName, setNewGroupName] = useState("");
 
-	const preview = useMemo(
-		() =>
-			createRecipeEditorDocument({
-				preparationText,
-				instructionText,
-			}),
-		[preparationText, instructionText],
+	const sections = useMemo(() => splitRecipeSections(text), [text]);
+	const preparations = useMemo(
+		() => parseRecipePreparations(sections.preparationText),
+		[sections.preparationText],
 	);
+	const instructions = useMemo(
+		() => parseRecipeInstructions(sections.instructionText),
+		[sections.instructionText],
+	);
+	const ingredients = sync.nodes;
+	const groups = listGroupOptions(ingredients);
+	const recipeNames = useMemo(
+		() => collectRecipeNames(ingredients),
+		[ingredients],
+	);
+
+	function applyText(nextText: string) {
+		setText(nextText);
+		setSync((current) => reconcileFromText(current, nextText));
+		setSavedRecipeId(null);
+
+		const nextServings = splitRecipeSections(nextText).servings;
+
+		if (nextServings !== null && !isServingsTouched) {
+			setServings(String(nextServings));
+		}
+	}
+
+	// 入力欄が、空か、雛形のままのときだけ、雛形を入れ替える（書いた文章は、消さない）。
+	function handleTemplateToggle(enabled: boolean) {
+		setUseTemplate(enabled);
+		writeTemplatePreference(enabled);
+
+		const template = formatRecipeTemplateText();
+
+		if (text.trim() === "" || text === template) {
+			applyText(enabled ? template : "");
+		}
+	}
+
+	// プレビューでの手直し。手直しした ID を記録して、入力欄の文章を書き換えても、消さないようにする。
+	function editIngredients(
+		update: (
+			nodes: RecipeEditorIngredientNode[],
+		) => RecipeEditorIngredientNode[],
+		editedId?: string,
+	) {
+		setSync((current) => ({
+			...current,
+			nodes: update(current.nodes),
+			edited: editedId
+				? new Set([...current.edited, editedId])
+				: current.edited,
+		}));
+		setSavedRecipeId(null);
+	}
+
+	// 元の行が文章に残っていても、解析し直したときに出さないよう、消した行を覚える。
+	function dismissSource(current: IngredientSyncState, id: string): string[] {
+		const source = current.sources.get(id);
+
+		return source === undefined
+			? [...current.dismissed]
+			: [...current.dismissed, source];
+	}
+
+	function removeIngredient(id: string) {
+		setSync((current) => ({
+			...current,
+			nodes: removeIngredientItem(current.nodes, id).remaining,
+			dismissed: dismissSource(current, id),
+		}));
+		setSavedRecipeId(null);
+	}
+
+	function removeGroup(id: string) {
+		setSync((current) => ({
+			...current,
+			nodes: removeEmptyIngredientGroup(current.nodes, id),
+			dismissed: dismissSource(current, id),
+		}));
+		setSavedRecipeId(null);
+	}
+
+	// 手直しを元に戻す。解析し直して、元の行の内容（と、元のグループ）に戻す。
+	function revertEdit(id: string) {
+		setSync((current) =>
+			reconcileFromText(
+				{
+					...current,
+					edited: new Set(
+						[...current.edited].filter((editedId) => editedId !== id),
+					),
+				},
+				text,
+			),
+		);
+		setSavedRecipeId(null);
+	}
 
 	function addIngredient() {
 		const name = newIngredientName.trim();
@@ -401,10 +234,9 @@ export function RecipeEditor({
 			newIngredientAmount.trim(),
 		);
 
-		setIngredients((current) => [...current, item]);
+		editIngredients((current) => [...current, item]);
 		setNewIngredientName("");
 		setNewIngredientAmount("");
-		setSavedRecipeId(null);
 	}
 
 	function addGroup() {
@@ -412,12 +244,11 @@ export function RecipeEditor({
 
 		if (groupName.length === 0) return;
 
-		setIngredients((current) => [
+		editIngredients((current) => [
 			...current,
 			createIngredientGroup(crypto.randomUUID(), groupName),
 		]);
 		setNewGroupName("");
-		setSavedRecipeId(null);
 	}
 
 	// Enter でフォーム全体が保存されないようにする。変換確定の Enter では追加しない。
@@ -438,6 +269,12 @@ export function RecipeEditor({
 		setErrorMessage(null);
 		setSavedRecipeId(null);
 
+		if (title.trim() === "") {
+			setErrorMessage("レシピ名を入力してください。");
+			setIsTitleEditing(true);
+			return;
+		}
+
 		if (hasEmptyIngredientGroup(ingredients)) {
 			setErrorMessage(
 				"材料のないグループがあります。材料を移すか、グループを削除してください。",
@@ -450,11 +287,11 @@ export function RecipeEditor({
 		try {
 			const document = {
 				...createRecipeEditorDocument({
-					name,
+					name: title,
 					servings: Number(servings),
-					preparationText,
-					instructionText,
-					note,
+					preparationText: sections.preparationText,
+					instructionText: sections.instructionText,
+					note: sections.note,
 					sourceUrl,
 				}),
 				ingredients,
@@ -474,205 +311,246 @@ export function RecipeEditor({
 
 	return (
 		<section className={styles.container}>
-			<h2 className={styles.title}>
+			<p className={styles.eyebrow}>
 				{isEditing ? "レシピを編集" : "レシピを登録"}
-			</h2>
+			</p>
 
 			<form
 				className={styles.form}
 				onSubmit={(event) => void handleSubmit(event)}
 			>
-				<label className={styles.field}>
-					<span>レシピ名</span>
-					<input
-						className={styles.input}
-						value={name}
-						onChange={(event) => setName(event.target.value)}
-						required
-					/>
-				</label>
-
-				<label className={styles.field}>
-					<span>何人分</span>
-					<input
-						className={styles.input}
-						type="number"
-						min="0.001"
-						step="any"
-						value={servings}
-						onChange={(event) => setServings(event.target.value)}
-						required
-					/>
-				</label>
-
-				<label className={styles.field}>
-					<span>材料</span>
-					<textarea
-						className={styles.textarea}
-						value={ingredientText}
-						onChange={(event) => setIngredientText(event.target.value)}
-						placeholder={"肉だね\n豚ひき肉 200g\n玉ねぎ 1/2個"}
-					/>
-				</label>
-				<button
-					type="button"
-					onClick={() => {
-						setIngredients(
-							createRecipeEditorDocument({ ingredientText }).ingredients,
-						);
+				<RecipeTitleInput
+					value={title}
+					onChange={(value) => {
+						setTitle(value);
 						setSavedRecipeId(null);
 					}}
+					isEditing={isTitleEditing}
+					onEditingChange={setIsTitleEditing}
+				/>
+
+				<div className={styles.metaRow}>
+					<label className={styles.metaField}>
+						<span>何人分</span>
+						<input
+							className={styles.input}
+							type="number"
+							min="0.001"
+							step="any"
+							value={servings}
+							onChange={(event) => {
+								setServings(event.target.value);
+								setIsServingsTouched(true);
+							}}
+							onKeyDown={preventSubmitOnEnter}
+							required
+						/>
+					</label>
+
+					<label className={styles.metaFieldWide}>
+						<span>引用元URL（任意）</span>
+						<input
+							className={styles.input}
+							type="url"
+							inputMode="url"
+							placeholder="https://"
+							value={sourceUrl}
+							onChange={(event) => setSourceUrl(event.target.value)}
+							onKeyDown={preventSubmitOnEnter}
+						/>
+					</label>
+				</div>
+
+				<div
+					className={styles.tabList}
+					role="tablist"
+					aria-label="表示の切り替え"
 				>
-					材料を読み取る
-				</button>
-				<p>もう一度読み取ると、下の材料への修正は置き換わります。</p>
+					<button
+						className={styles.tab}
+						type="button"
+						role="tab"
+						id="recipe-editor-tab-input"
+						aria-selected={activeTab === "input"}
+						aria-controls="recipe-editor-panel-input"
+						onClick={() => setActiveTab("input")}
+					>
+						入力
+					</button>
+					<button
+						className={styles.tab}
+						type="button"
+						role="tab"
+						id="recipe-editor-tab-preview"
+						aria-selected={activeTab === "preview"}
+						aria-controls="recipe-editor-panel-preview"
+						onClick={() => setActiveTab("preview")}
+					>
+						プレビュー
+					</button>
+				</div>
 
-				<label className={styles.field}>
-					<span>下準備</span>
-					<textarea
-						className={styles.textarea}
-						value={preparationText}
-						onChange={(event) => setPreparationText(event.target.value)}
-						placeholder={"玉ねぎをみじん切りにする\n卵を溶いておく"}
-					/>
-				</label>
+				<div className={styles.panes}>
+					<div
+						className={styles.pane}
+						id="recipe-editor-panel-input"
+						role="tabpanel"
+						aria-labelledby="recipe-editor-tab-input"
+						data-active={activeTab === "input"}
+					>
+						<RecipeBodyTextarea
+							value={text}
+							onChange={applyText}
+							recipeNames={recipeNames}
+							placeholder={
+								"＜材料＞\n豚ひき肉 200g\n玉ねぎ 1/2個\n\n＜作り方＞\n1. 材料を混ぜる\n2. フライパンで焼く"
+							}
+						/>
 
-				<label className={styles.field}>
-					<span>作り方</span>
-					<textarea
-						className={styles.textarea}
-						value={instructionText}
-						onChange={(event) => setInstructionText(event.target.value)}
-						placeholder={"1. 材料を混ぜる\n2. フライパンで焼く"}
-					/>
-				</label>
+						{isEditing ? null : (
+							<label className={styles.checkRow}>
+								<input
+									type="checkbox"
+									checked={useTemplate}
+									onChange={(event) =>
+										handleTemplateToggle(event.target.checked)
+									}
+								/>
+								新規登録で、見出しを最初から入れる
+							</label>
+						)}
 
-				<label className={styles.field}>
-					<span>メモ・人数変更時の注意</span>
-					<textarea
-						className={styles.textarea}
-						value={note}
-						onChange={(event) => setNote(event.target.value)}
-					/>
-				</label>
+						<p className={styles.hint}>
+							＜材料＞＜下準備＞＜作り方＞＜メモ＞の見出しで区切ります。見出しがなければ、空行で区切った文章の内容から、材料と作り方を判別します。
+						</p>
+					</div>
 
-				<label className={styles.field}>
-					<span>引用元URL（任意）</span>
-					<input
-						className={styles.input}
-						type="url"
-						inputMode="url"
-						placeholder="https://"
-						value={sourceUrl}
-						onChange={(event) => setSourceUrl(event.target.value)}
-					/>
-				</label>
+					<div
+						className={styles.preview}
+						id="recipe-editor-panel-preview"
+						role="tabpanel"
+						aria-labelledby="recipe-editor-tab-preview"
+						data-active={activeTab === "preview"}
+					>
+						<h3>保存前の確認</h3>
 
-				<div className={styles.preview}>
-					<h3>保存前の確認</h3>
-
-					<h4>材料</h4>
-					{ingredients.length === 0 ? <p>材料はまだありません。</p> : null}
-					<ul className={styles.list}>
-						{ingredients.map((node) => {
-							const groups = listGroupOptions(ingredients);
-							return (
+						<h4>材料</h4>
+						{ingredients.length === 0 ? <p>材料はまだありません。</p> : null}
+						<ul className={styles.list}>
+							{ingredients.map((node) => (
 								<IngredientPreviewNode
 									key={node.id}
 									node={node}
-									onChange={(id, changes) => {
-										setIngredients((current) =>
-											updateIngredientItem(current, id, changes),
-										);
-										setSavedRecipeId(null);
-									}}
 									groups={groups}
-									onMove={(id, targetGroupId) => {
-										setIngredients((current) =>
-											moveIngredientItem(current, id, targetGroupId),
-										);
-										setSavedRecipeId(null);
-									}}
-									onRenameGroup={(id, groupName) => {
-										setIngredients((current) =>
-											renameIngredientGroup(current, id, groupName),
-										);
-										setSavedRecipeId(null);
-									}}
-									onRemoveGroup={(id) => {
-										setIngredients((current) =>
-											removeEmptyIngredientGroup(current, id),
-										);
-										setSavedRecipeId(null);
-									}}
-									onRemove={(id) => {
-										setIngredients(
-											(current) => removeIngredientItem(current, id).remaining,
-										);
-										setSavedRecipeId(null);
-									}}
+									editedIds={sync.edited}
+									onChange={(id, changes) =>
+										editIngredients(
+											(current) => updateIngredientItem(current, id, changes),
+											id,
+										)
+									}
+									onMove={(id, targetGroupId) =>
+										editIngredients(
+											(current) =>
+												moveIngredientItem(current, id, targetGroupId),
+											id,
+										)
+									}
+									onRenameGroup={(id, groupName) =>
+										editIngredients(
+											(current) =>
+												renameIngredientGroup(current, id, groupName),
+											id,
+										)
+									}
+									onRemoveGroup={removeGroup}
+									onRemove={removeIngredient}
+									onRevert={revertEdit}
 								/>
-							);
-						})}
-					</ul>
+							))}
+						</ul>
 
-					<div className={styles.addIngredientRow}>
-						<input
-							className={styles.input}
-							aria-label="追加する材料名"
-							placeholder="材料名"
-							value={newIngredientName}
-							onChange={(event) => setNewIngredientName(event.target.value)}
-							onKeyDown={handleEnterToAdd(addIngredient)}
-						/>
-						<input
-							className={styles.input}
-							aria-label="追加する材料の分量"
-							placeholder="分量なし"
-							value={newIngredientAmount}
-							onChange={(event) => setNewIngredientAmount(event.target.value)}
-							onKeyDown={handleEnterToAdd(addIngredient)}
-						/>
-						<button
-							type="button"
-							disabled={newIngredientName.trim().length === 0}
-							onClick={addIngredient}
-						>
-							材料を追加
-						</button>
+						<div className={styles.addIngredientRow}>
+							<input
+								className={styles.input}
+								aria-label="追加する材料名"
+								placeholder="材料名"
+								value={newIngredientName}
+								onChange={(event) => setNewIngredientName(event.target.value)}
+								onKeyDown={handleEnterToAdd(addIngredient)}
+							/>
+							<input
+								className={styles.input}
+								aria-label="追加する材料の分量"
+								placeholder="分量なし"
+								value={newIngredientAmount}
+								onChange={(event) => setNewIngredientAmount(event.target.value)}
+								onKeyDown={handleEnterToAdd(addIngredient)}
+							/>
+							<button
+								type="button"
+								disabled={newIngredientName.trim().length === 0}
+								onClick={addIngredient}
+							>
+								材料を追加
+							</button>
+						</div>
+
+						<div className={styles.addGroupRow}>
+							<input
+								className={styles.input}
+								aria-label="追加するグループ名"
+								placeholder="グループ名"
+								value={newGroupName}
+								onChange={(event) => setNewGroupName(event.target.value)}
+								onKeyDown={handleEnterToAdd(addGroup)}
+							/>
+							<button
+								type="button"
+								disabled={newGroupName.trim().length === 0}
+								onClick={addGroup}
+							>
+								グループを追加
+							</button>
+						</div>
+
+						<h4>下準備</h4>
+						<ul className={styles.list}>
+							{preparations.map((preparation, index) => (
+								// biome-ignore lint/suspicious/noArrayIndexKey: 文章から作る表示用の一覧で、並びは入力順のまま。
+								<li key={index}>{preparation}</li>
+							))}
+						</ul>
+
+						<h4>作り方</h4>
+						<ol className={styles.list}>
+							{instructions.map((instruction, index) => (
+								// biome-ignore lint/suspicious/noArrayIndexKey: 文章から作る表示用の一覧で、並びは入力順のまま。
+								<li key={index}>{instruction}</li>
+							))}
+						</ol>
+
+						{sections.note === "" ? null : (
+							<>
+								<h4>メモ</h4>
+								<p className={styles.note}>{sections.note}</p>
+							</>
+						)}
+
+						{sections.unclassifiedBlocks.length > 0 ? (
+							<div className={styles.unclassified}>
+								<h4>分類できなかった文章</h4>
+								<p>
+									見出し（＜材料＞＜作り方＞など）を付けると、保存されます。いまは、保存されません。
+								</p>
+								{sections.unclassifiedBlocks.map((block) => (
+									<p className={styles.note} key={block}>
+										{block}
+									</p>
+								))}
+							</div>
+						) : null}
 					</div>
-
-					<div className={styles.addGroupRow}>
-						<input
-							className={styles.input}
-							aria-label="追加するグループ名"
-							placeholder="グループ名"
-							value={newGroupName}
-							onChange={(event) => setNewGroupName(event.target.value)}
-							onKeyDown={handleEnterToAdd(addGroup)}
-						/>
-						<button
-							type="button"
-							disabled={newGroupName.trim().length === 0}
-							onClick={addGroup}
-						>
-							グループを追加
-						</button>
-					</div>
-
-					<h4>下準備</h4>
-					<ul className={styles.list}>
-						{preview.preparations.map((preparation) => (
-							<li key={preparation.id}>{preparation.text}</li>
-						))}
-					</ul>
-
-					<h4>作り方</h4>
-					<ol className={styles.list}>
-						{preview.instructions.map((instruction) => (
-							<li key={instruction.id}>{instruction.text}</li>
-						))}
-					</ol>
 				</div>
 
 				<button className={styles.saveButton} type="submit" disabled={isSaving}>
