@@ -279,26 +279,81 @@ export const addGroupRow = style({
 });
 
 export const completionWrap = style({
+	position: "relative",
 	display: "grid",
 	gap: 6,
 });
 
-export const completionBox = style({
+// PC：カーソルの近くに出す、縦の一覧。
+export const completionPopup = style({
+	position: "absolute",
+	zIndex: 10,
 	display: "grid",
 	gap: 4,
+	minWidth: 160,
+	maxWidth: "min(360px, 90vw)",
+	padding: 6,
+	background: "var(--color-surface)",
+	border: "1px solid var(--color-border)",
+	borderRadius: 8,
+	boxShadow: "0 4px 14px rgba(0, 0, 0, 0.15)",
 });
 
-export const completionList = style({
-	display: "flex",
-	flexWrap: "wrap",
-	gap: 6,
+export const completionPopupList = style({
+	display: "grid",
 	margin: 0,
 	padding: 0,
 	listStyle: "none",
 });
 
+export const completionPopupItem = style({
+	width: "100%",
+	padding: "6px 10px",
+	textAlign: "left",
+	background: "transparent",
+	border: "none",
+	borderRadius: 6,
+	cursor: "pointer",
+	selectors: {
+		'&[aria-current="true"]': {
+			color: "var(--color-primary-text)",
+			background: "var(--color-primary)",
+		},
+	},
+});
+
+export const completionPopupHint = style({
+	margin: 0,
+	padding: "0 4px",
+	color: "var(--color-text-muted)",
+	fontSize: 12,
+});
+
+// スマホ：キーボードのすぐ上に固定する、横に並べた帯（横にスクロールできる）。
+export const completionBar = style({
+	position: "fixed",
+	left: 0,
+	right: 0,
+	zIndex: 20,
+	padding: "6px 8px",
+	background: "var(--color-surface)",
+	borderTop: "1px solid var(--color-border)",
+});
+
+export const completionBarList = style({
+	display: "flex",
+	gap: 6,
+	margin: 0,
+	padding: 0,
+	overflowX: "auto",
+	listStyle: "none",
+	whiteSpace: "nowrap",
+	WebkitOverflowScrolling: "touch",
+});
+
 export const completionItem = style({
-	minHeight: 36,
+	flexShrink: 0,
+	minHeight: 40,
 	padding: "6px 12px",
 	background: "var(--color-surface)",
 	border: "1px solid var(--color-border)",

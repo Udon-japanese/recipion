@@ -24,6 +24,7 @@ import {
 	type RecipeTextCompletion,
 	type RecipeTextCompletionItem,
 } from "../domain/get-recipe-text-completions";
+import { placePopup } from "../domain/place-popup";
 import {
 	type EditKind,
 	editKindOfInput,
@@ -37,6 +38,7 @@ import {
 	endComposition,
 	restoreFocus,
 } from "../infrastructure/end-composition";
+import { measureTextareaCaret } from "../infrastructure/measure-textarea-caret";
 import { readBrowserEnvironment } from "../infrastructure/read-browser-environment";
 import * as styles from "./recipe-editor.css";
 
@@ -54,7 +56,12 @@ type RecipeBodyTextareaProps = {
 	placeholder?: string;
 	// 変換中の補完の方式（なければ、ブラウザから判定する）。テストで指定する。
 	compositionStrategy?: CompositionStrategy;
+	// 候補の出し方（なければ、タッチ操作の端末かどうかで決める）。テストで指定する。
+	// caret：カーソルの近くに、縦の一覧。keyboard-bar：キーボードのすぐ上に、横に並べた帯。
+	completionLayout?: CompletionLayout;
 };
+
+type CompletionLayout = "caret" | "keyboard-bar";
 
 // レシピの本文の入力欄。入力欄の下に、補完の候補を出す。
 // 候補は、↑↓ で選び、Tab（または、選んだあとの Enter）で決定する。選んでいないときの Enter は、ふつうの改行。Esc で閉じる。
@@ -64,8 +71,11 @@ export function RecipeBodyTextarea({
 	recipeNames,
 	placeholder,
 	compositionStrategy,
+	completionLayout,
 }: RecipeBodyTextareaProps) {
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
+	const wrapperRef = useRef<HTMLDivElement>(null);
+	const popupRef = useRef<HTMLDivElement>(null);
 	// 元に戻す・やり直しの履歴。本文は、値として書き換える（ブラウザの履歴は、使えなくなる）ので、すべて自前で記録する。
 	const historyRef = useRef(emptyTextHistory);
 	const caretRef = useRef(0);
@@ -89,6 +99,19 @@ export function RecipeBodyTextarea({
 	);
 	const strategy = compositionStrategy ?? detectedStrategy;
 	const [activeIndex, setActiveIndex] = useState<number | null>(null);
+	// タッチ操作が主な端末か（サーバーでは判定できないので、ブラウザで判定する）。
+	const [isTouch, setIsTouch] = useState(false);
+	const layout: CompletionLayout =
+		completionLayout ?? (isTouch ? "keyboard-bar" : "caret");
+	// カーソルの近くに出す候補の位置（入力欄を含む枠の左上が基準）。測るまでは、見せない。
+	const [popupPosition, setPopupPosition] = useState<{
+		top: number;
+		left: number;
+	} | null>(null);
+	// 入力欄をスクロールしたとき、候補の位置を測り直す合図。
+	const [scrollTick, setScrollTick] = useState(0);
+	// キーボードを除いた見える範囲の下端から、画面の下端までの高さ（キーボードの上に出す帯の位置）。
+	const [barBottom, setBarBottom] = useState(0);
 	// 本文を書き換えたあとに、カーソルを置く位置。
 	const [selectionRequest, setSelectionRequest] = useState<{
 		caret: number;
@@ -103,6 +126,24 @@ export function RecipeBodyTextarea({
 		setDetectedStrategy(chooseCompositionStrategy(readBrowserEnvironment()));
 	}, []);
 
+	useEffect(() => {
+		// matchMedia がない環境（テストなど）では、PC として扱う。
+		if (typeof window.matchMedia !== "function") {
+			return;
+		}
+
+		const query = window.matchMedia("(pointer: coarse)");
+
+		function update() {
+			setIsTouch(query.matches);
+		}
+
+		update();
+		query.addEventListener("change", update);
+
+		return () => query.removeEventListener("change", update);
+	}, []);
+
 	const completion = useMemo(
 		() => getRecipeTextCompletion(value, caret, recipeNames),
 		[value, caret, recipeNames],
@@ -113,6 +154,73 @@ export function RecipeBodyTextarea({
 		(!isComposing || strategy !== "wait-for-confirmation") &&
 		completion !== null &&
 		!(closedAt?.value === value && closedAt.caret === caret);
+
+	// カーソルの近くに出す候補の位置を決める。入力中の行には重ねない。変換中は、IME 自身の変換候補の窓（文字の下に出る）と重ならないよう、上を先にする。
+	// biome-ignore lint/correctness/useExhaustiveDependencies: 本文・カーソル・候補・スクロールが変わったときに、測り直す。
+	useLayoutEffect(() => {
+		const textarea = textareaRef.current;
+		const popup = popupRef.current;
+		const wrapper = wrapperRef.current;
+
+		if (!isOpen || layout !== "caret" || !textarea || !popup || !wrapper) {
+			setPopupPosition(null);
+
+			return;
+		}
+
+		const measured = measureTextareaCaret(textarea, caret);
+		const box = textarea.getBoundingClientRect();
+		// カーソルが、スクロールで入力欄の外に出ているときは、入力欄の端に寄せる。
+		const caretTop = Math.min(
+			Math.max(box.top + measured.top, box.top),
+			box.bottom - measured.height,
+		);
+		const placed = placePopup({
+			caret: {
+				top: caretTop,
+				left: box.left + measured.left,
+				height: measured.height,
+			},
+			popup: { width: popup.offsetWidth, height: popup.offsetHeight },
+			viewport: { width: window.innerWidth, height: window.innerHeight },
+			prefer: isComposing ? "above" : "below",
+		});
+		const frame = wrapper.getBoundingClientRect();
+
+		setPopupPosition({
+			top: placed.top - frame.top,
+			left: placed.left - frame.left,
+		});
+	}, [isOpen, layout, caret, value, isComposing, completion, scrollTick]);
+
+	// キーボードのすぐ上に出す帯の位置。キーボードを除いた見える範囲（visualViewport）の下端に合わせる。
+	useEffect(() => {
+		if (!isOpen || layout !== "keyboard-bar") {
+			return;
+		}
+
+		const viewport = window.visualViewport;
+
+		function update() {
+			setBarBottom(
+				viewport
+					? Math.max(
+							0,
+							window.innerHeight - (viewport.height + viewport.offsetTop),
+						)
+					: 0,
+			);
+		}
+
+		update();
+		viewport?.addEventListener("resize", update);
+		viewport?.addEventListener("scroll", update);
+
+		return () => {
+			viewport?.removeEventListener("resize", update);
+			viewport?.removeEventListener("scroll", update);
+		};
+	}, [isOpen, layout]);
 
 	// 本文を書き換えたあと、本文が更新されてから、カーソルを置く。
 	useLayoutEffect(() => {
@@ -483,8 +591,36 @@ export function RecipeBodyTextarea({
 		syncCaret(textarea);
 	}
 
+	const candidates = completion?.items.map((item, index) => (
+		<li key={item.label}>
+			<button
+				type="button"
+				className={
+					layout === "caret"
+						? styles.completionPopupItem
+						: styles.completionItem
+				}
+				// Tab は、候補の決定に使う。ボタンへは移らない。
+				tabIndex={-1}
+				aria-current={activeIndex === index}
+				// 入力欄のフォーカスを外さないよう、押した時点で決定する（変換中は、変換を確定させてから置き換える）。
+				onMouseDown={(event) => {
+					event.preventDefault();
+
+					if (compositionRef.current) {
+						void acceptDuringComposition(item, { text: value, caret });
+					} else {
+						accept(index);
+					}
+				}}
+			>
+				{item.label}
+			</button>
+		</li>
+	));
+
 	return (
-		<div className={styles.completionWrap}>
+		<div ref={wrapperRef} className={styles.completionWrap}>
 			<label className={styles.field}>
 				<span>レシピの本文</span>
 				<textarea
@@ -494,6 +630,7 @@ export function RecipeBodyTextarea({
 					placeholder={placeholder}
 					onChange={handleChange}
 					onSelect={(event) => syncCaret(event.currentTarget)}
+					onScroll={() => setScrollTick((tick) => tick + 1)}
 					onKeyDown={handleKeyDown}
 					onCompositionStart={handleCompositionStart}
 					onCompositionEnd={handleCompositionEnd}
@@ -502,37 +639,30 @@ export function RecipeBodyTextarea({
 				/>
 			</label>
 
-			{isOpen && completion ? (
-				<div className={styles.completionBox}>
-					<ul className={styles.completionList} aria-label="補完の候補">
-						{completion.items.map((item, index) => (
-							<li key={item.label}>
-								<button
-									type="button"
-									className={styles.completionItem}
-									// Tab は、候補の決定に使う。ボタンへは移らない。
-									tabIndex={-1}
-									aria-current={activeIndex === index}
-									// 入力欄のフォーカスを外さないよう、押した時点で決定する（変換中は、変換を確定させてから置き換える）。
-									onMouseDown={(event) => {
-										event.preventDefault();
-
-										if (compositionRef.current) {
-											void acceptDuringComposition(item, {
-												text: value,
-												caret,
-											});
-										} else {
-											accept(index);
-										}
-									}}
-								>
-									{item.label}
-								</button>
-							</li>
-						))}
+			{isOpen && completion && layout === "caret" ? (
+				<div
+					ref={popupRef}
+					className={styles.completionPopup}
+					style={{
+						top: popupPosition?.top ?? 0,
+						left: popupPosition?.left ?? 0,
+						visibility: popupPosition ? "visible" : "hidden",
+					}}
+				>
+					<ul className={styles.completionPopupList} aria-label="補完の候補">
+						{candidates}
 					</ul>
-					<p className={styles.hint}>↑↓で選び、Tab で決定（Esc で閉じる）</p>
+					<p className={styles.completionPopupHint}>
+						↑↓で選び、Tab で決定（Esc で閉じる）
+					</p>
+				</div>
+			) : null}
+
+			{isOpen && completion && layout === "keyboard-bar" ? (
+				<div className={styles.completionBar} style={{ bottom: barBottom }}>
+					<ul className={styles.completionBarList} aria-label="補完の候補">
+						{candidates}
+					</ul>
 				</div>
 			) : null}
 		</div>
