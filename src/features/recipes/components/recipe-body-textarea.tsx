@@ -13,7 +13,10 @@ import {
 	type CompositionStrategy,
 	chooseCompositionStrategy,
 } from "../domain/choose-composition-strategy";
-import { continueRecipeList } from "../domain/continue-recipe-list";
+import {
+	continueRecipeList,
+	removeRecipeListMarker,
+} from "../domain/continue-recipe-list";
 import {
 	adjustCompletionItem,
 	applyRecipeTextCompletion,
@@ -122,8 +125,26 @@ export function RecipeBodyTextarea({
 	}, [selectionRequest]);
 
 	// メニューからの「元に戻す」「やり直す」も、自前の履歴で行う（ブラウザの履歴に任せない）。
+	// 番号・中黒の印の直後の Backspace は、印を一度に消す（スマホのキーボードでも届くよう、入力の直前のイベントで扱う）。
 	const handleHistoryInput = useEffectEvent((event: InputEvent) => {
-		if (event.inputType === "historyUndo") {
+		if (event.inputType === "deleteContentBackward") {
+			const textarea = textareaRef.current;
+
+			if (!textarea || event.isComposing || compositionRef.current) {
+				return;
+			}
+
+			const result = removeRecipeListMarker(
+				textarea.value,
+				textarea.selectionStart,
+				textarea.selectionEnd,
+			);
+
+			if (result) {
+				event.preventDefault();
+				edit({ text: result.text, caret: result.caret });
+			}
+		} else if (event.inputType === "historyUndo") {
 			event.preventDefault();
 			stepHistory("undo");
 		} else if (event.inputType === "historyRedo") {

@@ -225,3 +225,38 @@ test("Safari の順番（変換のあとに Tab が届く）でも、候補を�
 
 	expect(textareaValue()).toBe("");
 });
+
+test("番号の直後の Backspace で、番号を一度に消せる。元に戻せる", async () => {
+	await render(<Harness />);
+	await focusTextarea();
+	await userEvent.keyboard("1. 混ぜる{Enter}");
+
+	expect(textareaValue()).toBe("1. 混ぜる\n2. ");
+
+	await userEvent.keyboard("{Backspace}");
+
+	expect(textareaValue()).toBe("1. 混ぜる\n");
+
+	await userEvent.keyboard(undoKeys);
+
+	expect(textareaValue()).toBe("1. 混ぜる\n2. ");
+});
+
+test("印の後ろに文字があるときも、印だけを消す。印の途中や文字の後ろは、ふつうの削除", async () => {
+	await render(<Harness />);
+	await focusTextarea();
+	await userEvent.keyboard("1. 混ぜる");
+
+	const textarea = getTextarea();
+
+	textarea.setSelectionRange(3, 3);
+	await userEvent.keyboard("{Backspace}");
+
+	expect(textareaValue()).toBe("混ぜる");
+
+	textarea.setSelectionRange(3, 3);
+	await userEvent.keyboard("{Backspace}");
+
+	// 文字の後ろは、1文字だけ消える。
+	expect(textareaValue()).toBe("混ぜ");
+});

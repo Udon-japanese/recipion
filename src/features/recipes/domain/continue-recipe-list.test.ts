@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { continueRecipeList } from "./continue-recipe-list";
+import {
+	continueRecipeList,
+	removeRecipeListMarker,
+} from "./continue-recipe-list";
 
 // カーソルが末尾にあるときの、Enter のあとの本文。印を付けない行は null。
 function enterAtEnd(text: string): string | null {
@@ -58,5 +61,51 @@ describe("continueRecipeList", () => {
 		expect(continueRecipeList(text, caret, caret)?.text).toBe(
 			"＜作り方＞\n1. 混ぜる\n2. 焼く\n3. \n\n＜メモ＞",
 		);
+	});
+});
+
+describe("removeRecipeListMarker", () => {
+	// 「|」の位置にカーソルがあるときの、Backspace のあとの本文と、カーソルの位置。印の直後でなければ null。
+	function backspaceAt(marked: string) {
+		const caret = marked.indexOf("|");
+		const text = marked.replace("|", "");
+		const result = removeRecipeListMarker(text, caret, caret);
+
+		return result && { text: result.text, caret: result.caret };
+	}
+
+	it("印の直後なら、印と空白を、一度に消す", () => {
+		expect(backspaceAt("1. 混ぜる\n2. |")).toEqual({
+			text: "1. 混ぜる\n",
+			caret: 7,
+		});
+		expect(backspaceAt("9) |")).toEqual({ text: "", caret: 0 });
+		expect(backspaceAt("３、 |")).toEqual({ text: "", caret: 0 });
+		expect(backspaceAt("・|")).toBeNull();
+		expect(backspaceAt("・ |")).toEqual({ text: "", caret: 0 });
+		expect(backspaceAt("- |")).toEqual({ text: "", caret: 0 });
+		expect(backspaceAt("1.  |")).toEqual({ text: "", caret: 0 });
+	});
+
+	it("印の後ろに文字があっても、印だけを消す。字下げは残す", () => {
+		expect(backspaceAt("2. |混ぜる")).toEqual({ text: "混ぜる", caret: 0 });
+		expect(backspaceAt("  2. |混ぜる")).toEqual({
+			text: "  混ぜる",
+			caret: 2,
+		});
+	});
+
+	it("印の直後でなければ、ふつうの削除（null）", () => {
+		// 空白のない印、印の途中、文字の後ろ、行の途中
+		expect(backspaceAt("1.|")).toBeNull();
+		expect(backspaceAt("1|. 混ぜる")).toBeNull();
+		expect(backspaceAt("1. 混ぜ|る")).toBeNull();
+		expect(backspaceAt("混ぜる 2. |")).toBeNull();
+		expect(backspaceAt("1 1/2本 |")).toBeNull();
+		expect(backspaceAt("|")).toBeNull();
+	});
+
+	it("範囲を選んでいるときは、ふつうの削除（null）", () => {
+		expect(removeRecipeListMarker("1. 混ぜる", 0, 3)).toBeNull();
 	});
 });
