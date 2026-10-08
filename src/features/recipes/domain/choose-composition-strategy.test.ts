@@ -12,6 +12,8 @@ const iPhoneChrome =
 	"Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/126.0.0.0 Mobile/15E148 Safari/604.1";
 const firefox =
 	"Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:127.0) Gecko/20100101 Firefox/127.0";
+const androidChrome =
+	"Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36";
 const chrome =
 	"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
 
@@ -19,9 +21,14 @@ describe("chooseCompositionStrategy", () => {
 	it("環境ごとに、変換中の補完の扱いを決める", () => {
 		const cases: [string, BrowserEnvironment, string][] = [
 			[
-				"Chromium 系（PC・Android）",
+				"PC の Chromium 系",
 				{ userAgent: chrome, maxTouchPoints: 0, isChromium: true },
 				"end-then-replace",
+			],
+			[
+				"Android の Chrome（フォーカスを外すと、キーボードが閉じる）",
+				{ userAgent: androidChrome, maxTouchPoints: 5, isChromium: true },
+				"replace-in-place",
 			],
 			[
 				"Mac の Safari",

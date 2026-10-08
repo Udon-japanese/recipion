@@ -1,6 +1,6 @@
 // 変換中（IME の入力中）の補完の扱い。
-// - end-then-replace：変換を確定させてから、確定した文字を含めて、置き換える（Chromium 系。PC の Chrome・Edge、Android の Chrome）
-// - replace-in-place：変換中のまま、本文を書き換える。ブラウザが変換を取り消す（Mac の Safari）
+// - end-then-replace：変換を確定させてから、確定した文字を含めて、置き換える（PC の Chrome・Edge）
+// - replace-in-place：変換中のまま、本文を書き換える。ブラウザが変換を取り消す（Mac の Safari、Android の Chrome。Android は、フォーカスを外すと、ソフトウェアキーボードが閉じるため）
 // - wait-for-confirmation：変換中は、補完を出さない。確定したあとに出す（iPhone・Firefox・未確認の環境）
 export type CompositionStrategy =
 	| "end-then-replace"
@@ -21,7 +21,7 @@ export function chooseCompositionStrategy(
 	const { userAgent, maxTouchPoints, isChromium } = environment;
 
 	if (isChromium) {
-		return "end-then-replace";
+		return /Android/u.test(userAgent) ? "replace-in-place" : "end-then-replace";
 	}
 
 	// iPhone・iPad（iPad は、Mac と同じ名前で名乗ることがあるので、タッチ画面で見分ける）は、iOS のすべてのブラウザが、同じエンジンで、実機で未確認。
