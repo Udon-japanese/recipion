@@ -16,14 +16,28 @@ const androidChrome =
 	"Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36";
 const chrome =
 	"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
+const windowsChrome =
+	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
+const linuxChrome =
+	"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
 
 describe("chooseCompositionStrategy", () => {
 	it("環境ごとに、変換中の補完の扱いを決める", () => {
 		const cases: [string, BrowserEnvironment, string][] = [
 			[
-				"PC の Chromium 系",
+				"Mac の Chromium 系",
 				{ userAgent: chrome, maxTouchPoints: 0, isChromium: true },
 				"end-then-replace",
+			],
+			[
+				"Windows の Chromium 系",
+				{ userAgent: windowsChrome, maxTouchPoints: 0, isChromium: true },
+				"end-then-replace",
+			],
+			[
+				"Linux の Chromium 系（動作を確認できていない）",
+				{ userAgent: linuxChrome, maxTouchPoints: 0, isChromium: true },
+				"wait-for-confirmation",
 			],
 			[
 				"Android の Chrome（フォーカスを外すと、キーボードが閉じる）",

@@ -3,12 +3,16 @@ import { expect, test } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import type { CompositionStrategy } from "../domain/choose-composition-strategy";
+import { measureTextareaCaret } from "../infrastructure/measure-textarea-caret";
 import { RecipeBodyTextarea } from "./recipe-body-textarea";
 
+// 変換中の補完の方式は、実行する環境（OS・ブラウザ）で変わるので、テストでは、既定で明示する。
 function Harness({
-	compositionStrategy,
+	compositionStrategy = "end-then-replace",
+	completionLayout,
 }: {
 	compositionStrategy?: CompositionStrategy;
+	completionLayout?: "caret" | "keyboard-bar";
 }) {
 	const [value, setValue] = useState("");
 
@@ -18,6 +22,7 @@ function Harness({
 			onChange={setValue}
 			recipeNames={["玉ねぎ"]}
 			compositionStrategy={compositionStrategy}
+			completionLayout={completionLayout}
 		/>
 	);
 }
@@ -259,4 +264,86 @@ test("印の後ろに文字があるときも、印だけを消す。印の途�
 
 	// 文字の後ろは、1文字だけ消える。
 	expect(textareaValue()).toBe("混ぜ");
+});
+
+// カーソルの行（画面上の上端と下端）。
+function caretLine() {
+	const textarea = getTextarea();
+	const caret = measureTextareaCaret(textarea, textarea.selectionStart);
+	const box = textarea.getBoundingClientRect();
+
+	return {
+		top: box.top + caret.top,
+		bottom: box.top + caret.top + caret.height,
+	};
+}
+
+function popupBox() {
+	const list = document.querySelector('[aria-label="補完の候補"]');
+	const popup = list?.parentElement;
+
+	if (!popup) {
+		throw new Error("補完の候補があるはず");
+	}
+
+	return popup.getBoundingClientRect();
+}
+
+test("候補は、カーソルの行の真下に出る（入力中の行には重ならない）", async () => {
+	await render(<Harness completionLayout="caret" />);
+	await focusTextarea();
+	await userEvent.keyboard("\n\n\n＜作");
+	await expect.poll(() => candidateButton().textContent).toBe("＜作り方＞");
+
+	const line = caretLine();
+
+	// 位置を測り終えて、見える状態になるのを待つ。
+	await expect
+		.poll(
+			() =>
+				getComputedStyle(candidateButton().closest("div") as Element)
+					.visibility,
+		)
+		.toBe("visible");
+
+	expect(popupBox().top).toBeGreaterThanOrEqual(line.bottom - 1);
+	// 入力欄の下ではなく、カーソルの近く（入力欄の中）に出る。
+	expect(popupBox().top).toBeLessThan(
+		getTextarea().getBoundingClientRect().bottom,
+	);
+});
+
+test("変換中は、IME の変換候補の窓と重ならないよう、カーソルの行の上に出る", async () => {
+	await render(<Harness completionLayout="caret" />);
+	await focusTextarea();
+	await userEvent.keyboard("{Enter}".repeat(8));
+	startComposition();
+	await userEvent.keyboard("＜作");
+	await expect.poll(() => candidateButton().textContent).toBe("＜作り方＞");
+	await expect
+		.poll(
+			() =>
+				getComputedStyle(candidateButton().closest("div") as Element)
+					.visibility,
+		)
+		.toBe("visible");
+
+	expect(popupBox().bottom).toBeLessThanOrEqual(caretLine().top + 1);
+});
+
+test("スマホでは、キーボードのすぐ上に固定した、横にスクロールできる帯で出る", async () => {
+	await render(<Harness completionLayout="keyboard-bar" />);
+	await focusTextarea();
+	await userEvent.keyboard("＜作");
+	await expect.poll(() => candidateButton().textContent).toBe("＜作り方＞");
+
+	const list = document.querySelector('[aria-label="補完の候補"]');
+	const bar = list?.parentElement;
+
+	if (!list || !bar) {
+		throw new Error("補完の候補があるはず");
+	}
+
+	expect(getComputedStyle(bar).position).toBe("fixed");
+	expect(getComputedStyle(list).overflowX).toBe("auto");
 });
