@@ -73,3 +73,35 @@ export function continueRecipeList(
 		caret: head.length + inserted.length,
 	};
 }
+
+// カーソルの前が、字下げ・印・空白だけのとき（印の直後）。
+const markerBeforeCaretPattern =
+	/^(\s*)(?:[0-9０-９]+[.．)）、]|[・●◦•\-*])\s+$/u;
+
+// Backspace を押したときの、本文とカーソルの位置（印の直後でなければ null。そのときは、ふつうの削除）。
+// 番号・中黒の印の直後なら、印と空白を、一度に消す（字下げと、印の後ろの文字は、残す）。
+export function removeRecipeListMarker(
+	text: string,
+	selectionStart: number,
+	selectionEnd: number,
+): ListContinuation | null {
+	if (selectionStart !== selectionEnd) {
+		return null;
+	}
+
+	const lineStart = text.lastIndexOf("\n", selectionStart - 1) + 1;
+	const match = text
+		.slice(lineStart, selectionStart)
+		.match(markerBeforeCaretPattern);
+
+	if (!match) {
+		return null;
+	}
+
+	const markerStart = lineStart + match[1].length;
+
+	return {
+		text: `${text.slice(0, markerStart)}${text.slice(selectionStart)}`,
+		caret: markerStart,
+	};
+}
