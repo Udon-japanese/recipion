@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+	adjustCompletionItem,
 	applyRecipeTextCompletion,
 	getRecipeTextCompletion,
 	type RecipeTextCompletion,
@@ -300,5 +301,25 @@ describe("getRecipeTextCompletion（食材の別名・読み仮名）", () => {
 		expect(labelsAtEnd("＜作り方＞\n1. ぷりぷ", ["プリプリ海老"])).toEqual([
 			"プリプリ海老",
 		]);
+	});
+});
+
+describe("adjustCompletionItem", () => {
+	const item = { label: "トマト", insert: "トマト", from: 5, to: 7 };
+
+	it("変換の確定で本文の長さが変わった分だけ、範囲の終わりをずらす", () => {
+		expect(adjustCompletionItem(item, { start: 5, delta: 2 })).toEqual({
+			...item,
+			to: 9,
+		});
+		expect(adjustCompletionItem(item, { start: 5, delta: 0 })).toEqual(item);
+	});
+
+	it("変換の始まりより後から始まる範囲は、始まりも、ずらす", () => {
+		expect(adjustCompletionItem(item, { start: 3, delta: -1 })).toEqual({
+			...item,
+			from: 4,
+			to: 6,
+		});
 	});
 });
