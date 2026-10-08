@@ -347,3 +347,87 @@ test("スマホでは、キーボードのすぐ上に固定した、横にス�
 	expect(getComputedStyle(bar).position).toBe("fixed");
 	expect(getComputedStyle(list).overflowX).toBe("auto");
 });
+
+// 変換中は、素の矢印と Shift+矢印を IME に任せ、Alt（Option）+↑↓ で、こちらの候補を選ぶ。
+function compositionKey(init: KeyboardEventInit) {
+	const event = new KeyboardEvent("keydown", {
+		isComposing: true,
+		bubbles: true,
+		cancelable: true,
+		...init,
+	});
+
+	getTextarea().dispatchEvent(event);
+
+	return event;
+}
+
+function selectedCandidate() {
+	return document.querySelector(
+		'[aria-label="補完の候補"] button[aria-current="true"]',
+	)?.textContent;
+}
+
+test("変換中は、Alt+↑↓ で候補を選び、Tab で決められる（素の矢印は IME に任せる）", async () => {
+	await render(<Harness completionLayout="caret" />);
+	await focusTextarea();
+	startComposition();
+	await userEvent.keyboard("＜");
+	await expect.poll(() => candidateButton().textContent).toBe("＜材料＞");
+
+	// 素の矢印と Shift+矢印は、IME に任せる。
+	expect(
+		compositionKey({ key: "ArrowDown", code: "ArrowDown" }).defaultPrevented,
+	).toBe(false);
+	expect(
+		compositionKey({ key: "ArrowDown", code: "ArrowDown", shiftKey: true })
+			.defaultPrevented,
+	).toBe(false);
+	expect(selectedCandidate()).toBeUndefined();
+
+	// Windows は、1回目の keydown（key が Process）は、数えない。
+	expect(
+		compositionKey({ key: "Process", code: "ArrowDown", altKey: true })
+			.defaultPrevented,
+	).toBe(false);
+	expect(selectedCandidate()).toBeUndefined();
+
+	// Alt+↓ を2回で、2つ目（＜下準備＞）。
+	expect(
+		compositionKey({ key: "ArrowDown", code: "ArrowDown", altKey: true })
+			.defaultPrevented,
+	).toBe(true);
+	compositionKey({ key: "ArrowDown", code: "ArrowDown", altKey: true });
+	await expect.poll(selectedCandidate).toBe("＜下準備＞");
+
+	// Alt+↑ で戻る。
+	compositionKey({ key: "ArrowUp", code: "ArrowUp", altKey: true });
+	await expect.poll(selectedCandidate).toBe("＜材料＞");
+
+	// 選んだあとの Tab で、選んだ候補に決まる。
+	compositionKey({ key: "ArrowDown", code: "ArrowDown", altKey: true });
+	await expect.poll(selectedCandidate).toBe("＜下準備＞");
+
+	const tab = compositionKey({ key: "Process", code: "Tab" });
+
+	expect(tab.defaultPrevented).toBe(true);
+	await expect.poll(textareaValue).toBe("＜下準備＞\n");
+});
+
+// Enter は、IME が変換中の文字を確定する操作。Mac の IME は、止めても、確定の入力をあとから送ってきて、置き換えた本文の先頭に入ってしまう。補完には使わない。
+test("変換中の Enter は、候補を選んでいても、IME に任せる", async () => {
+	await render(<Harness completionLayout="caret" />);
+	await focusTextarea();
+	startComposition();
+	await userEvent.keyboard("＜");
+	await expect.poll(() => candidateButton().textContent).toBe("＜材料＞");
+	// 入力のあとの、カーソルの位置の通知（選択をリセットする）が、落ち着くのを待つ。
+	await new Promise((resolve) => setTimeout(resolve, 100));
+	compositionKey({ key: "ArrowDown", code: "ArrowDown", altKey: true });
+	await expect.poll(selectedCandidate).toBe("＜材料＞");
+
+	expect(
+		compositionKey({ key: "Process", code: "Enter" }).defaultPrevented,
+	).toBe(false);
+	expect(textareaValue()).toBe("＜");
+});

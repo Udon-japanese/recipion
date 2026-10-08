@@ -297,9 +297,13 @@ export function RecipeBodyTextarea({
 			? textarea.selectionEnd
 			: textarea.selectionStart;
 
+		// カーソルが動いていない通知（キーを押しただけでも届く）では、候補の選択を解除しない。
+		if (position !== caretRef.current) {
+			setActiveIndex(null);
+		}
+
 		caretRef.current = position;
 		setCaret(position);
-		setActiveIndex(null);
 	}
 
 	// 本文を書き換える（履歴の記録は、呼び出し側で行う）。
@@ -471,6 +475,19 @@ export function RecipeBodyTextarea({
 	}
 
 	// 変換中の Tab で使う候補。今出ている候補。なければ、Safari の方式のときだけ、直前の入力（IME の変換）の前に出ていた候補。
+	// 候補の選択を、1つ動かす（現在の選択がなければ、↓は先頭、↑は末尾）。
+	function moveActive(direction: "up" | "down", itemCount: number) {
+		const lastIndex = itemCount - 1;
+
+		setActiveIndex((current) => {
+			if (direction === "down") {
+				return current === null ? 0 : Math.min(current + 1, lastIndex);
+			}
+
+			return current === null ? lastIndex : Math.max(current - 1, 0);
+		});
+	}
+
 	function findCompletionForTab(): {
 		completion: RecipeTextCompletion;
 		value: string;
@@ -493,19 +510,40 @@ export function RecipeBodyTextarea({
 		return null;
 	}
 
-	function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-		// 変換中の操作は、IME に任せる。ただし、候補が出ているときの Tab は、IME の変換候補ではなく、補完の決定に使う。
-		if (event.nativeEvent.isComposing) {
-			if (event.code === "Tab" && !event.shiftKey && compositionRef.current) {
-				const shown = findCompletionForTab();
+	function handleCompositionKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+		const shown = findCompletionForTab();
 
-				if (shown) {
-					event.preventDefault();
-					void acceptDuringComposition(
-						shown.completion.items[activeIndex ?? 0],
-						{ text: shown.value, caret: shown.caret },
-					);
-				}
+		if (!shown) {
+			return;
+		}
+
+		const items = shown.completion.items;
+		const source = { text: shown.value, caret: shown.caret };
+
+		// Windows は、1回のキーで、keydown が2回届く（1回目は key が Process、2回目が本物のキー）。1回だけ扱う。
+		if (
+			event.altKey &&
+			!event.ctrlKey &&
+			!event.metaKey &&
+			!event.shiftKey &&
+			(event.key === "ArrowDown" || event.key === "ArrowUp")
+		) {
+			event.preventDefault();
+			moveActive(event.key === "ArrowDown" ? "down" : "up", items.length);
+		} else if (event.code === "Tab" && !event.shiftKey) {
+			event.preventDefault();
+			void acceptDuringComposition(items[activeIndex ?? 0], source);
+		}
+	}
+
+	function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+		// 変換中の操作は、IME に任せる。ただし、候補が出ているときは、次のキーを、IME の変換候補ではなく、補完に使う。
+		// - Tab：決定（選んでいなければ先頭）
+		// - Alt（Option）+↑↓：選択（素の矢印と Shift+矢印は、IME が使うので、IME に任せる）
+		// - Enter は、IME が変換中の文字を確定する操作。止めても、Mac の IME は、確定の入力をあとから送ってきて、置き換えた本文の先頭に入ってしまう。補完には使わない。
+		if (event.nativeEvent.isComposing) {
+			if (compositionRef.current) {
+				handleCompositionKeyDown(event);
 			}
 
 			return;
@@ -536,20 +574,14 @@ export function RecipeBodyTextarea({
 			return;
 		}
 
-		const lastIndex = completion.items.length - 1;
-
 		switch (event.key) {
 			case "ArrowDown":
 				event.preventDefault();
-				setActiveIndex((current) =>
-					current === null ? 0 : Math.min(current + 1, lastIndex),
-				);
+				moveActive("down", completion.items.length);
 				break;
 			case "ArrowUp":
 				event.preventDefault();
-				setActiveIndex((current) =>
-					current === null ? lastIndex : Math.max(current - 1, 0),
-				);
+				moveActive("up", completion.items.length);
 				break;
 			case "Tab":
 				event.preventDefault();
@@ -588,6 +620,8 @@ export function RecipeBodyTextarea({
 		}
 
 		onChange(textarea.value);
+		// 本文が変わると、候補も変わるので、選択を解除する。
+		setActiveIndex(null);
 		syncCaret(textarea);
 	}
 
@@ -653,7 +687,9 @@ export function RecipeBodyTextarea({
 						{candidates}
 					</ul>
 					<p className={styles.completionPopupHint}>
-						↑↓で選び、Tab で決定（Esc で閉じる）
+						{isComposing
+							? "Alt/Option+↑↓ で選び、Tab で決定"
+							: "↑↓で選び、Tab で決定（Esc で閉じる）"}
 					</p>
 				</div>
 			) : null}
