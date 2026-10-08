@@ -433,3 +433,18 @@ export function applyRecipeTextCompletion(
 		caret: head.length + item.insert.length,
 	};
 }
+
+// 変換中に候補を決めたとき、変換の確定で本文の長さが変わった分（delta）だけ、置き換える範囲をずらす。
+// 変換の始まり（start）より前から始まる範囲は、始まりを動かさない。
+export function adjustCompletionItem(
+	item: RecipeTextCompletionItem,
+	composition: { start: number; delta: number },
+): RecipeTextCompletionItem {
+	const to = Math.max(0, item.to + composition.delta);
+	const from =
+		item.from <= composition.start
+			? item.from
+			: Math.min(Math.max(0, item.from + composition.delta), to);
+
+	return { ...item, from, to };
+}

@@ -1,4 +1,11 @@
-import { type KeyboardEvent, type SubmitEvent, useMemo, useState } from "react";
+import {
+	type KeyboardEvent,
+	type SubmitEvent,
+	useEffect,
+	useEffectEvent,
+	useMemo,
+	useState,
+} from "react";
 import {
 	createIngredientGroup,
 	createIngredientItem,
@@ -80,8 +87,9 @@ function createInitialState(
 	text: string;
 	sync: IngredientSyncState;
 } {
+	// 新規登録は、サーバーとブラウザで同じ表示になるよう、雛形ありで始める。端末に保存した設定は、表示のあとに反映する。
 	if (!initialDocument) {
-		const text = readTemplatePreference() ? formatRecipeTemplateText() : "";
+		const text = formatRecipeTemplateText();
 
 		return { text, sync: reconcileFromText(emptyIngredientSyncState, text) };
 	}
@@ -114,7 +122,7 @@ export function RecipeEditor({
 	const [sourceUrl, setSourceUrl] = useState(initialDocument?.sourceUrl ?? "");
 	const [text, setText] = useState(initialState.text);
 	const [sync, setSync] = useState(initialState.sync);
-	const [useTemplate, setUseTemplate] = useState(readTemplatePreference);
+	const [useTemplate, setUseTemplate] = useState(true);
 	const [activeTab, setActiveTab] = useState<ActiveTab>("input");
 	const [isSaving, setIsSaving] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -162,6 +170,17 @@ export function RecipeEditor({
 			applyText(enabled ? template : "");
 		}
 	}
+
+	// 端末に保存した「雛形なし」の設定を、表示のあとに反映する（localStorage は、サーバーでは読めない）。
+	const applySavedTemplatePreference = useEffectEvent(() => {
+		if (!isEditing && !readTemplatePreference()) {
+			handleTemplateToggle(false);
+		}
+	});
+
+	useEffect(() => {
+		applySavedTemplatePreference();
+	}, []);
 
 	// プレビューでの手直し。手直しした ID を記録して、入力欄の文章を書き換えても、消さないようにする。
 	function editIngredients(
