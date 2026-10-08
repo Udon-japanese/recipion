@@ -431,3 +431,29 @@ test("変換中の Enter は、候補を選んでいても、IME に任せる", 
 	).toBe(false);
 	expect(textareaValue()).toBe("＜");
 });
+
+function hintKeys() {
+	return [
+		...document.querySelectorAll('[aria-label="補完の候補"] + p kbd'),
+	].map((kbd) => kbd.textContent);
+}
+
+test("候補の下のヒントは、ショートカットを、キーごとに表示する", async () => {
+	await render(<Harness completionLayout="caret" />);
+	await focusTextarea();
+	await userEvent.keyboard("＜");
+	await expect.poll(() => candidateButton().textContent).toBe("＜材料＞");
+
+	expect(hintKeys()).toEqual(["↑↓", "Tab", "Esc"]);
+});
+
+test("変換中のヒントは、Alt（Apple 系は Option）+↑↓ を示す", async () => {
+	await render(<Harness completionLayout="caret" />);
+	await focusTextarea();
+	startComposition();
+	await userEvent.keyboard("＜");
+	await expect.poll(() => candidateButton().textContent).toBe("＜材料＞");
+	await expect.poll(() => hintKeys().slice(1)).toEqual(["↑↓", "Tab"]);
+	// 先頭は、OS によって、Alt（Windows・Linux）か Option（Apple 系）。
+	expect(["Alt", "Option"]).toContain(hintKeys()[0]);
+});
