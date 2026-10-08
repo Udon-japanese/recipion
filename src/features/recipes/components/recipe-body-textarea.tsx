@@ -9,6 +9,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { ShortcutKeys } from "#/features/shortcuts/components/shortcut-keys";
 import {
 	type CompositionStrategy,
 	chooseCompositionStrategy,
@@ -687,9 +688,23 @@ export function RecipeBodyTextarea({
 						{candidates}
 					</ul>
 					<p className={styles.completionPopupHint}>
-						{isComposing
-							? "Alt/Option+↑↓ で選び、Tab で決定"
-							: "↑↓で選び、Tab で決定（Esc で閉じる）"}
+						{isComposing ? (
+							<>
+								<ShortcutKeys keys={["alt", "up-down"]} />
+								で選び、
+								<ShortcutKeys keys={["tab"]} />
+								で決定
+							</>
+						) : (
+							<>
+								<ShortcutKeys keys={["up-down"]} />
+								で選び、
+								<ShortcutKeys keys={["tab"]} />
+								で決定（
+								<ShortcutKeys keys={["esc"]} />
+								で閉じる）
+							</>
+						)}
 					</p>
 				</div>
 			) : null}
