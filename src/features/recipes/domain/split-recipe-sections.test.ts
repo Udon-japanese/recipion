@@ -148,4 +148,23 @@ describe("splitRecipeSections（見出しなし）", () => {
 			"ねぎ 1 1/2本",
 		);
 	});
+
+	it("見出しがなく、材料に「適量(補足)」の行があっても、材料と作り方に分かれる", () => {
+		const sections = splitRecipeSections(
+			[
+				"バター 適量",
+				"☆ケチャップ 適量(色がつくくらい、大さじ２〜３)",
+				"☆ソーセージ(ベーコン) 適量",
+				"卵 3個",
+				"",
+				"1. ソーセージを温める。",
+				"2. バターを入れて炒める",
+			].join("\n"),
+		);
+
+		expect(sections.ingredientText).toContain("☆ケチャップ");
+		expect(sections.instructionText).toBe(
+			"1. ソーセージを温める。\n2. バターを入れて炒める",
+		);
+	});
 });

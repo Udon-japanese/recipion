@@ -102,6 +102,8 @@ function createParsedLine(
 	rawText: string,
 	name: string,
 	amountText: string,
+	// 分量のあとの括弧つきの補足（原文のまま分量に残す。数量には使わない）。
+	supplement = "",
 ): ParsedRecipeIngredientLine {
 	const quantityMatch = amountText.match(quantityPattern);
 	const unitMatch = amountText.match(unitPattern);
@@ -110,7 +112,7 @@ function createParsedLine(
 		status: "parsed",
 		rawText,
 		name: name.trim(),
-		amountText: amountText.trim(),
+		amountText: `${amountText.trim()}${supplement}`,
 		// 範囲は1つの数値にしない。原文は amountText に残る。
 		quantity:
 			quantityMatch && !rangePattern.test(amountText)
@@ -119,6 +121,9 @@ function createParsedLine(
 		unitLabel: unitMatch ? normalizeUnitLabel(unitMatch[0]) : null,
 	};
 }
+
+// 行の終わりの、括弧つきの補足（「適量(色がつくくらい)」「1丁(300g)」）。
+const trailingSupplementPattern = /^(?<body>.+?)(?<supplement>\s*\([^()]*\))$/u;
 
 export function parseRecipeIngredientLine(
 	input: string,
@@ -130,6 +135,25 @@ export function parseRecipeIngredientLine(
 	}
 
 	const normalizedText = rawText.normalize("NFKC");
+
+	// 分量のあとに括弧つきの補足があるとき（「適量(…)」）は、補足を除いて分量を読み、補足は分量の原文に残す。
+	// 括弧を除いても、分量が読めないとき（「ソーセージ(ベーコン)」など、名前の一部）は、行全体で読む。
+	const supplementMatch = normalizedText.match(trailingSupplementPattern);
+
+	if (supplementMatch?.groups) {
+		const withoutSupplement = parseRecipeIngredientLine(
+			supplementMatch.groups.body,
+		);
+
+		if (withoutSupplement?.status === "parsed") {
+			return createParsedLine(
+				rawText,
+				withoutSupplement.name,
+				withoutSupplement.amountText,
+				supplementMatch.groups.supplement.trim(),
+			);
+		}
+	}
 
 	for (const pattern of measuredAmountPatterns) {
 		const match = normalizedText.match(pattern);

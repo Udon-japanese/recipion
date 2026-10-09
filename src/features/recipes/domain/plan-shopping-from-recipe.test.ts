@@ -241,3 +241,71 @@ describe("planShoppingFromRecipe：買い物メモに、同じ食材がある", 
 		expect(rows[0]?.existing?.id).toBe("m1");
 	});
 });
+
+describe("planShoppingFromRecipe：冷凍野菜が代わりになる", () => {
+	const frozenOnion = {
+		name: "冷凍玉ねぎ(みじん切り)",
+		quantity: 300,
+		stockUnitCode: "g" as const,
+		stockUnitLabel: "g",
+	};
+
+	it("生の在庫がなくても、冷凍の在庫で足りれば、足りている（初期のチェックなし）", () => {
+		const [row] = plan({
+			needs: [need("玉ねぎ", 1, "個")],
+			stockItems: [frozenOnion],
+		});
+
+		expect(row?.stock).toMatchObject({
+			kind: "judged",
+			judgment: { status: "enough" },
+			standInName: "冷凍玉ねぎ(みじん切り)",
+		});
+		expect(row?.defaultChecked).toBe(false);
+	});
+
+	it("冷凍の在庫でも足りないときは、不足のまま（チェックあり）", () => {
+		const [row] = plan({
+			needs: [need("玉ねぎ", 5, "個")],
+			stockItems: [frozenOnion],
+		});
+
+		expect(row?.stock).toMatchObject({
+			judgment: { status: "short" },
+		});
+		expect(row?.defaultChecked).toBe(true);
+	});
+
+	it("生の在庫で足りているときは、生の判定のまま", () => {
+		const [row] = plan({
+			needs: [need("玉ねぎ", 1, "個")],
+			stockItems: [
+				{
+					name: "玉ねぎ",
+					quantity: 2,
+					stockUnitCode: "count",
+					stockUnitLabel: "個",
+				},
+				frozenOnion,
+			],
+		});
+
+		expect(row?.stock).not.toHaveProperty("standInName");
+	});
+
+	it("代わりにならない冷凍（フライドポテト）は、数えない", () => {
+		const [row] = plan({
+			needs: [need("じゃがいも", 1, "個")],
+			stockItems: [
+				{
+					name: "冷凍ポテト(シューストリング)",
+					quantity: 1000,
+					stockUnitCode: "g",
+					stockUnitLabel: "g",
+				},
+			],
+		});
+
+		expect(row?.defaultChecked).toBe(true);
+	});
+});

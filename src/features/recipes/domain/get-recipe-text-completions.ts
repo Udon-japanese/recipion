@@ -234,13 +234,14 @@ function completeIngredientName(
 	after: string,
 	caret: number,
 ): RecipeTextCompletion | null {
-	const token = before.trimStart().replace(bulletPattern, "");
+	// 行頭の箇条書きの印と、グループの印（☆ など）は、材料名ではないので除く。
+	const token = before
+		.trimStart()
+		.replace(bulletPattern, "")
+		.replace(groupSymbolPattern, "")
+		.trimStart();
 
-	if (
-		token === "" ||
-		groupSymbolPattern.test(token) ||
-		nameBreakPattern.test(token)
-	) {
+	if (token === "" || nameBreakPattern.test(token)) {
 		return null;
 	}
 

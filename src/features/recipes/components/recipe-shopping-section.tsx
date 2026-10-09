@@ -53,6 +53,13 @@ function describeStock(row: RecipeShoppingRow): {
 
 	const { judgment } = row.stock;
 
+	if (row.stock.standInName) {
+		return {
+			text: `${row.stock.standInName}の在庫で足りています`,
+			isShort: false,
+		};
+	}
+
 	if (judgment.status === "enough") {
 		return {
 			text:

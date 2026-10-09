@@ -359,4 +359,38 @@ describe("RecipeShoppingSection", () => {
 			"醤油",
 		]);
 	});
+
+	it("冷凍の在庫で足りているときは、その旨を表示し、チェックなしで、選べば入れられる", async () => {
+		const user = userEvent.setup();
+		const repository = createRepository();
+
+		render(
+			<RecipeShoppingSection
+				ingredients={[ingredient("i1", "玉ねぎ", 1, "個", "1個")]}
+				ownerScope="user:user-id"
+				loadInventoryItems={async () => [
+					stockItem("冷凍玉ねぎ(みじん切り)", 300, "g", "g"),
+				]}
+				shoppingRepository={repository}
+			/>,
+		);
+
+		const panel = within(await openPanel(user));
+
+		expect(
+			await panel.findByText("冷凍玉ねぎ(みじん切り)の在庫で足りています"),
+		).toBeInTheDocument();
+
+		const checkbox = panel.getByLabelText("玉ねぎを買い物メモに入れる");
+
+		expect(checkbox).not.toBeChecked();
+
+		await user.click(checkbox);
+		await user.click(
+			panel.getByRole("button", { name: "選んだものを入れる（1件）" }),
+		);
+
+		await waitFor(() => expect(repository.saved).toHaveLength(1));
+		expect(repository.saved[0]?.name).toBe("玉ねぎ");
+	});
 });
