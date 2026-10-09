@@ -34,7 +34,11 @@ function EditRecipePage() {
 				// 編集中のレシピ自身には、リンクできない。
 				return recipes
 					.filter((candidate) => candidate.publicId !== recipe.publicId)
-					.map(({ publicId, name }) => ({ publicId, name }));
+					.map(({ publicId, name, createdAt }) => ({
+						publicId,
+						name,
+						createdAt,
+					}));
 			}}
 			onSave={(document) =>
 				updateRecipeServerFn({

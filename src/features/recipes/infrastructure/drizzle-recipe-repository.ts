@@ -367,6 +367,7 @@ export function createDrizzleRecipeRepository(
 					publicId: recipe.publicId,
 					name: recipe.name,
 					servings: recipe.servings,
+					createdAt: recipe.createdAt,
 				})
 				.from(recipe)
 				.where(eq(recipe.userId, userId))
@@ -376,6 +377,7 @@ export function createDrizzleRecipeRepository(
 				publicId: row.publicId,
 				name: row.name,
 				servings: Number(row.servings),
+				createdAt: row.createdAt.toISOString(),
 			}));
 		},
 	};

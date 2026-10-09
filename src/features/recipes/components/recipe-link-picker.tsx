@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { filterLinkTargets } from "../domain/filter-link-targets";
+import { buildLinkTargetHints } from "../domain/link-target-hints";
 import type { RecipeLinkTarget } from "../domain/recipe-links";
 import * as styles from "./recipe-link-picker.css";
 
@@ -24,6 +25,8 @@ export function RecipeLinkPicker({
 	const [query, setQuery] = useState("");
 	const searchRef = useRef<HTMLInputElement>(null);
 	const shown = filterLinkTargets(targets, query, maxShown);
+	// 同じ名前のレシピが複数あるときは、登録日を添えて、見分けられるようにする。
+	const hints = buildLinkTargetHints(targets);
 
 	useEffect(() => {
 		searchRef.current?.focus();
@@ -82,6 +85,12 @@ export function RecipeLinkPicker({
 								onClick={() => onSelect(target)}
 							>
 								{target.name}
+								{hints.has(target.publicId) ? (
+									<span className={styles.hint}>
+										{" ・ "}
+										{hints.get(target.publicId)}
+									</span>
+								) : null}
 							</button>
 						</li>
 					))}

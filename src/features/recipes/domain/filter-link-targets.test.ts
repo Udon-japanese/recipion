@@ -2,10 +2,22 @@ import { describe, expect, it } from "vitest";
 import { filterLinkTargets } from "./filter-link-targets";
 
 const targets = [
-	{ publicId: "1", name: "ミニトマトのマリネ" },
-	{ publicId: "2", name: "トマトカレー" },
-	{ publicId: "3", name: "ハンバーグ" },
-	{ publicId: "4", name: "カレーうどん" },
+	{
+		publicId: "1",
+		name: "ミニトマトのマリネ",
+		createdAt: "2026-10-01T00:00:00+09:00",
+	},
+	{
+		publicId: "2",
+		name: "トマトカレー",
+		createdAt: "2026-10-01T00:00:00+09:00",
+	},
+	{ publicId: "3", name: "ハンバーグ", createdAt: "2026-10-01T00:00:00+09:00" },
+	{
+		publicId: "4",
+		name: "カレーうどん",
+		createdAt: "2026-10-01T00:00:00+09:00",
+	},
 ];
 
 describe("filterLinkTargets", () => {

@@ -8,7 +8,11 @@ import { listRecipesServerFn } from "#/features/recipes/server/list-recipes";
 async function loadLinkTargets() {
 	const recipes = await listRecipesServerFn();
 
-	return recipes.map(({ publicId, name }) => ({ publicId, name }));
+	return recipes.map(({ publicId, name, createdAt }) => ({
+		publicId,
+		name,
+		createdAt,
+	}));
 }
 
 export const Route = createFileRoute("/recipes/new")({

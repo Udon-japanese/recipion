@@ -59,3 +59,8 @@ export const message = style({
 	color: "var(--color-text-muted)",
 	fontSize: 13,
 });
+
+export const hint = style({
+	color: "var(--color-text-muted)",
+	fontSize: 13,
+});

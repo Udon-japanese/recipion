@@ -798,8 +798,16 @@ describe("RecipeEditor", () => {
 
 	describe("レシピへのリンク", () => {
 		const targets = [
-			{ publicId: "curry-id", name: "カレー" },
-			{ publicId: "rice-id", name: "ごはん" },
+			{
+				publicId: "curry-id",
+				name: "カレー",
+				createdAt: "2026-10-01T00:00:00+09:00",
+			},
+			{
+				publicId: "rice-id",
+				name: "ごはん",
+				createdAt: "2026-10-01T00:00:00+09:00",
+			},
 		];
 
 		const bodyTextarea = () =>
@@ -937,8 +945,16 @@ describe("RecipeEditor", () => {
 				<RecipeEditor
 					onSave={onSave}
 					loadLinkTargets={async () => [
-						{ publicId: "a", name: "カレー" },
-						{ publicId: "b", name: "カレー" },
+						{
+							publicId: "a",
+							name: "カレー",
+							createdAt: "2026-10-01T00:00:00+09:00",
+						},
+						{
+							publicId: "b",
+							name: "カレー",
+							createdAt: "2026-10-01T00:00:00+09:00",
+						},
 					]}
 				/>,
 			);
@@ -948,13 +964,13 @@ describe("RecipeEditor", () => {
 			await openPicker(user);
 			await user.click(
 				(
-					await screen.findAllByRole("button", { name: "カレー" })
+					await screen.findAllByRole("button", { name: /^カレー/ })
 				)[0] as HTMLElement,
 			);
 			await openPicker(user);
 			await user.click(
 				(
-					await screen.findAllByRole("button", { name: "カレー" })
+					await screen.findAllByRole("button", { name: /^カレー/ })
 				)[1] as HTMLElement,
 			);
 
@@ -982,8 +998,16 @@ describe("RecipeEditor", () => {
 				<RecipeEditor
 					onSave={onSave}
 					loadLinkTargets={async () => [
-						{ publicId: "a", name: "カレー" },
-						{ publicId: "b", name: "カレー" },
+						{
+							publicId: "a",
+							name: "カレー",
+							createdAt: "2026-10-01T00:00:00+09:00",
+						},
+						{
+							publicId: "b",
+							name: "カレー",
+							createdAt: "2026-10-01T00:00:00+09:00",
+						},
 					]}
 				/>,
 			);
