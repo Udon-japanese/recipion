@@ -81,6 +81,13 @@ export function splitTextByLinks(text: string): TextSegment[] {
 	return segments;
 }
 
+// 本文の [[ラベル]] から、括弧を除いて、ラベルだけにする（補完の候補など、リンクなしで、文字として使うとき）。
+export function stripLinkBrackets(text: string): string {
+	return splitTextByLinks(text)
+		.map((segment) => (segment.type === "link" ? segment.label : segment.text))
+		.join("");
+}
+
 // 複数の文章に出てくるリンクのラベル（重複を除いて、出てきた順）。
 export function extractLinkLabels(texts: readonly string[]): string[] {
 	const labels = new Set<string>();

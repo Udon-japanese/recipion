@@ -59,3 +59,44 @@ export const sourceUrl = style({
 export const note = style({
 	whiteSpace: "pre-wrap",
 });
+
+// 本文の中の、他のレシピへのリンク（押すと、プレビュー）。
+export const linkButton = style({
+	padding: 0,
+	color: "var(--color-primary)",
+	background: "none",
+	border: "none",
+	font: "inherit",
+	textDecoration: "underline",
+	cursor: "pointer",
+});
+
+// リンク先が見つからないとき。
+export const missingLink = style({
+	color: "var(--color-text-muted)",
+});
+
+export const linkedRecipe = style({
+	display: "grid",
+	gap: 4,
+	marginTop: 4,
+	paddingLeft: 12,
+	borderLeft: "2px solid var(--color-border)",
+});
+
+export const linkedToggle = style({
+	justifySelf: "start",
+	padding: 0,
+	color: "var(--color-text-muted)",
+	background: "none",
+	border: 0,
+	font: "inherit",
+	fontSize: 13,
+	cursor: "pointer",
+});
+
+export const linkedNote = style({
+	margin: "4px 0 0",
+	color: "var(--color-text-muted)",
+	fontSize: 13,
+});

@@ -7,6 +7,7 @@ import {
 	createShoppingItem,
 	type ShoppingItem,
 } from "#/features/shopping/domain/shopping-item";
+import type { RecipeDetail } from "../application/recipe-repository";
 import type { RecipeEditorIngredientNode } from "../domain/recipe-editor-document";
 import { RecipeShoppingSection } from "./recipe-shopping-section";
 
@@ -292,5 +293,70 @@ describe("RecipeShoppingSection", () => {
 		);
 
 		expect(container).toBeEmptyDOMElement();
+	});
+
+	it("リンクした材料は、リンク先のレシピの材料に展開して、在庫と比べる。削除されたリンク先は、候補にしない", async () => {
+		const user = userEvent.setup();
+		const repository = createRepository();
+		const loadLinkedRecipe = vi.fn(async (publicId: string) =>
+			publicId === "d"
+				? ({
+						name: "和風ドレッシング",
+						ingredients: [
+							ingredient("d1", "醤油", 100, "ml", "100ml"),
+							ingredient("d2", "酢", 50, "ml", "50ml"),
+						],
+						linkViews: [],
+					} as unknown as RecipeDetail)
+				: null,
+		);
+
+		render(
+			<RecipeShoppingSection
+				ingredients={[
+					ingredient("i1", "玉ねぎ", 1, "個", "1個"),
+					ingredient("i2", "[[自家製ドレッシング]]", null, null, null),
+					ingredient("i3", "[[消えたレシピ]]", null, null, null),
+				]}
+				linkViews={[
+					{
+						label: "自家製ドレッシング",
+						target: { publicId: "d", name: "和風ドレッシング" },
+					},
+					{ label: "消えたレシピ", target: null },
+				]}
+				loadLinkedRecipe={loadLinkedRecipe}
+				ownerScope="user:user-id"
+				loadInventoryItems={async () => [stockItem("酢", 500, "ml", "ml")]}
+				shoppingRepository={repository}
+			/>,
+		);
+
+		const panel = within(await openPanel(user));
+
+		expect(
+			await panel.findByText("和風ドレッシングの材料"),
+		).toBeInTheDocument();
+		// リンクの行そのもの・削除されたリンク先は、候補にならない
+		expect(
+			panel.queryByLabelText("和風ドレッシングを買い物メモに入れる"),
+		).not.toBeInTheDocument();
+		expect(panel.queryByText(/消えたレシピ/u)).not.toBeInTheDocument();
+		// リンク先の材料は、在庫と比べて、足りないものにチェックが入る
+		await waitFor(() =>
+			expect(panel.getByLabelText("醤油を買い物メモに入れる")).toBeChecked(),
+		);
+		expect(panel.getByLabelText("酢を買い物メモに入れる")).not.toBeChecked();
+		expect(panel.getByLabelText("玉ねぎを買い物メモに入れる")).toBeChecked();
+
+		await user.click(
+			panel.getByRole("button", { name: "選んだものを入れる（2件）" }),
+		);
+
+		await waitFor(() => expect(repository.saved).toHaveLength(2));
+		expect(repository.saved.map((item) => item.name).sort()).toEqual([
+			"玉ねぎ",
+			"醤油",
+		]);
 	});
 });

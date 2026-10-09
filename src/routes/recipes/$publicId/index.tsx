@@ -12,8 +12,10 @@ import { registerInventoryItemServerFn } from "#/features/inventory/server/regis
 import { RecipeDeleteButton } from "#/features/recipes/components/recipe-delete-button";
 import { RecipeRouteError } from "#/features/recipes/components/recipe-route-error";
 import { RecipeShoppingSection } from "#/features/recipes/components/recipe-shopping-section";
-import { RecipeView } from "#/features/recipes/components/recipe-view";
+import { RecipeViewWithLinks } from "#/features/recipes/components/recipe-view-with-links";
 import { deleteRecipeServerFn } from "#/features/recipes/server/delete-recipe";
+import { getLinkedRecipesServerFn } from "#/features/recipes/server/get-linked-recipes";
+import { getRecipeServerFn } from "#/features/recipes/server/get-recipe";
 import { loadRecipe } from "#/features/recipes/server/load-recipe";
 
 export const Route = createFileRoute("/recipes/$publicId/")({
@@ -36,6 +38,18 @@ function RecipePage() {
 	const recipe = Route.useLoaderData();
 	const navigate = useNavigate();
 	const ownerScope = useOwnerScope();
+
+	// リンク先のレシピ（プレビューと、買い物メモへの展開で使う）。
+	const loadLinkedRecipe = useCallback(
+		(publicId: string) => getRecipeServerFn({ data: { publicId } }),
+		[],
+	);
+
+	// 材料のリンク先を、リンク先の中のリンクもたどって、まとめて取る（材料の下に、その場で開く）。
+	const loadLinkedRecipes = useCallback(
+		(publicIds: string[]) => getLinkedRecipesServerFn({ data: { publicIds } }),
+		[],
+	);
 
 	// ログインしているとき、在庫の一覧を取得する（通信できなければ、保存済みの一覧）。
 	const loadInventoryItems = useCallback(async () => {
@@ -72,9 +86,22 @@ function RecipePage() {
 
 	return (
 		<>
-			<RecipeView recipe={recipe} />
+			{/* 別のレシピへ移ったとき、開いているプレビューを、閉じる（key で、状態を作り直す）。 */}
+			<RecipeViewWithLinks
+				key={recipe.publicId}
+				recipe={recipe}
+				loadLinkedRecipe={loadLinkedRecipe}
+				loadLinkedRecipes={loadLinkedRecipes}
+				renderOpenLink={(publicId) => (
+					<Link to="/recipes/$publicId" params={{ publicId }}>
+						レシピを開く
+					</Link>
+				)}
+			/>
 			<RecipeShoppingSection
 				ingredients={recipe.ingredients}
+				linkViews={recipe.linkViews}
+				loadLinkedRecipe={loadLinkedRecipe}
 				ownerScope={ownerScope}
 				loadInventoryItems={loadInventoryItems}
 				registerAvailable={registerAvailable}

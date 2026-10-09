@@ -838,12 +838,8 @@ describe("RecipeEditor", () => {
 				"value",
 				"＜作り方＞\n1. [[カレー]]",
 			);
-			// プレビューに、リンクと、リンク先の名前が出る。
-			expect(
-				screen.getByText("[[カレー]]", { selector: "code" }).parentElement
-					?.textContent,
-			).toContain("→ カレー");
-			expect(screen.queryByText("リンク先が未設定")).toBeNull();
+			// プレビューには、リンク先の名前が出る。
+			expect(screen.getByText("カレー", { selector: "li span" })).toBeVisible();
 
 			await user.click(screen.getByRole("button", { name: "レシピを保存" }));
 			await screen.findByText("レシピを保存しました。");
@@ -853,7 +849,7 @@ describe("RecipeEditor", () => {
 			]);
 		});
 
-		it("手で書いたリンクは、「リンク先が未設定」と出て、「選ぶ」でリンク先を決められる", async () => {
+		it("手で書いたリンクは、リンク先が決まらず、ふつうの文字のまま。リンクとしては保存されない", async () => {
 			const user = userEvent.setup();
 			const onSave = vi.fn(async (_document: RecipeEditorDocument) => ({
 				publicId: "new",
@@ -865,24 +861,14 @@ describe("RecipeEditor", () => {
 			await enterTitle(user, "カレー丼");
 			await writeBody(user, "＜作り方＞\n1. [[カレー]]をかける");
 
-			expect(screen.getByText("リンク先が未設定")).toBeTruthy();
-
-			await user.click(screen.getByRole("button", { name: "選ぶ" }));
-			await user.click(await screen.findByRole("button", { name: "カレー" }));
-
-			expect(screen.queryByText("リンク先が未設定")).toBeNull();
+			// ボタンにならず、ラベルが、ふつうの文字で出る（任意の文字を、別のレシピに結びつけることは、できない）
+			expect(screen.queryByRole("button", { name: "カレー" })).toBeNull();
+			expect(screen.getByText("カレー")).toBeVisible();
 
 			await user.click(screen.getByRole("button", { name: "レシピを保存" }));
 			await screen.findByText("レシピを保存しました。");
 
-			expect(onSave.mock.calls[0]?.[0].links).toEqual([
-				{ label: "カレー", targetPublicId: "curry-id" },
-			]);
-			// 本文は、変わらない。
-			expect(bodyTextarea()).toHaveProperty(
-				"value",
-				"＜作り方＞\n1. [[カレー]]をかける",
-			);
+			expect(onSave.mock.calls[0]?.[0].links).toEqual([]);
 		});
 
 		it("本文から消したリンクは、保存されない", async () => {
@@ -926,7 +912,7 @@ describe("RecipeEditor", () => {
 					loadLinkTargets={async () => targets}
 				/>,
 			);
-			await screen.findByText(/→ カレー/);
+			await screen.findByText("カレー", { selector: "li span" });
 			await user.click(screen.getByRole("button", { name: "レシピを保存" }));
 			await screen.findByText("レシピを保存しました。");
 
@@ -1035,6 +1021,60 @@ describe("RecipeEditor", () => {
 				"value",
 				"＜作り方＞\n1. [[カレー]][[カレー（2）]]",
 			);
+		});
+
+		it("保存前の確認で、リンクの材料は、読み取り専用で、保存後と同じ表示。分量がなくても、グループにならない。押すとプレビューが開く", async () => {
+			const user = userEvent.setup();
+			const loadLinkedRecipe = vi.fn(async () => ({
+				...createRecipeEditorDocument({ name: "カレー", servings: 2 }),
+				publicId: "curry-id",
+				linkViews: [],
+				createdAt: "2026-10-01T00:00:00+09:00",
+				updatedAt: "2026-10-01T00:00:00+09:00",
+			}));
+
+			render(
+				<RecipeEditor
+					onSave={vi.fn()}
+					loadLinkTargets={async () => targets}
+					loadLinkedRecipe={loadLinkedRecipe}
+					renderOpenLink={(publicId) => (
+						<a href={`/${publicId}`}>レシピを開く</a>
+					)}
+				/>,
+			);
+			await screen.findByRole("button", { name: "現在の位置にレシピをリンク" });
+			await writeBody(user, "＜材料＞\nごはん 150g\n");
+			await openPicker(user);
+			await user.click(await screen.findByRole("button", { name: "カレー" }));
+
+			// 入力欄ではなく、文字（保存後と同じ表示）。「ごはん」は、グループの中に入らない
+			expect(
+				screen.queryByRole("textbox", { name: "カレーの材料名" }),
+			).toBeNull();
+			expect(
+				screen.getByRole("textbox", { name: "ごはんの材料名" }),
+			).toBeVisible();
+			expect(
+				screen.queryByRole("textbox", { name: /のグループ名/u }),
+			).toBeNull();
+			// 分量・グループの移動・削除は、ふつうの材料と同じ
+			expect(
+				screen.getByRole("textbox", { name: "[[カレー]]の分量" }),
+			).toBeVisible();
+			expect(
+				screen.getByRole("combobox", { name: "[[カレー]]のグループ" }),
+			).toBeVisible();
+			expect(
+				screen.getByRole("button", { name: "[[カレー]]を削除" }),
+			).toBeVisible();
+
+			const [linkButton] = screen.getAllByRole("button", { name: "カレー" });
+
+			await user.click(linkButton as HTMLElement);
+
+			expect(await screen.findByRole("dialog")).toBeVisible();
+			expect(loadLinkedRecipe).toHaveBeenCalledWith("curry-id");
 		});
 
 		it("リンクの入力は、loadLinkTargets がなければ出ない", () => {
