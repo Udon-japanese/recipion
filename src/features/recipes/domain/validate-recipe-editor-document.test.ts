@@ -132,4 +132,44 @@ describe("validateRecipeEditorDocument", () => {
 		expect(result.name).toBe("卵焼き");
 		expect(result).not.toHaveProperty("unexpected");
 	});
+
+	it("リンクは、使えるラベルと、リンク先のIDを確認する", () => {
+		const document = createDocument();
+		const link = { label: "カレー", targetPublicId: "abc123" };
+
+		expect(
+			validateRecipeEditorDocument({ ...document, links: [link] }).links,
+		).toEqual([link]);
+
+		for (const invalid of [
+			{ label: "", targetPublicId: "abc123" },
+			{ label: " カレー", targetPublicId: "abc123" },
+			{ label: "a]b", targetPublicId: "abc123" },
+			{ label: "カレー", targetPublicId: "" },
+		]) {
+			expect(() =>
+				validateRecipeEditorDocument({ ...document, links: [invalid] }),
+			).toThrow("レシピの入力内容を確認してください");
+		}
+	});
+
+	it("同じラベルのリンクを、二度使えない", () => {
+		const document = createDocument();
+
+		expect(() =>
+			validateRecipeEditorDocument({
+				...document,
+				links: [
+					{ label: "カレー", targetPublicId: "a" },
+					{ label: "カレー", targetPublicId: "b" },
+				],
+			}),
+		).toThrow("リンクのラベルが重複しています");
+	});
+
+	it("古い画面から、リンクのない形で保存しても、受け付ける（リンクなしとして扱う）", () => {
+		const { links: _links, ...withoutLinks } = createDocument();
+
+		expect(validateRecipeEditorDocument(withoutLinks).links).toEqual([]);
+	});
 });

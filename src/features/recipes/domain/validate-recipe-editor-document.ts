@@ -3,6 +3,7 @@ import type {
 	RecipeEditorDocument,
 	RecipeEditorIngredientNode,
 } from "./recipe-editor-document";
+import { isValidLinkLabel, maxLinksPerRecipe } from "./recipe-links";
 
 const requiredText = v.pipe(v.string(), v.trim(), v.minLength(1));
 const idSchema = requiredText;
@@ -57,6 +58,19 @@ const documentSchema = v.object({
 	sourceUrl: v.nullable(
 		v.pipe(v.string(), v.maxLength(2048), v.url(), v.regex(/^https?:\/\//iu)),
 	),
+	// 古い画面（links を送らない）からの保存も受け付ける。
+	links: v.optional(
+		v.pipe(
+			v.array(
+				v.object({
+					label: v.pipe(v.string(), v.check(isValidLinkLabel)),
+					targetPublicId: v.pipe(requiredText, v.maxLength(100)),
+				}),
+			),
+			v.maxLength(maxLinksPerRecipe),
+		),
+		[],
+	),
 });
 
 function validateIngredientIds(
@@ -93,6 +107,15 @@ export function validateRecipeEditorDocument(
 	const ids = new Set<string>();
 
 	validateIngredientIds(document.ingredients, ids);
+
+	const linkLabels = new Set<string>();
+
+	for (const link of document.links) {
+		if (linkLabels.has(link.label)) {
+			throw new Error("リンクのラベルが重複しています");
+		}
+		linkLabels.add(link.label);
+	}
 
 	for (const preparation of document.preparations) {
 		if (ids.has(preparation.id)) {
