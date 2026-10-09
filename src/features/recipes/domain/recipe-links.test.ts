@@ -7,6 +7,7 @@ import {
 	resolveLinkLabel,
 	sanitizeLinkLabel,
 	splitTextByLinks,
+	stripLinkBrackets,
 } from "./recipe-links";
 
 describe("splitTextByLinks", () => {
@@ -122,5 +123,16 @@ describe("sanitizeLinkLabel / resolveLinkLabel", () => {
 		expect([...label]).toHaveLength(100);
 		expect(label.endsWith("（2）")).toBe(true);
 		expect(isValidLinkLabel(label)).toBe(true);
+	});
+});
+
+describe("stripLinkBrackets", () => {
+	it("リンクの括弧を除いて、ラベルだけにする。リンクのない文章は、そのまま", () => {
+		expect(stripLinkBrackets("[[自家製ドレッシング]]")).toBe(
+			"自家製ドレッシング",
+		);
+		expect(stripLinkBrackets("かける [[ソース]] を")).toBe("かける ソース を");
+		expect(stripLinkBrackets("玉ねぎ")).toBe("玉ねぎ");
+		expect(stripLinkBrackets("[[]]")).toBe("[[]]");
 	});
 });

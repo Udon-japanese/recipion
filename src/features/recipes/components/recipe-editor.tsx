@@ -1,11 +1,14 @@
 import {
 	type KeyboardEvent,
+	type ReactNode,
 	type SubmitEvent,
 	useEffect,
 	useEffectEvent,
 	useMemo,
+	useRef,
 	useState,
 } from "react";
+import type { RecipeDetail } from "../application/recipe-repository";
 import {
 	createIngredientGroup,
 	createIngredientItem,
@@ -32,6 +35,8 @@ import {
 	extractLinkLabels,
 	type RecipeLinkReference,
 	type RecipeLinkTarget,
+	type RecipeLinkView,
+	stripLinkBrackets,
 } from "../domain/recipe-links";
 import {
 	createIngredientSyncState,
@@ -52,8 +57,10 @@ import {
 	listGroupOptions,
 	preventSubmitOnEnter,
 } from "./recipe-ingredient-preview";
-import { RecipeLinkPicker } from "./recipe-link-picker";
+import { RecipeLinkPreview } from "./recipe-link-preview";
+import { RecipeText } from "./recipe-text";
 import { RecipeTitleInput } from "./recipe-title-input";
+import type { LoadLinkedRecipes } from "./recipe-view-with-tree";
 
 type SavedRecipe = { publicId: string };
 
@@ -64,6 +71,11 @@ type RecipeEditorProps = {
 	initialDocument?: RecipeEditorDocument;
 	// リンクできるレシピ（自分のレシピ。編集中のレシピ自身は、除く）を取ってくる。渡すと、リンクの入力（補完・ボタン）が使える。
 	loadLinkTargets?: () => Promise<RecipeLinkTarget[]>;
+	// 保存前の確認で、リンクを押したとき、リンク先のレシピのプレビューを開く（取ってくる方法と、「レシピを開く」のリンク）。
+	loadLinkedRecipe?: (publicId: string) => Promise<RecipeDetail | null>;
+	renderOpenLink?: (publicId: string) => ReactNode;
+	// プレビューの中で、材料のリンク先を、まとめて取ってくる（材料の下に、その場で開く）。
+	loadLinkedRecipes?: LoadLinkedRecipes;
 };
 
 type ActiveTab = "input" | "preview";
@@ -85,7 +97,7 @@ function collectRecipeNames(
 	return nodes.flatMap((node) =>
 		node.type === "group"
 			? [normalizeGroupName(node.name), ...collectRecipeNames(node.children)]
-			: [node.name],
+			: [stripLinkBrackets(node.name)],
 	);
 }
 
@@ -118,6 +130,9 @@ export function RecipeEditor({
 	onSaved,
 	initialDocument,
 	loadLinkTargets,
+	loadLinkedRecipe,
+	renderOpenLink,
+	loadLinkedRecipes,
 }: RecipeEditorProps) {
 	const isEditing = initialDocument !== undefined;
 	const [initialState] = useState(() => createInitialState(initialDocument));
@@ -149,8 +164,6 @@ export function RecipeEditor({
 	const [linkTargetsStatus, setLinkTargetsStatus] = useState<
 		"loading" | "ready" | "error"
 	>("loading");
-	// リンク先が未設定のラベルに、リンク先を選んでいるとき、そのラベル。
-	const [assigningLabel, setAssigningLabel] = useState<string | null>(null);
 
 	const sections = useMemo(() => splitRecipeSections(text), [text]);
 	const preparations = useMemo(
@@ -180,6 +193,33 @@ export function RecipeEditor({
 			}),
 		[text, links, linkTargets],
 	);
+	// 保存前の確認で、リンクを、保存後と同じように表示するための、リンク先（リンク先を決めていないラベルは、含めない）。
+	const linkViews = useMemo<RecipeLinkView[]>(
+		() =>
+			links.map((link) => ({
+				label: link.label,
+				target: {
+					publicId: link.targetPublicId,
+					name:
+						linkTargets.find(
+							(candidate) => candidate.publicId === link.targetPublicId,
+						)?.name ?? link.label,
+				},
+			})),
+		[links, linkTargets],
+	);
+	// 保存前の確認で、プレビューを開いているリンク先（閉じると、押したリンクに、フォーカスを戻す）。
+	const [openedLinkPublicId, setOpenedLinkPublicId] = useState<string | null>(
+		null,
+	);
+	const linkTriggerRef = useRef<HTMLElement | null>(null);
+	const handleOpenLink =
+		loadLinkedRecipe && renderOpenLink
+			? (publicId: string, trigger: HTMLElement) => {
+					linkTriggerRef.current = trigger;
+					setOpenedLinkPublicId(publicId);
+				}
+			: undefined;
 	const groups = listGroupOptions(ingredients);
 	const recipeNames = useMemo(
 		() => collectRecipeNames(ingredients),
@@ -569,6 +609,8 @@ export function RecipeEditor({
 									onRemoveGroup={removeGroup}
 									onRemove={removeIngredient}
 									onRevert={revertEdit}
+									linkViews={linkViews}
+									onOpenLink={handleOpenLink}
 								/>
 							))}
 						</ul>
@@ -621,7 +663,13 @@ export function RecipeEditor({
 						<ul className={styles.list}>
 							{preparations.map((preparation, index) => (
 								// biome-ignore lint/suspicious/noArrayIndexKey: 文章から作る表示用の一覧で、並びは入力順のまま。
-								<li key={index}>{preparation}</li>
+								<li key={index}>
+									<RecipeText
+										text={preparation}
+										linkViews={linkViews}
+										onOpenLink={handleOpenLink}
+									/>
+								</li>
 							))}
 						</ul>
 
@@ -629,61 +677,26 @@ export function RecipeEditor({
 						<ol className={styles.list}>
 							{instructions.map((instruction, index) => (
 								// biome-ignore lint/suspicious/noArrayIndexKey: 文章から作る表示用の一覧で、並びは入力順のまま。
-								<li key={index}>{instruction}</li>
+								<li key={index}>
+									<RecipeText
+										text={instruction}
+										linkViews={linkViews}
+										onOpenLink={handleOpenLink}
+									/>
+								</li>
 							))}
 						</ol>
 
 						{sections.note === "" ? null : (
 							<>
 								<h4>メモ</h4>
-								<p className={styles.note}>{sections.note}</p>
-							</>
-						)}
-
-						{linkedLabels.length === 0 ? null : (
-							<>
-								<h4>リンク</h4>
-								<ul className={styles.list}>
-									{linkedLabels.map(({ label, targetName }) => (
-										<li key={label}>
-											<code>{`[[${label}]]`}</code>
-											{targetName === null ? (
-												<>
-													{" "}
-													<span className={styles.hint}>リンク先が未設定</span>
-													{loadLinkTargets ? (
-														<>
-															{" "}
-															<button
-																type="button"
-																onClick={() => setAssigningLabel(label)}
-															>
-																選ぶ
-															</button>
-														</>
-													) : null}
-												</>
-											) : (
-												<> → {targetName}</>
-											)}
-										</li>
-									))}
-								</ul>
-								{assigningLabel !== null && loadLinkTargets ? (
-									<RecipeLinkPicker
-										title={`「${assigningLabel}」のリンク先を選ぶ`}
-										targets={linkTargets}
-										status={linkTargetsStatus}
-										onSelect={(target) => {
-											handleLinkSelected({
-												label: assigningLabel,
-												targetPublicId: target.publicId,
-											});
-											setAssigningLabel(null);
-										}}
-										onClose={() => setAssigningLabel(null)}
+								<p className={styles.note}>
+									<RecipeText
+										text={sections.note}
+										linkViews={linkViews}
+										onOpenLink={handleOpenLink}
 									/>
-								) : null}
+								</p>
 							</>
 						)}
 
@@ -715,6 +728,19 @@ export function RecipeEditor({
 
 				{savedRecipeId ? <output>レシピを保存しました。</output> : null}
 			</form>
+
+			{openedLinkPublicId !== null && loadLinkedRecipe && renderOpenLink ? (
+				<RecipeLinkPreview
+					initialPublicId={openedLinkPublicId}
+					loadRecipe={loadLinkedRecipe}
+					renderOpenLink={renderOpenLink}
+					loadLinkedRecipes={loadLinkedRecipes}
+					onClose={() => {
+						setOpenedLinkPublicId(null);
+						linkTriggerRef.current?.focus();
+					}}
+				/>
+			) : null}
 		</section>
 	);
 }

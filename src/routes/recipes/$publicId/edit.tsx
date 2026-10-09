@@ -1,9 +1,33 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { RecipeEditor } from "#/features/recipes/components/recipe-editor";
 import { RecipeRouteError } from "#/features/recipes/components/recipe-route-error";
+import { getLinkedRecipesServerFn } from "#/features/recipes/server/get-linked-recipes";
+import { getRecipeServerFn } from "#/features/recipes/server/get-recipe";
 import { listRecipesServerFn } from "#/features/recipes/server/list-recipes";
 import { loadRecipe } from "#/features/recipes/server/load-recipe";
 import { updateRecipeServerFn } from "#/features/recipes/server/update-recipe";
+
+// 保存前の確認で押したリンクのプレビュー。編集中の内容を失わないよう、「レシピを開く」は、新しいタブで開く。
+function loadLinkedRecipe(publicId: string) {
+	return getRecipeServerFn({ data: { publicId } });
+}
+
+function loadLinkedRecipes(publicIds: string[]) {
+	return getLinkedRecipesServerFn({ data: { publicIds } });
+}
+
+function renderOpenLink(publicId: string) {
+	return (
+		<Link
+			to="/recipes/$publicId"
+			params={{ publicId }}
+			target="_blank"
+			rel="noreferrer"
+		>
+			レシピを開く
+		</Link>
+	);
+}
 
 export const Route = createFileRoute("/recipes/$publicId/edit")({
 	loader: ({ params }) => loadRecipe(params.publicId),
@@ -28,6 +52,9 @@ function EditRecipePage() {
 	return (
 		<RecipeEditor
 			initialDocument={recipe}
+			loadLinkedRecipe={loadLinkedRecipe}
+			renderOpenLink={renderOpenLink}
+			loadLinkedRecipes={loadLinkedRecipes}
 			loadLinkTargets={async () => {
 				const recipes = await listRecipesServerFn();
 

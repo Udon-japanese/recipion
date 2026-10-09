@@ -354,4 +354,41 @@ describe("parseRecipeIngredients", () => {
 			}),
 		]);
 	});
+
+	it("[[レシピ名]] だけの行は、分量がなくても、グループではなく、材料にする（次の行が材料でも）", () => {
+		expect(
+			parseRecipeIngredients(`
+			[[自家製ドレッシング]]
+			玉ねぎ 1個
+			`),
+		).toEqual([
+			expect.objectContaining({
+				type: "ingredient",
+				name: "[[自家製ドレッシング]]",
+				status: "missing-amount",
+			}),
+			expect.objectContaining({ type: "ingredient", name: "玉ねぎ" }),
+		]);
+	});
+
+	it("見出しの下に続く [[レシピ名]] の行も、そのグループの中に入る", () => {
+		expect(
+			parseRecipeIngredients(`
+			たれ
+			[[自家製ドレッシング]]
+			醤油 大さじ1
+			ごはん 150g
+			`),
+		).toEqual([
+			expect.objectContaining({
+				type: "group",
+				name: "たれ",
+				children: [
+					expect.objectContaining({ name: "[[自家製ドレッシング]]" }),
+					expect.objectContaining({ name: "醤油" }),
+					expect.objectContaining({ name: "ごはん" }),
+				],
+			}),
+		]);
+	});
 });

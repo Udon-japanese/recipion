@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { useCallback, useMemo, useState } from "react";
+import { Fragment, useCallback, useMemo, useState } from "react";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import type { InventoryListItem } from "#/features/inventory/application/inventory-query-repository";
 import { formatQuantity } from "#/features/quantity/domain/format-quantity";
@@ -8,16 +8,27 @@ import type { ShoppingItem } from "#/features/shopping/domain/shopping-item";
 import { dexieShoppingRepository } from "#/features/shopping/infrastructure/dexie-shopping-repository";
 import { buildShoppingChanges } from "../application/build-shopping-changes";
 import {
+	type LinkedShoppingSections,
+	loadLinkedShoppingSections,
+} from "../application/load-linked-shopping-sections";
+import type { RecipeDetail } from "../application/recipe-repository";
+import { resolveIngredientLinks } from "../domain/link-ingredient-needs";
+import {
 	type DuplicateMode,
 	flattenRecipeIngredients,
 	planShoppingFromRecipe,
 	type RecipeShoppingRow,
 } from "../domain/plan-shopping-from-recipe";
 import type { RecipeEditorIngredientNode } from "../domain/recipe-editor-document";
+import type { RecipeLinkView } from "../domain/recipe-links";
 import * as styles from "./recipe-shopping-section.css";
 
 type RecipeShoppingSectionProps = {
 	ingredients: readonly RecipeEditorIngredientNode[];
+	// 材料の [[ラベル]] の、リンク先。リンク先が見つからない材料は、候補にしない。
+	linkViews?: readonly RecipeLinkView[];
+	// リンク先のレシピを取ってくる。リンクした材料は、そのレシピの材料を、展開して判定する。
+	loadLinkedRecipe?: (publicId: string) => Promise<RecipeDetail | null>;
 	ownerScope: InventoryPurchaseOwnerScope | null;
 	// ログインしているとき、在庫の一覧を取得する（ゲストでは、呼ばない）。
 	loadInventoryItems?: () => Promise<InventoryListItem[]>;
@@ -91,8 +102,16 @@ function describeExisting(row: RecipeShoppingRow): string | null {
 
 // レシピの材料を、在庫と比べて、足りないものを、買い物メモに入れる。
 // 人数による量の調整はしない（レシピの量のまま）。
+const noLinkViews: readonly RecipeLinkView[] = [];
+const noLinkedSections: LinkedShoppingSections = {
+	sections: [],
+	failedNames: [],
+};
+
 export function RecipeShoppingSection({
 	ingredients,
+	linkViews = noLinkViews,
+	loadLinkedRecipe,
 	ownerScope,
 	loadInventoryItems,
 	shoppingRepository = dexieShoppingRepository,
@@ -113,9 +132,22 @@ export function RecipeShoppingSection({
 	>({});
 	const [isApplying, setIsApplying] = useState(false);
 
+	const [linkedSections, setLinkedSections] =
+		useState<LinkedShoppingSections>(noLinkedSections);
+
+	// リンクの材料は、リンク先のレシピの材料に置き換える（リンク先の材料は、開いたときに取ってくる）。
+	const resolvedNeeds = useMemo(
+		() =>
+			resolveIngredientLinks(flattenRecipeIngredients(ingredients), linkViews),
+		[ingredients, linkViews],
+	);
+
 	const needs = useMemo(
-		() => flattenRecipeIngredients(ingredients),
-		[ingredients],
+		() => [
+			...resolvedNeeds.filter((need) => !need.linkedRecipe),
+			...linkedSections.sections.flatMap((section) => section.needs),
+		],
+		[resolvedNeeds, linkedSections],
 	);
 
 	// 未購入の買い物項目だけを、重複の対象にする。
@@ -172,13 +204,35 @@ export function RecipeShoppingSection({
 			setStockItems(null);
 		}
 
+		if (loadLinkedRecipe && resolvedNeeds.some((need) => need.linkedRecipe)) {
+			const result = await loadLinkedShoppingSections(
+				resolvedNeeds,
+				loadLinkedRecipe,
+			);
+
+			setLinkedSections(result);
+
+			if (result.failedNames.length > 0) {
+				setErrorMessage(
+					`${result.failedNames.join("、")}の材料を読み込めませんでした`,
+				);
+			}
+		}
+
 		setIsLoading(false);
-	}, [loadInventoryItems, ownerScope, shoppingRepository]);
+	}, [
+		loadInventoryItems,
+		loadLinkedRecipe,
+		ownerScope,
+		resolvedNeeds,
+		shoppingRepository,
+	]);
 
 	async function handleOpen() {
 		setIsOpen(true);
 		setResultMessage(null);
 		setCheckedOverrides({});
+		setLinkedSections(noLinkedSections);
 		await load();
 	}
 
@@ -238,7 +292,7 @@ export function RecipeShoppingSection({
 		}
 	}
 
-	if (needs.length === 0) {
+	if (resolvedNeeds.length === 0) {
 		return null;
 	}
 
@@ -294,7 +348,7 @@ export function RecipeShoppingSection({
 				</div>
 
 				<ul className={styles.list}>
-					{rows.map((row) => {
+					{rows.map((row, index) => {
 						const stock = describeStock(row);
 						const existingText = describeExisting(row);
 						const canRegister =
@@ -305,56 +359,64 @@ export function RecipeShoppingSection({
 							!row.stock.judgment.isRegistered;
 
 						return (
-							<li className={styles.row} key={row.need.id}>
-								<input
-									type="checkbox"
-									checked={isChecked(row)}
-									disabled={row.plan === "keep"}
-									aria-label={`${row.need.name}を買い物メモに入れる`}
-									onChange={(event) =>
-										setCheckedOverrides((current) => ({
-											...current,
-											[row.need.id]: event.target.checked,
-										}))
-									}
-								/>
-
-								<div className={styles.rowBody}>
-									<span className={styles.rowName}>
-										{row.need.name}
-										{row.need.amountText ? (
-											<span className={styles.amountText}>
-												{row.need.amountText}
-											</span>
-										) : null}
-									</span>
-
-									<span
-										className={
-											stock.isShort ? styles.shortStatus : styles.status
+							<Fragment key={row.need.id}>
+								{row.need.sectionTitle &&
+								row.need.sectionTitle !== rows[index - 1]?.need.sectionTitle ? (
+									<li className={styles.sectionHeading}>
+										{row.need.sectionTitle}
+									</li>
+								) : null}
+								<li className={styles.row}>
+									<input
+										type="checkbox"
+										checked={isChecked(row)}
+										disabled={row.plan === "keep"}
+										aria-label={`${row.need.name}を買い物メモに入れる`}
+										onChange={(event) =>
+											setCheckedOverrides((current) => ({
+												...current,
+												[row.need.id]: event.target.checked,
+											}))
 										}
-									>
-										{stock.text}
-									</span>
+									/>
 
-									{existingText ? (
-										<span className={styles.status}>{existingText}</span>
-									) : null}
+									<div className={styles.rowBody}>
+										<span className={styles.rowName}>
+											{row.need.name}
+											{row.need.amountText ? (
+												<span className={styles.amountText}>
+													{row.need.amountText}
+												</span>
+											) : null}
+										</span>
 
-									{canRegister ? (
-										<button
-											className={styles.smallButton}
-											type="button"
-											aria-label={`${row.need.name}を在庫に「ある」で登録する`}
-											onClick={() =>
-												void handleRegisterAvailable(row.need.name)
+										<span
+											className={
+												stock.isShort ? styles.shortStatus : styles.status
 											}
 										>
-											ある（在庫に登録）
-										</button>
-									) : null}
-								</div>
-							</li>
+											{stock.text}
+										</span>
+
+										{existingText ? (
+											<span className={styles.status}>{existingText}</span>
+										) : null}
+
+										{canRegister ? (
+											<button
+												className={styles.smallButton}
+												type="button"
+												aria-label={`${row.need.name}を在庫に「ある」で登録する`}
+												onClick={() =>
+													void handleRegisterAvailable(row.need.name)
+												}
+											>
+												ある（在庫に登録）
+											</button>
+										) : null}
+									</div>
+								</li>
+							</Fragment>
 						);
 					})}
 				</ul>

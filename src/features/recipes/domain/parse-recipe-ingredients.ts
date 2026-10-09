@@ -2,6 +2,7 @@ import {
 	type ParsedRecipeIngredientLine,
 	parseRecipeIngredientLine,
 } from "./parse-recipe-ingredient-line";
+import { splitTextByLinks } from "./recipe-links";
 
 export type ParsedRecipeIngredientItem = ParsedRecipeIngredientLine & {
 	type: "ingredient";
@@ -92,6 +93,24 @@ function resolveLines(lines: readonly string[]): ParsedRecipeIngredientItem[] {
 // 「A」「B」「★」のように、ラベルだけの行。行ごとに繰り返されるため、同じ名前なら同じグループにまとめる。
 const groupLabelPattern = /^(?:[A-H1-9]|[☆★◎○●◆◇■□▲△])$/iu;
 
+// 他のレシピへのリンク（[[名前]]）は、分量がなくても、見出しではなく、材料（レシピ名だけで書く）。
+function isLinkIngredient(node: ParsedRecipeIngredientNode): boolean {
+	return (
+		node.type === "ingredient" &&
+		splitTextByLinks(node.name).some((segment) => segment.type === "link")
+	);
+}
+
+// グループの中に入れる行（分量のある材料と、リンクの材料）。
+function isGroupChild(
+	node: ParsedRecipeIngredientNode | undefined,
+): node is ParsedRecipeIngredientItem {
+	return (
+		node?.type === "ingredient" &&
+		(node.status === "parsed" || isLinkIngredient(node))
+	);
+}
+
 function groupResolvedNodes(
 	nodes: readonly ParsedRecipeIngredientNode[],
 ): ParsedRecipeIngredientNode[] {
@@ -106,8 +125,8 @@ function groupResolvedNodes(
 		if (
 			node.type === "ingredient" &&
 			node.status === "missing-amount" &&
-			nextNode?.type === "ingredient" &&
-			nextNode.status === "parsed"
+			!isLinkIngredient(node) &&
+			isGroupChild(nextNode)
 		) {
 			const children: ParsedRecipeIngredientItem[] = [];
 
@@ -116,7 +135,7 @@ function groupResolvedNodes(
 			while (childIndex < nodes.length) {
 				const childNode = nodes[childIndex];
 
-				if (childNode.type !== "ingredient" || childNode.status !== "parsed") {
+				if (!isGroupChild(childNode)) {
 					break;
 				}
 

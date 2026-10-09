@@ -1,6 +1,8 @@
 import type { KeyboardEvent } from "react";
 import type { RecipeEditorIngredientNode } from "../domain/recipe-editor-document";
+import { type RecipeLinkView, splitTextByLinks } from "../domain/recipe-links";
 import * as styles from "./recipe-editor.css";
+import { RecipeText } from "./recipe-text";
 
 // 材料の行の入力で Enter を押すと、フォーム全体が保存されてしまう。
 // 変換確定中の Enter は IME に任せる。
@@ -37,6 +39,10 @@ type IngredientPreviewNodeProps = {
 	onRenameGroup: (id: string, name: string) => void;
 	onRemoveGroup: (id: string) => void;
 	onRevert: (id: string) => void;
+	// 材料の名前の [[ラベル]] の、リンク先。リンクの材料は、保存後と同じ表示にして、ここでは、直せない（直すときは、入力欄の文章を直す）。
+	linkViews: readonly RecipeLinkView[];
+	// リンクを押したとき（プレビューを開く）。
+	onOpenLink?: (publicId: string, trigger: HTMLElement) => void;
 };
 
 function EditedBadge({
@@ -72,6 +78,8 @@ export function IngredientPreviewNode({
 	onRenameGroup,
 	onRemoveGroup,
 	onRevert,
+	linkViews,
+	onOpenLink,
 }: IngredientPreviewNodeProps) {
 	if (node.type === "group") {
 		return (
@@ -110,6 +118,8 @@ export function IngredientPreviewNode({
 							onRenameGroup={onRenameGroup}
 							onRemoveGroup={onRemoveGroup}
 							onRevert={onRevert}
+							linkViews={linkViews}
+							onOpenLink={onOpenLink}
 						/>
 					))}
 				</ul>
@@ -117,16 +127,33 @@ export function IngredientPreviewNode({
 		);
 	}
 
+	// 他のレシピへのリンクの材料は、名前（[[ラベル]]）だけ、保存後と同じ表示にして、ここでは直せない（本文で直す）。分量・グループ・削除は、ふつうの材料と同じ。
+	const isLink = splitTextByLinks(node.name).some(
+		(segment) => segment.type === "link",
+	);
+
 	return (
 		<li>
 			<div className={styles.ingredientRow}>
-				<input
-					className={styles.input}
-					aria-label={`${node.name}の材料名`}
-					value={node.name}
-					onChange={(event) => onChange(node.id, { name: event.target.value })}
-					onKeyDown={preventSubmitOnEnter}
-				/>
+				{isLink ? (
+					<span>
+						<RecipeText
+							text={node.name}
+							linkViews={linkViews}
+							onOpenLink={onOpenLink}
+						/>
+					</span>
+				) : (
+					<input
+						className={styles.input}
+						aria-label={`${node.name}の材料名`}
+						value={node.name}
+						onChange={(event) =>
+							onChange(node.id, { name: event.target.value })
+						}
+						onKeyDown={preventSubmitOnEnter}
+					/>
+				)}
 				<input
 					className={styles.input}
 					aria-label={`${node.name}の分量`}

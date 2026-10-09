@@ -14,6 +14,10 @@ export type RecipeShoppingNeed = {
 	quantity: number | null;
 	unitLabel: string | null;
 	amountText: string | null;
+	// 材料が、他のレシピへのリンクのとき、そのレシピ（そのレシピの材料を、展開して使う。この行自体は、買い物の候補にしない）。
+	linkedRecipe?: { publicId: string; name: string };
+	// リンク先のレシピから展開した材料のとき、そのレシピの名前（一覧で、まとめて表示する）。
+	sectionTitle?: string;
 };
 
 // 在庫の1食材（在庫の一覧から、必要な項目だけ）。

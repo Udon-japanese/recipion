@@ -77,6 +77,14 @@ export const row = style({
 	borderTop: "1px solid var(--color-border)",
 });
 
+export const sectionHeading = style({
+	margin: 0,
+	paddingTop: 8,
+	borderTop: "1px solid var(--color-border)",
+	fontSize: 14,
+	fontWeight: 700,
+});
+
 export const rowBody = style({
 	display: "grid",
 	gap: 4,
