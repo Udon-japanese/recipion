@@ -2,6 +2,10 @@ import type {
 	RecipeEditorDocument,
 	RecipeEditorIngredientNode,
 } from "../domain/recipe-editor-document";
+import {
+	extractLinkLabels,
+	type RecipeLinkReference,
+} from "../domain/recipe-links";
 import { validateRecipeEditorDocument } from "../domain/validate-recipe-editor-document";
 
 export type StoredRecipeIngredientNode = {
@@ -35,7 +39,37 @@ export type PreparedRecipeForStorage = {
 		text: string;
 		referencedInstructionIds: string[];
 	}[];
+	// 本文に出てくるラベルのリンクだけ。
+	links: RecipeLinkReference[];
 };
+
+// 本文（下準備・作り方・メモ・材料名）に出てくるラベルのリンクだけを残す（本文から消したリンクは、捨てる）。
+function keepUsedLinks(document: RecipeEditorDocument): RecipeLinkReference[] {
+	const names: string[] = [];
+
+	const collect = (nodes: readonly RecipeEditorIngredientNode[]) => {
+		for (const node of nodes) {
+			names.push(node.name);
+
+			if (node.type === "group") {
+				collect(node.children);
+			}
+		}
+	};
+
+	collect(document.ingredients);
+
+	const usedLabels = new Set(
+		extractLinkLabels([
+			...document.preparations.map((preparation) => preparation.text),
+			...document.instructions.map((instruction) => instruction.text),
+			document.note,
+			...names,
+		]),
+	);
+
+	return document.links.filter((link) => usedLabels.has(link.label));
+}
 
 function flattenIngredients(
 	nodes: readonly RecipeEditorIngredientNode[],
@@ -103,5 +137,6 @@ export function prepareRecipeForStorage(
 			text: instruction.text,
 			referencedInstructionIds: [...instruction.referencedInstructionIds],
 		})),
+		links: keepUsedLinks(document).map((link) => ({ ...link })),
 	};
 }

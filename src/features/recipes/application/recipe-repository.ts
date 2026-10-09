@@ -1,4 +1,5 @@
 import type { RecipeEditorDocument } from "../domain/recipe-editor-document";
+import type { RecipeLinkView } from "../domain/recipe-links";
 import type { PreparedRecipeForStorage } from "./prepare-recipe-for-storage";
 
 export type CreateRecipeCommand = PreparedRecipeForStorage;
@@ -16,6 +17,8 @@ export type RecipeSummary = {
 
 export type RecipeDetail = RecipeEditorDocument & {
 	publicId: string;
+	// 保存されているすべてのリンク（相手が見つからないものを含む。表示用）。編集用の `links` には、相手が見つかるものだけが入る。
+	linkViews: RecipeLinkView[];
 };
 
 export type UpdateRecipeCommand = PreparedRecipeForStorage;

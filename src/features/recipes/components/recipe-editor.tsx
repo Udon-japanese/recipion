@@ -312,6 +312,8 @@ export function RecipeEditor({
 					instructionText: sections.instructionText,
 					note: sections.note,
 					sourceUrl,
+					// 編集のとき、保存済みのリンクを、そのまま持ち越す（リンクの編集は、次の段階）。本文から消えたラベルは、保存のときに捨てられる。
+					links: initialDocument?.links,
 				}),
 				ingredients,
 			};

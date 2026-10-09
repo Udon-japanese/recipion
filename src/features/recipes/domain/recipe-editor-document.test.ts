@@ -101,6 +101,7 @@ describe("createRecipeEditorDocument", () => {
 			],
 			note: "焼きすぎない",
 			sourceUrl: "https://example.com/recipe",
+			links: [],
 		});
 	});
 
@@ -114,6 +115,7 @@ describe("createRecipeEditorDocument", () => {
 				instructions: [],
 				note: "",
 				sourceUrl: null,
+				links: [],
 			},
 		);
 	});

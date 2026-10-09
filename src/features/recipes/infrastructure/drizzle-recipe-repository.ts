@@ -1,4 +1,4 @@
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import * as v from "valibot";
 
@@ -9,6 +9,7 @@ import type {
 	RecipeRepository,
 } from "../application/recipe-repository";
 import { restoreRecipeIngredients } from "../application/restore-recipe-ingredients";
+import { canLinkToRecipe } from "../domain/recipe-link-permission";
 import {
 	formatRecipeIngredientQuantity,
 	formatRecipeServings,
@@ -17,6 +18,7 @@ import {
 	recipe,
 	recipeIngredientNode,
 	recipeInstruction,
+	recipeLink,
 	recipePreparation,
 } from "./recipe.sql";
 
@@ -100,6 +102,65 @@ async function insertRecipeChildren(
 	}
 }
 
+// リンク先を調べて、リンクを保存する。リンク先が見つからない、リンクしてはいけないレシピ、自分自身の場合は、例外にして、保存全体を取り消す。
+async function replaceRecipeLinks(
+	transaction: Transaction,
+	userId: string,
+	recipeId: string,
+	links: CreateRecipeCommand["links"],
+): Promise<void> {
+	await transaction.delete(recipeLink).where(eq(recipeLink.recipeId, recipeId));
+
+	if (links.length === 0) {
+		return;
+	}
+
+	const targets = await transaction
+		.select({
+			id: recipe.id,
+			publicId: recipe.publicId,
+			ownerUserId: recipe.userId,
+		})
+		.from(recipe)
+		.where(
+			inArray(
+				recipe.publicId,
+				links.map((link) => link.targetPublicId),
+			),
+		);
+	const targetByPublicId = new Map(
+		targets.map((target) => [target.publicId, target]),
+	);
+
+	const rows = links.map((link) => {
+		const target = targetByPublicId.get(link.targetPublicId);
+
+		// 公開範囲は、まだ DB にない。すべて "private"（自分のレシピだけ）として扱う。
+		if (
+			!target ||
+			!canLinkToRecipe(userId, {
+				ownerUserId: target.ownerUserId,
+				visibility: "private",
+			})
+		) {
+			throw new Error(`リンク先のレシピが見つかりません：${link.label}`);
+		}
+
+		if (target.id === recipeId) {
+			throw new Error("このレシピ自身へはリンクできません");
+		}
+
+		return {
+			recipeId,
+			userId,
+			label: link.label,
+			targetRecipeId: target.id,
+		};
+	});
+
+	await transaction.insert(recipeLink).values(rows);
+}
+
 export function createDrizzleRecipeRepository(
 	db: DB,
 	userId: string,
@@ -135,6 +196,12 @@ export function createDrizzleRecipeRepository(
 					userId,
 					createdRecipe.id,
 					command,
+				);
+				await replaceRecipeLinks(
+					transaction,
+					userId,
+					createdRecipe.id,
+					command.links,
 				);
 
 				return { id: createdRecipe.id, publicId: createdRecipe.publicId };
@@ -174,6 +241,12 @@ export function createDrizzleRecipeRepository(
 					.where(eq(recipeInstruction.recipeId, existing.id));
 
 				await insertRecipeChildren(transaction, userId, existing.id, command);
+				await replaceRecipeLinks(
+					transaction,
+					userId,
+					existing.id,
+					command.links,
+				);
 
 				return { publicId };
 			});
@@ -197,7 +270,7 @@ export function createDrizzleRecipeRepository(
 
 			if (!found) return null;
 
-			const [ingredientRows, preparationRows, instructionRows] =
+			const [ingredientRows, preparationRows, instructionRows, linkRows] =
 				await Promise.all([
 					db
 						.select()
@@ -213,7 +286,38 @@ export function createDrizzleRecipeRepository(
 						.from(recipeInstruction)
 						.where(eq(recipeInstruction.recipeId, found.id))
 						.orderBy(asc(recipeInstruction.sortOrder)),
+					db
+						.select({
+							label: recipeLink.label,
+							targetPublicId: recipe.publicId,
+							targetName: recipe.name,
+							targetOwnerUserId: recipe.userId,
+						})
+						.from(recipeLink)
+						.leftJoin(recipe, eq(recipe.id, recipeLink.targetRecipeId))
+						.where(eq(recipeLink.recipeId, found.id))
+						.orderBy(asc(recipeLink.label)),
 				]);
+
+			// 相手が消えた、または、今は見られないリンクは、相手が見つからないものとして返す（ラベルは残す）。
+			const linkViews = linkRows.map((row) => {
+				const canView =
+					row.targetPublicId !== null &&
+					row.targetName !== null &&
+					row.targetOwnerUserId !== null &&
+					canLinkToRecipe(userId, {
+						ownerUserId: row.targetOwnerUserId,
+						visibility: "private",
+					});
+
+				return {
+					label: row.label,
+					target:
+						canView && row.targetPublicId !== null && row.targetName !== null
+							? { publicId: row.targetPublicId, name: row.targetName }
+							: null,
+				};
+			});
 
 			return {
 				publicId: found.publicId,
@@ -248,6 +352,12 @@ export function createDrizzleRecipeRepository(
 					text: row.text,
 					referencedInstructionIds: row.referencedInstructionIds,
 				})),
+				links: linkViews.flatMap((view) =>
+					view.target
+						? [{ label: view.label, targetPublicId: view.target.publicId }]
+						: [],
+				),
+				linkViews,
 			};
 		},
 

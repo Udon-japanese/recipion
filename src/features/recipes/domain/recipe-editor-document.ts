@@ -6,6 +6,7 @@ import type {
 import { parseRecipeIngredients } from "./parse-recipe-ingredients";
 import { parseRecipeInstructions } from "./parse-recipe-instructions";
 import { parseRecipePreparations } from "./parse-recipe-preparations";
+import type { RecipeLinkReference } from "./recipe-links";
 
 export type RecipeEditorIngredientItem = ParsedRecipeIngredientItem & {
 	id: string;
@@ -43,6 +44,8 @@ export type RecipeEditorDocument = {
 	note: string;
 	// 引用元の URL。ユーザーが手で入れる任意項目で、未入力は null。
 	sourceUrl: string | null;
+	// 本文の [[ラベル]] が指すレシピ。本文に出てこないラベルは、保存のときに捨てる。
+	links: RecipeLinkReference[];
 };
 
 export type CreateRecipeEditorDocumentInput = {
@@ -53,6 +56,7 @@ export type CreateRecipeEditorDocumentInput = {
 	instructionText?: string;
 	note?: string;
 	sourceUrl?: string;
+	links?: RecipeLinkReference[];
 };
 
 type CreateId = () => string;
@@ -104,5 +108,6 @@ export function createRecipeEditorDocument(
 		),
 		note: input.note?.trim() ?? "",
 		sourceUrl: input.sourceUrl?.trim() || null,
+		links: input.links ? [...input.links] : [],
 	};
 }

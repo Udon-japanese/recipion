@@ -196,3 +196,37 @@ export const recipeInstruction = pgTable(
 		),
 	],
 );
+
+// 本文の [[ラベル]] が指すレシピ。相手のレシピが消えたときは、target_recipe_id を空にして、ラベルは残す（表示は「見つからないレシピ」）。
+export const recipeLink = pgTable(
+	"recipe_link",
+	{
+		id: uuid("id").defaultRandom().primaryKey(),
+		recipeId: uuid("recipe_id").notNull(),
+		userId: text("user_id").notNull(),
+		label: text("label").notNull(),
+		targetRecipeId: uuid("target_recipe_id"),
+		createdAt: timestamp("created_at", { withTimezone: true })
+			.defaultNow()
+			.notNull(),
+	},
+	(table) => [
+		foreignKey({
+			name: "recipe_link_recipe_owner_fk",
+			columns: [table.recipeId, table.userId],
+			foreignColumns: [recipe.id, recipe.userId],
+		}).onDelete("cascade"),
+		foreignKey({
+			name: "recipe_link_target_fk",
+			columns: [table.targetRecipeId],
+			foreignColumns: [recipe.id],
+		}).onDelete("set null"),
+		unique("recipe_link_recipe_label_unique").on(table.recipeId, table.label),
+		index("recipe_link_recipe_id_idx").on(table.recipeId),
+		index("recipe_link_target_idx").on(table.targetRecipeId),
+		check(
+			"recipe_link_label_valid",
+			sql`char_length(${table.label}) BETWEEN 1 AND 100 AND ${table.label} = btrim(${table.label}) AND ${table.label} !~ '[\\[\\]\\n\\r]'`,
+		),
+	],
+);

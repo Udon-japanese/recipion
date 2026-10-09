@@ -11,6 +11,8 @@ const recipe: RecipeDetail = {
 	servings: 2,
 	note: "人数を変えるときはたれを調整する",
 	sourceUrl: "https://example.com/recipe/1",
+	links: [],
+	linkViews: [],
 	ingredients: [
 		{
 			type: "ingredient",
