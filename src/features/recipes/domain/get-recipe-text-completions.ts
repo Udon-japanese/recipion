@@ -9,6 +9,10 @@ import {
 	recipeHeadingLabels,
 } from "./format-recipe-editor-text";
 import {
+	buildLinkTargetHints,
+	formatLinkTargetLabel,
+} from "./link-target-hints";
+import {
 	formatLink,
 	type RecipeLinkReference,
 	type RecipeLinkTarget,
@@ -172,6 +176,9 @@ function completeRecipeLink(
 		return null;
 	}
 
+	// 同じ名前のレシピが複数あるときは、候補の表示に、登録日を添える。
+	const hints = buildLinkTargetHints(linkContext.targets);
+
 	return {
 		items: targets.map((target) => {
 			const label = resolveLinkLabel(
@@ -181,7 +188,7 @@ function completeRecipeLink(
 			);
 
 			return {
-				label: target.name,
+				label: formatLinkTargetLabel(target, hints),
 				insert: formatLink(label),
 				from: lineStart + open,
 				to: caret + afterPart.length + (closed ? 2 : 0),

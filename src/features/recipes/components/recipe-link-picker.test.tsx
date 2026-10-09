@@ -6,8 +6,12 @@ import { RecipeLinkPicker } from "./recipe-link-picker";
 afterEach(cleanup);
 
 const targets = [
-	{ publicId: "a", name: "トマトカレー" },
-	{ publicId: "b", name: "ハンバーグ" },
+	{
+		publicId: "a",
+		name: "トマトカレー",
+		createdAt: "2026-10-01T00:00:00+09:00",
+	},
+	{ publicId: "b", name: "ハンバーグ", createdAt: "2026-10-01T00:00:00+09:00" },
 ];
 
 function setup(
@@ -118,5 +122,42 @@ describe("RecipeLinkPicker", () => {
 		expect(
 			screen.getByText("リンクできるレシピが、まだありません。"),
 		).toBeTruthy();
+	});
+
+	it("同じ名前のレシピが複数あるときだけ、登録日を添えて、見分けられるようにする", () => {
+		render(
+			<RecipeLinkPicker
+				title="t"
+				targets={[
+					{
+						publicId: "a",
+						name: "カレー",
+						createdAt: "2026-10-01T10:00:00+09:00",
+					},
+					{
+						publicId: "b",
+						name: "カレー",
+						createdAt: "2026-10-05T10:00:00+09:00",
+					},
+					{
+						publicId: "c",
+						name: "ハンバーグ",
+						createdAt: "2026-10-01T10:00:00+09:00",
+					},
+				]}
+				status="ready"
+				onSelect={vi.fn()}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		expect(
+			screen.getAllByRole("button").map((button) => button.textContent),
+		).toEqual([
+			"閉じる",
+			"カレー ・ 10/1 登録",
+			"カレー ・ 10/5 登録",
+			"ハンバーグ",
+		]);
 	});
 });

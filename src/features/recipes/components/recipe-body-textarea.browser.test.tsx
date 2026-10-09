@@ -469,8 +469,16 @@ test("変換中のヒントは、Alt（Apple 系は Option）+↑↓ を示す",
 });
 
 const linkTargets = [
-	{ publicId: "a", name: "トマトカレー" },
-	{ publicId: "b", name: "カレーうどん" },
+	{
+		publicId: "a",
+		name: "トマトカレー",
+		createdAt: "2026-10-01T00:00:00+09:00",
+	},
+	{
+		publicId: "b",
+		name: "カレーうどん",
+		createdAt: "2026-10-01T00:00:00+09:00",
+	},
 ];
 
 test("[[ のあとの文字で、レシピの候補が出て、選ぶと [[名前]] が入り、リンクが記録される", async () => {

@@ -20,6 +20,8 @@ export type RecipeLinkView = {
 export type RecipeLinkTarget = {
 	publicId: string;
 	name: string;
+	// 登録した日時（ISO 8601）。同じ名前のレシピを、見分けるために使う。
+	createdAt: string;
 };
 
 export type TextSegment =

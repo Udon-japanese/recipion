@@ -13,6 +13,8 @@ export type RecipeSummary = {
 	publicId: string;
 	name: string;
 	servings: number;
+	// 登録した日時（ISO 8601）。
+	createdAt: string;
 };
 
 export type RecipeDetail = RecipeEditorDocument & {

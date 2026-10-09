@@ -326,8 +326,16 @@ describe("adjustCompletionItem", () => {
 
 describe("getRecipeTextCompletion（レシピへのリンク）", () => {
 	const targets = [
-		{ publicId: "a", name: "トマトカレー" },
-		{ publicId: "b", name: "カレーうどん" },
+		{
+			publicId: "a",
+			name: "トマトカレー",
+			createdAt: "2026-10-01T00:00:00+09:00",
+		},
+		{
+			publicId: "b",
+			name: "カレーうどん",
+			createdAt: "2026-10-01T00:00:00+09:00",
+		},
 	];
 	function complete(
 		text: string,
@@ -426,5 +434,28 @@ describe("getRecipeTextCompletion（レシピへのリンク）", () => {
 			label: "カレーうどん（2）",
 			targetPublicId: "b",
 		});
+	});
+
+	it("同じ名前のレシピが複数あるときだけ、候補の表示に登録日を添える（入るラベルは、名前のまま）", () => {
+		const duplicated = [
+			{ publicId: "a", name: "カレー", createdAt: "2026-10-01T10:00:00+09:00" },
+			{ publicId: "b", name: "カレー", createdAt: "2026-10-05T10:00:00+09:00" },
+			{
+				publicId: "c",
+				name: "カレーうどん",
+				createdAt: "2026-10-01T10:00:00+09:00",
+			},
+		];
+		const completion = getRecipeTextCompletion("[[かれ", 4, [], {
+			targets: duplicated,
+			links: [],
+		});
+
+		expect(completion?.items.map((item) => item.label)).toEqual([
+			"カレー ・ 10/1 登録",
+			"カレー ・ 10/5 登録",
+			"カレーうどん",
+		]);
+		expect(completion?.items[0]?.insert).toBe("[[カレー]]");
 	});
 });
