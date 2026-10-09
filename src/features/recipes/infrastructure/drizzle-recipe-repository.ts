@@ -9,7 +9,10 @@ import type {
 	RecipeRepository,
 } from "../application/recipe-repository";
 import { restoreRecipeIngredients } from "../application/restore-recipe-ingredients";
-import { canLinkToRecipe } from "../domain/recipe-link-permission";
+import {
+	canLinkToRecipe,
+	parseRecipeVisibility,
+} from "../domain/recipe-link-permission";
 import {
 	formatRecipeIngredientQuantity,
 	formatRecipeServings,
@@ -120,6 +123,7 @@ async function replaceRecipeLinks(
 			id: recipe.id,
 			publicId: recipe.publicId,
 			ownerUserId: recipe.userId,
+			visibility: recipe.visibility,
 		})
 		.from(recipe)
 		.where(
@@ -135,12 +139,11 @@ async function replaceRecipeLinks(
 	const rows = links.map((link) => {
 		const target = targetByPublicId.get(link.targetPublicId);
 
-		// 公開範囲は、まだ DB にない。すべて "private"（自分のレシピだけ）として扱う。
 		if (
 			!target ||
 			!canLinkToRecipe(userId, {
 				ownerUserId: target.ownerUserId,
-				visibility: "private",
+				visibility: parseRecipeVisibility(target.visibility),
 			})
 		) {
 			throw new Error(`リンク先のレシピが見つかりません：${link.label}`);
@@ -292,6 +295,7 @@ export function createDrizzleRecipeRepository(
 							targetPublicId: recipe.publicId,
 							targetName: recipe.name,
 							targetOwnerUserId: recipe.userId,
+							targetVisibility: recipe.visibility,
 						})
 						.from(recipeLink)
 						.leftJoin(recipe, eq(recipe.id, recipeLink.targetRecipeId))
@@ -305,9 +309,10 @@ export function createDrizzleRecipeRepository(
 					row.targetPublicId !== null &&
 					row.targetName !== null &&
 					row.targetOwnerUserId !== null &&
+					row.targetVisibility !== null &&
 					canLinkToRecipe(userId, {
 						ownerUserId: row.targetOwnerUserId,
-						visibility: "private",
+						visibility: parseRecipeVisibility(row.targetVisibility),
 					});
 
 				return {

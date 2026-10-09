@@ -261,4 +261,22 @@ describe("AuthPanel（メールのワンタイムコード）", () => {
 
 		expect(screen.getByText("ログイン状態を確認しています…")).toBeTruthy();
 	});
+
+	it("メールアドレスの入力の画面に、利用規約へのリンクと、同意のみなしの表示を出す", () => {
+		mocks.useAppSession.mockReturnValue({
+			data: null,
+			isPending: false,
+			refetch: mocks.refetch,
+		});
+
+		render(<AuthPanel />);
+
+		expect(
+			screen.getByText(/ログインすると、.*に同意したものとみなします/u),
+		).toBeInTheDocument();
+		expect(screen.getByRole("link", { name: "利用規約" })).toHaveAttribute(
+			"href",
+			"/terms",
+		);
+	});
 });
