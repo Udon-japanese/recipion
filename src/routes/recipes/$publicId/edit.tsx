@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { RecipeEditor } from "#/features/recipes/components/recipe-editor";
 import { RecipeRouteError } from "#/features/recipes/components/recipe-route-error";
+import { listRecipesServerFn } from "#/features/recipes/server/list-recipes";
 import { loadRecipe } from "#/features/recipes/server/load-recipe";
 import { updateRecipeServerFn } from "#/features/recipes/server/update-recipe";
 
@@ -27,6 +28,14 @@ function EditRecipePage() {
 	return (
 		<RecipeEditor
 			initialDocument={recipe}
+			loadLinkTargets={async () => {
+				const recipes = await listRecipesServerFn();
+
+				// 編集中のレシピ自身には、リンクできない。
+				return recipes
+					.filter((candidate) => candidate.publicId !== recipe.publicId)
+					.map(({ publicId, name }) => ({ publicId, name }));
+			}}
 			onSave={(document) =>
 				updateRecipeServerFn({
 					data: { publicId: recipe.publicId, document },

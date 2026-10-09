@@ -3,10 +3,17 @@ import {
 	listIngredientSearchTerms,
 	searchIngredientCatalog,
 } from "#/features/ingredients/domain/ingredient-catalog";
+import { filterLinkTargets } from "./filter-link-targets";
 import {
 	formatHeading,
 	recipeHeadingLabels,
 } from "./format-recipe-editor-text";
+import {
+	formatLink,
+	type RecipeLinkReference,
+	type RecipeLinkTarget,
+	resolveLinkLabel,
+} from "./recipe-links";
 import {
 	classifyRecipeBlock,
 	parseRecipeHeading,
@@ -23,7 +30,17 @@ export type RecipeTextCompletionItem = {
 	to: number;
 	// 見出しの候補は、入れたあとに、次の行へ移る。
 	isHeading?: boolean;
+	// レシピへのリンクの候補。入れたあと、このリンク先を、リンクとして記録する。
+	link?: RecipeLinkReference;
 };
+
+// リンクの補完に使う情報。targets：リンクできるレシピ、links：すでに本文で使っているラベルとリンク先。
+export type RecipeLinkContext = {
+	targets: readonly RecipeLinkTarget[];
+	links: readonly RecipeLinkReference[];
+};
+
+const emptyLinkContext: RecipeLinkContext = { targets: [], links: [] };
 
 export type RecipeTextCompletion = {
 	items: RecipeTextCompletionItem[];
@@ -123,6 +140,55 @@ function findBlockSection(
 	}
 
 	return classifyRecipeBlock(lines.slice(start, end + 1).join("\n"));
+}
+
+// カーソルが、閉じていない [[ の中にあるか（[[ のあとに、括弧と改行がない）。
+function isInsideOpenLink(before: string): boolean {
+	const open = before.lastIndexOf("[[");
+
+	return open >= 0 && !/[[\]\n]/u.test(before.slice(open + 2));
+}
+
+// [[ のあとに打った文字で、自分のレシピの候補を出す。書き終えた名前でも出す（選んで、リンク先を決めるため）。
+// カーソルの後ろに、すぐ ]] があれば、その手前の文字も、打った文字とみなし、]] まで置き換える。
+function completeRecipeLink(
+	before: string,
+	after: string,
+	lineStart: number,
+	caret: number,
+	linkContext: RecipeLinkContext,
+): RecipeTextCompletion | null {
+	const open = before.lastIndexOf("[[");
+	const typed = before.slice(open + 2);
+	const closed = after.match(/^([^[\]\n]*)\]\]/u);
+	const afterPart = closed?.[1] ?? "";
+	const targets = filterLinkTargets(
+		linkContext.targets,
+		`${typed}${afterPart}`,
+		maxItems,
+	);
+
+	if (targets.length === 0) {
+		return null;
+	}
+
+	return {
+		items: targets.map((target) => {
+			const label = resolveLinkLabel(
+				target.name,
+				target.publicId,
+				linkContext.links,
+			);
+
+			return {
+				label: target.name,
+				insert: formatLink(label),
+				from: lineStart + open,
+				to: caret + afterPart.length + (closed ? 2 : 0),
+				link: { label, targetPublicId: target.publicId },
+			};
+		}),
+	};
 }
 
 function completeHeading(
@@ -372,6 +438,7 @@ export function getRecipeTextCompletion(
 	text: string,
 	caret: number,
 	recipeNames: readonly string[] = [],
+	linkContext: RecipeLinkContext = emptyLinkContext,
 ): RecipeTextCompletion | null {
 	const lineStart = text.lastIndexOf("\n", caret - 1) + 1;
 	const lineEndIndex = text.indexOf("\n", caret);
@@ -383,6 +450,11 @@ export function getRecipeTextCompletion(
 
 	if (before.trim() === "") {
 		return null;
+	}
+
+	// [[ の中では、レシピへのリンクの候補だけを出す（ほかの補完は、出さない）。
+	if (isInsideOpenLink(before)) {
+		return completeRecipeLink(before, after, lineStart, caret, linkContext);
 	}
 
 	const headingCompletion = completeHeading(before, lineStart, caret, after);

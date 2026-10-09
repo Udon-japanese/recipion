@@ -3,6 +3,10 @@ import { expect, test } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import type { CompositionStrategy } from "../domain/choose-composition-strategy";
+import type {
+	RecipeLinkReference,
+	RecipeLinkTarget,
+} from "../domain/recipe-links";
 import { measureTextareaCaret } from "../infrastructure/measure-textarea-caret";
 import { RecipeBodyTextarea } from "./recipe-body-textarea";
 
@@ -10,9 +14,13 @@ import { RecipeBodyTextarea } from "./recipe-body-textarea";
 function Harness({
 	compositionStrategy = "end-then-replace",
 	completionLayout,
+	linkTargets,
+	onLinkSelected,
 }: {
 	compositionStrategy?: CompositionStrategy;
 	completionLayout?: "caret" | "keyboard-bar";
+	linkTargets?: RecipeLinkTarget[];
+	onLinkSelected?: (link: RecipeLinkReference) => void;
 }) {
 	const [value, setValue] = useState("");
 
@@ -23,6 +31,8 @@ function Harness({
 			recipeNames={["玉ねぎ"]}
 			compositionStrategy={compositionStrategy}
 			completionLayout={completionLayout}
+			linkTargets={linkTargets}
+			onLinkSelected={onLinkSelected}
 		/>
 	);
 }
@@ -456,4 +466,66 @@ test("変換中のヒントは、Alt（Apple 系は Option）+↑↓ を示す",
 	await expect.poll(() => hintKeys().slice(1)).toEqual(["↑↓", "Tab"]);
 	// 先頭は、OS によって、Alt（Windows・Linux）か Option（Apple 系）。
 	expect(["Alt", "Option"]).toContain(hintKeys()[0]);
+});
+
+const linkTargets = [
+	{ publicId: "a", name: "トマトカレー" },
+	{ publicId: "b", name: "カレーうどん" },
+];
+
+test("[[ のあとの文字で、レシピの候補が出て、選ぶと [[名前]] が入り、リンクが記録される", async () => {
+	const linked: RecipeLinkReference[] = [];
+
+	await render(
+		<Harness
+			completionLayout="caret"
+			linkTargets={linkTargets}
+			onLinkSelected={(link) => linked.push(link)}
+		/>,
+	);
+	await focusTextarea();
+	// userEvent.keyboard では、[[ が、[ 1文字を表す（[ のキー指定の書き方）ので、[[[[ と書く。
+	await userEvent.keyboard("1. [[[[かれ");
+	await expect.poll(() => candidateButton().textContent).toBe("カレーうどん");
+
+	candidateButton().dispatchEvent(
+		new MouseEvent("mousedown", { bubbles: true, cancelable: true }),
+	);
+
+	await expect.poll(textareaValue).toBe("1. [[カレーうどん]]");
+	expect(linked).toEqual([{ label: "カレーうどん", targetPublicId: "b" }]);
+});
+
+test("変換中でも、[[ の候補を、Tab で決められ、リンクが記録される", async () => {
+	const linked: RecipeLinkReference[] = [];
+
+	await render(
+		<Harness
+			completionLayout="caret"
+			linkTargets={linkTargets}
+			onLinkSelected={(link) => linked.push(link)}
+		/>,
+	);
+	await focusTextarea();
+	startComposition();
+	await userEvent.keyboard("[[[[かれ");
+	await expect.poll(() => candidateButton().textContent).toBe("カレーうどん");
+
+	compositionKey({ key: "Process", code: "Tab" });
+
+	await expect.poll(textareaValue).toBe("[[カレーうどん]]");
+	expect(linked).toEqual([{ label: "カレーうどん", targetPublicId: "b" }]);
+});
+
+test("linkTargets がなければ、「現在の位置にレシピをリンク」のボタンも、[[ の候補も出ない", async () => {
+	await render(<Harness completionLayout="caret" />);
+	await focusTextarea();
+	await userEvent.keyboard("[[[[かれ");
+
+	expect(document.querySelector('[aria-label="補完の候補"]')).toBeNull();
+	expect(
+		[...document.querySelectorAll("button")].some(
+			(button) => button.textContent === "現在の位置にレシピをリンク",
+		),
+	).toBe(false);
 });

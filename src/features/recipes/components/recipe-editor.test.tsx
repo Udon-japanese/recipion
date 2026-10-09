@@ -795,4 +795,230 @@ describe("RecipeEditor", () => {
 			expect(bodyTextarea()).toHaveProperty("value", "1. 混ぜる\n続き");
 		});
 	});
+
+	describe("レシピへのリンク", () => {
+		const targets = [
+			{ publicId: "curry-id", name: "カレー" },
+			{ publicId: "rice-id", name: "ごはん" },
+		];
+
+		const bodyTextarea = () =>
+			screen.getByRole("textbox", { name: "レシピの本文" });
+
+		async function openPicker(user: User) {
+			await user.click(
+				screen.getByRole("button", { name: "現在の位置にレシピをリンク" }),
+			);
+		}
+
+		it("ボタンで、カーソルの位置に、[[名前]] を入れて、リンク先を保存できる", async () => {
+			const user = userEvent.setup();
+			const onSave = vi.fn(async (_document: RecipeEditorDocument) => ({
+				publicId: "new",
+			}));
+
+			render(
+				<RecipeEditor onSave={onSave} loadLinkTargets={async () => targets} />,
+			);
+			await enterTitle(user, "カレー丼");
+			await writeBody(user, "＜作り方＞\n1. ");
+			await screen.findByRole("button", { name: "現在の位置にレシピをリンク" });
+			await openPicker(user);
+			await user.click(await screen.findByRole("button", { name: "カレー" }));
+
+			expect(bodyTextarea()).toHaveProperty(
+				"value",
+				"＜作り方＞\n1. [[カレー]]",
+			);
+			// プレビューに、リンクと、リンク先の名前が出る。
+			expect(
+				screen.getByText("[[カレー]]", { selector: "code" }).parentElement
+					?.textContent,
+			).toContain("→ カレー");
+			expect(screen.queryByText("リンク先が未設定")).toBeNull();
+
+			await user.click(screen.getByRole("button", { name: "レシピを保存" }));
+			await screen.findByText("レシピを保存しました。");
+
+			expect(onSave.mock.calls[0]?.[0].links).toEqual([
+				{ label: "カレー", targetPublicId: "curry-id" },
+			]);
+		});
+
+		it("手で書いたリンクは、「リンク先が未設定」と出て、「選ぶ」でリンク先を決められる", async () => {
+			const user = userEvent.setup();
+			const onSave = vi.fn(async (_document: RecipeEditorDocument) => ({
+				publicId: "new",
+			}));
+
+			render(
+				<RecipeEditor onSave={onSave} loadLinkTargets={async () => targets} />,
+			);
+			await enterTitle(user, "カレー丼");
+			await writeBody(user, "＜作り方＞\n1. [[カレー]]をかける");
+
+			expect(screen.getByText("リンク先が未設定")).toBeTruthy();
+
+			await user.click(screen.getByRole("button", { name: "選ぶ" }));
+			await user.click(await screen.findByRole("button", { name: "カレー" }));
+
+			expect(screen.queryByText("リンク先が未設定")).toBeNull();
+
+			await user.click(screen.getByRole("button", { name: "レシピを保存" }));
+			await screen.findByText("レシピを保存しました。");
+
+			expect(onSave.mock.calls[0]?.[0].links).toEqual([
+				{ label: "カレー", targetPublicId: "curry-id" },
+			]);
+			// 本文は、変わらない。
+			expect(bodyTextarea()).toHaveProperty(
+				"value",
+				"＜作り方＞\n1. [[カレー]]をかける",
+			);
+		});
+
+		it("本文から消したリンクは、保存されない", async () => {
+			const user = userEvent.setup();
+			const onSave = vi.fn(async (_document: RecipeEditorDocument) => ({
+				publicId: "new",
+			}));
+
+			render(
+				<RecipeEditor onSave={onSave} loadLinkTargets={async () => targets} />,
+			);
+			await enterTitle(user, "カレー丼");
+			await writeBody(user, "＜作り方＞\n1. ");
+			await screen.findByRole("button", { name: "現在の位置にレシピをリンク" });
+			await openPicker(user);
+			await user.click(await screen.findByRole("button", { name: "ごはん" }));
+			await writeBody(user, "＜作り方＞\n1. 盛る");
+			await user.click(screen.getByRole("button", { name: "レシピを保存" }));
+			await screen.findByText("レシピを保存しました。");
+
+			expect(onSave.mock.calls[0]?.[0].links).toEqual([]);
+		});
+
+		it("編集のとき、保存済みのリンクを、そのまま持ち越す", async () => {
+			const user = userEvent.setup();
+			const onSave = vi.fn(async (_document: RecipeEditorDocument) => ({
+				publicId: "abc",
+			}));
+			const initial = {
+				...createRecipeEditorDocument({
+					name: "カレー丼",
+					instructionText: "1. [[カレー]]をかける",
+				}),
+				links: [{ label: "カレー", targetPublicId: "curry-id" }],
+			};
+
+			render(
+				<RecipeEditor
+					initialDocument={initial}
+					onSave={onSave}
+					loadLinkTargets={async () => targets}
+				/>,
+			);
+			await screen.findByText(/→ カレー/);
+			await user.click(screen.getByRole("button", { name: "レシピを保存" }));
+			await screen.findByText("レシピを保存しました。");
+
+			expect(onSave.mock.calls[0]?.[0].links).toEqual([
+				{ label: "カレー", targetPublicId: "curry-id" },
+			]);
+		});
+
+		it("同じ名前のレシピが2つあるとき、2つ目のラベルには番号が付く（ボタンで続けて入れる）", async () => {
+			const user = userEvent.setup();
+			const onSave = vi.fn(async (_document: RecipeEditorDocument) => ({
+				publicId: "new",
+			}));
+
+			render(
+				<RecipeEditor
+					onSave={onSave}
+					loadLinkTargets={async () => [
+						{ publicId: "a", name: "カレー" },
+						{ publicId: "b", name: "カレー" },
+					]}
+				/>,
+			);
+			await enterTitle(user, "カレー丼");
+			await writeBody(user, "＜作り方＞\n1. ");
+			await screen.findByRole("button", { name: "現在の位置にレシピをリンク" });
+			await openPicker(user);
+			await user.click(
+				(
+					await screen.findAllByRole("button", { name: "カレー" })
+				)[0] as HTMLElement,
+			);
+			await openPicker(user);
+			await user.click(
+				(
+					await screen.findAllByRole("button", { name: "カレー" })
+				)[1] as HTMLElement,
+			);
+
+			expect(bodyTextarea()).toHaveProperty(
+				"value",
+				"＜作り方＞\n1. [[カレー]][[カレー（2）]]",
+			);
+
+			await user.click(screen.getByRole("button", { name: "レシピを保存" }));
+			await screen.findByText("レシピを保存しました。");
+
+			expect(onSave.mock.calls[0]?.[0].links).toEqual([
+				{ label: "カレー", targetPublicId: "a" },
+				{ label: "カレー（2）", targetPublicId: "b" },
+			]);
+		});
+
+		it("同じ名前のレシピが2つあるとき、補完で続けて入れても、2つ目のラベルには番号が付く", async () => {
+			const user = userEvent.setup();
+			const onSave = vi.fn(async (_document: RecipeEditorDocument) => ({
+				publicId: "new",
+			}));
+
+			render(
+				<RecipeEditor
+					onSave={onSave}
+					loadLinkTargets={async () => [
+						{ publicId: "a", name: "カレー" },
+						{ publicId: "b", name: "カレー" },
+					]}
+				/>,
+			);
+			await enterTitle(user, "カレー丼");
+			await writeBody(user, "＜作り方＞\n1. ");
+			await screen.findByRole("button", { name: "現在の位置にレシピをリンク" });
+			// user-event では、[[ が [ 1文字を表すので、[[[[ と書く。
+			await user.type(bodyTextarea(), "[[[[");
+
+			const first = within(
+				await screen.findByLabelText("補完の候補"),
+			).getAllByRole("button");
+
+			await user.click(first[0] as HTMLElement);
+			await user.type(bodyTextarea(), "[[[[");
+
+			const second = within(
+				await screen.findByLabelText("補完の候補"),
+			).getAllByRole("button");
+
+			// 1つ目の（カレー）は、すでに使っているので、2つ目の候補（別のレシピ）が、番号つきで入る。
+			await user.click(second[1] as HTMLElement);
+
+			expect(bodyTextarea()).toHaveProperty(
+				"value",
+				"＜作り方＞\n1. [[カレー]][[カレー（2）]]",
+			);
+		});
+
+		it("リンクの入力は、loadLinkTargets がなければ出ない", () => {
+			render(<RecipeEditor onSave={vi.fn()} />);
+
+			expect(
+				screen.queryByRole("button", { name: "現在の位置にレシピをリンク" }),
+			).toBeNull();
+		});
+	});
 });

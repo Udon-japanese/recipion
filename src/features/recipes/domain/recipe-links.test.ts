@@ -4,6 +4,8 @@ import {
 	formatLink,
 	isValidLinkLabel,
 	linkLabelMaxLength,
+	resolveLinkLabel,
+	sanitizeLinkLabel,
 	splitTextByLinks,
 } from "./recipe-links";
 
@@ -87,5 +89,38 @@ describe("isValidLinkLabel / formatLink", () => {
 
 	it("本文に書く形にする", () => {
 		expect(formatLink(" カレー ")).toBe("[[カレー]]");
+	});
+});
+
+describe("sanitizeLinkLabel / resolveLinkLabel", () => {
+	it("名前から、使えるラベルを作る", () => {
+		expect(sanitizeLinkLabel("カレー")).toBe("カレー");
+		expect(sanitizeLinkLabel("  [特製]  カレー\n ")).toBe("特製 カレー");
+		expect(sanitizeLinkLabel("[[]]")).toBe("レシピ");
+		expect(sanitizeLinkLabel("あ".repeat(150))).toBe("あ".repeat(100));
+		expect(isValidLinkLabel(sanitizeLinkLabel(" [a]\nb "))).toBe(true);
+	});
+
+	it("同じラベルが別のレシピに使われていれば、番号を付ける。同じレシピなら、そのラベルを使う", () => {
+		const links = [
+			{ label: "カレー", targetPublicId: "a" },
+			{ label: "カレー（2）", targetPublicId: "b" },
+		];
+
+		expect(resolveLinkLabel("カレー", "c", [])).toBe("カレー");
+		expect(resolveLinkLabel("カレー", "a", links)).toBe("カレー");
+		expect(resolveLinkLabel("カレー", "b", links)).toBe("カレー（2）");
+		expect(resolveLinkLabel("カレー", "c", links)).toBe("カレー（3）");
+	});
+
+	it("番号を付けても、長さの上限を超えない", () => {
+		const long = "あ".repeat(100);
+		const label = resolveLinkLabel(long, "b", [
+			{ label: long, targetPublicId: "a" },
+		]);
+
+		expect([...label]).toHaveLength(100);
+		expect(label.endsWith("（2）")).toBe(true);
+		expect(isValidLinkLabel(label)).toBe(true);
 	});
 });

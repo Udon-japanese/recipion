@@ -367,3 +367,12 @@ export const completionItem = style({
 		},
 	},
 });
+
+export const insertRecipeLinkButton = style({
+	minHeight: 40,
+	padding: "6px 14px",
+	background: "var(--color-surface)",
+	border: "1px solid var(--color-border)",
+	borderRadius: 8,
+	cursor: "pointer",
+});

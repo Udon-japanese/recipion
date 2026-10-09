@@ -16,6 +16,12 @@ export type RecipeLinkView = {
 	target: { publicId: string; name: string } | null;
 };
 
+// リンクの候補（リンクできるレシピ）。
+export type RecipeLinkTarget = {
+	publicId: string;
+	name: string;
+};
+
 export type TextSegment =
 	| { type: "text"; text: string }
 	| { type: "link"; label: string };
@@ -86,4 +92,35 @@ export function extractLinkLabels(texts: readonly string[]): string[] {
 	}
 
 	return [...labels];
+}
+
+// レシピの名前を、ラベルとして使える形にする（括弧と改行を除き、長すぎれば切る。空になれば「レシピ」）。
+export function sanitizeLinkLabel(name: string): string {
+	const cleaned = normalizeLinkLabel(name.replace(/[[\]\n\r]/gu, " "))
+		.replace(/\s+/gu, " ")
+		.trim();
+	const label = [...cleaned].slice(0, linkLabelMaxLength).join("").trim();
+
+	return label === "" ? "レシピ" : label;
+}
+
+// 本文に書くラベルを決める。同じラベルが、別のレシピに使われていれば、「カレー（2）」のように、番号を付ける。
+// 同じレシピへのリンクが、すでにあれば、そのラベルを使う。
+export function resolveLinkLabel(
+	name: string,
+	targetPublicId: string,
+	existingLinks: readonly RecipeLinkReference[],
+): string {
+	const base = sanitizeLinkLabel(name);
+
+	for (let number = 1; ; number += 1) {
+		const suffix = number === 1 ? "" : `（${number}）`;
+		const room = linkLabelMaxLength - [...suffix].length;
+		const candidate = `${[...base].slice(0, room).join("")}${suffix}`;
+		const existing = existingLinks.find((link) => link.label === candidate);
+
+		if (!existing || existing.targetPublicId === targetPublicId) {
+			return candidate;
+		}
+	}
 }
