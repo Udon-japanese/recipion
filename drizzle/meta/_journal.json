@@ -64,6 +64,13 @@
       "when": 1791108589839,
       "tag": "0008_drop_item_quantity_add_ingredient_defaults",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791470308079,
+      "tag": "0009_user_handle",
+      "breakpoints": true
     }
   ]
 }

@@ -17,6 +17,9 @@ function HomePage() {
 				<li>
 					<Link to="/recipes">レシピ</Link>
 				</li>
+				<li>
+					<Link to="/profile">プロフィール</Link>
+				</li>
 			</ul>
 		</nav>
 	);

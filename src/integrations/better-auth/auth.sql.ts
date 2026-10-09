@@ -1,18 +1,36 @@
-import { relations } from "drizzle-orm";
-import { boolean, index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { relations, sql } from "drizzle-orm";
+import {
+	boolean,
+	check,
+	index,
+	pgTable,
+	text,
+	timestamp,
+	unique,
+} from "drizzle-orm/pg-core";
 
-export const user = pgTable("user", {
-	id: text("id").primaryKey(),
-	name: text("name").notNull(),
-	email: text("email").notNull().unique(),
-	emailVerified: boolean("email_verified").default(false).notNull(),
-	image: text("image"),
-	createdAt: timestamp("created_at").defaultNow().notNull(),
-	updatedAt: timestamp("updated_at")
-		.defaultNow()
-		.$onUpdate(() => /* @__PURE__ */ new Date())
-		.notNull(),
-});
+export const user = pgTable(
+	"user",
+	{
+		id: text("id").primaryKey(),
+		// 表示名（公開される）。新規ユーザーは「れしぴょなー」。
+		name: text("name").notNull(),
+		email: text("email").notNull().unique(),
+		emailVerified: boolean("email_verified").default(false).notNull(),
+		image: text("image"),
+		// ハンドル（公開される。一意）。半角の小文字・数字・_・- の3〜20文字。新規ユーザーは、自動で付く。
+		handle: text("handle").notNull(),
+		createdAt: timestamp("created_at").defaultNow().notNull(),
+		updatedAt: timestamp("updated_at")
+			.defaultNow()
+			.$onUpdate(() => /* @__PURE__ */ new Date())
+			.notNull(),
+	},
+	(table) => [
+		unique("user_handle_unique").on(table.handle),
+		check("user_handle_format", sql`${table.handle} ~ '^[a-z0-9_-]{3,20}$'`),
+	],
+);
 
 export const session = pgTable(
 	"session",
