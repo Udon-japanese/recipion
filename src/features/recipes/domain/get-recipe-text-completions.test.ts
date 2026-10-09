@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-
 import {
 	adjustCompletionItem,
 	applyRecipeTextCompletion,
 	getRecipeTextCompletion,
 	type RecipeTextCompletion,
 } from "./get-recipe-text-completions";
+import type { RecipeLinkReference } from "./recipe-links";
 
 function requireCompletion(
 	text: string,
@@ -320,6 +320,111 @@ describe("adjustCompletionItem", () => {
 			...item,
 			from: 4,
 			to: 6,
+		});
+	});
+});
+
+describe("getRecipeTextCompletion（レシピへのリンク）", () => {
+	const targets = [
+		{ publicId: "a", name: "トマトカレー" },
+		{ publicId: "b", name: "カレーうどん" },
+	];
+	function complete(
+		text: string,
+		caret = text.length,
+		links: RecipeLinkReference[] = [],
+	) {
+		return getRecipeTextCompletion(text, caret, [], { targets, links });
+	}
+
+	it("[[ のあとの文字で、自分のレシピの候補を出す（ひらがなでも）", () => {
+		const completion = complete("1. [[かれ");
+
+		expect(completion?.items.map((item) => item.label)).toEqual([
+			"カレーうどん",
+			"トマトカレー",
+		]);
+		expect(completion?.items[0]?.link).toEqual({
+			label: "カレーうどん",
+			targetPublicId: "b",
+		});
+	});
+
+	it("[[ だけでも、候補を出す", () => {
+		expect(complete("[[")?.items).toHaveLength(2);
+	});
+
+	it("入れると、[[ から、[[名前]] に置き換わる", () => {
+		const text = "1. [[かれ";
+		const completion = complete(text);
+
+		if (!completion) {
+			throw new Error("補完の候補があるはず");
+		}
+
+		expect(applyRecipeTextCompletion(text, completion, 0)).toEqual({
+			text: "1. [[カレーうどん]]",
+			caret: "1. [[カレーうどん]]".length,
+		});
+	});
+
+	it("カーソルの後ろの ]] まで、置き換える（]] が重ならない）", () => {
+		const text = "[[かれ]] を煮る";
+		const completion = complete(text, 4);
+
+		if (!completion) {
+			throw new Error("補完の候補があるはず");
+		}
+
+		expect(applyRecipeTextCompletion(text, completion, 0).text).toBe(
+			"[[カレーうどん]] を煮る",
+		);
+	});
+
+	it("カーソルの前後の文字を合わせて探す（[[か|れ]]）", () => {
+		const text = "[[かれ]]";
+		const completion = complete(text, 3);
+
+		expect(completion?.items[0]?.label).toBe("カレーうどん");
+		expect(
+			completion && applyRecipeTextCompletion(text, completion, 0).text,
+		).toBe("[[カレーうどん]]");
+	});
+
+	it("閉じていない [[ の後ろに文章が続いていても、文章は置き換えない", () => {
+		const text = "[[か を煮る";
+		const completion = complete(text, 3);
+
+		expect(
+			completion && applyRecipeTextCompletion(text, completion, 0).text,
+		).toBe("[[カレーうどん]] を煮る");
+	});
+
+	it("閉じた [[…]] のあとや、一致がないときは、出さない", () => {
+		expect(complete("[[カレー]]")).toBeNull();
+		expect(complete("[[ラーメン")).toBeNull();
+	});
+
+	it("[[ の中では、ほかの補完（食材名）は、出さない", () => {
+		const text = "＜材料＞\n[[とま";
+
+		expect(
+			getRecipeTextCompletion(text, text.length, [], {
+				targets: [],
+				links: [],
+			}),
+		).toBeNull();
+	});
+
+	it("同じラベルが別のレシピに使われていれば、番号を付けたラベルで入れる", () => {
+		const completion = complete("[[かれーう", undefined, [
+			{ label: "カレーうどん", targetPublicId: "other" },
+		]);
+
+		expect(completion?.items[0]?.insert).toBe("[[カレーうどん（2）]]");
+		expect(completion?.items[0]?.link).toEqual({
+			label: "カレーうどん（2）",
+			targetPublicId: "b",
 		});
 	});
 });

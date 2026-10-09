@@ -27,6 +27,12 @@ import {
 } from "../domain/get-recipe-text-completions";
 import { placePopup } from "../domain/place-popup";
 import {
+	formatLink,
+	type RecipeLinkReference,
+	type RecipeLinkTarget,
+	resolveLinkLabel,
+} from "../domain/recipe-links";
+import {
 	type EditKind,
 	editKindOfInput,
 	emptyTextHistory,
@@ -42,6 +48,7 @@ import {
 import { measureTextareaCaret } from "../infrastructure/measure-textarea-caret";
 import { readBrowserEnvironment } from "../infrastructure/read-browser-environment";
 import * as styles from "./recipe-editor.css";
+import { RecipeLinkPicker } from "./recipe-link-picker";
 
 // Safari で、IME の変換と Tab のキーのイベントが、続けて届くとみなす時間（ミリ秒）。
 const previousCompletionWindowMs = 100;
@@ -60,6 +67,13 @@ type RecipeBodyTextareaProps = {
 	// 候補の出し方（なければ、タッチ操作の端末かどうかで決める）。テストで指定する。
 	// caret：カーソルの近くに、縦の一覧。keyboard-bar：キーボードのすぐ上に、横に並べた帯。
 	completionLayout?: CompletionLayout;
+	// リンクできるレシピ（自分のレシピ）。渡すと、[[ の補完と、「現在の位置にレシピをリンク」のボタンが使える。
+	linkTargets?: readonly RecipeLinkTarget[];
+	linkTargetsStatus?: "loading" | "ready" | "error";
+	// 本文で使っているラベルと、リンク先（同じラベルの重複を避けるため）。
+	links?: readonly RecipeLinkReference[];
+	// リンクを入れたとき（補完か、ボタンで）。
+	onLinkSelected?: (link: RecipeLinkReference) => void;
 };
 
 type CompletionLayout = "caret" | "keyboard-bar";
@@ -73,6 +87,10 @@ export function RecipeBodyTextarea({
 	placeholder,
 	compositionStrategy,
 	completionLayout,
+	linkTargets,
+	linkTargetsStatus,
+	links,
+	onLinkSelected,
 }: RecipeBodyTextareaProps) {
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
 	const wrapperRef = useRef<HTMLDivElement>(null);
@@ -100,6 +118,11 @@ export function RecipeBodyTextarea({
 	);
 	const strategy = compositionStrategy ?? detectedStrategy;
 	const [activeIndex, setActiveIndex] = useState<number | null>(null);
+	// 「現在の位置にレシピをリンク」を押したときの、選択範囲（開いている間だけ持つ）。
+	const [pickerSelection, setPickerSelection] = useState<{
+		start: number;
+		end: number;
+	} | null>(null);
 	// タッチ操作が主な端末か（サーバーでは判定できないので、ブラウザで判定する）。
 	const [isTouch, setIsTouch] = useState(false);
 	const layout: CompletionLayout =
@@ -146,8 +169,12 @@ export function RecipeBodyTextarea({
 	}, []);
 
 	const completion = useMemo(
-		() => getRecipeTextCompletion(value, caret, recipeNames),
-		[value, caret, recipeNames],
+		() =>
+			getRecipeTextCompletion(value, caret, recipeNames, {
+				targets: linkTargets ?? [],
+				links: links ?? [],
+			}),
+		[value, caret, recipeNames, linkTargets, links],
 	);
 	// 変換中は、変換中の補完に対応した環境だけ、候補を出す（ほかは、確定したあとに出す）。
 	const isOpen =
@@ -356,8 +383,38 @@ export function RecipeBodyTextarea({
 		}
 
 		const result = applyRecipeTextCompletion(value, completion, index);
+		const link = completion.items[index]?.link;
 
 		edit({ text: result.text, caret: result.caret });
+
+		if (link) {
+			onLinkSelected?.(link);
+		}
+	}
+
+	// 「現在の位置にレシピをリンク」。ボタンを押す前のカーソルの位置（選択があれば、その範囲）に、[[名前]] を入れる。
+	function insertLink(target: RecipeLinkTarget) {
+		const textarea = textareaRef.current;
+		const selection = pickerSelection;
+
+		if (!selection) {
+			return;
+		}
+
+		const label = resolveLinkLabel(target.name, target.publicId, links ?? []);
+		const inserted = formatLink(label);
+		const next = {
+			text: `${value.slice(0, selection.start)}${inserted}${value.slice(selection.end)}`,
+			caret: selection.start + inserted.length,
+		};
+
+		edit(next);
+		onLinkSelected?.({ label, targetPublicId: target.publicId });
+		setPickerSelection(null);
+
+		if (textarea) {
+			restoreFocus(textarea, next.caret);
+		}
 	}
 
 	// 変換中に候補を決める。Chromium 系は、変換を確定させてから、確定した文字を含めて置き換える。Safari は、変換中のまま書き換える（ブラウザが変換を取り消す）。
@@ -410,6 +467,10 @@ export function RecipeBodyTextarea({
 		isAcceptingRef.current = false;
 		setIsComposing(false);
 		writeText(next);
+
+		if (item.link) {
+			onLinkSelected?.(item.link);
+		}
 
 		if (shouldEnd) {
 			restoreFocus(textarea, next.caret);
@@ -673,6 +734,35 @@ export function RecipeBodyTextarea({
 					onBlur={() => setIsFocused(false)}
 				/>
 			</label>
+
+			{linkTargets ? (
+				<div>
+					<button
+						type="button"
+						className={styles.insertRecipeLinkButton}
+						onClick={() => {
+							const textarea = textareaRef.current;
+
+							setPickerSelection({
+								start: textarea?.selectionStart ?? value.length,
+								end: textarea?.selectionEnd ?? value.length,
+							});
+						}}
+					>
+						現在の位置にレシピをリンク
+					</button>
+				</div>
+			) : null}
+
+			{pickerSelection && linkTargets ? (
+				<RecipeLinkPicker
+					title="リンクするレシピを選ぶ"
+					targets={linkTargets}
+					status={linkTargetsStatus ?? "ready"}
+					onSelect={insertLink}
+					onClose={() => setPickerSelection(null)}
+				/>
+			) : null}
 
 			{isOpen && completion && layout === "caret" ? (
 				<div

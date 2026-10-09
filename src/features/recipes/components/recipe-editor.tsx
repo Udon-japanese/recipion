@@ -29,6 +29,11 @@ import {
 	type RecipeEditorIngredientNode,
 } from "../domain/recipe-editor-document";
 import {
+	extractLinkLabels,
+	type RecipeLinkReference,
+	type RecipeLinkTarget,
+} from "../domain/recipe-links";
+import {
 	createIngredientSyncState,
 	emptyIngredientSyncState,
 	type IngredientSyncState,
@@ -47,6 +52,7 @@ import {
 	listGroupOptions,
 	preventSubmitOnEnter,
 } from "./recipe-ingredient-preview";
+import { RecipeLinkPicker } from "./recipe-link-picker";
 import { RecipeTitleInput } from "./recipe-title-input";
 
 type SavedRecipe = { publicId: string };
@@ -56,6 +62,8 @@ type RecipeEditorProps = {
 	onSaved?: (recipe: SavedRecipe) => void;
 	// 保存済みのレシピを編集するときの初期値。なければ、新規登録。
 	initialDocument?: RecipeEditorDocument;
+	// リンクできるレシピ（自分のレシピ。編集中のレシピ自身は、除く）を取ってくる。渡すと、リンクの入力（補完・ボタン）が使える。
+	loadLinkTargets?: () => Promise<RecipeLinkTarget[]>;
 };
 
 type ActiveTab = "input" | "preview";
@@ -109,6 +117,7 @@ export function RecipeEditor({
 	onSave,
 	onSaved,
 	initialDocument,
+	loadLinkTargets,
 }: RecipeEditorProps) {
 	const isEditing = initialDocument !== undefined;
 	const [initialState] = useState(() => createInitialState(initialDocument));
@@ -130,6 +139,18 @@ export function RecipeEditor({
 	const [newIngredientName, setNewIngredientName] = useState("");
 	const [newIngredientAmount, setNewIngredientAmount] = useState("");
 	const [newGroupName, setNewGroupName] = useState("");
+	// 本文の [[ラベル]] が指すレシピ。本文から消えたラベルは、保存のときに捨てられる。
+	const [links, setLinks] = useState<RecipeLinkReference[]>(
+		initialDocument?.links ?? [],
+	);
+	const [linkTargets, setLinkTargets] = useState<readonly RecipeLinkTarget[]>(
+		[],
+	);
+	const [linkTargetsStatus, setLinkTargetsStatus] = useState<
+		"loading" | "ready" | "error"
+	>("loading");
+	// リンク先が未設定のラベルに、リンク先を選んでいるとき、そのラベル。
+	const [assigningLabel, setAssigningLabel] = useState<string | null>(null);
 
 	const sections = useMemo(() => splitRecipeSections(text), [text]);
 	const preparations = useMemo(
@@ -141,6 +162,24 @@ export function RecipeEditor({
 		[sections.instructionText],
 	);
 	const ingredients = sync.nodes;
+	// 本文に出てくるリンクのラベルと、リンク先の名前（未設定なら null。一覧にない相手は、ラベルのまま）。
+	const linkedLabels = useMemo(
+		() =>
+			extractLinkLabels([text]).map((label) => {
+				const link = links.find((existing) => existing.label === label);
+				const target = link
+					? linkTargets.find(
+							(candidate) => candidate.publicId === link.targetPublicId,
+						)
+					: undefined;
+
+				return {
+					label,
+					targetName: link ? (target?.name ?? label) : null,
+				};
+			}),
+		[text, links, linkTargets],
+	);
 	const groups = listGroupOptions(ingredients);
 	const recipeNames = useMemo(
 		() => collectRecipeNames(ingredients),
@@ -169,6 +208,43 @@ export function RecipeEditor({
 		if (text.trim() === "" || text === template) {
 			applyText(enabled ? template : "");
 		}
+	}
+
+	// リンクできるレシピの一覧を、最初に1回、取ってくる。
+	const loadTargets = useEffectEvent(() => {
+		if (!loadLinkTargets) {
+			return () => {};
+		}
+
+		let isCancelled = false;
+
+		loadLinkTargets()
+			.then((targets) => {
+				if (!isCancelled) {
+					setLinkTargets(targets);
+					setLinkTargetsStatus("ready");
+				}
+			})
+			.catch(() => {
+				if (!isCancelled) {
+					setLinkTargetsStatus("error");
+				}
+			});
+
+		return () => {
+			isCancelled = true;
+		};
+	});
+
+	useEffect(() => loadTargets(), []);
+
+	// リンクを、ラベルごとに1つだけ持つ（同じラベルは、入れ替える）。
+	function handleLinkSelected(link: RecipeLinkReference) {
+		setLinks((current) => [
+			...current.filter((existing) => existing.label !== link.label),
+			link,
+		]);
+		setSavedRecipeId(null);
 	}
 
 	// 端末に保存した「雛形なし」の設定を、表示のあとに反映する（localStorage は、サーバーでは読めない）。
@@ -312,8 +388,10 @@ export function RecipeEditor({
 					instructionText: sections.instructionText,
 					note: sections.note,
 					sourceUrl,
-					// 編集のとき、保存済みのリンクを、そのまま持ち越す（リンクの編集は、次の段階）。本文から消えたラベルは、保存のときに捨てられる。
-					links: initialDocument?.links,
+					// 本文に出てくるラベルのリンクだけを送る（本文から消したリンクは、送らない）。
+					links: links.filter((link) =>
+						linkedLabels.some(({ label }) => label === link.label),
+					),
 				}),
 				ingredients,
 			};
@@ -423,6 +501,10 @@ export function RecipeEditor({
 							value={text}
 							onChange={applyText}
 							recipeNames={recipeNames}
+							linkTargets={loadLinkTargets ? linkTargets : undefined}
+							linkTargetsStatus={linkTargetsStatus}
+							links={links}
+							onLinkSelected={handleLinkSelected}
 							placeholder={
 								"＜材料＞\n豚ひき肉 200g\n玉ねぎ 1/2個\n\n＜作り方＞\n1. 材料を混ぜる\n2. フライパンで焼く"
 							}
@@ -555,6 +637,53 @@ export function RecipeEditor({
 							<>
 								<h4>メモ</h4>
 								<p className={styles.note}>{sections.note}</p>
+							</>
+						)}
+
+						{linkedLabels.length === 0 ? null : (
+							<>
+								<h4>リンク</h4>
+								<ul className={styles.list}>
+									{linkedLabels.map(({ label, targetName }) => (
+										<li key={label}>
+											<code>{`[[${label}]]`}</code>
+											{targetName === null ? (
+												<>
+													{" "}
+													<span className={styles.hint}>リンク先が未設定</span>
+													{loadLinkTargets ? (
+														<>
+															{" "}
+															<button
+																type="button"
+																onClick={() => setAssigningLabel(label)}
+															>
+																選ぶ
+															</button>
+														</>
+													) : null}
+												</>
+											) : (
+												<> → {targetName}</>
+											)}
+										</li>
+									))}
+								</ul>
+								{assigningLabel !== null && loadLinkTargets ? (
+									<RecipeLinkPicker
+										title={`「${assigningLabel}」のリンク先を選ぶ`}
+										targets={linkTargets}
+										status={linkTargetsStatus}
+										onSelect={(target) => {
+											handleLinkSelected({
+												label: assigningLabel,
+												targetPublicId: target.publicId,
+											});
+											setAssigningLabel(null);
+										}}
+										onClose={() => setAssigningLabel(null)}
+									/>
+								) : null}
 							</>
 						)}
 
