@@ -123,3 +123,9 @@ export const notice = style({
 	color: "var(--color-text)",
 	fontSize: 14,
 });
+
+export const consent = style({
+	margin: 0,
+	color: "var(--color-text-muted)",
+	fontSize: 13,
+});

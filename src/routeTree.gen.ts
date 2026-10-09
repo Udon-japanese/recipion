@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as InventoryRouteImport } from './routes/inventory'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as ShoppingRouteImport } from './routes/shopping'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as RecipesIndexRouteImport } from './routes/recipes/index'
 import { Route as RecipesNewRouteImport } from './routes/recipes/new'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
@@ -37,6 +38,11 @@ const ProfileRoute = ProfileRouteImport.update({
 const ShoppingRoute = ShoppingRouteImport.update({
   id: '/shopping',
   path: '/shopping',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RecipesIndexRoute = RecipesIndexRouteImport.update({
@@ -70,6 +76,7 @@ export interface FileRoutesByFullPath {
   '/inventory': typeof InventoryRoute
   '/profile': typeof ProfileRoute
   '/shopping': typeof ShoppingRoute
+  '/terms': typeof TermsRoute
   '/recipes/new': typeof RecipesNewRoute
   '/recipes/': typeof RecipesIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -81,6 +88,7 @@ export interface FileRoutesByTo {
   '/inventory': typeof InventoryRoute
   '/profile': typeof ProfileRoute
   '/shopping': typeof ShoppingRoute
+  '/terms': typeof TermsRoute
   '/recipes/new': typeof RecipesNewRoute
   '/recipes': typeof RecipesIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -93,6 +101,7 @@ export interface FileRoutesById {
   '/inventory': typeof InventoryRoute
   '/profile': typeof ProfileRoute
   '/shopping': typeof ShoppingRoute
+  '/terms': typeof TermsRoute
   '/recipes/new': typeof RecipesNewRoute
   '/recipes/': typeof RecipesIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -106,6 +115,7 @@ export interface FileRouteTypes {
     | '/inventory'
     | '/profile'
     | '/shopping'
+    | '/terms'
     | '/recipes/new'
     | '/recipes/'
     | '/api/auth/$'
@@ -117,6 +127,7 @@ export interface FileRouteTypes {
     | '/inventory'
     | '/profile'
     | '/shopping'
+    | '/terms'
     | '/recipes/new'
     | '/recipes'
     | '/api/auth/$'
@@ -128,6 +139,7 @@ export interface FileRouteTypes {
     | '/inventory'
     | '/profile'
     | '/shopping'
+    | '/terms'
     | '/recipes/new'
     | '/recipes/'
     | '/api/auth/$'
@@ -140,6 +152,7 @@ export interface RootRouteChildren {
   InventoryRoute: typeof InventoryRoute
   ProfileRoute: typeof ProfileRoute
   ShoppingRoute: typeof ShoppingRoute
+  TermsRoute: typeof TermsRoute
   RecipesNewRoute: typeof RecipesNewRoute
   RecipesIndexRoute: typeof RecipesIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
@@ -175,6 +188,13 @@ declare module '@tanstack/react-router' {
       path: '/shopping'
       fullPath: '/shopping'
       preLoaderRoute: typeof ShoppingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/recipes/': {
@@ -220,6 +240,7 @@ const rootRouteChildren: RootRouteChildren = {
   InventoryRoute: InventoryRoute,
   ProfileRoute: ProfileRoute,
   ShoppingRoute: ShoppingRoute,
+  TermsRoute: TermsRoute,
   RecipesNewRoute: RecipesNewRoute,
   RecipesIndexRoute: RecipesIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,

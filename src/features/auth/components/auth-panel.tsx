@@ -251,6 +251,14 @@ export function AuthPanel() {
 						>
 							{isSubmitting ? "送信中…" : "コードを送る"}
 						</button>
+
+						<p className={styles.consent}>
+							ログインすると、
+							<a href="/terms" target="_blank" rel="noreferrer">
+								利用規約
+							</a>
+							に同意したものとみなします。
+						</p>
 					</>
 				) : (
 					<>

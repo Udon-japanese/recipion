@@ -33,6 +33,8 @@ export const recipe = pgTable(
 		note: text("note").default("").notNull(),
 		// 引用元の URL（任意）。
 		sourceUrl: text("source_url"),
+		// 公開範囲：private（自分だけ。既定）／unlisted（パスワードを知っている人）／public（全体公開）。
+		visibility: text("visibility").default("private").notNull(),
 		createdAt: timestamp("created_at", { withTimezone: true })
 			.defaultNow()
 			.notNull(),
@@ -48,6 +50,15 @@ export const recipe = pgTable(
 		check(
 			"recipe_source_url_http",
 			sql`${table.sourceUrl} IS NULL OR ${table.sourceUrl} ~* '^https?://'`,
+		),
+		check(
+			"recipe_visibility_valid",
+			sql`${table.visibility} IN ('private', 'unlisted', 'public')`,
+		),
+		// 他のサイトの転載を避ける目安：引用元の URL があるレシピは、公開できない。
+		check(
+			"recipe_public_has_no_source_url",
+			sql`${table.visibility} = 'private' OR ${table.sourceUrl} IS NULL`,
 		),
 		index("recipe_user_id_idx").on(table.userId),
 		check("recipe_name_nonempty", sql`length(trim(${table.name})) > 0`),
