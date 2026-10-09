@@ -72,6 +72,33 @@ describe("parseRecipeIngredientLine", () => {
 		});
 	});
 
+	it.each([
+		[
+			"☆ケチャップ 適量(色がつくくらい、大さじ２〜３)",
+			"☆ケチャップ",
+			"適量(色がつくくらい、大さじ2〜3)",
+			null,
+			null,
+		],
+		["豆腐 1丁(300g)", "豆腐", "1丁(300g)", 1, "丁"],
+	])("分量のあとの括弧つきの補足は、分量の原文に残し、数量には使わない（%s）", (input, name, amountText, quantity, unitLabel) => {
+		expect(parseRecipeIngredientLine(input)).toEqual({
+			status: "parsed",
+			rawText: input,
+			name,
+			amountText,
+			quantity,
+			unitLabel,
+		});
+	});
+
+	it("名前の括弧は、分量がなければ、名前の一部のまま", () => {
+		expect(parseRecipeIngredientLine("ソーセージ(ベーコン)")).toMatchObject({
+			status: "missing-amount",
+			name: "ソーセージ(ベーコン)",
+		});
+	});
+
 	it("使用量がなければ未解析として食材名を保持する", () => {
 		expect(parseRecipeIngredientLine("肉だね")).toEqual({
 			status: "missing-amount",

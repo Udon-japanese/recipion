@@ -89,9 +89,21 @@ describe("getRecipeTextCompletion（材料の名前）", () => {
 		);
 	});
 
-	it("分量を打ち始めたあと、グループの行、見出しがないときは、出さない", () => {
+	it("グループの印（☆ など）の後ろでも、材料名を出し、印を残して置き換える", () => {
+		const text = "＜材料＞\n☆たまね";
+		const completion = requireCompletion(text);
+		const index = completion.items.findIndex((item) => item.label === "玉ねぎ");
+
+		expect(index).toBeGreaterThanOrEqual(0);
+		expect(applyRecipeTextCompletion(text, completion, index).text).toBe(
+			"＜材料＞\n☆玉ねぎ",
+		);
+		// 印だけのときは、材料名は出さない
+		expect(labelsAtEnd("＜材料＞\n☆")).not.toContain("玉ねぎ");
+	});
+
+	it("分量を打ち始めたあと、見出しがないときは、出さない", () => {
 		expect(labelsAtEnd("＜材料＞\n玉ねぎ 1")).toEqual([]);
-		expect(labelsAtEnd("＜材料＞\n☆たまね")).toEqual([]);
 		expect(labelsAtEnd("玉ね")).toEqual([]);
 		expect(labelsAtEnd("＜メモ＞\n玉ね")).toEqual([]);
 	});
