@@ -11,6 +11,10 @@ import {
 } from "#/config/auth";
 import { TURNSTILE_TEST_SECRET_KEY } from "#/config/turnstile";
 import type { DB } from "#/db/client";
+import {
+	defaultDisplayName,
+	generateHandle,
+} from "#/features/profile/domain/profile";
 import * as authSchema from "#/integrations/better-auth/auth.sql";
 import { AUTH_RATE_LIMITED_CODE } from "#/integrations/better-auth/auth-error-message";
 import {
@@ -62,6 +66,13 @@ async function deliverLoginCode(email: string, otp: string): Promise<void> {
 	);
 }
 
+// 0 以上 size 未満の乱数（ハンドルの自動生成用）。
+function randomIndex(size: number): number {
+	const [value] = crypto.getRandomValues(new Uint32Array(1));
+
+	return (value ?? 0) % size;
+}
+
 export function createAuth(db: DB) {
 	return betterAuth({
 		database: drizzleAdapter(db, {
@@ -73,14 +84,21 @@ export function createAuth(db: DB) {
 			// メールの送信を await せず、応答を返したあとに続ける（応答時間の差による、アカウントの有無の推測を避ける）。
 			backgroundTasks: { handler: (promise) => waitUntil(promise) },
 		},
+		user: {
+			// ハンドル。クライアントからは書けない（input: false）。更新は、プロフィールの検証つきのサーバー関数で行う。
+			additionalFields: {
+				handle: { type: "string", required: false, input: false },
+			},
+		},
 		databaseHooks: {
 			user: {
 				create: {
-					// コードでの初回ログインで、ユーザーが自動作成される。名前は、メールアドレスの @ の前を、初期値にする。
+					// コードでの初回ログインで、ユーザーが自動作成される。表示名は、既定の名前（メールアドレスの一部は、公開されないよう、使わない）。ハンドルは、自動で付ける。
 					before: async (user) => ({
 						data: {
 							...user,
-							name: user.name?.trim() || user.email.split("@")[0] || user.email,
+							name: user.name?.trim() || defaultDisplayName,
+							handle: generateHandle(randomIndex),
 						},
 					}),
 				},

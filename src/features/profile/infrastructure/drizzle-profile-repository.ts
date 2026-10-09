@@ -1,0 +1,61 @@
+import { eq } from "drizzle-orm";
+
+import type { DB } from "#/db/client";
+import { user } from "#/integrations/better-auth/auth.sql";
+
+import type { ProfileRepository } from "../application/profile-repository";
+
+type PostgresError = { code?: unknown; constraint?: unknown; cause?: unknown };
+
+// 一意制約への違反か（Drizzle は、元のエラーを cause に入れることがある）。
+function isUniqueViolation(error: unknown, constraint: string): boolean {
+	for (
+		let current: unknown = error;
+		typeof current === "object" && current !== null;
+		current = (current as PostgresError).cause
+	) {
+		const { code, constraint: name } = current as PostgresError;
+
+		if (code === "23505" && name === constraint) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+// 呼び出すユーザー本人のプロフィールだけを扱う（ほかのユーザーの行は、読み書きできない）。
+export function createDrizzleProfileRepository(
+	db: DB,
+	userId: string,
+): ProfileRepository {
+	return {
+		async get() {
+			const [row] = await db
+				.select({ name: user.name, handle: user.handle })
+				.from(user)
+				.where(eq(user.id, userId))
+				.limit(1);
+
+			return row ? { name: row.name, handle: row.handle } : null;
+		},
+
+		async update({ name, handle }) {
+			try {
+				const rows = await db
+					.update(user)
+					.set({ name, handle })
+					.where(eq(user.id, userId))
+					.returning({ id: user.id });
+
+				return rows.length === 0 ? "not-found" : "updated";
+			} catch (error) {
+				if (isUniqueViolation(error, "user_handle_unique")) {
+					return "handle-taken";
+				}
+
+				throw error;
+			}
+		},
+	};
+}
