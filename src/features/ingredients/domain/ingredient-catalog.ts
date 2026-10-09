@@ -72,6 +72,9 @@ export type IngredientCatalogEntry = {
 	reading?: string;
 	// 期限の種類・初期の保存方法・目安の日数。
 	expiry?: IngredientExpiryInfo;
+	// この食材が、代わりに使える、別の食材の名前（冷凍野菜が、生の野菜の代わりになる）。
+	// レシピの材料が「玉ねぎ」のとき、在庫の「冷凍玉ねぎ」で足りているとみなすために使う。
+	standsFor?: readonly string[];
 	// 将来の「材料の説明」の置き場所。
 	description?: string;
 };
@@ -97,6 +100,51 @@ export function findIngredientCatalogEntry(
 	}
 
 	return entriesByNormalizedAlias.get(normalizeIngredientName(name));
+}
+
+// 代わりになる食材の索引：代わりに使われる食材の名前（と、そのカタログの食材の ID）→ 代わりになる食材の ID。
+const standInIdsByKey = new Map<string, Set<string>>();
+
+for (const entry of ingredientCatalogEntries) {
+	for (const standsForName of entry.standsFor ?? []) {
+		const keys = [
+			`name:${normalizeIngredientName(standsForName)}`,
+			...(() => {
+				const freshId = findIngredientCatalogEntry(standsForName)?.id;
+
+				return freshId ? [`id:${freshId}`] : [];
+			})(),
+		];
+
+		for (const key of keys) {
+			const ids = standInIdsByKey.get(key) ?? new Set<string>();
+
+			ids.add(entry.id);
+			standInIdsByKey.set(key, ids);
+		}
+	}
+}
+
+/**
+ * 材料の名前に対して、代わりに使える食材（冷凍野菜など）の ID を返す。
+ * 名前が同じ、または、同じカタログの食材（別名）を指すものを、まとめて探す。
+ */
+export function getStandInCatalogEntryIds(
+	ingredientName: string,
+): ReadonlySet<string> {
+	const ids = new Set<string>();
+	const freshId = findIngredientCatalogEntry(ingredientName)?.id;
+
+	for (const key of [
+		`name:${normalizeIngredientName(ingredientName)}`,
+		...(freshId ? [`id:${freshId}`] : []),
+	]) {
+		for (const id of standInIdsByKey.get(key) ?? []) {
+			ids.add(id);
+		}
+	}
+
+	return ids;
 }
 
 // 検索用に、ひらがな・カタカナの違い、全角半角、大文字小文字、空白を吸収する。

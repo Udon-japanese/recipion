@@ -1,3 +1,7 @@
+import {
+	findIngredientCatalogEntry,
+	getStandInCatalogEntryIds,
+} from "#/features/ingredients/domain/ingredient-catalog";
 import { findInventoryItemByName } from "#/features/inventory/domain/build-expiry-prefill";
 import type { InventoryUnitCode } from "#/features/inventory/domain/inventory-unit";
 import {
@@ -41,7 +45,13 @@ export type DuplicateMode = "max" | "sum" | "skip";
 
 export type RecipeShoppingStock =
 	// 在庫の情報がない（ログインしていない）。必要なものとして扱う。
-	{ kind: "unknown" } | { kind: "judged"; judgment: IngredientStockJudgment };
+	| { kind: "unknown" }
+	| {
+			kind: "judged";
+			judgment: IngredientStockJudgment;
+			// 代わりになる食材（冷凍野菜など）の在庫で足りているとき、その食材の名前。
+			standInName?: string;
+	  };
 
 export type RecipeShoppingRow = {
 	need: RecipeShoppingNeed;
@@ -156,6 +166,59 @@ export type PlanShoppingFromRecipeInput = {
  * - 買い物メモに、同じ食材があれば、扱い（多い方に合わせる／合算／追加しない）に従う。
  * - 人数による量の調整はしない（レシピの量のまま）。
  */
+// 在庫の食材が、この材料の代わりになる食材（冷凍野菜など）か。
+function findStandInItems(
+	needName: string,
+	stockItems: readonly RecipeShoppingStockItem[],
+): RecipeShoppingStockItem[] {
+	const standInIds = getStandInCatalogEntryIds(needName);
+
+	if (standInIds.size === 0) {
+		return [];
+	}
+
+	return stockItems.filter((item) => {
+		const id = findIngredientCatalogEntry(item.name)?.id;
+
+		return id !== undefined && standInIds.has(id) && item.quantity > 0;
+	});
+}
+
+// その食材の在庫で足りていなければ、代わりになる食材（冷凍野菜など）の在庫が足りているかも見る。
+function judgeWithStandIns(
+	need: { name: string; quantity: number | null; unitLabel: string | null },
+	stockItem: RecipeShoppingStockItem | undefined,
+	stockItems: readonly RecipeShoppingStockItem[],
+): RecipeShoppingStock {
+	const judgment = judgeIngredientStock(
+		need,
+		stockItem
+			? { quantity: stockItem.quantity, stockUnitCode: stockItem.stockUnitCode }
+			: null,
+	);
+
+	if (judgment.status === "enough") {
+		return { kind: "judged", judgment };
+	}
+
+	for (const standIn of findStandInItems(need.name, stockItems)) {
+		const standInJudgment = judgeIngredientStock(need, {
+			quantity: standIn.quantity,
+			stockUnitCode: standIn.stockUnitCode,
+		});
+
+		if (standInJudgment.status === "enough") {
+			return {
+				kind: "judged",
+				judgment: standInJudgment,
+				standInName: standIn.name,
+			};
+		}
+	}
+
+	return { kind: "judged", judgment };
+}
+
 export function planShoppingFromRecipe(
 	input: PlanShoppingFromRecipeInput,
 ): RecipeShoppingRow[] {
@@ -164,25 +227,16 @@ export function planShoppingFromRecipe(
 			? findInventoryItemByName(input.stockItems, need.name)
 			: undefined;
 
+		const needForJudgment = {
+			name: need.name,
+			quantity: need.quantity,
+			unitLabel: need.unitLabel,
+		};
+
 		const stock: RecipeShoppingStock =
 			input.stockItems === null
 				? { kind: "unknown" }
-				: {
-						kind: "judged",
-						judgment: judgeIngredientStock(
-							{
-								name: need.name,
-								quantity: need.quantity,
-								unitLabel: need.unitLabel,
-							},
-							stockItem
-								? {
-										quantity: stockItem.quantity,
-										stockUnitCode: stockItem.stockUnitCode,
-									}
-								: null,
-						),
-					};
+				: judgeWithStandIns(needForJudgment, stockItem, input.stockItems);
 
 		const isNeeded =
 			stock.kind === "unknown" || stock.judgment.status === "short";

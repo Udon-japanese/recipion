@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { inventoryUnitCodes } from "#/features/inventory/domain/inventory-unit";
 import {
 	findIngredientCatalogEntry,
+	getStandInCatalogEntryIds,
 	ingredientCatalogEntries,
 	searchIngredientCatalog,
 } from "./ingredient-catalog";
@@ -248,5 +249,40 @@ describe("読み仮名", () => {
 
 	it("ひらがなの完全一致を、先頭にする（「しお」は塩）", () => {
 		expect(searchIngredientCatalog("しお")[0]?.id).toBe("salt");
+	});
+
+	describe("冷凍野菜が代わりになる食材", () => {
+		const frozenVegetables = ingredientCatalogEntries.filter(
+			(entry) => entry.standsFor !== undefined,
+		);
+
+		it("代わりになる名前は、「冷凍」や括弧を含まない、空でない名前（名前から決めた分も、例外の分も）", () => {
+			expect(frozenVegetables.length).toBeGreaterThan(0);
+
+			for (const entry of frozenVegetables) {
+				for (const name of entry.standsFor ?? []) {
+					expect(name.trim(), entry.id).not.toBe("");
+					expect(name, entry.id).not.toMatch(/冷凍|[()（）]/u);
+				}
+			}
+		});
+
+		it.each([
+			["玉ねぎ", "frozen-onion-minced"],
+			["なす", "frozen-eggplant-chunks"],
+			["小ねぎ", "frozen-chopped-green-onion"],
+			["とうもろこし", "frozen-corn"],
+			["オクラ", "frozen-okra-cut"],
+		])("「%s」の代わりに、%s が使える", (name, expectedId) => {
+			expect(getStandInCatalogEntryIds(name).has(expectedId)).toBe(true);
+		});
+
+		it.each([
+			["じゃがいも", "frozen-fries-shoestring"],
+			["じゃがいも", "frozen-hash-browns"],
+			["きのこ", "frozen-mushroom-mix"],
+		])("「%s」の代わりに、%s は使えない", (name, unexpectedId) => {
+			expect(getStandInCatalogEntryIds(name).has(unexpectedId)).toBe(false);
+		});
 	});
 });
