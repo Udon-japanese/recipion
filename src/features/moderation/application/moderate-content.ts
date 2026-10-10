@@ -1,10 +1,15 @@
 import { findEmojiHits, findLexiconHits } from "../domain/find-lexicon-hits";
 import {
+	contextHintEmoji,
 	contextSensitiveLexicon,
 	innocentCookingPhrases,
 } from "../domain/lexicon/context-sensitive";
-import { hardBlockEmoji, hardBlockLexicon } from "../domain/lexicon/hard-block";
-import type { LexiconCategory } from "../domain/lexicon/types";
+import {
+	type EmojiCombination,
+	hardBlockEmoji,
+	hardBlockLexicon,
+} from "../domain/lexicon/hard-block";
+import type { LexiconCategory, LexiconEntry } from "../domain/lexicon/types";
 import type {
 	ModerationCategory,
 	ModerationReason,
@@ -64,9 +69,29 @@ function splitLongText(text: string): string[] {
  * 2. それ以外は、すべて AI に判定させる（文脈で意味が変わる語は、注意する語として渡す）。
  * 3. AI が ng なら block、unsure なら flag（公開は通し、管理者に知らせる）、使えなければ unavailable。
  */
+// 判定に使う語の一覧。ふだんは、手元の一覧（hard-block.local.ts など）を取り込んだもの。テストでは、架空の語を渡す。
+export type ModerationLexicons = {
+	hard: readonly LexiconEntry[];
+	// 絵文字の組み合わせ（すべて含まれていれば、確定で止める）。
+	hardEmoji: readonly EmojiCombination[];
+	context: readonly LexiconEntry[];
+	// 単独でも、意味を持ちうる絵文字（注意する語として、AI に渡す）。
+	hintEmoji: readonly string[];
+	innocentPhrases: readonly string[];
+};
+
+const defaultLexicons: ModerationLexicons = {
+	hard: hardBlockLexicon,
+	hardEmoji: hardBlockEmoji,
+	context: contextSensitiveLexicon,
+	hintEmoji: contextHintEmoji,
+	innocentPhrases: innocentCookingPhrases,
+};
+
 export async function moderateContent(
 	items: readonly ModerationItem[],
 	judge: AiJudge,
+	lexicons: ModerationLexicons = defaultLexicons,
 ): Promise<ModerationResult> {
 	const judgeItems: (JudgeItem & { source: ModerationItem })[] = [];
 	const blockReasons: ModerationReason[] = [];
@@ -78,11 +103,11 @@ export async function moderateContent(
 
 		const normalized = normalizeForModeration(item.text);
 		const hardHits = [
-			...findLexiconHits(normalized, hardBlockLexicon, {
+			...findLexiconHits(normalized, lexicons.hard, {
 				allowMask: true,
 				hiraganaBoundary: true,
 			}),
-			...findEmojiHits(normalized, hardBlockEmoji),
+			...findEmojiHits(normalized, lexicons.hardEmoji),
 		];
 
 		for (const hit of hardHits) {
@@ -95,9 +120,12 @@ export async function moderateContent(
 			});
 		}
 
-		const hints = findLexiconHits(normalized, contextSensitiveLexicon, {
-			innocentPhrases: innocentCookingPhrases,
-		}).map((hit) => hit.term);
+		const hints = [
+			...findLexiconHits(normalized, lexicons.context, {
+				innocentPhrases: lexicons.innocentPhrases,
+			}).map((hit) => hit.term),
+			...lexicons.hintEmoji.filter((emoji) => normalized.text.includes(emoji)),
+		];
 
 		for (const chunk of splitLongText(item.text)) {
 			judgeItems.push({

@@ -24,5 +24,10 @@ describe("normalizeForModeration", () => {
 	it("絵文字だけを、順に取り出す", () => {
 		expect(normalizeForModeration("あ🖕い🍆う💦").emoji).toBe("🖕🍆💦");
 		expect(normalizeForModeration("ふつうの文章").emoji).toBe("");
+		// 絵文字の連結（人物＋職業など）は、連結の文字が除かれ、部品ごとの絵文字として残る
+		const sequence = normalizeForModeration("🫚🧑‍⚕️").emoji;
+
+		expect(sequence).toContain("🫚");
+		expect(sequence).toContain("⚕");
 	});
 });

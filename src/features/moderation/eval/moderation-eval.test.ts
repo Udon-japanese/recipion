@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { AiJudge } from "../application/ai-judge";
 import { createAiJudge } from "../application/ai-judge";
@@ -126,12 +126,18 @@ function hashText(text: string): number {
 }
 
 // 表記の違い（全角半角・ひらがなカタカナ・区切り）を除いて、同じ文章を、1つにまとめる。
+// 絵文字だけの文章が、区切りと一緒に消えて、同じ（空）になるのを避けるため、絵文字も含めて比べる。
+function textKey(text: string): string {
+	const normalized = normalizeForModeration(text);
+
+	// 記号だけの文章は、区切りと一緒に消えて、すべて同じ（空）になるので、そのままの文字で比べる。
+	return normalized.compact === "" && normalized.emoji === ""
+		? `raw:${normalized.text.trim()}`
+		: `${normalized.compact}|${normalized.emoji}`;
+}
+
 function dedupe(texts: readonly string[]): string[] {
-	return [
-		...new Map(
-			texts.map((text) => [normalizeForModeration(text).compact, text]),
-		).values(),
-	];
+	return [...new Map(texts.map((text) => [textKey(text), text])).values()];
 }
 
 type Entry = { text: string; target: "recipe-note" | "recipe-instruction" };
@@ -153,7 +159,13 @@ describe.skipIf(!isEnabled)("文章の判定の評価", () => {
 				Number(process.env.MODERATION_EVAL_LIMIT ?? "") ||
 				Number.POSITIVE_INFINITY;
 
-			const okSamples = readBlocks("moderation-eval/ok-samples.txt");
+			// かならず通したい文章：moderation-eval/ok-samples*.txt（複数のファイルを、まとめて読む。重複は除く）。
+			const okSamples = dedupe(
+				readdirSync("moderation-eval")
+					.filter((name) => /^ok-samples.*\.txt$/u.test(name))
+					.sort()
+					.flatMap((name) => readBlocks(`moderation-eval/${name}`)),
+			);
 			const borderlineSamples = existsSync(
 				"moderation-eval/borderline-samples.txt",
 			)
@@ -261,7 +273,7 @@ describe.skipIf(!isEnabled)("文章の判定の評価", () => {
 			const keyGroups = new Map<string, Set<string>>();
 			const register = (group: string, texts: readonly string[]) => {
 				for (const text of texts) {
-					const key = normalizeForModeration(text).compact;
+					const key = textKey(text);
 					const groups = keyGroups.get(key) ?? new Set<string>();
 
 					groups.add(group);

@@ -1,8 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AiJudge, AiVerdict } from "./ai-judge";
-import { moderateContent } from "./moderate-content";
+import { type ModerationLexicons, moderateContent } from "./moderate-content";
 
 const ok: AiVerdict = { verdict: "ok", category: "other" };
+
+// テストでは、実在する不適切な語ではなく、架空の語を使う。
+const lexicons: ModerationLexicons = {
+	hard: [{ category: "violence", terms: ["ぴよぴよ"] }],
+	hardEmoji: [{ category: "discrimination", emoji: ["🧿", "🪬"] }],
+	hintEmoji: ["🪄"],
+	context: [{ category: "harassment", terms: ["ぽんぽこ"] }],
+	innocentPhrases: ["ぽんぽこ山"],
+};
 
 function judgeReturning(...verdicts: AiVerdict[]): AiJudge {
 	return vi.fn(async () => verdicts);
@@ -14,9 +23,10 @@ describe("moderateContent", () => {
 		const result = await moderateContent(
 			[
 				{ target: "recipe-title", text: "おいしいスープ" },
-				{ target: "recipe-note", text: "お前、し.ね" },
+				{ target: "recipe-note", text: "お前、ぴ.よ.ぴ.よ" },
 			],
 			judge,
+			lexicons,
 		);
 
 		expect(result).toEqual({
@@ -32,7 +42,11 @@ describe("moderateContent", () => {
 		const judge = judgeReturning();
 
 		expect(
-			await moderateContent([{ target: "recipe-note", text: "  \n" }], judge),
+			await moderateContent(
+				[{ target: "recipe-note", text: "  \n" }],
+				judge,
+				lexicons,
+			),
 		).toEqual({ decision: "allow" });
 		expect(judge).not.toHaveBeenCalled();
 	});
@@ -43,13 +57,16 @@ describe("moderateContent", () => {
 			{ target: "recipe-note" as const, text: "あれ" },
 		];
 
-		expect(await moderateContent(items, judgeReturning(ok, ok))).toEqual({
+		expect(
+			await moderateContent(items, judgeReturning(ok, ok), lexicons),
+		).toEqual({
 			decision: "allow",
 		});
 		expect(
 			await moderateContent(
 				items,
 				judgeReturning(ok, { verdict: "ng", category: "spam" }),
+				lexicons,
 			),
 		).toEqual({
 			decision: "block",
@@ -59,6 +76,7 @@ describe("moderateContent", () => {
 			await moderateContent(
 				items,
 				judgeReturning({ verdict: "unsure", category: "harassment" }, ok),
+				lexicons,
 			),
 		).toEqual({
 			decision: "flag",
@@ -91,7 +109,7 @@ describe("moderateContent", () => {
 				throw new Error("上限");
 			}),
 		).toEqual({ decision: "unavailable" });
-		expect(await moderateContent(items, judgeReturning())).toEqual({
+		expect(await moderateContent(items, judgeReturning(), lexicons)).toEqual({
 			decision: "unavailable",
 		});
 	});
@@ -101,10 +119,11 @@ describe("moderateContent", () => {
 
 		await moderateContent(
 			[
-				{ target: "recipe-instruction", text: "くそうまい。ＢＡＫＡ" },
-				{ target: "recipe-instruction", text: "包丁で殺菌する" },
+				{ target: "recipe-instruction", text: "これはぽんぽこだ。ＢＡＫＡ" },
+				{ target: "recipe-instruction", text: "ぽんぽこ山に登る" },
 			],
 			judge,
+			lexicons,
 		);
 
 		const [first, second] = (judge.mock.calls[0]?.[0] ?? []) as {
@@ -113,8 +132,8 @@ describe("moderateContent", () => {
 			hints: string[];
 		}[];
 
-		expect(first?.hints).toContain("くそ");
-		expect(first?.normalizedText).toBe("くそうまい。baka");
+		expect(first?.hints).toContain("ぽんぽこ");
+		expect(first?.normalizedText).toBe("これはぽんぽこだ。baka");
 		expect(second?.hints).toEqual([]);
 	});
 
@@ -133,5 +152,43 @@ describe("moderateContent", () => {
 		);
 
 		expect(judge.mock.calls[0]?.[0].length).toBeGreaterThan(1);
+	});
+
+	it("絵文字の組み合わせ（ZWJ の連結を含む）で、確定で止める。1つだけなら、止めない", async () => {
+		const judge = judgeReturning(ok);
+
+		expect(
+			await moderateContent(
+				[{ target: "recipe-note", text: "🧿と🪬" }],
+				judge,
+				lexicons,
+			),
+		).toEqual({
+			decision: "block",
+			reasons: [
+				{ target: "recipe-note", source: "emoji", category: "discrimination" },
+			],
+		});
+		expect(
+			await moderateContent(
+				[{ target: "recipe-note", text: "🧿だけ" }],
+				judge,
+				lexicons,
+			),
+		).toEqual({ decision: "allow" });
+	});
+
+	it("単独でも意味を持ちうる絵文字は、止めずに、注意する語として AI に渡す", async () => {
+		const judge = vi.fn(async (_items: readonly unknown[]) => [ok]);
+
+		await moderateContent(
+			[{ target: "recipe-note", text: "おいしい🪄" }],
+			judge,
+			lexicons,
+		);
+
+		const [first] = (judge.mock.calls[0]?.[0] ?? []) as { hints: string[] }[];
+
+		expect(first?.hints).toContain("🪄");
 	});
 });

@@ -1,7 +1,7 @@
 // 単語の一覧（レキシコン）の型。表記は、書いたままでよい（照合のとき、正規化する）。
 
 export type LexiconCategory =
-	// 暴力・脅し・死ね などの攻撃
+	// 暴力・脅し・死の願望などの攻撃
 	| "violence"
 	// 性的な語
 	| "sexual"
@@ -14,6 +14,6 @@ export type LexiconCategory =
 
 export type LexiconEntry = {
 	category: LexiconCategory;
-	// 言い換え・伏せ字・当て字も、ここに並べる（例：「しね」「氏ね」「4ね」）。
+	// 言い換え・伏せ字・当て字も、ここに並べる（表記のゆれは、照合のときに、そろえる）。
 	terms: readonly string[];
 };

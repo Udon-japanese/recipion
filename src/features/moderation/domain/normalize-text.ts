@@ -30,7 +30,8 @@ function removeInvisible(text: string): string {
 }
 
 // 伏せ字に使われやすい記号（NFKC のあと）。1文字を、何かの文字の代わりとして扱う。
-export const maskCharacters = "○◯●◎◇◆□■△▲▽▼☆★×✕＊*＿_?？…";
+// 「？」「…」「＿」「☆」「★」は、ふつうの文章や、レシピのグループの印に出るので、入れない（誤検知になる）。
+export const maskCharacters = "○◯●◎◇◆□■△▲▽▼×✕＊*";
 
 const maskPattern = new RegExp(
 	`[${maskCharacters.replace(/[\]\\^-]/gu, "\\$&")}]`,

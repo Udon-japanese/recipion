@@ -1,68 +1,20 @@
 import type { LexiconEntry } from "./types";
 
 // 【文脈によって、意味が変わる語】単独では、弾かない。AI の判定に「注意する語」として渡し、AI が怪しいと見たときの、見分けにも使う。
-// 例：「くそうまい」「血抜き」「ぶっかけうどん」は、レシピとして自然。悪意のある使い方は、AI が、文脈で判断する。
-export const contextSensitiveLexicon: readonly LexiconEntry[] = [
-	{
-		category: "harassment",
-		terms: [
-			"ばか",
-			"あほ",
-			"くそ",
-			"きもい",
-			"うざい",
-			"ぶす",
-			"でぶ",
-			"ハゲ",
-			"はげ",
-			"カス",
-			"ボケ",
-			"アホ",
-			"雑魚",
-			"ざこ",
-			"無能",
-			"黙れ",
-			"だまれ",
-		],
-	},
-	{
-		category: "violence",
-		terms: ["殺", "死", "ぶっ飛ばす", "ぶん殴", "しばく", "爆破", "テロ", "銃"],
-	},
-	{
-		category: "sexual",
-		terms: [
-			"エロ",
-			"えっち",
-			"変態",
-			"ヤリ",
-			"おっぱい",
-			"ぶっかけ",
-			"挿入",
-			"勃起",
-			"全裸",
-			"裸",
-			"アダルト",
-		],
-	},
-	{
-		category: "discrimination",
-		terms: ["障害者", "外人", "在日", "ホモ", "オカマ", "チョン", "支那"],
-	},
-	{
-		category: "spam",
-		terms: [
-			"LINE",
-			"ライン登録",
-			"副業",
-			"稼げる",
-			"儲かる",
-			"無料プレゼント",
-			"クリック",
-			"登録はこちら",
-		],
-	},
-];
+// 語そのものは、リポジトリに入れず、手元だけの context-sensitive.local.ts に置く（あれば、ビルドに取り込む。なければ、空）。
+const localModules = import.meta.glob<{
+	default: readonly LexiconEntry[];
+	hintEmoji?: readonly string[];
+}>("./context-sensitive.local.ts", { eager: true });
+
+export const contextSensitiveLexicon: readonly LexiconEntry[] = Object.values(
+	localModules,
+).flatMap((module) => module.default);
+
+// 単独でも、意味を持ちうる絵文字（AI への「注意する語」にする。単独では、止めない）。
+export const contextHintEmoji: readonly string[] = Object.values(
+	localModules,
+).flatMap((module) => module.hintEmoji ?? []);
 
 // 上の語を含んでいても、レシピとして自然な言葉（これを取り除いてから、語を探す）。
 // 食材・料理名・調理の語を、書き足していく。
