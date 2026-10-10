@@ -58,9 +58,16 @@ export function generateVariants(seed: string): Variant[] {
 		},
 	);
 
-	return [
-		...new Map(variants.map((variant) => [variant.text, variant])).values(),
-	];
+	// 同じ文字列になる書き換えは、最初のもの（「そのまま」を優先）を残す。
+	const unique = new Map<string, Variant>();
+
+	for (const variant of variants) {
+		if (!unique.has(variant.text)) {
+			unique.set(variant.text, variant);
+		}
+	}
+
+	return [...unique.values()];
 }
 
 // レシピの文脈に、埋め込む（単独で書く、作り方の途中、材料の並びの中）。

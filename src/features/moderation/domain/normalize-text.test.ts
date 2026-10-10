@@ -16,6 +16,9 @@ describe("normalizeForModeration", () => {
 		expect(normalizeForModeration("ば か").compact).toBe("ばか");
 		expect(normalizeForModeration("し・ね").compact).toBe("しね");
 		expect(normalizeForModeration("○ね").compact).toBe("○ね");
+		// 絵文字を挟んだ書き方も、区切りとして除く（絵文字そのものは、emoji に残る）
+		expect(normalizeForModeration("ば🙂か").compact).toBe("ばか");
+		expect(normalizeForModeration("ば🙂か").emoji).toBe("🙂");
 	});
 
 	it("絵文字だけを、順に取り出す", () => {

@@ -48,6 +48,8 @@ function foldKatakana(text: string): string {
 	);
 }
 
+const emojiPattern = /\p{Extended_Pictographic}/u;
+
 // 文字の間に挟まれて、単語を分断するための、区切りの文字（空白・句読点・中黒・点・ハイフンなど）。
 // 伏せ字の記号や、絵文字は、ここに含めない。
 const separatorPattern = /[\s\p{Z}\p{P}\p{Cc}]/u;
@@ -67,8 +69,13 @@ export function normalizeForModeration(input: string): NormalizedText {
 	);
 
 	// 伏せ字の記号は、記号（P・S）に当たるものがあるので、区切りとは別に扱う。
+	// 絵文字を挟んで、単語を分断する書き方（「ば🙂か」）も、区切りとして除く。
 	const compact = [...text]
-		.filter((char) => isMaskCharacter(char) || !separatorPattern.test(char))
+		.filter(
+			(char) =>
+				isMaskCharacter(char) ||
+				!(separatorPattern.test(char) || emojiPattern.test(char)),
+		)
 		.join("");
 
 	const emoji = (text.match(/\p{Extended_Pictographic}/gu) ?? []).join("");

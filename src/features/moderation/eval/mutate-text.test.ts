@@ -15,4 +15,13 @@ describe("generateVariants", () => {
 		expect(texts).toContain("ば🙂か");
 		expect(new Set(texts).size).toBe(texts.length);
 	});
+
+	it("書き換えても同じになる語（カタカナの語など）も、「そのまま」の種類を残す", () => {
+		const variants = generateVariants("カス");
+
+		expect(variants[0]).toEqual({ kind: "そのまま", text: "カス" });
+		expect(variants.filter((variant) => variant.text === "カス")).toHaveLength(
+			1,
+		);
+	});
 });

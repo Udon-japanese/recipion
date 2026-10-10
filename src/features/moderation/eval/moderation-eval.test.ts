@@ -35,6 +35,8 @@ function readBlocks(path: string): string[] {
 
 // 判定に失敗した理由ごとの、回数。
 const judgeErrors = new Map<string, number>();
+// 消費した Neurons（Workers AI の無料枠は、1日 10,000）。
+let usedNeurons = 0;
 
 function createEvalJudge(): AiJudge {
 	if (process.env.MODERATION_EVAL_LEXICON_ONLY === "1") {
@@ -61,6 +63,9 @@ function createEvalJudge(): AiJudge {
 			? "max_completion_tokens"
 			: "max_tokens",
 		// gemma 4 は、答える前に長い「思考」を出力し、回答の長さの上限を使い切って、本文が空になる。思考を切る。
+		onUsage: (neurons) => {
+			usedNeurons += neurons;
+		},
 		extraBody: model.includes("gemma")
 			? { chat_template_kwargs: { enable_thinking: false } }
 			: {},
@@ -180,11 +185,16 @@ describe.skipIf(!isEnabled)("文章の判定の評価", () => {
 							)
 							.map((embedded) => ({
 								label: `${seed}／${variant.kind}／${embedded.kind}`,
+								kind: variant.kind,
 								text: embedded.text,
 							})),
 					);
 				}),
-				...ngDirect.map((text) => ({ label: "手元の例", text })),
+				...ngDirect.map((text) => ({
+					label: "手元の例",
+					kind: "手元の例",
+					text,
+				})),
 			].slice(0, limit);
 
 			// 1文ずつ審査した結果を返す。確定の語は、1文ずつ見て、AI には、残りだけを、まとめて渡す。
@@ -309,6 +319,54 @@ describe.skipIf(!isEnabled)("文章の判定の評価", () => {
 				decision: string,
 			) => results.filter((entry) => entry.result.decision === decision).length;
 
+			// 書き換えの種類ごとの結果（語の中身は、出さない）。
+			const byKind = new Map<
+				string,
+				{
+					total: number;
+					lexicon: number;
+					ai: number;
+					flag: number;
+					allow: number;
+				}
+			>();
+
+			for (const entry of ngResults) {
+				const row = byKind.get(entry.kind) ?? {
+					total: 0,
+					lexicon: 0,
+					ai: 0,
+					flag: 0,
+					allow: 0,
+				};
+				const { result } = entry;
+
+				row.total += 1;
+
+				if (result.decision === "block") {
+					if (result.reasons[0]?.source === "ai") {
+						row.ai += 1;
+					} else {
+						row.lexicon += 1;
+					}
+				} else if (result.decision === "flag") {
+					row.flag += 1;
+				} else if (result.decision === "allow") {
+					row.allow += 1;
+				}
+
+				byKind.set(entry.kind, row);
+			}
+
+			const kindTable = [...byKind.entries()]
+				.sort((a, b) => b[1].allow / b[1].total - a[1].allow / a[1].total)
+				.map(([kind, row]) => {
+					const percent = (n: number) =>
+						`${((n / row.total) * 100).toFixed(0)}%`;
+
+					return `| ${kind} | ${row.total} | ${percent(row.lexicon)} | ${percent(row.ai)} | ${percent(row.flag)} | **${percent(row.allow)}** |`;
+				});
+
 			const falsePositives = okResults.filter(
 				(entry) => entry.result.decision !== "allow",
 			);
@@ -352,11 +410,17 @@ describe.skipIf(!isEnabled)("文章の判定の評価", () => {
 				`- 怪しいとした（flag）：${flagged.length}`,
 				`- **通した（allow）：${misses.length}**`,
 				"",
+				`消費した Neurons：約${Math.round(usedNeurons)}（無料枠は、1日 10,000）`,
 				`## 判定できなかった（unavailable）：${unavailable.length}件`,
 				...[...judgeErrors.entries()]
 					.sort((a, b) => b[1] - a[1])
 					.slice(0, 8)
 					.map(([reason, times]) => `- ${times}回：${reason}`),
+				"",
+				"## 悪い文章：書き換えの種類ごと（通した率の高い順）",
+				"| 種類 | 件数 | 一覧で止めた | AI が止めた | 怪しいとした | 通した |",
+				"|---|---|---|---|---|---|",
+				...kindTable,
 				"",
 				"## 誤って、止めた・怪しいとした、よい文章",
 				...falsePositives.map(
@@ -380,9 +444,23 @@ describe.skipIf(!isEnabled)("文章の判定の評価", () => {
 				),
 			];
 
-			writeFileSync("moderation-eval/report.local", `${lines.join("\n")}\n`);
-			console.log(lines.slice(0, 20).join("\n"));
-			console.log("詳しくは moderation-eval/report.local を見てください");
+			// 半分以上が判定できなかった実行（無料枠の上限など）は、前回の結果を消さないよう、別のファイルに書く。
+			const isMostlyFailed =
+				unavailable.length > (okResults.length + ngResults.length) / 2;
+
+			writeFileSync(
+				isMostlyFailed
+					? "moderation-eval/report-failed.local"
+					: "moderation-eval/report.local",
+				`${lines.join("\n")}\n`,
+			);
+			console.log(lines.slice(0, 24).join("\n"));
+			console.log(kindTable.join("\n"));
+			console.log(
+				isMostlyFailed
+					? "判定できなかった件数が多いので、moderation-eval/report-failed.local に書きました（前回の report.local は、そのままです）"
+					: "詳しくは moderation-eval/report.local を見てください",
+			);
 
 			// 実行そのものが成り立つことだけを確かめる（合否の基準は、結果を見て決める）。
 			expect(okResults.length).toBeGreaterThan(0);
