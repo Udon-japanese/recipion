@@ -37,6 +37,10 @@ function readBlocks(path: string): string[] {
 const judgeErrors = new Map<string, number>();
 // 消費した Neurons（Workers AI の無料枠は、1日 10,000）。
 let usedNeurons = 0;
+// 無料枠の上限に達したら、無駄な呼び出しをやめて、評価全体を止める。
+let quotaExhausted = false;
+
+const quotaPattern = /daily free allocation|4006/u;
 
 function createEvalJudge(): AiJudge {
 	if (process.env.MODERATION_EVAL_LEXICON_ONLY === "1") {
@@ -75,6 +79,10 @@ function createEvalJudge(): AiJudge {
 	return async (items) => {
 		let response = "";
 
+		if (quotaExhausted) {
+			throw new Error("Workers AI の無料枠の上限に達しています");
+		}
+
 		try {
 			return await createAiJudge(async (request) => {
 				response = await runner(request);
@@ -83,6 +91,10 @@ function createEvalJudge(): AiJudge {
 			})(items);
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
+
+			if (quotaPattern.test(message)) {
+				quotaExhausted = true;
+			}
 			const key = `${message}｜応答の先頭：${response.slice(0, 200).replace(/\n/gu, " ⏎ ")}`;
 
 			judgeErrors.set(key, (judgeErrors.get(key) ?? 0) + 1);
@@ -171,7 +183,11 @@ describe.skipIf(!isEnabled)("文章の判定の評価", () => {
 			)
 				? readBlocks("moderation-eval/borderline-samples.txt")
 				: [];
-			const rawSeeds = readLines("moderation-eval/ng-seeds.local");
+			// 悪い語の元：ng-seeds*.local（複数のファイルを、まとめて読む）。
+			const rawSeeds = readdirSync("moderation-eval")
+				.filter((name) => /^ng-seeds.*\.local$/u.test(name))
+				.sort()
+				.flatMap((name) => readLines(`moderation-eval/${name}`));
 			const rawDirect = readLines("moderation-eval/ng-samples.local");
 			const seeds = dedupe(rawSeeds);
 			const ngDirect = dedupe(rawDirect);
@@ -325,6 +341,12 @@ describe.skipIf(!isEnabled)("文章の判定の評価", () => {
 					})),
 				),
 			);
+
+			if (quotaExhausted) {
+				throw new Error(
+					"Workers AI の1日の無料枠（10,000 Neurons）を使い切っています。リセット（UTC の 0 時＝日本時間の 9 時）のあとに、もう一度、実行してください。結果のファイルは、書きません。",
+				);
+			}
 
 			const count = (
 				results: { result: ModerationResult }[],

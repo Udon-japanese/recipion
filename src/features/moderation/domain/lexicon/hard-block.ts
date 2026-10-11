@@ -12,7 +12,7 @@ export type EmojiCombination = {
 const localModules = import.meta.glob<{
 	default: readonly LexiconEntry[];
 	emojiCombinations?: readonly EmojiCombination[];
-}>("./hard-block.local.ts", { eager: true });
+}>("./hard-block*.local.ts", { eager: true });
 
 export const hardBlockLexicon: readonly LexiconEntry[] = Object.values(
 	localModules,

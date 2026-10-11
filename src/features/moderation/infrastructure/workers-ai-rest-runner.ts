@@ -44,8 +44,11 @@ export function createWorkersAiRestRunner({
 		);
 
 		if (!response.ok) {
+			// 原因が分かるよう、応答の本文（エラーの文）も、残す。
+			const detail = (await response.text().catch(() => "")).slice(0, 300);
+
 			throw new Error(
-				`Workers AI の呼び出しに失敗しました（${response.status}）`,
+				`Workers AI の呼び出しに失敗しました（${response.status}）${detail}`,
 			);
 		}
 
