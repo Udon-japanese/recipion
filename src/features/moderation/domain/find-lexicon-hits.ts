@@ -26,7 +26,73 @@ function foldTerm(term: string): string {
 	return normalizeForModeration(term).compact;
 }
 
-// text の index から、term と同じ長さの文字列が、一致するか（伏せ字は、1文字まで、何にでも一致）。
+// 照合のために、語を、あらかじめ、そろえておく（語が数千あっても、速く動かすため）。
+type PreparedTerm = {
+	// 一覧の中での順番（結果を、一覧の順に返すため）。
+	order: number;
+	term: string;
+	category: LexiconCategory;
+	chars: readonly string[];
+	// 短いひらがなの語か（前後がひらがなの中の語を、除く対象）。
+	isShortHiragana: boolean;
+};
+
+type PreparedLexicon = {
+	// 先頭の文字 → その文字で始まる語。
+	byFirstChar: ReadonlyMap<string, readonly PreparedTerm[]>;
+	// 2文字以上の語すべて（先頭が伏せ字のとき、先頭の文字を問わず、探す）。
+	maskableTerms: readonly PreparedTerm[];
+};
+
+const preparedCache = new WeakMap<readonly LexiconEntry[], PreparedLexicon>();
+
+function prepareLexicon(entries: readonly LexiconEntry[]): PreparedLexicon {
+	const cached = preparedCache.get(entries);
+
+	if (cached) {
+		return cached;
+	}
+
+	const byFirstChar = new Map<string, PreparedTerm[]>();
+	const maskableTerms: PreparedTerm[] = [];
+	let order = 0;
+
+	for (const entry of entries) {
+		for (const term of entry.terms) {
+			const folded = foldTerm(term);
+
+			if (folded === "") {
+				continue;
+			}
+
+			const chars = [...folded];
+			const prepared: PreparedTerm = {
+				order: order++,
+				term,
+				category: entry.category,
+				chars,
+				isShortHiragana: hiraganaOnly.test(folded) && chars.length <= 3,
+			};
+			const first = chars[0] as string;
+			const group = byFirstChar.get(first) ?? [];
+
+			group.push(prepared);
+			byFirstChar.set(first, group);
+
+			if (chars.length >= 2) {
+				maskableTerms.push(prepared);
+			}
+		}
+	}
+
+	const prepared = { byFirstChar, maskableTerms };
+
+	preparedCache.set(entries, prepared);
+
+	return prepared;
+}
+
+// text の index から、語と同じ長さの文字列が、一致するか（伏せ字は、1文字まで、何にでも一致）。
 function matchesAt(
 	text: readonly string[],
 	index: number,
@@ -59,54 +125,44 @@ function matchesAt(
 	return masked < term.length;
 }
 
-function containsTerm(
-	candidate: string,
-	foldedTerm: string,
-	options: FindOptions,
+function isInsideHiragana(
+	text: readonly string[],
+	index: number,
+	length: number,
 ): boolean {
-	const text = [...candidate];
-	const term = [...foldedTerm];
-	const applyBoundary =
-		options.hiraganaBoundary === true &&
-		hiraganaOnly.test(foldedTerm) &&
-		term.length <= 3;
+	const before = text[index - 1];
+	const after = text[index + length];
 
-	for (let index = 0; index + term.length <= text.length; index += 1) {
-		if (!matchesAt(text, index, term, options.allowMask === true)) {
-			continue;
-		}
-
-		if (applyBoundary) {
-			const before = text[index - 1];
-			const after = text[index + term.length];
-			const isInsideHiragana =
-				before !== undefined &&
-				hiraganaChar.test(before) &&
-				after !== undefined &&
-				hiraganaChar.test(after);
-
-			if (isInsideHiragana) {
-				continue;
-			}
-		}
-
-		return true;
-	}
-
-	return false;
+	return (
+		before !== undefined &&
+		hiraganaChar.test(before) &&
+		after !== undefined &&
+		hiraganaChar.test(after)
+	);
 }
+
+const foldedPhraseCache = new WeakMap<readonly string[], string[]>();
 
 function removeInnocentPhrases(
 	candidate: string,
 	innocentPhrases: readonly string[],
 ): string {
+	if (innocentPhrases.length === 0) {
+		return candidate;
+	}
+
+	let folded = foldedPhraseCache.get(innocentPhrases);
+
+	if (!folded) {
+		folded = innocentPhrases.map(foldTerm).filter((phrase) => phrase !== "");
+		foldedPhraseCache.set(innocentPhrases, folded);
+	}
+
 	let result = candidate;
 
-	for (const phrase of innocentPhrases) {
-		const folded = foldTerm(phrase);
-
-		if (folded !== "") {
-			result = result.split(folded).join(" ");
+	for (const phrase of folded) {
+		if (result.includes(phrase)) {
+			result = result.split(phrase).join(" ");
 		}
 	}
 
@@ -119,29 +175,56 @@ export function findLexiconHits(
 	entries: readonly LexiconEntry[],
 	options: FindOptions = {},
 ): LexiconHit[] {
+	const prepared = prepareLexicon(entries);
+	const allowMask = options.allowMask === true;
 	const innocent = options.innocentPhrases ?? [];
-	const candidates = [normalized.text, normalized.compact].map((candidate) =>
-		removeInnocentPhrases(candidate, innocent),
-	);
-	const hits: LexiconHit[] = [];
+	// 文字の配列に直す作業は、1回だけ行う。
+	const candidates = [normalized.text, normalized.compact].map((candidate) => [
+		...removeInnocentPhrases(candidate, innocent),
+	]);
+	const found = new Set<PreparedTerm>();
 
-	for (const entry of entries) {
-		for (const term of entry.terms) {
-			const folded = foldTerm(term);
+	function test(
+		text: readonly string[],
+		index: number,
+		term: PreparedTerm,
+	): void {
+		if (found.has(term) || !matchesAt(text, index, term.chars, allowMask)) {
+			return;
+		}
 
-			if (folded === "") {
-				continue;
+		if (
+			options.hiraganaBoundary === true &&
+			term.isShortHiragana &&
+			isInsideHiragana(text, index, term.chars.length)
+		) {
+			return;
+		}
+
+		found.add(term);
+	}
+
+	for (const text of candidates) {
+		for (let index = 0; index < text.length; index += 1) {
+			const char = text[index] as string;
+
+			for (const term of prepared.byFirstChar.get(char) ?? []) {
+				test(text, index, term);
 			}
 
-			if (
-				candidates.some((candidate) => containsTerm(candidate, folded, options))
-			) {
-				hits.push({ term, category: entry.category });
+			// 先頭が伏せ字のとき（「○ね」）は、先頭の文字を問わず、探す。
+			if (allowMask && isMaskCharacter(char)) {
+				for (const term of prepared.maskableTerms) {
+					test(text, index, term);
+				}
 			}
 		}
 	}
 
-	return hits;
+	// 一覧の順に、返す。
+	return [...found]
+		.sort((a, b) => a.order - b.order)
+		.map(({ term, category }) => ({ term, category }));
 }
 
 // 絵文字の組み合わせ（すべて含まれていれば、該当）。

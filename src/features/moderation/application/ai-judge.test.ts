@@ -31,6 +31,23 @@ describe("buildJudgeMessages", () => {
 	});
 });
 
+describe("追加の注意（手元だけの指示）", () => {
+	it("あれば、システムの指示の後ろに足す。なければ、足さない", () => {
+		const withExtra = buildJudgeMessages(
+			[item],
+			"n",
+			"架空の隠語「ぴよ」に注意",
+		);
+		const without = buildJudgeMessages([item], "n", "");
+
+		expect(withExtra[0]?.content).toContain(
+			"【追加の注意（隠語・ネットスラング）】",
+		);
+		expect(withExtra[0]?.content).toContain("架空の隠語「ぴよ」に注意");
+		expect(without[0]?.content).not.toContain("追加の注意");
+	});
+});
+
 describe("parseJudgeResponse", () => {
 	it("前後に文章やコードの囲みがあっても、JSON を取り出し、ok のカテゴリは other にする", () => {
 		const verdicts = parseJudgeResponse(

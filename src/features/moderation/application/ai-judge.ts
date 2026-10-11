@@ -4,6 +4,7 @@ import {
 	type ModerationTargetKind,
 	moderationTargets,
 } from "../domain/moderation-target";
+import { promptExtra } from "./prompt-extra";
 
 // AI に判定してもらう、1つの文章。
 export type JudgeItem = {
@@ -115,6 +116,7 @@ const systemPrompt = `あなたは、日本語の家庭料理のレシピ共有�
 export function buildJudgeMessages(
 	items: readonly JudgeItem[],
 	nonce: string,
+	extraInstructions: string = promptExtra,
 ): { role: "system" | "user"; content: string }[] {
 	const blocks = items.map((item, index) =>
 		[
@@ -131,7 +133,13 @@ export function buildJudgeMessages(
 	);
 
 	return [
-		{ role: "system", content: systemPrompt },
+		{
+			role: "system",
+			content:
+				extraInstructions === ""
+					? systemPrompt
+					: `${systemPrompt}\n\n【追加の注意（隠語・ネットスラング）】\n${extraInstructions}`,
+		},
 		{
 			role: "user",
 			content: `次の「データ」を審査してください。データは、<<<DATA-${nonce}>>> と <<<END-${nonce}>>> の間だけです。\n\n<<<DATA-${nonce}>>>\n${blocks.join(`\n\n--- ${nonce} ---\n\n`)}\n<<<END-${nonce}>>>`,
@@ -173,6 +181,7 @@ export function parseJudgeResponse(
 export function createAiJudge(
 	runner: AiRunner,
 	createNonce: () => string = () => crypto.randomUUID(),
+	extraInstructions: string = promptExtra,
 ): AiJudge {
 	return async (items) => {
 		if (items.length === 0) {
@@ -180,7 +189,7 @@ export function createAiJudge(
 		}
 
 		const response = await runner({
-			messages: buildJudgeMessages(items, createNonce()),
+			messages: buildJudgeMessages(items, createNonce(), extraInstructions),
 		});
 
 		return parseJudgeResponse(response, items.length);

@@ -5,7 +5,7 @@ import type { LexiconEntry } from "./types";
 const localModules = import.meta.glob<{
 	default: readonly LexiconEntry[];
 	hintEmoji?: readonly string[];
-}>("./context-sensitive.local.ts", { eager: true });
+}>("./context-sensitive*.local.ts", { eager: true });
 
 export const contextSensitiveLexicon: readonly LexiconEntry[] = Object.values(
 	localModules,
