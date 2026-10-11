@@ -1,7 +1,14 @@
 import * as v from "valibot";
 
-// 通報の理由。
-export const reportReasons = ["copyright", "inappropriate", "other"] as const;
+// 利用者が選べる、通報の理由。
+export const userReportReasons = [
+	"copyright",
+	"inappropriate",
+	"other",
+] as const;
+
+// 通報の理由。auto-detected は、公開のときの自動の判定で、怪しいとされたもの（利用者は選べない）。
+export const reportReasons = [...userReportReasons, "auto-detected"] as const;
 
 export type ReportReason = (typeof reportReasons)[number];
 
@@ -9,6 +16,7 @@ export const reportReasonLabels: Record<ReportReason, string> = {
 	copyright: "権利を侵害している",
 	inappropriate: "不適切な内容",
 	other: "その他",
+	"auto-detected": "自動検知（公開のときの判定で、怪しいとされた）",
 };
 
 export const reportDetailMaxLength = 1000;
@@ -29,7 +37,7 @@ export const maxReportsPerDay = 10;
 
 export const createReportInputSchema = v.object({
 	recipePublicId: v.pipe(v.string(), v.minLength(1), v.maxLength(100)),
-	reason: v.picklist(reportReasons),
+	reason: v.picklist(userReportReasons),
 	detail: v.pipe(v.string(), v.trim(), v.maxLength(reportDetailMaxLength)),
 });
 

@@ -38,7 +38,7 @@ export const recipeReport = pgTable(
 	(table) => [
 		check(
 			"recipe_report_reason_valid",
-			sql`${table.reason} IN ('copyright', 'inappropriate', 'other')`,
+			sql`${table.reason} IN ('copyright', 'inappropriate', 'other', 'auto-detected')`,
 		),
 		check(
 			"recipe_report_detail_length",
@@ -52,6 +52,12 @@ export const recipeReport = pgTable(
 		uniqueIndex("recipe_report_open_unique")
 			.on(table.recipeId, table.reporterUserId)
 			.where(sql`${table.status} = 'open'`),
+		// 自動検知は、通報者がいない。未対応のものは、レシピごとに1件だけ。
+		uniqueIndex("recipe_report_auto_open_unique")
+			.on(table.recipeId)
+			.where(
+				sql`${table.reason} = 'auto-detected' AND ${table.status} = 'open'`,
+			),
 		index("recipe_report_status_created_idx").on(table.status, table.createdAt),
 		index("recipe_report_reporter_created_idx").on(
 			table.reporterUserId,

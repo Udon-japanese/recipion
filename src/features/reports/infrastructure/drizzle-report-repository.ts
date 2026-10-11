@@ -1,4 +1,4 @@
-import { and, asc, count, eq, gte } from "drizzle-orm";
+import { and, asc, count, eq, gte, sql } from "drizzle-orm";
 
 import type { DB } from "#/db/client";
 import { parseRecipeVisibility } from "#/features/recipes/domain/recipe-link-permission";
@@ -120,6 +120,38 @@ export function createDrizzleReportRepository(db: DB): ReportRepository {
 			}
 
 			return "created";
+		},
+
+		async createAutoDetected({ recipePublicId, detail, now }) {
+			const [target] = await db
+				.select({ id: recipe.id, name: recipe.name })
+				.from(recipe)
+				.where(eq(recipe.publicId, recipePublicId))
+				.limit(1);
+
+			if (!target) {
+				return "not-found";
+			}
+
+			// 未対応の自動検知が、すでにあるときは、何もしない（部分一意索引に当たったら、無視する）。
+			const inserted = await db
+				.insert(recipeReport)
+				.values({
+					recipeId: target.id,
+					recipePublicId,
+					recipeName: target.name,
+					reporterUserId: null,
+					reason: "auto-detected",
+					detail: detail.slice(0, 1000),
+					createdAt: now,
+				})
+				.onConflictDoNothing({
+					target: recipeReport.recipeId,
+					where: sql`${recipeReport.reason} = 'auto-detected' AND ${recipeReport.status} = 'open'`,
+				})
+				.returning({ id: recipeReport.id });
+
+			return inserted.length > 0 ? "created" : "exists";
 		},
 
 		async listOpen() {
