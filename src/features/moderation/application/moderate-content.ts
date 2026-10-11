@@ -93,7 +93,10 @@ export async function moderateContent(
 	judge: AiJudge,
 	lexicons: ModerationLexicons = defaultLexicons,
 ): Promise<ModerationResult> {
-	const judgeItems: (JudgeItem & { source: ModerationItem })[] = [];
+	const judgeItems: (JudgeItem & {
+		source: ModerationItem;
+		hintCategory: ModerationCategory | undefined;
+	})[] = [];
 	const blockReasons: ModerationReason[] = [];
 
 	for (const item of items) {
@@ -120,12 +123,19 @@ export async function moderateContent(
 			});
 		}
 
-		const hints = [
-			...findLexiconHits(normalized, lexicons.context, {
-				innocentPhrases: lexicons.innocentPhrases,
-			}).map((hit) => hit.term),
-			...lexicons.hintEmoji.filter((emoji) => normalized.text.includes(emoji)),
-		];
+		const contextHits = findLexiconHits(normalized, lexicons.context, {
+			innocentPhrases: lexicons.innocentPhrases,
+		});
+		const hintEmoji = lexicons.hintEmoji.filter((emoji) =>
+			normalized.text.includes(emoji),
+		);
+		const hints = [...contextHits.map((hit) => hit.term), ...hintEmoji];
+		// 注意する語に当たった文章は、AI が ok としても、flag にする（公開は通し、管理者の画面に載せる）。
+		const hintCategory: ModerationCategory | undefined = contextHits[0]
+			? toCategory(contextHits[0].category)
+			: hintEmoji.length > 0
+				? "other"
+				: undefined;
 
 		for (const chunk of splitLongText(item.text)) {
 			judgeItems.push({
@@ -134,6 +144,7 @@ export async function moderateContent(
 				normalizedText: normalizeForModeration(chunk).text,
 				hints,
 				source: item,
+				hintCategory,
 			});
 		}
 	}
@@ -150,7 +161,9 @@ export async function moderateContent(
 
 	try {
 		verdicts = await judge(
-			judgeItems.map(({ source: _source, ...item }) => item),
+			judgeItems.map(
+				({ source: _source, hintCategory: _category, ...item }) => item,
+			),
 		);
 
 		if (verdicts.length !== judgeItems.length) {
@@ -166,7 +179,19 @@ export async function moderateContent(
 	for (const [index, verdict] of verdicts.entries()) {
 		const item = judgeItems[index];
 
-		if (!item || verdict.verdict === "ok") {
+		if (!item) {
+			continue;
+		}
+
+		if (verdict.verdict === "ok") {
+			if (item.hintCategory) {
+				flagged.push({
+					target: item.target,
+					source: "lexicon",
+					category: item.hintCategory,
+				});
+			}
+
 			continue;
 		}
 

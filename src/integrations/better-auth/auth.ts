@@ -4,6 +4,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { captcha, emailOTP } from "better-auth/plugins";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
+import { eq } from "drizzle-orm";
 import {
 	OTP_ALLOWED_ATTEMPTS,
 	OTP_EXPIRES_IN_SECONDS,
@@ -11,6 +12,8 @@ import {
 } from "#/config/auth";
 import { TURNSTILE_TEST_SECRET_KEY } from "#/config/turnstile";
 import type { DB } from "#/db/client";
+import { hashEmailForBan } from "#/features/moderation/infrastructure/hash-email";
+import { bannedEmail } from "#/features/moderation/infrastructure/moderation.sql";
 import {
 	defaultDisplayName,
 	generateHandle,
@@ -94,13 +97,33 @@ export function createAuth(db: DB) {
 			user: {
 				create: {
 					// コードでの初回ログインで、ユーザーが自動作成される。表示名は、既定の名前（メールアドレスの一部は、公開されないよう、使わない）。ハンドルは、自動で付ける。
-					before: async (user) => ({
-						data: {
-							...user,
-							name: user.name?.trim() || defaultDisplayName,
-							handle: generateHandle(randomIndex),
-						},
-					}),
+					before: async (user) => {
+						// 永久停止されたメールアドレスは、新しく登録できない。
+						const emailHash = await hashEmailForBan(
+							user.email,
+							env.BETTER_AUTH_SECRET,
+						);
+						const [banned] = await db
+							.select({ emailHash: bannedEmail.emailHash })
+							.from(bannedEmail)
+							.where(eq(bannedEmail.emailHash, emailHash))
+							.limit(1);
+
+						if (banned) {
+							throw APIError.from("FORBIDDEN", {
+								message: "このメールアドレスでは、登録できません",
+								code: "EMAIL_BANNED",
+							});
+						}
+
+						return {
+							data: {
+								...user,
+								name: user.name?.trim() || defaultDisplayName,
+								handle: generateHandle(randomIndex),
+							},
+						};
+					},
 				},
 			},
 		},

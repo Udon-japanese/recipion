@@ -11,5 +11,7 @@ declare namespace Cloudflare {
 		CF_ACCESS_TEAM_DOMAIN?: string;
 		// Access のアプリケーションの Audience (AUD) タグ。
 		CF_ACCESS_AUD?: string;
+		// Workers AI のバインディング（wrangler.jsonc の `ai`）。公開しようとする文章の審査に使う。
+		AI: Ai;
 	}
 }

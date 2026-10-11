@@ -20,6 +20,13 @@ export type CreateReportResult =
 
 export type ReportRepository = {
 	create(input: CreateReportInput): Promise<CreateReportResult>;
+	// 公開のときの自動の判定で、怪しいとされたレシピを、通報の一覧に載せる（未対応が、すでにあれば何もしない）。
+	createAutoDetected(input: {
+		recipePublicId: string;
+		// 欄ごとの理由（語は含まない）。
+		detail: string;
+		now: Date;
+	}): Promise<"created" | "exists" | "not-found">;
 	// 未対応の通報（古い順）。
 	listOpen(): Promise<OpenReport[]>;
 	// 通報されたレシピの、公開 ID と、持ち主（レシピが削除されていれば null）。

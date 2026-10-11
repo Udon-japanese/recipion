@@ -14,6 +14,7 @@ import { Route as InventoryRouteImport } from './routes/inventory'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as ShoppingRouteImport } from './routes/shopping'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as AdminAppealsRouteImport } from './routes/admin/appeals'
 import { Route as AdminReportsRouteImport } from './routes/admin/reports'
 import { Route as RecipesIndexRouteImport } from './routes/recipes/index'
 import { Route as RecipesNewRouteImport } from './routes/recipes/new'
@@ -44,6 +45,11 @@ const ShoppingRoute = ShoppingRouteImport.update({
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminAppealsRoute = AdminAppealsRouteImport.update({
+  id: '/admin/appeals',
+  path: '/admin/appeals',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminReportsRoute = AdminReportsRouteImport.update({
@@ -83,6 +89,7 @@ export interface FileRoutesByFullPath {
   '/profile': typeof ProfileRoute
   '/shopping': typeof ShoppingRoute
   '/terms': typeof TermsRoute
+  '/admin/appeals': typeof AdminAppealsRoute
   '/admin/reports': typeof AdminReportsRoute
   '/recipes/new': typeof RecipesNewRoute
   '/recipes/': typeof RecipesIndexRoute
@@ -96,6 +103,7 @@ export interface FileRoutesByTo {
   '/profile': typeof ProfileRoute
   '/shopping': typeof ShoppingRoute
   '/terms': typeof TermsRoute
+  '/admin/appeals': typeof AdminAppealsRoute
   '/admin/reports': typeof AdminReportsRoute
   '/recipes/new': typeof RecipesNewRoute
   '/recipes': typeof RecipesIndexRoute
@@ -110,6 +118,7 @@ export interface FileRoutesById {
   '/profile': typeof ProfileRoute
   '/shopping': typeof ShoppingRoute
   '/terms': typeof TermsRoute
+  '/admin/appeals': typeof AdminAppealsRoute
   '/admin/reports': typeof AdminReportsRoute
   '/recipes/new': typeof RecipesNewRoute
   '/recipes/': typeof RecipesIndexRoute
@@ -125,6 +134,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/shopping'
     | '/terms'
+    | '/admin/appeals'
     | '/admin/reports'
     | '/recipes/new'
     | '/recipes/'
@@ -138,6 +148,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/shopping'
     | '/terms'
+    | '/admin/appeals'
     | '/admin/reports'
     | '/recipes/new'
     | '/recipes'
@@ -151,6 +162,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/shopping'
     | '/terms'
+    | '/admin/appeals'
     | '/admin/reports'
     | '/recipes/new'
     | '/recipes/'
@@ -165,6 +177,7 @@ export interface RootRouteChildren {
   ProfileRoute: typeof ProfileRoute
   ShoppingRoute: typeof ShoppingRoute
   TermsRoute: typeof TermsRoute
+  AdminAppealsRoute: typeof AdminAppealsRoute
   AdminReportsRoute: typeof AdminReportsRoute
   RecipesNewRoute: typeof RecipesNewRoute
   RecipesIndexRoute: typeof RecipesIndexRoute
@@ -208,6 +221,13 @@ declare module '@tanstack/react-router' {
       path: '/terms'
       fullPath: '/terms'
       preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/appeals': {
+      id: '/admin/appeals'
+      path: '/admin/appeals'
+      fullPath: '/admin/appeals'
+      preLoaderRoute: typeof AdminAppealsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/reports': {
@@ -261,6 +281,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProfileRoute: ProfileRoute,
   ShoppingRoute: ShoppingRoute,
   TermsRoute: TermsRoute,
+  AdminAppealsRoute: AdminAppealsRoute,
   AdminReportsRoute: AdminReportsRoute,
   RecipesNewRoute: RecipesNewRoute,
   RecipesIndexRoute: RecipesIndexRoute,

@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-router";
 import { APP_DISPLAY_NAME } from "#/config/app";
 import { AuthPanel } from "#/features/auth/components/auth-panel";
+import { SuspensionGate } from "#/features/moderation/components/suspension-gate";
 import { PwaRegister } from "#/features/pwa/components/pwa-register";
 import { getInitialSessionServerFn } from "#/integrations/better-auth/get-initial-session";
 import appCss from "../styles.css?url";
@@ -80,7 +81,9 @@ function RootLayout() {
 
 			<AuthPanel />
 
-			<Outlet />
+			<SuspensionGate>
+				<Outlet />
+			</SuspensionGate>
 		</>
 	);
 }
