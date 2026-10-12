@@ -257,11 +257,11 @@ export function AuthPanel() {
 							<a href="/terms" target="_blank" rel="noreferrer">
 								利用規約
 							</a>
-							に同意したものとみなします。情報の扱いは、
+							と、
 							<a href="/privacy" target="_blank" rel="noreferrer">
 								プライバシーポリシー
 							</a>
-							をご覧ください。
+							（外国にある事業者への、情報の送信を含む）に同意したものとみなします。
 						</p>
 					</>
 				) : (

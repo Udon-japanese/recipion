@@ -2,6 +2,7 @@ import {
 	termsArticles,
 	termsEnactedOn,
 	termsIntro,
+	termsUpdatedOn,
 } from "../domain/terms-content";
 import * as styles from "./terms-page.css";
 
@@ -10,7 +11,9 @@ export function TermsPage() {
 	return (
 		<article className={styles.container}>
 			<h1 className={styles.title}>れしぴょん 利用規約</h1>
-			<p className={styles.meta}>制定日：{termsEnactedOn}</p>
+			<p className={styles.meta}>
+				制定日：{termsEnactedOn}　最終更新日：{termsUpdatedOn}
+			</p>
 
 			{termsIntro.map((paragraph) => (
 				<p key={paragraph}>{paragraph}</p>

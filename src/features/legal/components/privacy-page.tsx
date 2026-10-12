@@ -2,6 +2,7 @@ import {
 	privacyEnactedOn,
 	privacyIntro,
 	privacySections,
+	privacyUpdatedOn,
 } from "../domain/privacy-content";
 import * as styles from "./terms-page.css";
 
@@ -10,7 +11,9 @@ export function PrivacyPage() {
 	return (
 		<article className={styles.container}>
 			<h1 className={styles.title}>れしぴょん プライバシーポリシー</h1>
-			<p className={styles.meta}>制定日：{privacyEnactedOn}</p>
+			<p className={styles.meta}>
+				制定日：{privacyEnactedOn}　最終更新日：{privacyUpdatedOn}
+			</p>
 
 			{privacyIntro.map((paragraph) => (
 				<p key={paragraph}>{paragraph}</p>
