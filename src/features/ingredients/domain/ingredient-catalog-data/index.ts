@@ -3,6 +3,7 @@ import { dairyAndEggsEntries } from "./dairy-and-eggs";
 import { driedGoodsEntries } from "./dried-goods";
 import { ingredientExpiryById } from "./expiry";
 import { frozenVegetablesEntries } from "./frozen-vegetables";
+import { fruitsEntries } from "./fruits";
 import { meatAndSeafoodEntries } from "./meat-and-seafood";
 import { powdersAndSpicesEntries } from "./powders-and-spices";
 import { ingredientReadingById } from "./readings";
@@ -31,6 +32,7 @@ const entriesWithoutExpiry: readonly IngredientCatalogEntry[] = [
 	...soyAndProcessedEntries,
 	...meatAndSeafoodEntries,
 	...vegetablesEntries,
+	...fruitsEntries,
 	...frozenVegetablesEntries,
 	...staplesEntries,
 	...driedGoodsEntries,
