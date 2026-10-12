@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
 
 import { createDb } from "#/db/client";
+import { STATIC_PAGE_REQUEST_HEADER } from "#/features/pwa/build/static-pages";
 import { createAuth } from "#/integrations/better-auth/auth";
 import type { InitialSession } from "#/integrations/better-auth/initial-session";
 import { hasSessionCookie } from "#/integrations/better-auth/session-cookie";
@@ -17,6 +18,11 @@ export const getInitialSessionServerFn = createServerFn({
 	method: "GET",
 }).handler(async (): Promise<InitialSession | null | undefined> => {
 	if (getRequestHeaders().get(SHELL_REQUEST_HEADER) === "true") {
+		return undefined;
+	}
+
+	// ビルドの後処理が、静的なページ（規約など）を作るときも、誰のセッションも、ゲストの確定も、焼き込まない。
+	if (getRequestHeaders().get(STATIC_PAGE_REQUEST_HEADER) === "true") {
 		return undefined;
 	}
 

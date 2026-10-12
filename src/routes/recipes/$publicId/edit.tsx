@@ -34,6 +34,8 @@ function renderOpenLink(publicId: string) {
 }
 
 export const Route = createFileRoute("/recipes/$publicId/edit")({
+	// ブラウザ専用の処理が多い重い画面なので、サーバーでは描画しない（loader も、ブラウザで実行される）。
+	ssr: false,
 	loader: ({ params }) => loadRecipe(params.publicId),
 	errorComponent: RecipeRouteError,
 	notFoundComponent: RecipeNotFound,

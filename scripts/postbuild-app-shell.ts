@@ -1,5 +1,10 @@
-// ビルド後に、オフライン用の静的シェル（dist/client/_shell.html）と、
-// サービスワーカー用のビルド情報（dist/client/sw-build.js）を作る。
+// ビルド後に、次のものを作る。
+// - オフライン用の静的シェル（dist/client/_shell.html）と、サービスワーカー用のビルド情報（dist/client/sw-build.js）。
+// - 静的なページ：規約・ポリシーは、本文まで描画した HTML（dist/client/terms.html など）。
+//   ブラウザだけで描画する画面（/shopping など）は、シェルのコピー（dist/client/shopping.html など）。
+//   Cloudflare は、これらを、Worker を起動せずに、無料で配信する（静的ファイルへのリクエストは、無料・無制限）。
+//   対象の一覧と検証は、src/features/pwa/build/static-pages.ts。ログイン状態は、専用のヘッダー（X-Recipion-Static）で、
+//   「結果なし」を返させる（誰のセッションも、ゲストの確定も、焼き込まない）。
 //
 // シェル: ルートだけを描画した、誰のセッション情報も含まないHTML。
 //   TanStack Start は、`X-TSS_SHELL` ヘッダー付きのリクエストにルートだけの描画を返すが、
@@ -12,10 +17,12 @@
 //   ※ TSS_PRERENDERING と X-TSS_SHELL は TanStack Start の内部実装。更新時は動作を確認すること。
 import {
 	existsSync,
+	mkdirSync,
 	readFileSync,
 	rmSync,
 	writeFileSync,
 } from "node:fs";
+import { dirname } from "node:path";
 import { preview } from "vite";
 import {
 	collectPrecacheUrls,
@@ -24,6 +31,13 @@ import {
 	renderBuildScript,
 	type ViteManifestEntry,
 } from "../src/features/pwa/build/app-shell-manifest.ts";
+import {
+	findStaticPageProblems,
+	renderedStaticPages,
+	STATIC_PAGE_REQUEST_HEADER,
+	shellCopyPaths,
+	staticPageOutputPath,
+} from "../src/features/pwa/build/static-pages.ts";
 
 const clientDir = "dist/client";
 const devVarsPath = "dist/server/.dev.vars";
@@ -32,7 +46,12 @@ const viteManifestPath = `${clientDir}/.vite/manifest.json`;
 const shellPath = `${clientDir}/_shell.html`;
 const buildScriptPath = `${clientDir}/sw-build.js`;
 
-async function generateShell(): Promise<string> {
+type GeneratedOutputs = {
+	shell: string;
+	pages: { path: string; html: string; mustInclude: string }[];
+};
+
+async function generateOutputs(): Promise<GeneratedOutputs> {
 	const originalDevVars = existsSync(devVarsPath)
 		? readFileSync(devVarsPath, "utf8")
 		: null;
@@ -68,7 +87,28 @@ async function generateShell(): Promise<string> {
 			throw new Error(`シェルの取得に失敗しました: ${response.status}`);
 		}
 
-		return await response.text();
+		const shell = await response.text();
+		const pages: GeneratedOutputs["pages"] = [];
+
+		for (const page of renderedStaticPages) {
+			const pageResponse = await fetch(new URL(page.path, origin), {
+				headers: { [STATIC_PAGE_REQUEST_HEADER]: "true" },
+			});
+
+			if (!pageResponse.ok) {
+				throw new Error(
+					`静的ページの取得に失敗しました: ${page.path} ${pageResponse.status}`,
+				);
+			}
+
+			pages.push({
+				path: page.path,
+				html: await pageResponse.text(),
+				mustInclude: page.mustInclude,
+			});
+		}
+
+		return { shell, pages };
 	} finally {
 		await server?.close();
 
@@ -82,7 +122,7 @@ async function generateShell(): Promise<string> {
 	}
 }
 
-const shell = await generateShell();
+const { shell, pages } = await generateOutputs();
 const problems = findShellProblems(shell);
 
 if (problems.length > 0) {
@@ -92,6 +132,31 @@ if (problems.length > 0) {
 }
 
 writeFileSync(shellPath, shell);
+
+function writeClientFile(relativePath: string, content: string): void {
+	const filePath = `${clientDir}/${relativePath}`;
+
+	mkdirSync(dirname(filePath), { recursive: true });
+	writeFileSync(filePath, content);
+}
+
+// 本文まで描画した静的ページ。
+for (const page of pages) {
+	const pageProblems = findStaticPageProblems(page.html, page.mustInclude);
+
+	if (pageProblems.length > 0) {
+		throw new Error(
+			`静的ページを生成できませんでした（${page.path}）:\n- ${pageProblems.join("\n- ")}`,
+		);
+	}
+
+	writeClientFile(staticPageOutputPath(page.path), page.html);
+}
+
+// ブラウザだけで描画する画面は、シェルのコピーを置く。
+for (const path of shellCopyPaths) {
+	writeClientFile(staticPageOutputPath(path), shell);
+}
 
 const viteManifest = JSON.parse(
 	readFileSync(viteManifestPath, "utf8"),
@@ -105,5 +170,5 @@ writeFileSync(buildScriptPath, renderBuildScript(buildId, urls));
 rmSync(`${clientDir}/.vite`, { recursive: true, force: true });
 
 console.log(
-	`[app-shell] build ${buildId}: shell ${shell.length} bytes, precache ${urls.length} files`,
+	`[app-shell] build ${buildId}: shell ${shell.length} bytes, precache ${urls.length} files, static pages ${pages.length} (+ shell copies ${shellCopyPaths.length})`,
 );

@@ -44,6 +44,7 @@ function renderOpenLink(publicId: string) {
 }
 
 export const Route = createFileRoute("/recipes/new")({
+	ssr: false,
 	component: NewRecipePage,
 });
 

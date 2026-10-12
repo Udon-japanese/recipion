@@ -22,6 +22,7 @@ import { registerInventoryItemServerFn } from "#/features/inventory/server/regis
 import { updateInventoryLotServerFn } from "#/features/inventory/server/update-inventory-lot";
 
 export const Route = createFileRoute("/inventory")({
+	ssr: false,
 	component: InventoryPage,
 });
 

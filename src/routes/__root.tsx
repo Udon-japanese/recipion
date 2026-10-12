@@ -17,6 +17,12 @@ export const Route = createRootRoute({
 	// 初期描画のためだけの値で、その後はクライアントのセッションが正になるため、画面遷移では再取得しない。
 	// 取得に失敗しても（オフライン、DB の障害など）アプリ全体は開けるよう、サーバーの結果なし（undefined）に戻す。
 	loader: async () => {
+		// ブラウザで実行されるのは、静的なページ（Worker を通らず、サーバーの結果がない）のとき。
+		// ログイン状態は、クライアントのセッション（authClient.useSession）が取るので、ここでは、サーバーに聞かない。
+		if (typeof window !== "undefined") {
+			return { initialSession: undefined };
+		}
+
 		try {
 			return { initialSession: await getInitialSessionServerFn() };
 		} catch {

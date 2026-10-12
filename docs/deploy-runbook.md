@@ -107,6 +107,7 @@ nr deploy
 - マイグレーション適用（6）から、デプロイまでの間に、時間をあけない（旧コードが、新しい制約と合わない操作をしないように）。
 - `wrangler.jsonc` に、次のバインディングが入っている：`hyperdrive`、`ai`（Workers AI）、`ratelimits`（ログイン用 3 つと、`LINK_SEARCH_LIMITER`）。
 - ビルドのたびに、サービスワーカーのビルド ID が変わる（想定どおり）。
+- ビルドの後処理が、静的ページ（`terms.html`・`privacy.html`）と、シェルのコピー（`shopping.html`・`inventory.html`・`recipes/new.html`）を、`dist/client` に作る（`dist` は、ビルドのたびに作り直される）。デプロイは、必ず `nr deploy`（ビルド込み）で行う。規約・ポリシーの文面を変えたら、デプロイで、静的ファイルが更新される。
 
 ## 9. WAF の許可リストを更新する
 
@@ -132,6 +133,7 @@ nr waf:allowlist
 - [ ] `/admin/reports`、`/admin/appeals` が、運営者のメールだけで開く（Access のログインが出る）。
 - [ ] プロフィールの名前の変更が、審査される。
 - [ ] **退会**：テスト用のアカウントで、確認メール → リンク → 削除される。
+- [ ] **静的ページが、Worker を通っていない**：`/terms`、`/privacy`、`/shopping`、`/inventory`、`/recipes/new` を開いても、Cloudflare ダッシュボードの Workers のリクエスト数が増えない（静的ファイルは、無料・無制限）。`/terms/`（末尾にスラッシュ）は、`/terms` に転送される。ログイン済みで `/shopping` を開いたとき、ログイン画面が一瞬見えない（「ログイン状態を確認しています…」→ ログイン中の表示）。
 - [ ] Workers Logs に、エラーが出ていない（Observability）。
 - [ ] 最大サイズ（12,000 文字）のレシピを、公開できる（CPU の上限に当たらない。下の「未完了」）。
 - [ ] **Windows**（VM）で、変換中の候補のクリックが、置き換わる（Mac の Chrome・Safari は、確認済み）。
