@@ -64,3 +64,11 @@ export const hint = style({
 	color: "var(--color-text-muted)",
 	fontSize: 13,
 });
+
+export const modes = style({
+	display: "flex",
+	gap: 8,
+	margin: 0,
+	padding: 0,
+	border: "none",
+});

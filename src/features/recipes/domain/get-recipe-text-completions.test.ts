@@ -471,3 +471,86 @@ describe("getRecipeTextCompletion（レシピへのリンク）", () => {
 		expect(completion?.items[0]?.insert).toBe("[[カレー]]");
 	});
 });
+
+describe("getRecipeTextCompletion（他の人のレシピへのリンク）", () => {
+	const others = {
+		users: [
+			{ handle: "taro", name: "たろう" },
+			{ handle: "tomo", name: "ともこ" },
+		],
+		recipes: [
+			{
+				publicId: "r1",
+				name: "カレー",
+				createdAt: "2026-10-01T00:00:00+09:00",
+				authorName: "たろう",
+				authorHandle: "taro",
+			},
+			{
+				publicId: "r2",
+				name: "カレーうどん",
+				createdAt: "2026-10-02T00:00:00+09:00",
+				authorName: "たろう",
+				authorHandle: "taro",
+			},
+		],
+	};
+	const context = { targets: [], links: [], others };
+
+	it("[[@ のあとの文字で、ユーザーを探す。選ぶと、[[@ハンドル/ になり、続けてレシピを選べる", () => {
+		const text = "煮る [[@t";
+		const completion = getRecipeTextCompletion(text, text.length, [], context);
+
+		expect(completion?.items.map((item) => item.label)).toEqual([
+			"たろう（@taro）",
+			"ともこ（@tomo）",
+		]);
+		expect(completion?.items[0]).toMatchObject({
+			insert: "[[@taro/",
+			from: 3,
+			to: text.length,
+		});
+		expect(completion?.items[0]?.link).toBeUndefined();
+	});
+
+	it("[[@ハンドル/ のあとで、そのユーザーのレシピを出す。入れると「表示名の料理名」のリンクになる", () => {
+		const text = "[[@taro/かれ";
+		const completion = getRecipeTextCompletion(text, text.length, [], context);
+
+		expect(completion?.items.map((item) => item.label)).toEqual([
+			"カレー",
+			"カレーうどん",
+		]);
+		expect(completion?.items[0]).toMatchObject({
+			insert: "[[たろうのカレー]]",
+			link: { label: "たろうのカレー", targetPublicId: "r1" },
+		});
+
+		if (!completion) throw new Error("候補が出ていません");
+
+		expect(applyRecipeTextCompletion(text, completion, 0).text).toBe(
+			"[[たろうのカレー]]",
+		);
+	});
+
+	it("同じラベルが別のレシピに使われていれば、番号を付ける", () => {
+		const text = "[[@taro/カレー";
+		const completion = getRecipeTextCompletion(text, text.length, [], {
+			...context,
+			links: [{ label: "たろうのカレー", targetPublicId: "other" }],
+		});
+
+		expect(completion?.items[0]?.link?.label).toBe("たろうのカレー（2）");
+	});
+
+	it("others を渡さなければ、@ の補完は出ない（自分のレシピの絞り込みのまま）", () => {
+		expect(
+			getRecipeTextCompletion("[[@t", 4, [], { targets: [], links: [] }),
+		).toBeNull();
+	});
+
+	it("候補がなければ、出さない", () => {
+		expect(getRecipeTextCompletion("[[@zzz", 6, [], context)).toBeNull();
+		expect(getRecipeTextCompletion("[[@jiro/", 8, [], context)).toBeNull();
+	});
+});

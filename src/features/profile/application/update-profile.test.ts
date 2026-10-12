@@ -72,4 +72,99 @@ describe("updateProfile", () => {
 			errors: { form: "ユーザーが見つかりませんでした。" },
 		});
 	});
+
+	describe("審査（変わった欄だけ）", () => {
+		function createRepositoryWith(current: Profile) {
+			const updates: UpdateProfileInput[] = [];
+			const repository: ProfileRepository = {
+				get: async () => current,
+				update: async (input) => {
+					updates.push(input);
+
+					return "updated";
+				},
+			};
+
+			return { repository, updates };
+		}
+
+		it("変わった欄だけを、審査に渡す。通れば、更新する", async () => {
+			const { repository, updates } = createRepositoryWith({
+				name: "れしぴょなー",
+				handle: "user-abc123",
+			});
+			const calls: { name?: string; handle?: string }[] = [];
+			const result = await updateProfile(
+				repository,
+				{ name: "たろう", handle: "user-abc123" },
+				async (changes) => {
+					calls.push(changes);
+
+					return null;
+				},
+			);
+
+			expect(result).toEqual({ ok: true });
+			expect(calls).toEqual([{ name: "たろう" }]);
+			expect(updates).toHaveLength(1);
+		});
+
+		it("何も変わらなければ、審査しない（AI の枠を使わない）", async () => {
+			const { repository } = createRepositoryWith({
+				name: "れしぴょなー",
+				handle: "user-abc123",
+			});
+			let called = false;
+
+			await updateProfile(
+				repository,
+				{ name: "れしぴょなー", handle: "user-abc123" },
+				async () => {
+					called = true;
+
+					return null;
+				},
+			);
+
+			expect(called).toBe(false);
+		});
+
+		it("断られたら、更新せずに、その文を返す", async () => {
+			const { repository, updates } = createRepositoryWith({
+				name: "れしぴょなー",
+				handle: "user-abc123",
+			});
+			const result = await updateProfile(
+				repository,
+				{ name: "あ", handle: "user-abc123" },
+				async () => ({ name: "表示名に、使えない内容が含まれています。" }),
+			);
+
+			expect(result).toEqual({
+				ok: false,
+				errors: { name: "表示名に、使えない内容が含まれています。" },
+			});
+			expect(updates).toEqual([]);
+		});
+
+		it("検証に失敗したときは、審査まで進まない", async () => {
+			const { repository } = createRepositoryWith({
+				name: "れしぴょなー",
+				handle: "user-abc123",
+			});
+			let called = false;
+
+			await updateProfile(
+				repository,
+				{ name: "", handle: "user-abc123" },
+				async () => {
+					called = true;
+
+					return null;
+				},
+			);
+
+			expect(called).toBe(false);
+		});
+	});
 });

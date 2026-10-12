@@ -1,9 +1,6 @@
 import type { DB } from "#/db/client";
-import {
-	describeFlagReasons,
-	describePublishRefusal,
-} from "#/features/moderation/application/publish-refusal-message";
-import { checkBeforePublish } from "#/features/moderation/server/create-publish-guard";
+import { describeFlagReasons } from "#/features/moderation/application/publish-refusal-message";
+import { enforceModeration } from "#/features/moderation/server/enforce-moderation";
 import { collectRecipeModerationItems } from "#/features/recipes/application/collect-moderation-items";
 import type { PreparedRecipeForStorage } from "#/features/recipes/application/prepare-recipe-for-storage";
 import { createDrizzleReportRepository } from "#/features/reports/infrastructure/drizzle-report-repository";
@@ -19,17 +16,19 @@ export async function guardRecipePublication(
 		return { recordFlag: async () => {} };
 	}
 
-	const result = await checkBeforePublish(db, {
+	const enforcement = await enforceModeration(
+		db,
 		userId,
-		items: collectRecipeModerationItems(recipe),
-	});
-	const refusal = describePublishRefusal(result);
+		collectRecipeModerationItems(recipe),
+	);
 
-	if (refusal !== null) {
-		throw new Error(refusal);
+	if (enforcement.status === "refused") {
+		throw new Error(enforcement.message);
 	}
 
-	if (result.status !== "flagged") {
+	const flagged = enforcement.flagged;
+
+	if (flagged === null) {
 		return { recordFlag: async () => {} };
 	}
 
@@ -37,7 +36,7 @@ export async function guardRecipePublication(
 		recordFlag: async (publicId) => {
 			await createDrizzleReportRepository(db).createAutoDetected({
 				recipePublicId: publicId,
-				detail: describeFlagReasons(result.reasons),
+				detail: describeFlagReasons(flagged),
 				now: new Date(),
 			});
 		},

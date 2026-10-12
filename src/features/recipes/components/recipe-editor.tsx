@@ -23,6 +23,10 @@ import {
 	formatRecipeEditorText,
 	formatRecipeTemplateText,
 } from "../domain/format-recipe-editor-text";
+import type {
+	LinkableUser,
+	OtherRecipeTarget,
+} from "../domain/other-recipe-links";
 import { parseRecipeIngredients } from "../domain/parse-recipe-ingredients";
 import { parseRecipeInstructions } from "../domain/parse-recipe-instructions";
 import { parseRecipePreparations } from "../domain/parse-recipe-preparations";
@@ -31,6 +35,7 @@ import {
 	type RecipeEditorDocument,
 	type RecipeEditorIngredientNode,
 } from "../domain/recipe-editor-document";
+import { findRecipeLimitViolation } from "../domain/recipe-limits";
 import type { RecipeVisibility } from "../domain/recipe-link-permission";
 import {
 	extractLinkLabels,
@@ -78,6 +83,9 @@ type RecipeEditorProps = {
 	renderOpenLink?: (publicId: string) => ReactNode;
 	// プレビューの中で、材料のリンク先を、まとめて取ってくる（材料の下に、その場で開く）。
 	loadLinkedRecipes?: LoadLinkedRecipes;
+	// 他の人のレシピへのリンク（[[@ユーザー/…）。ユーザーを探す／そのユーザーの全体公開レシピを取ってくる。
+	searchLinkableUsers?: (query: string) => Promise<LinkableUser[]>;
+	loadUserRecipes?: (handle: string) => Promise<OtherRecipeTarget[]>;
 };
 
 type ActiveTab = "input" | "preview";
@@ -135,6 +143,8 @@ export function RecipeEditor({
 	loadLinkedRecipe,
 	renderOpenLink,
 	loadLinkedRecipes,
+	searchLinkableUsers,
+	loadUserRecipes,
 }: RecipeEditorProps) {
 	const isEditing = initialDocument !== undefined;
 	const [initialState] = useState(() => createInitialState(initialDocument));
@@ -442,6 +452,15 @@ export function RecipeEditor({
 				ingredients,
 			};
 
+			// 入力の上限を、保存の前に確かめる（サーバーでも、同じ上限で確かめる）。
+			const limitViolation = findRecipeLimitViolation(document);
+
+			if (limitViolation) {
+				setErrorMessage(limitViolation);
+
+				return;
+			}
+
 			const result = await onSave(document);
 			setSavedRecipeId(result.publicId);
 			onSaved?.(result);
@@ -551,6 +570,10 @@ export function RecipeEditor({
 							linkTargetsStatus={linkTargetsStatus}
 							links={links}
 							onLinkSelected={handleLinkSelected}
+							searchLinkableUsers={
+								loadLinkTargets ? searchLinkableUsers : undefined
+							}
+							loadUserRecipes={loadLinkTargets ? loadUserRecipes : undefined}
 							placeholder={
 								"＜材料＞\n豚ひき肉 200g\n玉ねぎ 1/2個\n\n＜作り方＞\n1. 材料を混ぜる\n2. フライパンで焼く"
 							}

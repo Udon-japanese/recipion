@@ -140,6 +140,11 @@ export function RecipeLinkPreview({
 							レシピを読み込めませんでした。
 						</p>
 					) : null}
+					{state.status === "ready" && state.recipe.author ? (
+						<p className={styles.message}>
+							作者：{state.recipe.author.name}（@{state.recipe.author.handle}）
+						</p>
+					) : null}
 					{state.status === "ready" ? (
 						<RecipeViewWithTree
 							loadLinkedRecipes={loadLinkedRecipes}

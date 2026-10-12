@@ -151,4 +151,24 @@ describe("RecipeLinkPreview", () => {
 
 		expect(document.activeElement?.textContent).toBe("閉じる");
 	});
+
+	it("他の人のレシピには、作者を出す。自分のレシピには出さない", async () => {
+		recipes.other = {
+			...detail("other", "たろうのカレー", "煮る"),
+			author: { name: "たろう", handle: "taro" },
+		};
+
+		setup("other");
+
+		expect(
+			await screen.findByText(/作者：たろう（@taro）/u),
+		).toBeInTheDocument();
+
+		cleanup();
+		setup("rice");
+
+		await screen.findByText("白ごはん");
+
+		expect(screen.queryByText(/作者：/u)).toBeNull();
+	});
 });

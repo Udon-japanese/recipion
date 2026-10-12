@@ -161,3 +161,48 @@ describe("RecipeLinkPicker", () => {
 		]);
 	});
 });
+
+describe("RecipeLinkPicker（他の人のレシピ）", () => {
+	it("切り替えて、ユーザーを探し、そのユーザーのレシピを選ぶと、「表示名の料理名」が渡る", async () => {
+		const onSelect = vi.fn();
+		const user = userEvent.setup();
+
+		render(
+			<RecipeLinkPicker
+				title="リンクするレシピを選ぶ"
+				targets={targets}
+				status="ready"
+				onSelect={onSelect}
+				onClose={vi.fn()}
+				searchUsers={async () => [{ handle: "taro", name: "たろう" }]}
+				loadUserRecipes={async () => [
+					{
+						publicId: "r1",
+						name: "カレー",
+						createdAt: "2026-10-01T00:00:00+09:00",
+						authorName: "たろう",
+						authorHandle: "taro",
+					},
+				]}
+			/>,
+		);
+
+		await user.click(screen.getByRole("button", { name: "他の人のレシピ" }));
+		await user.click(
+			await screen.findByRole("button", { name: "たろう（@taro）" }),
+		);
+		await user.click(await screen.findByRole("button", { name: "カレー" }));
+
+		expect(onSelect).toHaveBeenCalledWith({
+			publicId: "r1",
+			name: "たろうのカレー",
+			createdAt: "2026-10-01T00:00:00+09:00",
+		});
+	});
+
+	it("searchUsers を渡さなければ、切り替えは出ない", () => {
+		setup();
+
+		expect(screen.queryByRole("button", { name: "他の人のレシピ" })).toBeNull();
+	});
+});

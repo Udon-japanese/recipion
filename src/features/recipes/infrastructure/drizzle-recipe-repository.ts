@@ -1,8 +1,9 @@
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import * as v from "valibot";
 
 import type { DB } from "#/db/client";
+import { user } from "#/integrations/better-auth/auth.sql";
 
 import type {
 	CreateRecipeCommand,
@@ -10,6 +11,7 @@ import type {
 	RecipeRepository,
 } from "../application/recipe-repository";
 import { restoreRecipeIngredients } from "../application/restore-recipe-ingredients";
+import { findRecipeCountViolation } from "../domain/recipe-limits";
 import {
 	canLinkToRecipe,
 	parseRecipeVisibility,
@@ -195,10 +197,12 @@ export async function loadRecipeDetail(
 					targetPublicId: recipe.publicId,
 					targetName: recipe.name,
 					targetOwnerUserId: recipe.userId,
+					targetOwnerName: user.name,
 					targetVisibility: recipe.visibility,
 				})
 				.from(recipeLink)
 				.leftJoin(recipe, eq(recipe.id, recipeLink.targetRecipeId))
+				.leftJoin(user, eq(user.id, recipe.userId))
 				.where(eq(recipeLink.recipeId, found.id))
 				.orderBy(asc(recipeLink.label)),
 		]);
@@ -219,7 +223,15 @@ export async function loadRecipeDetail(
 			label: row.label,
 			target:
 				canView && row.targetPublicId !== null && row.targetName !== null
-					? { publicId: row.targetPublicId, name: row.targetName }
+					? {
+							publicId: row.targetPublicId,
+							// 他の人のレシピは、「表示名の料理名」で見せる（自分のレシピと区別するため）。
+							name:
+								row.targetOwnerUserId !== viewerUserId &&
+								row.targetOwnerName !== null
+									? `${row.targetOwnerName}の${row.targetName}`
+									: row.targetName,
+						}
 					: null,
 		};
 	});
@@ -281,6 +293,17 @@ export function createDrizzleRecipeRepository(
 			validateIds(command);
 
 			return db.transaction(async (transaction) => {
+				// 1人が持てるレシピの数の上限。
+				const [owned] = await transaction
+					.select({ total: count() })
+					.from(recipe)
+					.where(eq(recipe.userId, userId));
+				const countViolation = findRecipeCountViolation(owned?.total ?? 0);
+
+				if (countViolation) {
+					throw new Error(countViolation);
+				}
+
 				const [createdRecipe] = await transaction
 					.insert(recipe)
 					.values({

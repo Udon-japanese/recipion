@@ -1,22 +1,11 @@
 import type { ModerationReason } from "../domain/moderation-result";
 import { moderationCategoryLabels } from "../domain/moderation-result";
-import type { ModerationTargetKind } from "../domain/moderation-target";
+import { moderationTargets } from "../domain/moderation-target";
 import type { PublishGuardResult } from "./publish-guard";
-
-const targetLabels: Record<ModerationTargetKind, string> = {
-	"recipe-title": "タイトル",
-	"recipe-ingredient": "材料",
-	"recipe-preparation": "下準備",
-	"recipe-instruction": "作り方",
-	"recipe-note": "メモ",
-	"recipe-link-label": "リンクの名前",
-	"profile-display-name": "表示名",
-	"profile-handle": "ハンドル",
-};
 
 function describeTargets(reasons: readonly ModerationReason[]): string {
 	return [
-		...new Set(reasons.map((reason) => targetLabels[reason.target])),
+		...new Set(reasons.map((reason) => moderationTargets[reason.target].label)),
 	].join("、");
 }
 
@@ -53,6 +42,13 @@ export function describePublishRefusal(
 	}
 }
 
+// 「怪しい」を、断る欄（onFlag: reject）で出たとき、利用者に見せる文（止めた語は、見せない）。
+export function describeFlagRefusal(
+	reasons: readonly ModerationReason[],
+): string {
+	return `${describeTargets(reasons)}に、使えない内容が含まれている可能性があります。別の内容にしてください。`;
+}
+
 // 管理者の画面に載せる、自動検知の説明（欄と種類だけ。語は含まない）。
 export function describeFlagReasons(
 	reasons: readonly ModerationReason[],
@@ -61,7 +57,7 @@ export function describeFlagReasons(
 		...new Set(
 			reasons.map(
 				(reason) =>
-					`${targetLabels[reason.target]}（${moderationCategoryLabels[reason.category]}）`,
+					`${moderationTargets[reason.target].label}（${moderationCategoryLabels[reason.category]}）`,
 			),
 		),
 	].join("、");

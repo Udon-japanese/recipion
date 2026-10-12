@@ -4,6 +4,10 @@ import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import type { CompositionStrategy } from "../domain/choose-composition-strategy";
 import type {
+	LinkableUser,
+	OtherRecipeTarget,
+} from "../domain/other-recipe-links";
+import type {
 	RecipeLinkReference,
 	RecipeLinkTarget,
 } from "../domain/recipe-links";
@@ -16,11 +20,15 @@ function Harness({
 	completionLayout,
 	linkTargets,
 	onLinkSelected,
+	searchLinkableUsers,
+	loadUserRecipes,
 }: {
 	compositionStrategy?: CompositionStrategy;
 	completionLayout?: "caret" | "keyboard-bar";
 	linkTargets?: RecipeLinkTarget[];
 	onLinkSelected?: (link: RecipeLinkReference) => void;
+	searchLinkableUsers?: (query: string) => Promise<LinkableUser[]>;
+	loadUserRecipes?: (handle: string) => Promise<OtherRecipeTarget[]>;
 }) {
 	const [value, setValue] = useState("");
 
@@ -33,6 +41,8 @@ function Harness({
 			completionLayout={completionLayout}
 			linkTargets={linkTargets}
 			onLinkSelected={onLinkSelected}
+			searchLinkableUsers={searchLinkableUsers}
+			loadUserRecipes={loadUserRecipes}
 		/>
 	);
 }
@@ -536,4 +546,167 @@ test("linkTargets がなければ、「現在の位置にレシピをリンク�
 			(button) => button.textContent === "現在の位置にレシピをリンク",
 		),
 	).toBe(false);
+});
+
+test("[[@ でユーザーを探し、選ぶと、そのユーザーのレシピの候補が出て、選ぶと「表示名の料理名」のリンクが入る", async () => {
+	const linked: RecipeLinkReference[] = [];
+
+	await render(
+		<Harness
+			completionLayout="caret"
+			linkTargets={linkTargets}
+			onLinkSelected={(link) => linked.push(link)}
+			searchLinkableUsers={async () => [{ handle: "taro", name: "たろう" }]}
+			loadUserRecipes={async () => [
+				{
+					publicId: "r1",
+					name: "カレー",
+					createdAt: "2026-10-01T00:00:00+09:00",
+					authorName: "たろう",
+					authorHandle: "taro",
+				},
+			]}
+		/>,
+	);
+	await focusTextarea();
+	await userEvent.keyboard("[[[[@t");
+	await expect
+		.poll(() => candidateButton().textContent)
+		.toBe("たろう（@taro）");
+
+	candidateButton().dispatchEvent(
+		new MouseEvent("mousedown", { bubbles: true, cancelable: true }),
+	);
+
+	await expect.poll(textareaValue).toBe("[[@taro/");
+	await expect.poll(() => candidateButton().textContent).toBe("カレー");
+
+	candidateButton().dispatchEvent(
+		new MouseEvent("mousedown", { bubbles: true, cancelable: true }),
+	);
+
+	await expect.poll(textareaValue).toBe("[[たろうのカレー]]");
+	expect(linked).toEqual([{ label: "たろうのカレー", targetPublicId: "r1" }]);
+});
+
+test("[[@ で候補がないとき、理由を、補完のメニューの中に出す（探している最中・見つからない・失敗）", async () => {
+	let finish: (users: LinkableUser[]) => void = () => {};
+	let isSearchCalled = false;
+
+	await render(
+		<Harness
+			completionLayout="caret"
+			linkTargets={linkTargets}
+			searchLinkableUsers={() =>
+				new Promise<LinkableUser[]>((resolve) => {
+					isSearchCalled = true;
+					finish = resolve;
+				})
+			}
+			loadUserRecipes={async () => []}
+		/>,
+	);
+	await focusTextarea();
+	await userEvent.keyboard("[[[[@");
+	await expect
+		.poll(() => document.querySelector("output")?.textContent)
+		.toContain("ユーザーを探しています");
+	// 理由は、補完のメニュー（候補の枠）の中にある。
+	expect(
+		document
+			.querySelector("output")
+			?.parentElement?.className.includes("completionPopup"),
+	).toBe(true);
+	// 少し待ってから、検索が呼ばれる（打ち終わるのを待つため）。
+	await expect.poll(() => isSearchCalled).toBe(true);
+
+	finish([]);
+
+	await expect
+		.poll(() => document.querySelector("output")?.textContent)
+		.toContain("自分のレシピは、@ を付けずに [[ だけで選べます");
+});
+
+test("日本語入力のまま打った全角の ＠ でも、ユーザーの候補が出る", async () => {
+	await render(
+		<Harness
+			completionLayout="caret"
+			linkTargets={linkTargets}
+			searchLinkableUsers={async () => [{ handle: "taro", name: "たろう" }]}
+			loadUserRecipes={async () => []}
+		/>,
+	);
+	await focusTextarea();
+	await userEvent.keyboard("[[[[＠");
+	await expect
+		.poll(() => candidateButton().textContent)
+		.toBe("たろう（@taro）");
+});
+
+test("Mac の Chrome：変換中に候補をクリックすると、IME が先に確定し（compositionend）、そのあとに押下が届く。それでも、候補が決まる", async () => {
+	const linked: RecipeLinkReference[] = [];
+
+	await render(
+		<Harness
+			completionLayout="caret"
+			linkTargets={linkTargets}
+			onLinkSelected={(link) => linked.push(link)}
+		/>,
+	);
+	await focusTextarea();
+	startComposition();
+	await userEvent.keyboard("[[[[かれ");
+	await expect.poll(() => candidateButton().textContent).toBe("カレーうどん");
+
+	// 実機のログ（Mac の Chrome）：クリックで、IME が、先に確定する。そのあと、約10ms で、pointerdown・mousedown が届く。
+	getTextarea().dispatchEvent(
+		new CompositionEvent("compositionend", { bubbles: true, data: "かれ" }),
+	);
+	await new Promise((resolve) => setTimeout(resolve, 10));
+
+	candidateButton().dispatchEvent(
+		new PointerEvent("pointerdown", { bubbles: true, cancelable: true }),
+	);
+	candidateButton().dispatchEvent(
+		new MouseEvent("mousedown", { bubbles: true, cancelable: true }),
+	);
+
+	await expect.poll(textareaValue).toBe("[[カレーうどん]]");
+	expect(linked).toEqual([{ label: "カレーうどん", targetPublicId: "b" }]);
+});
+
+test("変換が確定しても、本文とカーソルが動くまで、メニューは、位置を動かさない（確定の直後のクリックが、外れないように）", async () => {
+	// メニューを、カーソルの上に置けるよう、入力欄の上に余白を取る。
+	await render(
+		<>
+			<div style={{ height: 300 }} />
+			<Harness completionLayout="caret" linkTargets={linkTargets} />
+		</>,
+	);
+	await focusTextarea();
+	startComposition();
+	await userEvent.keyboard("[[[[かれ");
+	await expect.poll(() => candidateButton().textContent).toBe("カレーうどん");
+
+	const popup = () => {
+		const element = document.querySelector(
+			'[aria-label="補完の候補"]',
+		)?.parentElement;
+
+		if (!element) throw new Error("メニューがあるはず");
+
+		return element.getBoundingClientRect();
+	};
+	const before = popup().top;
+
+	getTextarea().dispatchEvent(
+		new CompositionEvent("compositionend", { bubbles: true, data: "かれ" }),
+	);
+	await new Promise((resolve) => setTimeout(resolve, 100));
+
+	expect(popup().top).toBe(before);
+
+	// 続けて打てば、通常の位置（カーソルの下）に戻る。
+	await userEvent.keyboard("ー");
+	await expect.poll(() => popup().top).not.toBe(before);
 });

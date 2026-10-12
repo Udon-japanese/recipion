@@ -37,6 +37,12 @@
 			"name": "AUTH_VERIFY_IP_LIMITER",
 			"namespace_id": "1003",
 			"simple": { "limit": 15, "period": 60 }
+		},
+		// 他の人のレシピへのリンクのための、ユーザー・レシピの検索（1人あたり）。入力のたびに検索するので、やや多めに許す。
+		{
+			"name": "LINK_SEARCH_LIMITER",
+			"namespace_id": "1004",
+			"simple": { "limit": 40, "period": 60 }
 		}
 	],
 	"compatibility_date": "2025-09-02",

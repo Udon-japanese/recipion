@@ -4,6 +4,10 @@ import { RecipeEditor } from "#/features/recipes/components/recipe-editor";
 import { createRecipeServerFn } from "#/features/recipes/server/create-recipe";
 import { getLinkedRecipesServerFn } from "#/features/recipes/server/get-linked-recipes";
 import { getRecipeServerFn } from "#/features/recipes/server/get-recipe";
+import {
+	listUserPublicRecipesServerFn,
+	searchLinkableUsersServerFn,
+} from "#/features/recipes/server/linkable-recipes";
 import { listRecipesServerFn } from "#/features/recipes/server/list-recipes";
 
 // リンクできるレシピ（自分のレシピ）。
@@ -59,6 +63,12 @@ function NewRecipePage() {
 			renderOpenLink={renderOpenLink}
 			loadLinkedRecipes={loadLinkedRecipes}
 			loadLinkTargets={loadLinkTargets}
+			searchLinkableUsers={(query) =>
+				searchLinkableUsersServerFn({ data: { query } })
+			}
+			loadUserRecipes={(handle) =>
+				listUserPublicRecipesServerFn({ data: { handle } })
+			}
 			onSave={(document) => createRecipeServerFn({ data: document })}
 			onSaved={(recipe) =>
 				void navigate({

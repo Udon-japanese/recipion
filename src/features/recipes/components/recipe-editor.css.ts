@@ -329,6 +329,16 @@ export const completionPopupHint = style({
 	fontSize: 12,
 });
 
+// 候補が出ないときの理由（ユーザーを探している最中・見つからない・失敗）。
+export const completionNotice = style({
+	display: "block",
+	margin: 0,
+	padding: "4px 8px",
+	color: "var(--color-text-muted)",
+	fontSize: 13,
+	lineHeight: 1.5,
+});
+
 // スマホ：キーボードのすぐ上に固定する、横に並べた帯（横にスクロールできる）。
 export const completionBar = style({
 	position: "fixed",

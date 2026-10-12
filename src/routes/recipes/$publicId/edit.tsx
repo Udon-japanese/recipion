@@ -3,6 +3,10 @@ import { RecipeEditor } from "#/features/recipes/components/recipe-editor";
 import { RecipeRouteError } from "#/features/recipes/components/recipe-route-error";
 import { getLinkedRecipesServerFn } from "#/features/recipes/server/get-linked-recipes";
 import { getRecipeServerFn } from "#/features/recipes/server/get-recipe";
+import {
+	listUserPublicRecipesServerFn,
+	searchLinkableUsersServerFn,
+} from "#/features/recipes/server/linkable-recipes";
 import { listRecipesServerFn } from "#/features/recipes/server/list-recipes";
 import { loadRecipe } from "#/features/recipes/server/load-recipe";
 import { updateRecipeServerFn } from "#/features/recipes/server/update-recipe";
@@ -55,6 +59,12 @@ function EditRecipePage() {
 			loadLinkedRecipe={loadLinkedRecipe}
 			renderOpenLink={renderOpenLink}
 			loadLinkedRecipes={loadLinkedRecipes}
+			searchLinkableUsers={(query) =>
+				searchLinkableUsersServerFn({ data: { query } })
+			}
+			loadUserRecipes={(handle) =>
+				listUserPublicRecipesServerFn({ data: { handle } })
+			}
 			loadLinkTargets={async () => {
 				const recipes = await listRecipesServerFn();
 

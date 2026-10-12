@@ -13,5 +13,7 @@ declare namespace Cloudflare {
 		CF_ACCESS_AUD?: string;
 		// Workers AI のバインディング（wrangler.jsonc の `ai`）。公開しようとする文章の審査に使う。
 		AI: Ai;
+		// 他の人のレシピへのリンクのための検索の回数の制限（wrangler.jsonc の `ratelimits`）。
+		LINK_SEARCH_LIMITER: RateLimit;
 	}
 }

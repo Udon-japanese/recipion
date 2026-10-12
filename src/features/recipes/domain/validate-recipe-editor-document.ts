@@ -3,6 +3,7 @@ import type {
 	RecipeEditorDocument,
 	RecipeEditorIngredientNode,
 } from "./recipe-editor-document";
+import { findRecipeLimitViolation } from "./recipe-limits";
 import { isValidLinkLabel, maxLinksPerRecipe } from "./recipe-links";
 
 const requiredText = v.pipe(v.string(), v.trim(), v.minLength(1));
@@ -37,21 +38,28 @@ const ingredientSchema: v.GenericSchema<RecipeEditorIngredientNode> = v.lazy(
 				name: requiredText,
 				rawText: requiredText,
 				inferred: v.boolean(),
-				children: v.array(ingredientSchema),
+				// 構造の安全弁（巨大な入力の処理を避ける）。ふつうの上限と、具体的な文は、recipe-limits.ts。
+				children: v.pipe(v.array(ingredientSchema), v.maxLength(500)),
 			}),
 		]),
 );
 const documentSchema = v.object({
 	name: requiredText,
 	servings: v.pipe(v.number(), v.finite(), v.gtValue(0)),
-	ingredients: v.array(ingredientSchema),
-	preparations: v.array(v.object({ id: idSchema, text: requiredText })),
-	instructions: v.array(
-		v.object({
-			id: idSchema,
-			text: requiredText,
-			referencedInstructionIds: v.array(idSchema),
-		}),
+	ingredients: v.pipe(v.array(ingredientSchema), v.maxLength(500)),
+	preparations: v.pipe(
+		v.array(v.object({ id: idSchema, text: requiredText })),
+		v.maxLength(200),
+	),
+	instructions: v.pipe(
+		v.array(
+			v.object({
+				id: idSchema,
+				text: requiredText,
+				referencedInstructionIds: v.array(idSchema),
+			}),
+		),
+		v.maxLength(200),
 	),
 	note: v.string(),
 	// javascript: などを href に出さないよう、http(s) の URL だけを受け付ける。
@@ -112,6 +120,13 @@ export function validateRecipeEditorDocument(
 	const ids = new Set<string>();
 
 	validateIngredientIds(document.ingredients, ids);
+
+	// 入力の上限（具体的な文を返す）。画面でも、保存の前に、同じ関数で確かめている。
+	const limitViolation = findRecipeLimitViolation(document);
+
+	if (limitViolation) {
+		throw new Error(limitViolation);
+	}
 
 	// 引用元のあるレシピは、公開できない（他のサイトの転載を避ける。DB の制約と同じ）。
 	if (document.visibility !== "private" && document.sourceUrl !== null) {

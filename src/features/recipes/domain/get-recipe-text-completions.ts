@@ -13,6 +13,14 @@ import {
 	formatLinkTargetLabel,
 } from "./link-target-hints";
 import {
+	filterLinkableUsers,
+	filterOtherRecipes,
+	type LinkableUser,
+	makeOtherRecipeLabelBase,
+	type OtherRecipeTarget,
+	parseOtherLinkQuery,
+} from "./other-recipe-links";
+import {
 	formatLink,
 	type RecipeLinkReference,
 	type RecipeLinkTarget,
@@ -42,6 +50,11 @@ export type RecipeTextCompletionItem = {
 export type RecipeLinkContext = {
 	targets: readonly RecipeLinkTarget[];
 	links: readonly RecipeLinkReference[];
+	// 他の人のレシピへのリンク（[[@ユーザー/…）の候補。渡すと、@ の補完が使える。users：打った文字に合うユーザー、recipes：選んだユーザーの全体公開レシピ。
+	others?: {
+		users: readonly LinkableUser[];
+		recipes: readonly OtherRecipeTarget[];
+	};
 };
 
 const emptyLinkContext: RecipeLinkContext = { targets: [], links: [] };
@@ -166,6 +179,70 @@ function completeRecipeLink(
 	const typed = before.slice(open + 2);
 	const closed = after.match(/^([^[\]\n]*)\]\]/u);
 	const afterPart = closed?.[1] ?? "";
+	const replaceFrom = lineStart + open;
+	const replaceTo = caret + afterPart.length + (closed ? 2 : 0);
+	const otherQuery = linkContext.others
+		? parseOtherLinkQuery(`${typed}${afterPart}`)
+		: null;
+
+	// [[@ から始まる入力は、他の人のレシピ。ユーザーを選び、そのユーザーのレシピを選ぶ。
+	if (otherQuery && linkContext.others) {
+		if (otherQuery.stage === "users") {
+			const users = filterLinkableUsers(
+				linkContext.others.users,
+				otherQuery.query,
+				maxItems,
+			);
+
+			return users.length === 0
+				? null
+				: {
+						items: users.map((user) => ({
+							label: `${user.name}（@${user.handle}）`,
+							// ユーザーを選んだら、続けて、そのユーザーのレシピを選ぶ。
+							insert: `[[@${user.handle}/`,
+							from: replaceFrom,
+							to: replaceTo,
+						})),
+					};
+		}
+
+		const recipes = filterOtherRecipes(
+			linkContext.others.recipes,
+			otherQuery.handle,
+			otherQuery.query,
+			maxItems,
+		);
+
+		if (recipes.length === 0) {
+			return null;
+		}
+
+		const hints = buildLinkTargetHints(
+			linkContext.others.recipes.filter(
+				(recipe) => recipe.authorHandle === otherQuery.handle,
+			),
+		);
+
+		return {
+			items: recipes.map((recipe) => {
+				const label = resolveLinkLabel(
+					makeOtherRecipeLabelBase(recipe.authorName, recipe.name),
+					recipe.publicId,
+					linkContext.links,
+				);
+
+				return {
+					label: formatLinkTargetLabel(recipe, hints),
+					insert: formatLink(label),
+					from: replaceFrom,
+					to: replaceTo,
+					link: { label, targetPublicId: recipe.publicId },
+				};
+			}),
+		};
+	}
+
 	const targets = filterLinkTargets(
 		linkContext.targets,
 		`${typed}${afterPart}`,

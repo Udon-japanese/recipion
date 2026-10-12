@@ -22,6 +22,8 @@ export type RecipeSummary = {
 
 export type RecipeDetail = RecipeEditorDocument & {
 	publicId: string;
+	// 他の人のレシピを見ているときの作者（自分のレシピでは、なし）。
+	author?: { name: string; handle: string };
 	// 保存されているすべてのリンク（相手が見つからないものを含む。表示用）。編集用の `links` には、相手が見つかるものだけが入る。
 	linkViews: RecipeLinkView[];
 };

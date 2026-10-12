@@ -81,6 +81,17 @@ describe("validateRecipeEditorDocument", () => {
 		).toBe("private");
 	});
 
+	it("入力の上限を超えたら、具体的な文で拒否する（レシピ名・メモ・全体）", () => {
+		const document = createDocument();
+
+		expect(() =>
+			validateRecipeEditorDocument({ ...document, name: "あ".repeat(101) }),
+		).toThrow("レシピ名は、100文字までです。");
+		expect(() =>
+			validateRecipeEditorDocument({ ...document, note: "あ".repeat(3001) }),
+		).toThrow("メモは、3,000文字までです。");
+	});
+
 	it("同じIDを二度使用できない", () => {
 		const document = createDocument();
 

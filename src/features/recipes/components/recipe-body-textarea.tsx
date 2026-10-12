@@ -25,6 +25,12 @@ import {
 	type RecipeTextCompletion,
 	type RecipeTextCompletionItem,
 } from "../domain/get-recipe-text-completions";
+import {
+	getOpenLinkTyped,
+	type LinkableUser,
+	type OtherRecipeTarget,
+	parseOtherLinkQuery,
+} from "../domain/other-recipe-links";
 import { placePopup } from "../domain/place-popup";
 import {
 	formatLink,
@@ -74,6 +80,9 @@ type RecipeBodyTextareaProps = {
 	links?: readonly RecipeLinkReference[];
 	// リンクを入れたとき（補完か、ボタンで）。
 	onLinkSelected?: (link: RecipeLinkReference) => void;
+	// 他の人のレシピへのリンク（[[@ユーザー/…）。ユーザーを探す／そのユーザーの全体公開レシピを取ってくる。渡すと、@ の補完と、ボタンの「他の人のレシピ」が使える。
+	searchLinkableUsers?: (query: string) => Promise<LinkableUser[]>;
+	loadUserRecipes?: (handle: string) => Promise<OtherRecipeTarget[]>;
 };
 
 type CompletionLayout = "caret" | "keyboard-bar";
@@ -91,6 +100,8 @@ export function RecipeBodyTextarea({
 	linkTargetsStatus,
 	links,
 	onLinkSelected,
+	searchLinkableUsers,
+	loadUserRecipes,
 }: RecipeBodyTextareaProps) {
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
 	const wrapperRef = useRef<HTMLDivElement>(null);
@@ -140,6 +151,11 @@ export function RecipeBodyTextarea({
 	const [selectionRequest, setSelectionRequest] = useState<{
 		caret: number;
 	} | null>(null);
+	// 変換が確定した位置（確定のあと、本文かカーソルが動くまで、メニューの位置を動かさない）。
+	const [aboveUntilChange, setAboveUntilChange] = useState<{
+		value: string;
+		caret: number;
+	} | null>(null);
 	// Esc で閉じた位置。本文かカーソルが動くまで、出さない。
 	const [closedAt, setClosedAt] = useState<{
 		value: string;
@@ -168,13 +184,123 @@ export function RecipeBodyTextarea({
 		return () => query.removeEventListener("change", update);
 	}, []);
 
+	// 他の人のレシピへのリンク（[[@…）の入力中の、サーバーから取ってきた候補。
+	const [otherUsers, setOtherUsers] = useState<LinkableUser[]>([]);
+	const [otherRecipes, setOtherRecipes] = useState<
+		Record<string, OtherRecipeTarget[]>
+	>({});
+	const [isSearchingUsers, setIsSearchingUsers] = useState(false);
+	const [otherError, setOtherError] = useState<string | null>(null);
+	const requestedHandlesRef = useRef(new Set<string>());
+	// 親の再描画で関数が替わっても、検索をやり直さない（最新の関数を、ここから呼ぶ）。
+	const searchUsersRef = useRef(searchLinkableUsers);
+	const loadUserRecipesRef = useRef(loadUserRecipes);
+	searchUsersRef.current = searchLinkableUsers;
+	loadUserRecipesRef.current = loadUserRecipes;
+	const hasOtherLinks = Boolean(searchLinkableUsers || loadUserRecipes);
+	const otherLinkQuery = (() => {
+		if (!hasOtherLinks) {
+			return null;
+		}
+
+		const typed = getOpenLinkTyped(value, caret);
+
+		return typed === null ? null : parseOtherLinkQuery(typed);
+	})();
+	const usersQuery =
+		otherLinkQuery?.stage === "users" ? otherLinkQuery.query : null;
+	const recipesHandle =
+		otherLinkQuery?.stage === "recipes" ? otherLinkQuery.handle : null;
+
+	// ユーザーを探す（打ち終わるのを少し待ってから、サーバーに聞く）。
+	useEffect(() => {
+		if (usersQuery === null) {
+			return;
+		}
+
+		let isCancelled = false;
+
+		setIsSearchingUsers(true);
+
+		const timer = window.setTimeout(() => {
+			searchUsersRef
+				.current?.(usersQuery)
+				.then((users) => {
+					if (!isCancelled) {
+						setOtherUsers(users);
+						setOtherError(null);
+						setIsSearchingUsers(false);
+					}
+				})
+				.catch((error: unknown) => {
+					if (!isCancelled) {
+						setOtherUsers([]);
+						setOtherError(
+							error instanceof Error && error.message
+								? error.message
+								: "ユーザーを探せませんでした。",
+						);
+						setIsSearchingUsers(false);
+					}
+				});
+		}, 250);
+
+		return () => {
+			isCancelled = true;
+			window.clearTimeout(timer);
+		};
+	}, [usersQuery]);
+
+	// 選んだユーザーの、全体公開のレシピを取ってくる（同じユーザーは、1度だけ）。
+	useEffect(() => {
+		if (
+			recipesHandle === null ||
+			requestedHandlesRef.current.has(recipesHandle)
+		) {
+			return;
+		}
+
+		requestedHandlesRef.current.add(recipesHandle);
+
+		loadUserRecipesRef
+			.current?.(recipesHandle)
+			.then((recipes) => {
+				setOtherRecipes((current) => ({
+					...current,
+					[recipesHandle]: recipes,
+				}));
+				setOtherError(null);
+			})
+			.catch((error: unknown) => {
+				// 取れなかったら、次の入力で、もう一度試せるようにする。
+				requestedHandlesRef.current.delete(recipesHandle);
+				setOtherError(
+					error instanceof Error && error.message
+						? error.message
+						: "レシピを読み込めませんでした。",
+				);
+			});
+	}, [recipesHandle]);
+
 	const completion = useMemo(
 		() =>
 			getRecipeTextCompletion(value, caret, recipeNames, {
 				targets: linkTargets ?? [],
 				links: links ?? [],
+				others: hasOtherLinks
+					? { users: otherUsers, recipes: Object.values(otherRecipes).flat() }
+					: undefined,
 			}),
-		[value, caret, recipeNames, linkTargets, links],
+		[
+			value,
+			caret,
+			recipeNames,
+			linkTargets,
+			links,
+			otherUsers,
+			otherRecipes,
+			hasOtherLinks,
+		],
 	);
 	// 変換中は、変換中の補完に対応した環境だけ、候補を出す（ほかは、確定したあとに出す）。
 	const isOpen =
@@ -182,6 +308,28 @@ export function RecipeBodyTextarea({
 		(!isComposing || strategy !== "wait-for-confirmation") &&
 		completion !== null &&
 		!(closedAt?.value === value && closedAt.caret === caret);
+	// 候補がないとき（[[@ で、探している最中・見つからない・失敗）は、その理由を、補完のメニューの中に出す。
+	const otherNotice =
+		!completion && otherLinkQuery
+			? (otherError ??
+				(otherLinkQuery.stage === "users"
+					? isSearchingUsers
+						? "ユーザーを探しています…"
+						: "全体公開のレシピがある人が、見つかりません。自分のレシピは、@ を付けずに [[ だけで選べます。"
+					: otherRecipes[otherLinkQuery.handle] === undefined
+						? "レシピを読み込んでいます…"
+						: "公開されているレシピが、見つかりません。"))
+			: null;
+	const isNoticeOpen =
+		isFocused &&
+		otherNotice !== null &&
+		(!isComposing || strategy !== "wait-for-confirmation") &&
+		!(closedAt?.value === value && closedAt.caret === caret);
+	const isMenuOpen = isOpen || isNoticeOpen;
+	// 変換の確定のあと、本文とカーソルが動くまでは、メニューを、確定の前の位置（カーソルの上）に置いたままにする。
+	// 確定でメニューが下に移ると、その直後に届くクリックが、移った先に当たってしまうため。
+	const keepAbove =
+		aboveUntilChange?.value === value && aboveUntilChange.caret === caret;
 
 	// カーソルの近くに出す候補の位置を決める。入力中の行には重ねない。変換中は、IME 自身の変換候補の窓（文字の下に出る）と重ならないよう、上を先にする。
 	// biome-ignore lint/correctness/useExhaustiveDependencies: 本文・カーソル・候補・スクロールが変わったときに、測り直す。
@@ -190,7 +338,7 @@ export function RecipeBodyTextarea({
 		const popup = popupRef.current;
 		const wrapper = wrapperRef.current;
 
-		if (!isOpen || layout !== "caret" || !textarea || !popup || !wrapper) {
+		if (!isMenuOpen || layout !== "caret" || !textarea || !popup || !wrapper) {
 			setPopupPosition(null);
 
 			return;
@@ -211,7 +359,7 @@ export function RecipeBodyTextarea({
 			},
 			popup: { width: popup.offsetWidth, height: popup.offsetHeight },
 			viewport: { width: window.innerWidth, height: window.innerHeight },
-			prefer: isComposing ? "above" : "below",
+			prefer: isComposing || keepAbove ? "above" : "below",
 		});
 		const frame = wrapper.getBoundingClientRect();
 
@@ -219,11 +367,21 @@ export function RecipeBodyTextarea({
 			top: placed.top - frame.top,
 			left: placed.left - frame.left,
 		});
-	}, [isOpen, layout, caret, value, isComposing, completion, scrollTick]);
+	}, [
+		isMenuOpen,
+		layout,
+		caret,
+		value,
+		isComposing,
+		keepAbove,
+		completion,
+		otherNotice,
+		scrollTick,
+	]);
 
 	// キーボードのすぐ上に出す帯の位置。キーボードを除いた見える範囲（visualViewport）の下端に合わせる。
 	useEffect(() => {
-		if (!isOpen || layout !== "keyboard-bar") {
+		if (!isMenuOpen || layout !== "keyboard-bar") {
 			return;
 		}
 
@@ -248,7 +406,7 @@ export function RecipeBodyTextarea({
 			viewport?.removeEventListener("resize", update);
 			viewport?.removeEventListener("scroll", update);
 		};
-	}, [isOpen, layout]);
+	}, [isMenuOpen, layout]);
 
 	// 本文を書き換えたあと、本文が更新されてから、カーソルを置く。
 	useLayoutEffect(() => {
@@ -502,6 +660,10 @@ export function RecipeBodyTextarea({
 
 		const textarea = event.currentTarget;
 
+		setAboveUntilChange({
+			value: textarea.value,
+			caret: textarea.selectionStart,
+		});
 		recordHistory(
 			composition.before,
 			{ text: textarea.value, caret: textarea.selectionStart },
@@ -761,10 +923,12 @@ export function RecipeBodyTextarea({
 					status={linkTargetsStatus ?? "ready"}
 					onSelect={insertLink}
 					onClose={() => setPickerSelection(null)}
+					searchUsers={searchLinkableUsers}
+					loadUserRecipes={loadUserRecipes}
 				/>
 			) : null}
 
-			{isOpen && completion && layout === "caret" ? (
+			{isMenuOpen && layout === "caret" ? (
 				<div
 					ref={popupRef}
 					className={styles.completionPopup}
@@ -774,36 +938,46 @@ export function RecipeBodyTextarea({
 						visibility: popupPosition ? "visible" : "hidden",
 					}}
 				>
-					<ul className={styles.completionPopupList} aria-label="補完の候補">
-						{candidates}
-					</ul>
-					<p className={styles.completionPopupHint}>
-						{isComposing ? (
-							<>
-								<ShortcutKeys keys={["alt", "up-down"]} />
-								で選び、
-								<ShortcutKeys keys={["tab"]} />
-								で決定
-							</>
-						) : (
-							<>
-								<ShortcutKeys keys={["up-down"]} />
-								で選び、
-								<ShortcutKeys keys={["tab"]} />
-								で決定（
-								<ShortcutKeys keys={["esc"]} />
-								で閉じる）
-							</>
-						)}
-					</p>
+					{!completion ? (
+						<output className={styles.completionNotice}>{otherNotice}</output>
+					) : (
+						<ul className={styles.completionPopupList} aria-label="補完の候補">
+							{candidates}
+						</ul>
+					)}
+					{!completion ? null : (
+						<p className={styles.completionPopupHint}>
+							{isComposing ? (
+								<>
+									<ShortcutKeys keys={["alt", "up-down"]} />
+									で選び、
+									<ShortcutKeys keys={["tab"]} />
+									で決定
+								</>
+							) : (
+								<>
+									<ShortcutKeys keys={["up-down"]} />
+									で選び、
+									<ShortcutKeys keys={["tab"]} />
+									で決定（
+									<ShortcutKeys keys={["esc"]} />
+									で閉じる）
+								</>
+							)}
+						</p>
+					)}
 				</div>
 			) : null}
 
-			{isOpen && completion && layout === "keyboard-bar" ? (
+			{isMenuOpen && layout === "keyboard-bar" ? (
 				<div className={styles.completionBar} style={{ bottom: barBottom }}>
-					<ul className={styles.completionBarList} aria-label="補完の候補">
-						{candidates}
-					</ul>
+					{!completion ? (
+						<output className={styles.completionNotice}>{otherNotice}</output>
+					) : (
+						<ul className={styles.completionBarList} aria-label="補完の候補">
+							{candidates}
+						</ul>
+					)}
 				</div>
 			) : null}
 		</div>

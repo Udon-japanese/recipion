@@ -68,8 +68,15 @@ export async function findViewableRecipe(
 		return null;
 	}
 
+	const detail = await loadRecipeDetail(db, row.recipe, viewerUserId);
+
 	return {
-		recipe: await loadRecipeDetail(db, row.recipe, viewerUserId),
+		recipe: isOwn
+			? detail
+			: {
+					...detail,
+					author: { name: row.authorName, handle: row.authorHandle },
+				},
 		isOwn,
 		author: { name: row.authorName, handle: row.authorHandle },
 	};
