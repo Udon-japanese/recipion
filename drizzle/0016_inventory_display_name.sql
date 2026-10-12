@@ -1,2 +1,0 @@
-ALTER TABLE "inventory_item" ADD COLUMN "display_name" text;--> statement-breakpoint
-ALTER TABLE "inventory_item" ADD CONSTRAINT "inventory_item_display_name_valid" CHECK ("inventory_item"."display_name" is null or char_length(btrim("inventory_item"."display_name")) between 1 and 50);

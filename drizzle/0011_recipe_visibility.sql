@@ -1,3 +1,0 @@
-ALTER TABLE "recipe" ADD COLUMN "visibility" text DEFAULT 'private' NOT NULL;--> statement-breakpoint
-ALTER TABLE "recipe" ADD CONSTRAINT "recipe_visibility_valid" CHECK ("recipe"."visibility" IN ('private', 'unlisted', 'public'));--> statement-breakpoint
-ALTER TABLE "recipe" ADD CONSTRAINT "recipe_public_has_no_source_url" CHECK ("recipe"."visibility" = 'private' OR "recipe"."source_url" IS NULL);
