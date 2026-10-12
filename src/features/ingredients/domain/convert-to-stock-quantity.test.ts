@@ -98,3 +98,91 @@ describe("convertToStockQuantity", () => {
 		).toBeNull();
 	});
 });
+
+describe("convertToStockQuantity：在庫の単位の呼び名（本・玉・枚）", () => {
+	it("重さを個数に換算するとき、在庫の単位の呼び名に合う重さを使う（キャベツ：枚50g、玉1200g）", () => {
+		const cabbage = entryOf("キャベツ");
+		const input = { quantity: 600, unitLabel: "g" } as const;
+
+		expect(
+			convertToStockQuantity(
+				{ ...input, stockUnitCode: "count", stockUnitLabel: "玉" },
+				cabbage,
+			),
+		).toBe(0.5);
+		expect(
+			convertToStockQuantity(
+				{ ...input, stockUnitCode: "count", stockUnitLabel: "枚" },
+				cabbage,
+			),
+		).toBe(12);
+	});
+
+	it("呼び名がないか総称（個）のときは、代表の重さを使う（今までどおり）", () => {
+		const onion = entryOf("玉ねぎ");
+
+		expect(
+			convertToStockQuantity(
+				{ quantity: 400, unitLabel: "g", stockUnitCode: "count" },
+				onion,
+			),
+		).toBe(2);
+		expect(
+			convertToStockQuantity(
+				{
+					quantity: 400,
+					unitLabel: "g",
+					stockUnitCode: "count",
+					stockUnitLabel: "個",
+				},
+				onion,
+			),
+		).toBe(2);
+	});
+
+	it("個数同士で数え方が違うときは、重さを通して換算する（キャベツ 1玉 → 24枚）。重さが分からなければ換算しない", () => {
+		const cabbage = entryOf("キャベツ");
+
+		expect(
+			convertToStockQuantity(
+				{
+					quantity: 1,
+					unitLabel: "玉",
+					stockUnitCode: "count",
+					stockUnitLabel: "枚",
+				},
+				cabbage,
+			),
+		).toBe(24);
+		// 重さの定義がない数え方（束）は、換算しない
+		expect(
+			convertToStockQuantity(
+				{
+					quantity: 1,
+					unitLabel: "束",
+					stockUnitCode: "count",
+					stockUnitLabel: "枚",
+				},
+				cabbage,
+			),
+		).toBeNull();
+	});
+
+	it("数え方が同じ、総称（個）、指定なしのときは、そのままの数", () => {
+		const cabbage = entryOf("キャベツ");
+
+		for (const [unitLabel, stockUnitLabel] of [
+			["玉", "玉"],
+			["個", "玉"],
+			["玉", "個"],
+			[null, "玉"],
+		] as const) {
+			expect(
+				convertToStockQuantity(
+					{ quantity: 2, unitLabel, stockUnitCode: "count", stockUnitLabel },
+					cabbage,
+				),
+			).toBe(2);
+		}
+	});
+});

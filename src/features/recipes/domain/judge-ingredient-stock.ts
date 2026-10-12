@@ -14,6 +14,8 @@ export type RecipeIngredientNeed = {
 export type IngredientStock = {
 	quantity: number;
 	stockUnitCode: IngredientStockUnitCode;
+	// 在庫の単位の呼び名（個・本・玉・枚など）。換算に使う。
+	stockUnitLabel?: string;
 	// 有無だけ（ある／ない）で管理している食材。量は比べず、在庫があれば、足りているとする。
 	isPresenceOnly?: boolean;
 };
@@ -57,6 +59,7 @@ export function judgeIngredientStock(
 						quantity: need.quantity,
 						unitLabel: need.unitLabel,
 						stockUnitCode: stock.stockUnitCode,
+						stockUnitLabel: stock.stockUnitLabel,
 					},
 					findIngredientCatalogEntry(need.name),
 				)

@@ -69,4 +69,108 @@ describe("recordInventoryPurchase", () => {
 			quantity: 10,
 		});
 	});
+
+	describe("在庫の単位が、買い物メモの換算の単位と違うとき", () => {
+		function setup(resolved: {
+			stockUnitCode: "count" | "g" | "ml";
+			stockUnitLabel: string;
+			trackingMode?: "exact" | "estimated" | "presence";
+		}) {
+			const applyAdjustment = vi.fn().mockResolvedValue({
+				status: "applied",
+				transactionId: "t",
+				quantity: 1,
+				lots: [],
+			});
+
+			return {
+				applyAdjustment,
+				dependencies: {
+					inventoryItemResolver: {
+						resolveOrCreateInventoryItem: vi.fn().mockResolvedValue({
+							ingredientId: "i",
+							inventoryItemId: "inv",
+							name: "鶏もも肉",
+							trackingMode: "estimated",
+							quantity: 0,
+							...resolved,
+						}),
+					} satisfies InventoryItemResolver,
+					inventoryAdjustmentRepository: {
+						applyAdjustment,
+					} satisfies InventoryAdjustmentRepository,
+				},
+			};
+		}
+
+		const gramsPurchase = {
+			transactionId: "t",
+			shoppingItemId: "s",
+			ingredientName: "鶏もも肉",
+			stockUnitCode: "g" as const,
+			stockUnitLabel: "g",
+			trackingMode: "estimated" as const,
+			inputQuantity: 1,
+			inputUnitCode: "pack",
+			stockQuantityPerInputUnit: 500,
+		};
+
+		it("g で買ったものを、枚の在庫に換算して足す（500g → 2枚）", async () => {
+			const { dependencies, applyAdjustment } = setup({
+				stockUnitCode: "count",
+				stockUnitLabel: "枚",
+			});
+
+			await recordInventoryPurchase(gramsPurchase, dependencies);
+
+			expect(applyAdjustment).toHaveBeenCalledWith(
+				expect.objectContaining({
+					inputQuantity: 2,
+					inputUnitCode: "count",
+					stockQuantityPerInputUnit: 1,
+				}),
+			);
+		});
+
+		it("同じ単位なら、そのまま足す", async () => {
+			const { dependencies, applyAdjustment } = setup({
+				stockUnitCode: "g",
+				stockUnitLabel: "g",
+			});
+
+			await recordInventoryPurchase(gramsPurchase, dependencies);
+
+			expect(applyAdjustment).toHaveBeenCalledWith(
+				expect.objectContaining({
+					inputQuantity: 1,
+					inputUnitCode: "pack",
+					stockQuantityPerInputUnit: 500,
+				}),
+			);
+		});
+
+		it("換算できないときは、足さずに失敗にする（数量を狂わせない）", async () => {
+			const { dependencies, applyAdjustment } = setup({
+				stockUnitCode: "ml",
+				stockUnitLabel: "ml",
+			});
+
+			await expect(
+				recordInventoryPurchase(gramsPurchase, dependencies),
+			).rejects.toThrow("換算できません");
+			expect(applyAdjustment).not.toHaveBeenCalled();
+		});
+
+		it("有無だけの食材は、換算しない（量を使わない）", async () => {
+			const { dependencies, applyAdjustment } = setup({
+				stockUnitCode: "ml",
+				stockUnitLabel: "ml",
+				trackingMode: "presence",
+			});
+
+			await recordInventoryPurchase(gramsPurchase, dependencies);
+
+			expect(applyAdjustment).toHaveBeenCalledTimes(1);
+		});
+	});
 });
