@@ -874,8 +874,8 @@ describe("InventoryList", () => {
 				.getAllByRole("option")
 				.map((option) => option.textContent);
 
-			expect(options).toContain("枚");
-			expect(options).not.toContain("g");
+			// マスタにある単位だけ：鶏もも肉は g（いまの単位）と枚。ml や個は出ない
+			expect(options).toEqual(["枚"]);
 			expect(
 				screen.queryByRole("button", { name: "オリーブオイルの単位を変える" }),
 			).toBeNull();

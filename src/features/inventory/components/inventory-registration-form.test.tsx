@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { formatDateWithWeekday } from "../domain/expiry-labels";
@@ -27,7 +27,7 @@ describe("InventoryRegistrationForm", () => {
 
 		// 卵は、「個」で、正確に管理
 		expect(screen.getByRole("combobox", { name: "在庫の単位" })).toHaveValue(
-			"count",
+			"count:個",
 		);
 		expect(screen.getByRole("combobox", { name: "管理方法" })).toHaveValue(
 			"exact",
@@ -187,6 +187,60 @@ describe("InventoryRegistrationForm", () => {
 		);
 	});
 
+	it("在庫の単位は、マスタにある単位だけが選べる（鶏もも肉は g と枚。ml や個は出ない）", async () => {
+		const user = userEvent.setup();
+
+		render(
+			<InventoryRegistrationForm
+				registerInventoryItem={vi.fn()}
+				onRegistered={() => {}}
+			/>,
+		);
+
+		await user.type(screen.getByLabelText("食材名"), "鶏もも肉");
+
+		const unitSelect = screen.getByRole("combobox", { name: "在庫の単位" });
+
+		expect(
+			within(unitSelect)
+				.getAllByRole("option")
+				.map((option) => option.textContent),
+		).toEqual(["g", "枚"]);
+		expect(unitSelect).toHaveValue("g:g");
+	});
+
+	it("マスタにない食材は、g・ml・個に加えて、自分で呼び名を入力して登録できる", async () => {
+		const user = userEvent.setup();
+		const registerInventoryItem = vi.fn().mockResolvedValue({});
+
+		render(
+			<InventoryRegistrationForm
+				registerInventoryItem={registerInventoryItem}
+				onRegistered={() => {}}
+			/>,
+		);
+
+		await user.type(screen.getByLabelText("食材名"), "謎の缶詰");
+		await user.selectOptions(
+			screen.getByRole("combobox", { name: "在庫の単位" }),
+			"custom",
+		);
+		await user.type(screen.getByLabelText("単位の呼び名"), "缶");
+		await user.type(screen.getByLabelText(/^数量/u), "2");
+		await user.click(screen.getByRole("button", { name: "在庫に追加" }));
+
+		await waitFor(() =>
+			expect(registerInventoryItem).toHaveBeenCalledWith(
+				expect.objectContaining({
+					ingredientName: "謎の缶詰",
+					stockUnitCode: "count",
+					stockUnitLabel: "缶",
+					initialQuantity: 2,
+				}),
+			),
+		);
+	});
+
 	it("食材名の候補から選ぶと、単位が入る", async () => {
 		const user = userEvent.setup();
 
@@ -202,7 +256,7 @@ describe("InventoryRegistrationForm", () => {
 
 		expect(screen.getByLabelText("食材名")).toHaveValue("醤油");
 		expect(screen.getByRole("combobox", { name: "在庫の単位" })).toHaveValue(
-			"ml",
+			"ml:ml",
 		);
 	});
 

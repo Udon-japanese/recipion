@@ -3,8 +3,13 @@ import * as v from "valibot";
 import { IngredientNameInput } from "#/features/ingredients/components/ingredient-name-input";
 import {
 	findIngredientCatalogEntry,
+	getDefaultStockUnitLabel,
 	type IngredientPurchasePreset,
 } from "#/features/ingredients/domain/ingredient-catalog";
+import {
+	listStockUnitOptions,
+	type StockUnitOption,
+} from "#/features/ingredients/domain/list-stock-unit-options";
 import { QuantityInput } from "#/features/quantity/components/quantity-input";
 import { formatQuantity } from "#/features/quantity/domain/format-quantity";
 import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
@@ -20,7 +25,6 @@ import {
 import type { ExpiryEstimateLevel } from "../domain/estimate-lot-expiry";
 import { toDateString } from "../domain/inventory-lot";
 import { inventoryTrackingModeSchema } from "../domain/inventory-tracking-mode";
-import type { InventoryUnitCode } from "../domain/inventory-unit";
 import {
 	getLearnedRemainingDays,
 	recordExpiryHint,
@@ -46,11 +50,11 @@ type InventoryRegistrationFormProps = {
 	) => IngredientExpiryDefaults | null;
 };
 
-const stockUnitLabels: Record<InventoryUnitCode, string> = {
-	count: "個",
-	g: "g",
-	ml: "ml",
-};
+const customUnitValue = "custom";
+
+function toUnitValue(option: StockUnitOption): string {
+	return `${option.stockUnitCode}:${option.stockUnitLabel}`;
+}
 
 // 買い物メモを経由せず、在庫に食材を直接登録する（塩・醤油のように、買った記録のない食材の登録など）。
 export function InventoryRegistrationForm({
@@ -60,7 +64,9 @@ export function InventoryRegistrationForm({
 	lookupIngredientDefaults,
 }: InventoryRegistrationFormProps) {
 	const [ingredientName, setIngredientName] = useState("");
-	const [stockUnitCode, setStockUnitCode] = useState<InventoryUnitCode>("g");
+	// 在庫の単位の選択（"g:g" の形。マスタにない食材は、"custom"＝自分で入力した呼び名の個数）。
+	const [unitChoice, setUnitChoice] = useState("g:g");
+	const [customUnitLabel, setCustomUnitLabel] = useState("");
 	const [trackingMode, setTrackingMode] =
 		useState<InventoryTrackingMode>("estimated");
 	const [initialQuantity, setInitialQuantity] = useState("");
@@ -102,14 +108,42 @@ export function InventoryRegistrationForm({
 		// カタログにある食材なら、在庫の単位と管理方法の初期値を入れる（あとから変更できる）。
 		const entry = findIngredientCatalogEntry(value);
 
+		const nextOptions = listStockUnitOptions(value);
+
 		if (entry) {
-			setStockUnitCode(entry.stockUnitCode);
+			setUnitChoice(
+				toUnitValue({
+					stockUnitCode: entry.stockUnitCode,
+					stockUnitLabel: getDefaultStockUnitLabel(entry.stockUnitCode),
+				}),
+			);
 			setTrackingMode(entry.defaultTrackingMode);
+		} else if (
+			unitChoice !== customUnitValue &&
+			!nextOptions.some((option) => toUnitValue(option) === unitChoice)
+		) {
+			setUnitChoice(
+				toUnitValue(
+					nextOptions[0] ?? { stockUnitCode: "g", stockUnitLabel: "g" },
+				),
+			);
 		}
 
 		// カタログにある食材の、買うときの数量（数量ボタン）。
 		setPresets(entry?.presets ?? []);
 	}
+
+	// マスタにある単位だけを、選べる。マスタにない食材は、自分で呼び名を入力することもできる。
+	const isInCatalog = findIngredientCatalogEntry(ingredientName) !== undefined;
+	const unitOptions = listStockUnitOptions(ingredientName);
+	const stockUnit: StockUnitOption =
+		unitChoice === customUnitValue
+			? {
+					stockUnitCode: "count",
+					stockUnitLabel: customUnitLabel.trim() || "個",
+				}
+			: (unitOptions.find((option) => toUnitValue(option) === unitChoice) ??
+				unitOptions[0] ?? { stockUnitCode: "g", stockUnitLabel: "g" });
 
 	function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
 		event.preventDefault();
@@ -143,8 +177,8 @@ export function InventoryRegistrationForm({
 			input = parseRegisterInventoryItemInput({
 				transactionId: crypto.randomUUID(),
 				ingredientName,
-				stockUnitCode,
-				stockUnitLabel: stockUnitLabels[stockUnitCode],
+				stockUnitCode: stockUnit.stockUnitCode,
+				stockUnitLabel: stockUnit.stockUnitLabel,
 				trackingMode,
 				// 空欄は、数量なしで食材だけを登録する。
 				initialQuantity:
@@ -217,16 +251,35 @@ export function InventoryRegistrationForm({
 					<span className={styles.label}>在庫の単位</span>
 					<select
 						className={styles.input}
-						value={stockUnitCode}
-						onChange={(event) =>
-							setStockUnitCode(event.target.value as InventoryUnitCode)
+						value={
+							unitChoice === customUnitValue
+								? customUnitValue
+								: toUnitValue(stockUnit)
 						}
+						onChange={(event) => setUnitChoice(event.target.value)}
 					>
-						<option value="count">個</option>
-						<option value="g">g</option>
-						<option value="ml">ml</option>
+						{unitOptions.map((option) => (
+							<option value={toUnitValue(option)} key={toUnitValue(option)}>
+								{option.stockUnitLabel}
+							</option>
+						))}
+						{isInCatalog ? null : (
+							<option value={customUnitValue}>その他（自分で入力）</option>
+						)}
 					</select>
 				</label>
+
+				{unitChoice === customUnitValue && !isInCatalog ? (
+					<label className={styles.field}>
+						<span className={styles.label}>単位の呼び名</span>
+						<input
+							className={styles.input}
+							value={customUnitLabel}
+							placeholder="パック、袋、本など"
+							onChange={(event) => setCustomUnitLabel(event.target.value)}
+						/>
+					</label>
+				) : null}
 
 				<label className={styles.field}>
 					<span className={styles.label}>管理方法</span>
@@ -251,14 +304,14 @@ export function InventoryRegistrationForm({
 							className={styles.label}
 							htmlFor="inventory-initial-quantity"
 						>
-							数量（{stockUnitLabels[stockUnitCode]}）
+							数量（{stockUnit.stockUnitLabel}）
 						</label>
 						<QuantityInput
 							className={styles.input}
 							id="inventory-initial-quantity"
 							value={initialQuantity}
 							onChange={setInitialQuantity}
-							unitLabel={stockUnitLabels[stockUnitCode]}
+							unitLabel={stockUnit.stockUnitLabel}
 						/>
 					</div>
 				) : null}
