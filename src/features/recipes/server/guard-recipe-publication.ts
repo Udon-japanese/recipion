@@ -1,4 +1,5 @@
 import type { DB } from "#/db/client";
+import { notifyAdminsOf } from "#/features/admin/server/notify-admins";
 import { describeFlagReasons } from "#/features/moderation/application/publish-refusal-message";
 import { enforceModeration } from "#/features/moderation/server/enforce-moderation";
 import { collectRecipeModerationItems } from "#/features/recipes/application/collect-moderation-items";
@@ -34,11 +35,18 @@ export async function guardRecipePublication(
 
 	return {
 		recordFlag: async (publicId) => {
-			await createDrizzleReportRepository(db).createAutoDetected({
-				recipePublicId: publicId,
-				detail: describeFlagReasons(flagged),
-				now: new Date(),
-			});
+			const result = await createDrizzleReportRepository(db).createAutoDetected(
+				{
+					recipePublicId: publicId,
+					detail: describeFlagReasons(flagged),
+					now: new Date(),
+				},
+			);
+
+			// 新しい自動検知が入ったら、管理者に知らせる（送れなくても、公開は成功のまま）。
+			if (result === "created") {
+				await notifyAdminsOf(db, "auto-detected");
+			}
 		},
 	};
 }

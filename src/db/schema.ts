@@ -1,3 +1,4 @@
+export * from "#/features/admin/infrastructure/admin-notification.sql";
 export * from "#/features/ingredients/infrastructure/ingredient.sql";
 export * from "#/features/inventory/infrastructure/inventory.sql";
 export * from "#/features/moderation/infrastructure/moderation.sql";
