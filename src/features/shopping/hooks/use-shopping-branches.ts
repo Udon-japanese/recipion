@@ -8,6 +8,7 @@ import {
 	maxShoppingBranchCount,
 	type ShoppingBranch,
 	type ShoppingBranchSide,
+	suggestShoppingBranchSideLabel,
 } from "../domain/shopping-branch";
 import {
 	type CreateShoppingItemInput,
@@ -176,5 +177,39 @@ export function useShoppingBranches({
 		}
 	}
 
-	return { branches, addBranch, removeBranch, decideBranch };
+	// 側の呼び名が空なら、レシピの名前などを呼び名にする（すでにあれば、変えない）。
+	async function labelSideIfEmpty(
+		branchId: string,
+		side: ShoppingBranchSide,
+		name: string,
+	): Promise<void> {
+		const branch = branches.find((entry) => entry.id === branchId);
+		const label = branch
+			? suggestShoppingBranchSideLabel(branch, side, name)
+			: null;
+
+		if (!branch || label === null) {
+			return;
+		}
+
+		try {
+			await repository.setSideLabel(branchId, side, label);
+			setBranches((current) =>
+				current.map((entry) =>
+					entry.id === branchId
+						? {
+								...entry,
+								...(side === "then"
+									? { thenLabel: label }
+									: { elseLabel: label }),
+							}
+						: entry,
+				),
+			);
+		} catch {
+			// 呼び名は、あれば便利という程度なので、保存できなくても、メモへの追加は成功のままにする。
+		}
+	}
+
+	return { branches, addBranch, removeBranch, decideBranch, labelSideIfEmpty };
 }

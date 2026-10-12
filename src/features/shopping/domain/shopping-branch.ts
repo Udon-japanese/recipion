@@ -74,6 +74,18 @@ export function createShoppingBranch(
 	};
 }
 
+// 側の呼び名が空のとき、レシピの名前などを呼び名にする（すでにあれば、変えない）。長すぎる名前は、切り詰める。
+export function suggestShoppingBranchSideLabel(
+	branch: ShoppingBranch,
+	side: ShoppingBranchSide,
+	name: string,
+): string | null {
+	const current = side === "then" ? branch.thenLabel : branch.elseLabel;
+	const label = name.trim().slice(0, maxShoppingBranchLabelLength);
+
+	return current || label === "" ? null : label;
+}
+
 export function getShoppingBranchConditionItem(
 	items: readonly ShoppingItem[],
 	branchId: string,

@@ -46,6 +46,13 @@ export const dexieShoppingBranchRepository = {
 		);
 	},
 
+	async setSideLabel(branchId, side, label) {
+		await getLocalDatabase().shoppingBranches.update(
+			branchId,
+			side === "then" ? { thenLabel: label } : { elseLabel: label },
+		);
+	},
+
 	async applyDecision(branchId, released, discardedIds) {
 		const database = getLocalDatabase();
 

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { ShoppingRepository } from "../application/shopping-repository";
 import {
 	type CreateShoppingBranchInput,
 	defaultShoppingBranchCondition,
@@ -14,6 +15,7 @@ import type {
 	ShoppingItem,
 } from "../domain/shopping-item";
 import type { ShoppingStore } from "../domain/shopping-store";
+import type { RenderRecipePicker } from "./recipe-picker-slot";
 import { ShoppingItemForm } from "./shopping-item-form";
 import * as styles from "./shopping-list.css";
 
@@ -39,6 +41,16 @@ type ShoppingBranchSectionProps = {
 		input: CreateShoppingItemInput,
 	) => Promise<boolean>;
 	onRemoveItem: (itemId: string) => Promise<boolean>;
+	// 「レシピから入れる」の部品（ログイン中だけ渡される）。
+	renderRecipePicker?: RenderRecipePicker;
+	// レシピの材料を、その側に入れたあと（呼び名の設定と、一覧の読み直しに使う）。
+	onRecipeApplied?: (
+		branch: ShoppingBranch,
+		side: ShoppingBranchSide,
+		recipeName: string,
+	) => void;
+	// レシピの材料を入れる先の、メモの保存先。
+	repository?: ShoppingRepository;
 };
 
 function sideTitle(label: string | null, fallback: string): string {
@@ -57,7 +69,12 @@ export function ShoppingBranchSection({
 	onDecide,
 	onAddItem,
 	onRemoveItem,
+	renderRecipePicker,
+	onRecipeApplied,
+	repository,
 }: ShoppingBranchSectionProps) {
+	// 「レシピから入れる」を開いている側（分岐の ID と側）。
+	const [pickingKey, setPickingKey] = useState<string | null>(null);
 	const [condition, setCondition] = useState(defaultShoppingBranchCondition);
 	const [thenLabel, setThenLabel] = useState("");
 	const [elseLabel, setElseLabel] = useState("");
@@ -132,6 +149,26 @@ export function ShoppingBranchSection({
 												))}
 											</ul>
 										)}
+
+										{renderRecipePicker && repository ? (
+											pickingKey === `${branch.id}:${side}` ? (
+												renderRecipePicker({
+													repository,
+													destination: { branchId: branch.id, side },
+													onClose: () => setPickingKey(null),
+													onApplied: (recipeName) =>
+														onRecipeApplied?.(branch, side, recipeName),
+												})
+											) : (
+												<button
+													className={styles.sortButton}
+													type="button"
+													onClick={() => setPickingKey(`${branch.id}:${side}`)}
+												>
+													{`${title}にレシピから入れる`}
+												</button>
+											)
+										) : null}
 
 										<details>
 											<summary>{title}に追加</summary>
