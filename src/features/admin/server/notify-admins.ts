@@ -2,6 +2,7 @@ import { env } from "cloudflare:workers";
 import type { DB } from "#/db/client";
 import { createDrizzleAppealRepository } from "#/features/moderation/infrastructure/drizzle-appeal-repository";
 import { createDrizzleReportRepository } from "#/features/reports/infrastructure/drizzle-report-repository";
+import { createDrizzleUserReportRepository } from "#/features/reports/infrastructure/drizzle-user-report-repository";
 import { parseAdminEmails } from "#/integrations/cloudflare-access/access-token";
 import { sendAdminNotificationEmail } from "#/integrations/email/send-admin-notification-email";
 import { notifyAdmins } from "../application/notify-admins";
@@ -28,10 +29,17 @@ export async function notifyAdminsOf(
 	await notifyAdmins(kind, {
 		claimSlot: notifications.claimSlot,
 		releaseSlot: notifications.release,
-		countOpen: (target) =>
-			target === "appeal"
-				? createDrizzleAppealRepository(db).countOpen()
-				: createDrizzleReportRepository(db).countOpen(),
+		countOpen: (target) => {
+			if (target === "appeal") {
+				return createDrizzleAppealRepository(db).countOpen();
+			}
+
+			if (target === "user-report") {
+				return createDrizzleUserReportRepository(db).countOpen();
+			}
+
+			return createDrizzleReportRepository(db).countOpen();
+		},
 		send: async (message) => {
 			if (env.RESEND_API_KEY && env.AUTH_EMAIL_FROM) {
 				await sendAdminNotificationEmail({

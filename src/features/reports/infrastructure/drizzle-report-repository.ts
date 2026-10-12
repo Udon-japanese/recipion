@@ -1,10 +1,10 @@
 import { and, asc, count, desc, eq, gte, sql } from "drizzle-orm";
 
 import type { DB } from "#/db/client";
+import { isUniqueViolation } from "#/db/is-unique-violation";
 import { parseRecipeVisibility } from "#/features/recipes/domain/recipe-link-permission";
 import { recipe } from "#/features/recipes/infrastructure/recipe.sql";
 import { user } from "#/integrations/better-auth/auth.sql";
-
 import type { ReportRepository } from "../application/report-repository";
 import {
 	maxReportsPerDay,
@@ -15,25 +15,6 @@ import {
 	reportReasons,
 } from "../domain/report";
 import { recipeReport } from "./report.sql";
-
-type PostgresError = { code?: unknown; constraint?: unknown; cause?: unknown };
-
-// 一意制約への違反か（Drizzle は、元のエラーを cause に入れることがある）。
-function isUniqueViolation(error: unknown, constraint: string): boolean {
-	for (
-		let current: unknown = error;
-		typeof current === "object" && current !== null;
-		current = (current as PostgresError).cause
-	) {
-		const { code, constraint: name } = current as PostgresError;
-
-		if (code === "23505" && name === constraint) {
-			return true;
-		}
-	}
-
-	return false;
-}
 
 function toReportReason(value: string): ReportReason {
 	return reportReasons.find((reason) => reason === value) ?? "other";
