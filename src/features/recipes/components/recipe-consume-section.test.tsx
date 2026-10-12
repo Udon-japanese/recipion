@@ -155,6 +155,32 @@ describe("RecipeConsumeSection", () => {
 		expect(operation?.sourceId).toBe(consume.mock.calls[0]?.[0].sourceId);
 	});
 
+	it("有無だけで管理している食材は、量が決まっていても減らさず、その理由を表示する", async () => {
+		const user = userEvent.setup();
+		const { consume } = setup({
+			ingredients: [ingredient("i1", "オリーブオイル", 2, "大さじ")],
+			loadInventoryItems: async () => [
+				buildInventoryListItem({
+					inventoryItemId: "inv-oil",
+					name: "オリーブオイル",
+					quantity: 1,
+					stockUnitCode: "ml",
+					stockUnitLabel: "ml",
+					trackingMode: "presence",
+				}),
+			],
+		});
+
+		await user.click(screen.getByRole("button", { name: /作った/u }));
+
+		expect(
+			await screen.findByText(
+				/オリーブオイル：「ある」で管理しているため、減らしていません/u,
+			),
+		).toBeInTheDocument();
+		expect(consume.mock.calls[0]?.[0].entries).toEqual([]);
+	});
+
 	it("元に戻すと、同じ操作の印で取り消す", async () => {
 		const user = userEvent.setup();
 		const { consume, undo } = setup();

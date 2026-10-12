@@ -1,4 +1,5 @@
 import { type SubmitEvent, useEffect, useMemo, useState } from "react";
+import * as v from "valibot";
 import { IngredientNameInput } from "#/features/ingredients/components/ingredient-name-input";
 import {
 	findIngredientCatalogEntry,
@@ -18,6 +19,7 @@ import {
 } from "../domain/build-expiry-prefill";
 import type { ExpiryEstimateLevel } from "../domain/estimate-lot-expiry";
 import { toDateString } from "../domain/inventory-lot";
+import { inventoryTrackingModeSchema } from "../domain/inventory-tracking-mode";
 import type { InventoryUnitCode } from "../domain/inventory-unit";
 import {
 	getLearnedRemainingDays,
@@ -111,10 +113,11 @@ export function InventoryRegistrationForm({
 
 	function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
 		event.preventDefault();
-		void submit(false);
+		// 管理方法が「有無だけ」なら、数量はなく、「ある」で登録する。
+		void submit(trackingMode === "presence");
 	}
 
-	// markAsAvailable が true のときは、数量を入れず、「ある」の目印だけを付ける（塩・醤油など）。
+	// markAsAvailable が true のときは、数量を入れず、「ある」（有無だけ）で登録する（塩・醤油など）。
 	async function submit(markAsAvailable: boolean) {
 		if (isSubmitting) {
 			return;
@@ -231,28 +234,36 @@ export function InventoryRegistrationForm({
 						className={styles.input}
 						value={trackingMode}
 						onChange={(event) =>
-							setTrackingMode(event.target.value as InventoryTrackingMode)
+							setTrackingMode(
+								v.parse(inventoryTrackingModeSchema, event.target.value),
+							)
 						}
 					>
 						<option value="estimated">だいたいで管理</option>
 						<option value="exact">正確に管理</option>
+						<option value="presence">有無だけ（量は追わない）</option>
 					</select>
 				</label>
 
-				<div className={styles.field}>
-					<label className={styles.label} htmlFor="inventory-initial-quantity">
-						数量（{stockUnitLabels[stockUnitCode]}）
-					</label>
-					<QuantityInput
-						className={styles.input}
-						id="inventory-initial-quantity"
-						value={initialQuantity}
-						onChange={setInitialQuantity}
-					/>
-				</div>
+				{trackingMode !== "presence" ? (
+					<div className={styles.field}>
+						<label
+							className={styles.label}
+							htmlFor="inventory-initial-quantity"
+						>
+							数量（{stockUnitLabels[stockUnitCode]}）
+						</label>
+						<QuantityInput
+							className={styles.input}
+							id="inventory-initial-quantity"
+							value={initialQuantity}
+							onChange={setInitialQuantity}
+						/>
+					</div>
+				) : null}
 			</div>
 
-			{presets.length > 0 ? (
+			{trackingMode !== "presence" && presets.length > 0 ? (
 				<fieldset className={styles.presets}>
 					<legend className={styles.label}>よく使う数量</legend>
 					<div className={styles.presetList}>
@@ -291,7 +302,7 @@ export function InventoryRegistrationForm({
 			/>
 
 			<p className={styles.hint}>
-				数量が空欄のときは、食材だけを登録します。塩や醤油のように、量を追わない食材は、「ある」を押してください（「少々」「適量」で使う食材は、在庫があれば「足りている」と判定します）。
+				数量が空欄のときは、食材だけを登録します。塩や醤油のように、量を追わない食材は、「ある」を押してください（管理方法が「有無だけ」になり、レシピの量にかかわらず、在庫があれば「足りている」と判定します）。
 			</p>
 
 			{errorMessage ? (

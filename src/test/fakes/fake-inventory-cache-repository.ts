@@ -77,6 +77,9 @@ export function createFakeInventoryCacheRepository(
 								...(stock.defaultStorage !== undefined
 									? { defaultStorage: stock.defaultStorage }
 									: {}),
+								...(stock.trackingMode !== undefined
+									? { trackingMode: stock.trackingMode }
+									: {}),
 								updatedAt: now.toISOString(),
 							}
 						: item,

@@ -435,8 +435,7 @@ export function RecipeShoppingSection({
 							registerAvailable !== undefined &&
 							row.stock.kind === "judged" &&
 							row.stock.judgment.status === "short" &&
-							row.stock.judgment.basis === "presence" &&
-							!row.stock.judgment.isRegistered;
+							!row.stock.judgment.hasStock;
 
 						return (
 							<Fragment key={row.need.id}>

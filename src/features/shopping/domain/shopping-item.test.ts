@@ -60,6 +60,34 @@ describe("createShoppingItem", () => {
 		).toEqual(specified);
 	});
 
+	it("有無だけで管理する食材は、数量に換算した表示を出さない", () => {
+		const item = createShoppingItem({
+			name: "醤油",
+			quantity: 1,
+			unitLabel: "本",
+			inventoryConversion: {
+				inputUnitCode: "bottle",
+				stockUnitCode: "ml",
+				stockUnitLabel: "ml",
+				stockQuantityPerInputUnit: 500,
+				trackingMode: "presence",
+			},
+		});
+
+		expect(getShoppingItemConvertedQuantityLabel(item)).toBeNull();
+		expect(
+			getShoppingItemConvertedQuantityLabel({
+				...item,
+				inventoryConversion: {
+					...(item.inventoryConversion as NonNullable<
+						typeof item.inventoryConversion
+					>),
+					trackingMode: "estimated",
+				},
+			}),
+		).toBe("500ml");
+	});
+
 	it("商品カテゴリを指定できる", () => {
 		const item = createShoppingItem({
 			name: "卵",

@@ -493,4 +493,155 @@ describe("InventoryList", () => {
 			);
 		});
 	});
+
+	describe("有無だけで管理している食材", () => {
+		const oilId = "6b1d4f0e-0a0e-4c85-9a3f-111111111111";
+
+		function presenceItem(quantity: number, overrides = {}): InventoryListItem {
+			return {
+				inventoryItemId: oilId,
+				ingredientId: "oil-ingredient",
+				name: "オリーブオイル",
+				quantity,
+				lots: quantity > 0 ? [createLot({ id: "lot-1", quantity })] : [],
+				stockUnitCode: "ml",
+				stockUnitLabel: "ml",
+				trackingMode: "presence",
+				defaultExpiryKind: null,
+				defaultStorage: null,
+				updatedAt: "2026-09-23T00:00:00.000Z",
+				...overrides,
+			};
+		}
+
+		it("数量を出さず、「あり」だけを表示し、ロットにも数量を出さない", async () => {
+			render(
+				<InventoryList
+					ownerScope="user:user-id"
+					loadInventoryItems={async () =>
+						createNetworkResult([presenceItem(1)])
+					}
+					adjustInventoryItem={vi.fn()}
+				/>,
+			);
+
+			expect(await screen.findByText("オリーブオイル")).toBeInTheDocument();
+			expect(screen.getByText("あり")).toBeInTheDocument();
+			expect(screen.queryByText(/\d+\s*ml/u)).toBeNull();
+			expect(screen.queryByRole("button", { name: "調整" })).toBeNull();
+		});
+
+		it("「なくなった」で「なし」になり、「ある」で「あり」に戻る", async () => {
+			const user = userEvent.setup();
+			const adjustInventoryItem = vi
+				.fn()
+				.mockResolvedValueOnce({
+					status: "applied",
+					transactionId: "t1",
+					quantity: 0,
+					lots: [],
+				})
+				.mockResolvedValueOnce({
+					status: "applied",
+					transactionId: "t2",
+					quantity: 1,
+					lots: [createLot({ id: "lot-2", quantity: 1 })],
+				});
+
+			render(
+				<InventoryList
+					ownerScope="user:user-id"
+					loadInventoryItems={async () =>
+						createNetworkResult([presenceItem(1)])
+					}
+					adjustInventoryItem={adjustInventoryItem}
+				/>,
+			);
+
+			await user.click(
+				await screen.findByRole("button", { name: "なくなった" }),
+			);
+
+			expect(await screen.findByText("なし")).toBeInTheDocument();
+			expect(adjustInventoryItem).toHaveBeenLastCalledWith(
+				expect.objectContaining({ operation: "decrease" }),
+			);
+
+			await user.click(screen.getByRole("button", { name: "ある" }));
+
+			expect(await screen.findByText("あり")).toBeInTheDocument();
+			expect(adjustInventoryItem).toHaveBeenLastCalledWith(
+				expect.objectContaining({ operation: "increase" }),
+			);
+		});
+
+		it("量を追う管理に変えるときは、いまの量を入れてもらう", async () => {
+			const user = userEvent.setup();
+			const changeTrackingMode = vi.fn().mockResolvedValue({
+				inventoryItemId: oilId,
+				trackingMode: "estimated",
+				quantity: 300,
+				lots: [createLot({ id: "lot-1", quantity: 300 })],
+			});
+
+			render(
+				<InventoryList
+					ownerScope="user:user-id"
+					loadInventoryItems={async () =>
+						createNetworkResult([presenceItem(1)])
+					}
+					changeTrackingMode={changeTrackingMode}
+				/>,
+			);
+
+			await user.click(
+				await screen.findByRole("button", { name: "量を追う管理にする" }),
+			);
+			await user.type(screen.getByLabelText("オリーブオイルのいまの量"), "300");
+			await user.click(
+				screen.getByRole("button", { name: "この量で管理する" }),
+			);
+
+			// 食材の数量と、ロットの数量
+			expect(await screen.findAllByText("約 300ml")).toHaveLength(2);
+			expect(changeTrackingMode).toHaveBeenCalledWith({
+				inventoryItemId: oilId,
+				trackingMode: "estimated",
+				currentQuantity: 300,
+			});
+		});
+
+		it("量を追う食材は、「有無だけにする」で、数量を出さなくなる", async () => {
+			const user = userEvent.setup();
+			const changeTrackingMode = vi.fn().mockResolvedValue({
+				inventoryItemId: oilId,
+				trackingMode: "presence",
+				quantity: 1,
+				lots: [createLot({ id: "lot-1", quantity: 1 })],
+			});
+
+			render(
+				<InventoryList
+					ownerScope="user:user-id"
+					loadInventoryItems={async () =>
+						createNetworkResult([
+							presenceItem(300, { trackingMode: "estimated" }),
+						])
+					}
+					changeTrackingMode={changeTrackingMode}
+				/>,
+			);
+
+			expect(await screen.findAllByText("約 300ml")).toHaveLength(2);
+
+			await user.click(screen.getByRole("button", { name: "有無だけにする" }));
+
+			expect(await screen.findByText("あり")).toBeInTheDocument();
+			expect(screen.queryByText(/300/u)).toBeNull();
+			expect(changeTrackingMode).toHaveBeenCalledWith({
+				inventoryItemId: oilId,
+				trackingMode: "presence",
+			});
+		});
+	});
 });

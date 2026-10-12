@@ -20,5 +20,6 @@ export const registerInventoryItemServerFn = createServerFn({
 		return registerInventoryItem(data, {
 			inventoryItemResolver: repository,
 			inventoryAdjustmentRepository: repository,
+			inventoryTrackingModeRepository: repository,
 		});
 	});

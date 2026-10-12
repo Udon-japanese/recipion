@@ -1,3 +1,4 @@
+import type { InventoryTrackingMode } from "#/features/inventory/domain/inventory-tracking-mode";
 import type { ShoppingCategoryId } from "#/features/shopping/domain/shopping-category";
 import { ingredientCatalogEntries } from "./ingredient-catalog-data/index";
 import { normalizeIngredientName } from "./normalize-ingredient-name";
@@ -24,7 +25,7 @@ export type IngredientPurchasePreset = {
 		stockUnitCode: IngredientStockUnitCode;
 		stockUnitLabel: string;
 		stockQuantityPerInputUnit: number;
-		trackingMode: "exact" | "estimated";
+		trackingMode: InventoryTrackingMode;
 	};
 };
 
@@ -55,7 +56,7 @@ export type IngredientCatalogEntry = {
 	aliases: readonly string[];
 	// 在庫を登録するときの初期値（在庫の単位と管理方法）。
 	stockUnitCode: IngredientStockUnitCode;
-	defaultTrackingMode: "exact" | "estimated";
+	defaultTrackingMode: InventoryTrackingMode;
 	// 個数→重量（例：玉ねぎ 中1個 → 約200g）。
 	unitWeights?: readonly IngredientUnitWeight[];
 	// 密度。大さじ・小さじ・カップ（体積）と、重さ（g）の換算に使う。

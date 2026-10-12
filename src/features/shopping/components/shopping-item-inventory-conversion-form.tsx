@@ -1,7 +1,14 @@
 import { type SubmitEvent, useState } from "react";
 import * as v from "valibot";
 
-import { findIngredientCatalogEntry } from "#/features/ingredients/domain/ingredient-catalog";
+import {
+	findIngredientCatalogEntry,
+	getDefaultStockUnitLabel,
+} from "#/features/ingredients/domain/ingredient-catalog";
+import {
+	type InventoryTrackingMode,
+	inventoryTrackingModeSchema,
+} from "#/features/inventory/domain/inventory-tracking-mode";
 
 import type {
 	ShoppingItem,
@@ -37,7 +44,7 @@ const genericConversionSchema = v.object({
 		v.finite("換算数量には有限の数値を指定してください"),
 		v.gtValue(0, "換算数量は0より大きくしてください"),
 	),
-	trackingMode: v.picklist(["exact", "estimated"]),
+	trackingMode: inventoryTrackingModeSchema,
 });
 
 function getErrorMessage(error: unknown): string {
@@ -75,7 +82,7 @@ export function ShoppingItemInventoryConversionForm({
 	const [stockQuantityPerInputUnit, setStockQuantityPerInputUnit] =
 		useState("1");
 
-	const [trackingMode, setTrackingMode] = useState<"exact" | "estimated">(
+	const [trackingMode, setTrackingMode] = useState<InventoryTrackingMode>(
 		catalogEntry && lockedStockUnitCode
 			? catalogEntry.defaultTrackingMode
 			: "estimated",
@@ -104,6 +111,25 @@ export function ShoppingItemInventoryConversionForm({
 		setErrorMessage(null);
 
 		try {
+			// 有無だけは、量の換算がいらない（「ある」になるだけ）。
+			if (trackingMode === "presence") {
+				await onSave({
+					quantity: item.quantity,
+					unitLabel: item.unitLabel,
+					inventoryConversion: {
+						inputUnitCode: item.unitLabel?.trim() || "unit",
+						stockUnitCode: lockedStockUnitCode ?? "count",
+						stockUnitLabel: lockedStockUnitCode
+							? getDefaultStockUnitLabel(lockedStockUnitCode)
+							: "個",
+						stockQuantityPerInputUnit: 1,
+						trackingMode: "presence",
+					},
+				});
+
+				return;
+			}
+
 			const conversion = v.parse(genericConversionSchema, {
 				stockUnitCode,
 				stockUnitLabel,
@@ -164,62 +190,6 @@ export function ShoppingItemInventoryConversionForm({
 			) : null}
 
 			<form className={styles.form} onSubmit={handleSubmit}>
-				<p className={styles.formula}>1{item.unitLabel ?? "単位"}あたり</p>
-
-				<label className={styles.field}>
-					<span className={styles.label}>在庫で使う単位</span>
-
-					<select
-						className={styles.input}
-						value={stockUnitCode}
-						disabled={lockedStockUnitCode !== null}
-						onChange={(event) =>
-							handleStockUnitChange(event.target.value as "count" | "g" | "ml")
-						}
-					>
-						<option value="count">個数・枚数・本数など</option>
-						<option value="g">グラム</option>
-						<option value="ml">ミリリットル</option>
-					</select>
-				</label>
-
-				{lockedStockUnitCode !== null ? (
-					<p className={styles.formula}>
-						{item.name}の在庫の単位は、決まっています（変更できません）。
-					</p>
-				) : null}
-
-				<label className={styles.field}>
-					<span className={styles.label}>
-						1{item.unitLabel ?? "単位"}あたりの数量
-					</span>
-
-					<input
-						className={styles.input}
-						type="number"
-						inputMode="decimal"
-						min="0"
-						step="any"
-						value={stockQuantityPerInputUnit}
-						onChange={(event) =>
-							setStockQuantityPerInputUnit(event.target.value)
-						}
-					/>
-				</label>
-
-				{stockUnitCode === "count" ? (
-					<label className={styles.field}>
-						<span className={styles.label}>表示単位</span>
-
-						<input
-							className={styles.input}
-							value={stockUnitLabel}
-							placeholder="個、枚、本など"
-							onChange={(event) => setStockUnitLabel(event.target.value)}
-						/>
-					</label>
-				) : null}
-
 				<label className={styles.field}>
 					<span className={styles.label}>在庫管理方法</span>
 
@@ -227,13 +197,78 @@ export function ShoppingItemInventoryConversionForm({
 						className={styles.input}
 						value={trackingMode}
 						onChange={(event) =>
-							setTrackingMode(event.target.value as "exact" | "estimated")
+							setTrackingMode(
+								v.parse(inventoryTrackingModeSchema, event.target.value),
+							)
 						}
 					>
 						<option value="estimated">だいたいで管理</option>
 						<option value="exact">正確に管理</option>
+						<option value="presence">有無だけ（量は追わない）</option>
 					</select>
 				</label>
+
+				{trackingMode !== "presence" ? (
+					<>
+						<p className={styles.formula}>1{item.unitLabel ?? "単位"}あたり</p>
+
+						<label className={styles.field}>
+							<span className={styles.label}>在庫で使う単位</span>
+
+							<select
+								className={styles.input}
+								value={stockUnitCode}
+								disabled={lockedStockUnitCode !== null}
+								onChange={(event) =>
+									handleStockUnitChange(
+										event.target.value as "count" | "g" | "ml",
+									)
+								}
+							>
+								<option value="count">個数・枚数・本数など</option>
+								<option value="g">グラム</option>
+								<option value="ml">ミリリットル</option>
+							</select>
+						</label>
+
+						{lockedStockUnitCode !== null ? (
+							<p className={styles.formula}>
+								{item.name}の在庫の単位は、決まっています（変更できません）。
+							</p>
+						) : null}
+
+						<label className={styles.field}>
+							<span className={styles.label}>
+								1{item.unitLabel ?? "単位"}あたりの数量
+							</span>
+
+							<input
+								className={styles.input}
+								type="number"
+								inputMode="decimal"
+								min="0"
+								step="any"
+								value={stockQuantityPerInputUnit}
+								onChange={(event) =>
+									setStockQuantityPerInputUnit(event.target.value)
+								}
+							/>
+						</label>
+
+						{stockUnitCode === "count" ? (
+							<label className={styles.field}>
+								<span className={styles.label}>表示単位</span>
+
+								<input
+									className={styles.input}
+									value={stockUnitLabel}
+									placeholder="個、枚、本など"
+									onChange={(event) => setStockUnitLabel(event.target.value)}
+								/>
+							</label>
+						) : null}
+					</>
+				) : null}
 
 				<div className={styles.actions}>
 					<button

@@ -122,7 +122,7 @@ describe("InventoryRegistrationForm", () => {
 		expect(onRegistered).not.toHaveBeenCalled();
 	});
 
-	it("「ある」を押すと、数量を入れず、目印だけを付けて登録する", async () => {
+	it("「ある」を押すと、数量を入れず、有無だけで登録する", async () => {
 		const user = userEvent.setup();
 		const registerInventoryItem = vi.fn().mockResolvedValue({});
 		const onRegistered = vi.fn();
@@ -152,6 +152,39 @@ describe("InventoryRegistrationForm", () => {
 		expect(
 			await screen.findByText("塩を「ある」で登録しました"),
 		).toBeInTheDocument();
+	});
+
+	it("管理方法を「有無だけ」にすると、数量の欄を隠し、登録は「ある」になる", async () => {
+		const user = userEvent.setup();
+		const registerInventoryItem = vi.fn().mockResolvedValue({});
+
+		render(
+			<InventoryRegistrationForm
+				registerInventoryItem={registerInventoryItem}
+				onRegistered={() => {}}
+			/>,
+		);
+
+		await user.type(screen.getByLabelText("食材名"), "オリーブオイル");
+		await user.selectOptions(
+			screen.getByRole("combobox", { name: "管理方法" }),
+			"presence",
+		);
+
+		expect(screen.queryByLabelText(/^数量/u)).toBeNull();
+
+		await user.click(screen.getByRole("button", { name: "在庫に追加" }));
+
+		await waitFor(() =>
+			expect(registerInventoryItem).toHaveBeenCalledWith(
+				expect.objectContaining({
+					ingredientName: "オリーブオイル",
+					trackingMode: "presence",
+					initialQuantity: 0,
+					markAsAvailable: true,
+				}),
+			),
+		);
 	});
 
 	it("食材名の候補から選ぶと、単位が入る", async () => {

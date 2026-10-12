@@ -330,3 +330,39 @@ describe("planShoppingFromRecipe：冷凍野菜が代わりになる", () => {
 		expect(row?.defaultChecked).toBe(true);
 	});
 });
+
+describe("planShoppingFromRecipe：有無だけで管理している食材", () => {
+	const oliveOil = {
+		name: "オリーブオイル",
+		quantity: 1,
+		stockUnitCode: "ml" as const,
+		stockUnitLabel: "ml",
+		trackingMode: "presence" as const,
+	};
+
+	it("同じ食材の行が、量の有無にかかわらず、すべて足りている（チェックなし）", () => {
+		const rows = plan({
+			needs: [
+				need("オリーブオイル", null, null, "a"),
+				need("オリーブオイル", 2, "大さじ", "b"),
+			],
+			stockItems: [oliveOil],
+		});
+
+		expect(rows.map((row) => row.defaultChecked)).toEqual([false, false]);
+		expect(rows.map((row) => row.stock)).toEqual([
+			{ kind: "judged", judgment: { status: "enough", basis: "presence" } },
+			{ kind: "judged", judgment: { status: "enough", basis: "presence" } },
+		]);
+	});
+
+	it("量を追う管理の食材は、目印のような少ない量と比べて、足りなければ不足のまま", () => {
+		const [row] = plan({
+			needs: [need("オリーブオイル", 2, "大さじ")],
+			stockItems: [{ ...oliveOil, trackingMode: "estimated" }],
+		});
+
+		expect(row?.stock).toMatchObject({ judgment: { status: "short" } });
+		expect(row?.defaultChecked).toBe(true);
+	});
+});

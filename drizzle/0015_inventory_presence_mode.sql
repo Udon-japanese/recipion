@@ -1,0 +1,2 @@
+ALTER TABLE "inventory_item" DROP CONSTRAINT "inventory_item_tracking_mode_valid";--> statement-breakpoint
+ALTER TABLE "inventory_item" ADD CONSTRAINT "inventory_item_tracking_mode_valid" CHECK ("inventory_item"."tracking_mode" in ('exact', 'estimated', 'presence'));

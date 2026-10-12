@@ -1,5 +1,6 @@
 import * as v from "valibot";
 import type { InventoryTrackingMode } from "#/features/inventory/domain/apply-inventory-adjustment";
+import { inventoryTrackingModeSchema } from "#/features/inventory/domain/inventory-tracking-mode";
 import type { InventoryUnitCode } from "#/features/inventory/domain/inventory-unit";
 import { inferInventoryConversion } from "./infer-inventory-conversion";
 import type { ShoppingBranchRole } from "./shopping-branch";
@@ -62,7 +63,7 @@ const inventoryConversionSchema = v.object({
 		v.finite("換算数量には有限の数値を指定してください"),
 		v.gtValue(0, "1単位あたりの在庫数量は0より大きくしてください"),
 	),
-	trackingMode: v.picklist(["exact", "estimated"]),
+	trackingMode: inventoryTrackingModeSchema,
 });
 
 const shoppingCategoryAssignmentSchema = v.picklist(["automatic", "manual"]);
@@ -241,7 +242,8 @@ export function getShoppingItemConvertedQuantityLabel(
 ): string | null {
 	const conversion = item.inventoryConversion;
 
-	if (!conversion) {
+	// 有無だけで管理する食材は、数量に換算しない（数字を見せない）。
+	if (!conversion || conversion.trackingMode === "presence") {
 		return null;
 	}
 

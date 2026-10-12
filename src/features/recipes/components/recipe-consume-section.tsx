@@ -62,6 +62,8 @@ function describeRow(row: RecipeConsumptionRow, isFailed: boolean): string {
 			return `${name}：${formatQuantity(row.deduct ?? 0)}${unit}を引きました${row.viaStandIn && row.target ? `（${row.target.name}から）` : ""}`;
 		case "partial":
 			return `${name}：在庫が足りず、${formatQuantity(row.deduct ?? 0)}${unit}だけ引きました（必要な量は${formatQuantity(row.required ?? 0)}${unit}）`;
+		case "presence-only":
+			return `${name}：「ある」で管理しているため、減らしていません`;
 		case "unmeasurable":
 			return `${name}：量が決まっていない（または換算できない）ため、減らしていません`;
 		case "no-stock":

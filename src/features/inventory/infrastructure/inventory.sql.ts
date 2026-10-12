@@ -55,7 +55,7 @@ export const inventoryItem = pgTable(
 		index("inventory_item_user_id_idx").on(table.userId),
 		check(
 			"inventory_item_tracking_mode_valid",
-			sql`${table.trackingMode} in ('exact', 'estimated')`,
+			sql`${table.trackingMode} in ('exact', 'estimated', 'presence')`,
 		),
 	],
 );
