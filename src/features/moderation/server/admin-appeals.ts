@@ -3,7 +3,10 @@ import { createServerFn } from "@tanstack/react-start";
 import * as v from "valibot";
 
 import { requireAdmin } from "#/integrations/cloudflare-access/require-admin";
-import { resolveAppealInputSchema } from "../domain/appeal";
+import {
+	resolveAppealInputSchema,
+	resolvedAppealHistoryLimit,
+} from "../domain/appeal";
 import { createDrizzleAppealRepository } from "../infrastructure/drizzle-appeal-repository";
 import { hashEmailForBan } from "../infrastructure/hash-email";
 
@@ -29,3 +32,14 @@ export const resolveAppealServerFn = createServerFn({ method: "POST" })
 			now: new Date(),
 		});
 	});
+
+// 対応済みの申し立ての履歴（管理者だけ。新しい順）。
+export const listResolvedAppealsServerFn = createServerFn({
+	method: "GET",
+}).handler(async () => {
+	const { db } = await requireAdmin();
+
+	return createDrizzleAppealRepository(db).listResolved(
+		resolvedAppealHistoryLimit,
+	);
+});

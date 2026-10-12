@@ -1,16 +1,24 @@
 import { useState } from "react";
+import {
+	type AdminHistoryItem,
+	AdminHistoryList,
+} from "#/features/admin/components/admin-history-list";
 import type { RecipeDetail } from "#/features/recipes/application/recipe-repository";
 import { RecipeView } from "#/features/recipes/components/recipe-view";
 import {
 	type OpenReport,
 	type ReportAction,
+	type ResolvedReport,
 	reportActionLabels,
 	reportReasonLabels,
+	reportResolutionLabels,
 } from "../domain/report";
 import * as styles from "./admin-reports-page.css";
 
 type AdminReportsPageProps = {
 	reports: readonly OpenReport[];
+	// 対応済みの通報の履歴（新しい順）。
+	resolved?: readonly ResolvedReport[];
 	// 通報されたレシピの内容（削除されていれば null）。
 	loadRecipe: (reportId: string) => Promise<RecipeDetail | null>;
 	onResolve: (
@@ -30,6 +38,7 @@ function formatDateTime(iso: string): string {
 // 管理者の画面：未対応の通報を、古い順に表示して、対応する。
 export function AdminReportsPage({
 	reports,
+	resolved = [],
 	loadRecipe,
 	onResolve,
 }: AdminReportsPageProps) {
@@ -189,6 +198,27 @@ export function AdminReportsPage({
 					);
 				})}
 			</ul>
+
+			<AdminHistoryList
+				heading="対応済みの通報"
+				items={resolved.map(toHistoryItem)}
+			/>
 		</section>
 	);
+}
+
+function toHistoryItem(report: ResolvedReport): AdminHistoryItem {
+	return {
+		id: report.id,
+		title: report.recipeName,
+		meta: [
+			report.ownerName
+				? `${report.ownerName}${report.ownerHandle ? `（@${report.ownerHandle}）` : ""}`
+				: "投稿者不明（削除済み）",
+			reportReasonLabels[report.reason],
+		],
+		resolutionLabel: reportResolutionLabels[report.resolution],
+		resolvedAt: report.resolvedAt,
+		detail: report.detail || undefined,
+	};
 }

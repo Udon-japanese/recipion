@@ -49,4 +49,33 @@ describe("AdminAppealsPage", () => {
 
 		expect(onResolve).toHaveBeenCalledWith("a1", "lift");
 	});
+
+	it("対応済みの申し立ての履歴を、対応の内容つきで表示する", async () => {
+		const user = userEvent.setup();
+
+		render(
+			<AdminAppealsPage
+				appeals={[]}
+				resolved={[
+					{
+						id: "r1",
+						userName: "れしぴょなー",
+						userHandle: "user-2",
+						message: "反省しています",
+						verdict: "unsure",
+						resolution: "lifted",
+						createdAt: "2026-10-09T00:00:00Z",
+						resolvedAt: "2026-10-10T00:00:00Z",
+					},
+				]}
+				onResolve={async () => "done"}
+			/>,
+		);
+
+		await user.click(screen.getByText("対応済みの申し立て（1件）"));
+
+		expect(screen.getByText("反省しています")).toBeInTheDocument();
+		expect(screen.getByText(/停止を解除した/u)).toBeInTheDocument();
+		expect(screen.getByText(/判断できない/u)).toBeInTheDocument();
+	});
 });

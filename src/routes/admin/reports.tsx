@@ -3,11 +3,19 @@ import { AdminReportsPage } from "#/features/reports/components/admin-reports-pa
 import {
 	getReportedRecipeServerFn,
 	listOpenReportsServerFn,
+	listResolvedReportsServerFn,
 	resolveReportServerFn,
 } from "#/features/reports/server/admin-reports";
 
 export const Route = createFileRoute("/admin/reports")({
-	loader: () => listOpenReportsServerFn(),
+	loader: async () => {
+		const [open, resolved] = await Promise.all([
+			listOpenReportsServerFn(),
+			listResolvedReportsServerFn(),
+		]);
+
+		return { open, resolved };
+	},
 	errorComponent: AdminError,
 	component: AdminReportsRoute,
 });
@@ -18,12 +26,13 @@ function AdminError() {
 }
 
 function AdminReportsRoute() {
-	const reports = Route.useLoaderData();
+	const { open: reports, resolved } = Route.useLoaderData();
 	const router = useRouter();
 
 	return (
 		<AdminReportsPage
 			reports={reports}
+			resolved={resolved}
 			loadRecipe={(reportId) =>
 				getReportedRecipeServerFn({ data: { reportId } })
 			}

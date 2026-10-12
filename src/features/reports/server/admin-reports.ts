@@ -3,7 +3,10 @@ import * as v from "valibot";
 import { createDrizzleRecipeRepository } from "#/features/recipes/infrastructure/drizzle-recipe-repository";
 import { createDrizzleReportRepository } from "#/features/reports/infrastructure/drizzle-report-repository";
 import { requireAdmin } from "#/integrations/cloudflare-access/require-admin";
-import { resolveReportInputSchema } from "../domain/report";
+import {
+	resolvedHistoryLimit,
+	resolveReportInputSchema,
+} from "../domain/report";
 
 const reportIdSchema = v.object({ reportId: v.pipe(v.string(), v.uuid()) });
 
@@ -47,3 +50,12 @@ export const resolveReportServerFn = createServerFn({ method: "POST" })
 			now: new Date(),
 		});
 	});
+
+// 対応済みの通報の履歴（管理者だけ。新しい順）。
+export const listResolvedReportsServerFn = createServerFn({
+	method: "GET",
+}).handler(async () => {
+	const { db } = await requireAdmin();
+
+	return createDrizzleReportRepository(db).listResolved(resolvedHistoryLimit);
+});

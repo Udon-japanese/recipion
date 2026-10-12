@@ -1,4 +1,4 @@
-import { and, asc, count, eq, gte, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, sql } from "drizzle-orm";
 
 import type { DB } from "#/db/client";
 import { parseRecipeVisibility } from "#/features/recipes/domain/recipe-link-permission";
@@ -10,6 +10,8 @@ import {
 	maxReportsPerDay,
 	type OpenReport,
 	type ReportReason,
+	type ReportResolution,
+	type ResolvedReport,
 	reportReasons,
 } from "../domain/report";
 import { recipeReport } from "./report.sql";
@@ -35,6 +37,10 @@ function isUniqueViolation(error: unknown, constraint: string): boolean {
 
 function toReportReason(value: string): ReportReason {
 	return reportReasons.find((reason) => reason === value) ?? "other";
+}
+
+function toReportResolution(value: string | null): ReportResolution {
+	return value === "made-private" || value === "deleted" ? value : "dismissed";
 }
 
 const oneDayMs = 24 * 60 * 60 * 1000;
@@ -187,6 +193,53 @@ export function createDrizzleReportRepository(db: DB): ReportRepository {
 					createdAt: row.createdAt.toISOString(),
 				}),
 			);
+		},
+
+		async listResolved(limit) {
+			const rows = await db
+				.select({
+					id: recipeReport.id,
+					recipePublicId: recipeReport.recipePublicId,
+					reportedName: recipeReport.recipeName,
+					currentName: recipe.name,
+					ownerName: user.name,
+					ownerHandle: user.handle,
+					reason: recipeReport.reason,
+					detail: recipeReport.detail,
+					resolution: recipeReport.resolution,
+					createdAt: recipeReport.createdAt,
+					resolvedAt: recipeReport.resolvedAt,
+				})
+				.from(recipeReport)
+				.leftJoin(recipe, eq(recipe.id, recipeReport.recipeId))
+				.leftJoin(user, eq(user.id, recipe.userId))
+				.where(eq(recipeReport.status, "resolved"))
+				.orderBy(desc(recipeReport.resolvedAt))
+				.limit(limit);
+
+			return rows.map(
+				(row): ResolvedReport => ({
+					id: row.id,
+					recipePublicId: row.recipePublicId,
+					recipeName: row.currentName ?? row.reportedName,
+					ownerName: row.ownerName,
+					ownerHandle: row.ownerHandle,
+					reason: toReportReason(row.reason),
+					detail: row.detail,
+					resolution: toReportResolution(row.resolution),
+					createdAt: row.createdAt.toISOString(),
+					resolvedAt: (row.resolvedAt ?? row.createdAt).toISOString(),
+				}),
+			);
+		},
+
+		async countOpen() {
+			const [row] = await db
+				.select({ total: count() })
+				.from(recipeReport)
+				.where(eq(recipeReport.status, "open"));
+
+			return row?.total ?? 0;
 		},
 
 		async findReportedRecipe(reportId) {

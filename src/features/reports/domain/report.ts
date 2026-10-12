@@ -46,6 +46,15 @@ export const resolveReportInputSchema = v.object({
 	action: v.picklist(reportActions),
 });
 
+// 対応の内容（保存される値）。
+export type ReportResolution = "made-private" | "deleted" | "dismissed";
+
+export const reportResolutionLabels: Record<ReportResolution, string> = {
+	"made-private": "非公開にした",
+	deleted: "削除した",
+	dismissed: "却下した",
+};
+
 // 管理者の画面に出す、未対応の通報。
 export type OpenReport = {
 	id: string;
@@ -61,3 +70,21 @@ export type OpenReport = {
 	// ISO 8601
 	createdAt: string;
 };
+
+// 管理者の画面に出す、対応済みの通報（履歴）。
+export type ResolvedReport = {
+	id: string;
+	recipePublicId: string;
+	recipeName: string;
+	ownerName: string | null;
+	ownerHandle: string | null;
+	reason: ReportReason;
+	detail: string;
+	resolution: ReportResolution;
+	// ISO 8601
+	createdAt: string;
+	resolvedAt: string;
+};
+
+// 対応済みの履歴で、出す件数（新しい順）。
+export const resolvedHistoryLimit = 100;

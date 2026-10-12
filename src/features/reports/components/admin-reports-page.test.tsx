@@ -90,4 +90,37 @@ describe("AdminReportsPage", () => {
 			screen.getByRole("button", { name: "対応しない（却下）" }),
 		).toBeInTheDocument();
 	});
+
+	it("対応済みの通報の履歴を、対応の内容と日時つきで、閉じた状態で表示する", async () => {
+		const user = userEvent.setup();
+
+		render(
+			<AdminReportsPage
+				reports={[]}
+				resolved={[
+					{
+						id: "22222222-2222-4222-8222-222222222222",
+						recipePublicId: "xyz",
+						recipeName: "唐揚げ",
+						ownerName: "れしぴょなー",
+						ownerHandle: "user-xyz",
+						reason: "inappropriate",
+						detail: "不適切な文言がある",
+						resolution: "made-private",
+						createdAt: "2026-10-08T03:00:00.000Z",
+						resolvedAt: "2026-10-09T03:00:00.000Z",
+					},
+				]}
+				loadRecipe={async () => null}
+				onResolve={async () => "done"}
+			/>,
+		);
+
+		await user.click(screen.getByText("対応済みの通報（1件）"));
+
+		expect(screen.getByText("唐揚げ")).toBeInTheDocument();
+		expect(screen.getByText(/非公開にした/u)).toBeInTheDocument();
+		expect(screen.getByText(/@user-xyz/u)).toBeInTheDocument();
+		expect(screen.getByText("不適切な文言がある")).toBeInTheDocument();
+	});
 });
