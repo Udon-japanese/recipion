@@ -193,7 +193,10 @@ export function RecipeShoppingSection({
 		setErrorMessage(null);
 
 		try {
-			setMemoItems(await shoppingRepository.list());
+			// 条件つきのメモの中の項目は、まだ買うと決まっていないので、重複の判定に入れない。
+			setMemoItems(
+				(await shoppingRepository.list()).filter((item) => !item.branchId),
+			);
 		} catch {
 			setErrorMessage("買い物メモを読み込めませんでした");
 		}
@@ -274,7 +277,10 @@ export function RecipeShoppingSection({
 					.join("、"),
 			);
 			setCheckedOverrides({});
-			setMemoItems(await shoppingRepository.list());
+			// 条件つきのメモの中の項目は、まだ買うと決まっていないので、重複の判定に入れない。
+			setMemoItems(
+				(await shoppingRepository.list()).filter((item) => !item.branchId),
+			);
 		} catch {
 			setErrorMessage(
 				"買い物メモに保存できませんでした。もう一度お試しください",

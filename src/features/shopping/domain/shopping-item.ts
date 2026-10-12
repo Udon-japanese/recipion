@@ -1,6 +1,7 @@
 import * as v from "valibot";
 import type { InventoryTrackingMode } from "#/features/inventory/domain/apply-inventory-adjustment";
 import type { InventoryUnitCode } from "#/features/inventory/domain/inventory-unit";
+import type { ShoppingBranchRole } from "./shopping-branch";
 import {
 	isShoppingCategoryId,
 	type ShoppingCategoryId,
@@ -33,6 +34,10 @@ export type ShoppingItem = {
 	categoryAssignment: ShoppingCategoryAssignment;
 	// 買う店（ShoppingStore の ID）。null は「どこでも」。
 	storeId: string | null;
+	// 分岐型のメモの中の項目（ShoppingBranch の ID と、どちらの側か）。通常の項目は null。
+	// 分岐の中の項目は、条件が決まるまで、チェックも購入もできない。
+	branchId: string | null;
+	branchSide: ShoppingBranchRole | null;
 	status: ShoppingItemStatus;
 	sortOrder: number;
 	createdAt: string;
@@ -79,6 +84,8 @@ export const createShoppingItemInputSchema = v.object({
 	categoryId: v.optional(v.nullable(shoppingCategoryIdSchema)),
 	categoryAssignment: v.optional(v.nullable(shoppingCategoryAssignmentSchema)),
 	storeId: v.optional(v.nullable(v.string())),
+	branchId: v.optional(v.nullable(v.string())),
+	branchSide: v.optional(v.nullable(v.picklist(["condition", "then", "else"]))),
 });
 
 export type CreateShoppingItemInput = v.InferInput<
@@ -134,6 +141,8 @@ export function createShoppingItem(
 					? "manual"
 					: null,
 		storeId: parsedInput.storeId ?? null,
+		branchId: parsedInput.branchId ?? null,
+		branchSide: parsedInput.branchId ? (parsedInput.branchSide ?? null) : null,
 		status: "pending",
 		sortOrder,
 		createdAt: timestamp,

@@ -18,6 +18,8 @@ const storedItem: ShoppingItem = {
 	inventoryConversion: null,
 	categoryAssignment: "manual",
 	storeId: null,
+	branchId: null,
+	branchSide: null,
 	status: "pending",
 	sortOrder: 0,
 	createdAt: "2026-09-21T10:00:00.000Z",

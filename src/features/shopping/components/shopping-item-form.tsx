@@ -1,4 +1,4 @@
-import { type SubmitEvent, useState } from "react";
+import { type ReactNode, type SubmitEvent, useState } from "react";
 import { IngredientNameInput } from "#/features/ingredients/components/ingredient-name-input";
 import { QuantityInput } from "#/features/quantity/components/quantity-input";
 import { formatQuantity } from "#/features/quantity/domain/format-quantity";
@@ -29,6 +29,11 @@ type ShoppingItemFormProps = {
 	// 食材名に対して、いつも買う店（なければ null）。
 	defaultStoreIdFor: (itemName: string) => string | null;
 	onCreateStore: (name: string) => Promise<ShoppingStore | null>;
+	// 同じ画面に複数置くとき、欄の id が重ならないようにする。
+	idPrefix?: string;
+	submitLabel?: string;
+	// 追加ボタンの上に足す欄（条件つきのメモの「どんな時に」など）。
+	children?: ReactNode;
 };
 
 // 買い物メモへ、商品を追加するフォーム。
@@ -38,6 +43,9 @@ export function ShoppingItemForm({
 	stores,
 	defaultStoreIdFor,
 	onCreateStore,
+	idPrefix = "shopping-item",
+	submitLabel = "追加",
+	children,
 }: ShoppingItemFormProps) {
 	const [name, setName] = useState("");
 	const [quantity, setQuantity] = useState("1");
@@ -112,13 +120,13 @@ export function ShoppingItemForm({
 			onSubmit={(event) => void handleSubmit(event)}
 		>
 			<div className={styles.field}>
-				<label className={styles.label} htmlFor="shopping-item-name">
+				<label className={styles.label} htmlFor={`${idPrefix}-name`}>
 					買うもの
 				</label>
 
 				<IngredientNameInput
 					className={styles.input}
-					id="shopping-item-name"
+					id={`${idPrefix}-name`}
 					name="name"
 					value={name}
 					onChange={handleNameChange}
@@ -128,13 +136,13 @@ export function ShoppingItemForm({
 
 			<div className={styles.details}>
 				<div className={styles.field}>
-					<label className={styles.fieldLabel} htmlFor="shopping-item-quantity">
+					<label className={styles.fieldLabel} htmlFor={`${idPrefix}-quantity`}>
 						数量
 					</label>
 
 					<QuantityInput
 						className={styles.input}
-						id="shopping-item-quantity"
+						id={`${idPrefix}-quantity`}
 						name="quantity"
 						value={quantity}
 						onChange={setQuantity}
@@ -142,13 +150,13 @@ export function ShoppingItemForm({
 				</div>
 
 				<div className={styles.field}>
-					<label className={styles.fieldLabel} htmlFor="shopping-item-unit">
+					<label className={styles.fieldLabel} htmlFor={`${idPrefix}-unit`}>
 						単位
 					</label>
 
 					<input
 						className={styles.input}
-						id="shopping-item-unit"
+						id={`${idPrefix}-unit`}
 						name="unitLabel"
 						value={unitLabel}
 						onChange={(event) => {
@@ -161,13 +169,13 @@ export function ShoppingItemForm({
 				</div>
 
 				<div className={styles.field}>
-					<label className={styles.fieldLabel} htmlFor="shopping-item-category">
+					<label className={styles.fieldLabel} htmlFor={`${idPrefix}-category`}>
 						カテゴリ
 					</label>
 
 					<select
 						className={styles.input}
-						id="shopping-item-category"
+						id={`${idPrefix}-category`}
 						name="categoryId"
 						value={categoryId}
 						onChange={(event) => handleCategoryChange(event.target.value)}
@@ -184,12 +192,12 @@ export function ShoppingItemForm({
 			</div>
 
 			<div className={styles.field}>
-				<label className={styles.fieldLabel} htmlFor="shopping-item-store">
+				<label className={styles.fieldLabel} htmlFor={`${idPrefix}-store`}>
 					買う店
 				</label>
 
 				<ShoppingStoreSelect
-					id="shopping-item-store"
+					id={`${idPrefix}-store`}
 					stores={stores}
 					value={storeId}
 					onChange={(next) => {
@@ -234,12 +242,14 @@ export function ShoppingItemForm({
 				</fieldset>
 			) : null}
 
+			{children}
+
 			<button
 				className={styles.addButton}
 				type="submit"
 				disabled={isSubmitting}
 			>
-				追加
+				{submitLabel}
 			</button>
 
 			{errorMessage ? (
