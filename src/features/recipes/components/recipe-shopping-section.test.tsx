@@ -2,11 +2,8 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { InventoryListItem } from "#/features/inventory/application/inventory-query-repository";
-import type { ShoppingRepository } from "#/features/shopping/application/shopping-repository";
-import {
-	createShoppingItem,
-	type ShoppingItem,
-} from "#/features/shopping/domain/shopping-item";
+import { createShoppingItem } from "#/features/shopping/domain/shopping-item";
+import { createFakeShoppingRepository } from "#/test/fakes/fake-shopping-repository";
 import type { RecipeDetail } from "../application/recipe-repository";
 import type { RecipeEditorIngredientNode } from "../domain/recipe-editor-document";
 import { RecipeShoppingSection } from "./recipe-shopping-section";
@@ -64,31 +61,6 @@ function stockItem(
 	};
 }
 
-function createRepository(items: ShoppingItem[] = []): ShoppingRepository & {
-	saved: ShoppingItem[];
-} {
-	const state = { items: [...items], saved: [] as ShoppingItem[] };
-
-	return {
-		get saved() {
-			return state.saved;
-		},
-		list: vi.fn(async () => [...state.items]),
-		findById: vi.fn(),
-		save: vi.fn(),
-		saveAll: vi.fn(async (toSave: readonly ShoppingItem[]) => {
-			state.saved = [...toSave];
-			for (const item of toSave) {
-				state.items = [
-					...state.items.filter((current) => current.id !== item.id),
-					item,
-				];
-			}
-		}),
-		remove: vi.fn(),
-	};
-}
-
 async function openPanel(user: ReturnType<typeof userEvent.setup>) {
 	await user.click(screen.getByRole("button", { name: "買い物メモに入れる" }));
 
@@ -98,7 +70,7 @@ async function openPanel(user: ReturnType<typeof userEvent.setup>) {
 describe("RecipeShoppingSection", () => {
 	it("在庫と比べて、足りないものにチェックを入れ、選んだものを買い物メモに追加する", async () => {
 		const user = userEvent.setup();
-		const repository = createRepository();
+		const repository = createFakeShoppingRepository();
 
 		render(
 			<RecipeShoppingSection
@@ -128,8 +100,8 @@ describe("RecipeShoppingSection", () => {
 			panel.getByRole("button", { name: "選んだものを入れる（1件）" }),
 		);
 
-		await waitFor(() => expect(repository.saved).toHaveLength(1));
-		expect(repository.saved[0]).toMatchObject({
+		await waitFor(() => expect(repository.items).toHaveLength(1));
+		expect(repository.items[0]).toMatchObject({
 			name: "玉ねぎ",
 			quantity: 2,
 			unitLabel: "個",
@@ -144,7 +116,7 @@ describe("RecipeShoppingSection", () => {
 			quantity: 1,
 			unitLabel: "個",
 		});
-		const repository = createRepository([existing]);
+		const repository = createFakeShoppingRepository([existing]);
 
 		render(
 			<RecipeShoppingSection
@@ -187,8 +159,8 @@ describe("RecipeShoppingSection", () => {
 			panel.getByRole("button", { name: "選んだものを入れる（1件）" }),
 		);
 
-		await waitFor(() => expect(repository.saved).toHaveLength(1));
-		expect(repository.saved[0]).toMatchObject({
+		await waitFor(() => expect(repository.items).toHaveLength(1));
+		expect(repository.items[0]).toMatchObject({
 			id: existing.id,
 			quantity: 3,
 		});
@@ -197,7 +169,7 @@ describe("RecipeShoppingSection", () => {
 
 	it("メモの数量が、レシピの量より多いときは、変更なしで、チェックできず、その理由を表示する", async () => {
 		const user = userEvent.setup();
-		const repository = createRepository([
+		const repository = createFakeShoppingRepository([
 			createShoppingItem({ name: "キャベツ", quantity: 220, unitLabel: "g" }),
 		]);
 
@@ -236,7 +208,7 @@ describe("RecipeShoppingSection", () => {
 			<RecipeShoppingSection
 				ingredients={ingredients}
 				ownerScope="guest"
-				shoppingRepository={createRepository()}
+				shoppingRepository={createFakeShoppingRepository()}
 			/>,
 		);
 
@@ -264,7 +236,7 @@ describe("RecipeShoppingSection", () => {
 				ownerScope="user:user-id"
 				loadInventoryItems={async () => salt}
 				registerAvailable={registerAvailable}
-				shoppingRepository={createRepository()}
+				shoppingRepository={createFakeShoppingRepository()}
 			/>,
 		);
 
@@ -288,7 +260,7 @@ describe("RecipeShoppingSection", () => {
 			<RecipeShoppingSection
 				ingredients={[]}
 				ownerScope="guest"
-				shoppingRepository={createRepository()}
+				shoppingRepository={createFakeShoppingRepository()}
 			/>,
 		);
 
@@ -297,7 +269,7 @@ describe("RecipeShoppingSection", () => {
 
 	it("リンクした材料は、リンク先のレシピの材料に展開して、在庫と比べる。削除されたリンク先は、候補にしない", async () => {
 		const user = userEvent.setup();
-		const repository = createRepository();
+		const repository = createFakeShoppingRepository();
 		const loadLinkedRecipe = vi.fn(async (publicId: string) =>
 			publicId === "d"
 				? ({
@@ -353,8 +325,8 @@ describe("RecipeShoppingSection", () => {
 			panel.getByRole("button", { name: "選んだものを入れる（2件）" }),
 		);
 
-		await waitFor(() => expect(repository.saved).toHaveLength(2));
-		expect(repository.saved.map((item) => item.name).sort()).toEqual([
+		await waitFor(() => expect(repository.items).toHaveLength(2));
+		expect(repository.items.map((item) => item.name).sort()).toEqual([
 			"玉ねぎ",
 			"醤油",
 		]);
@@ -362,7 +334,7 @@ describe("RecipeShoppingSection", () => {
 
 	it("冷凍の在庫で足りているときは、その旨を表示し、チェックなしで、選べば入れられる", async () => {
 		const user = userEvent.setup();
-		const repository = createRepository();
+		const repository = createFakeShoppingRepository();
 
 		render(
 			<RecipeShoppingSection
@@ -390,7 +362,7 @@ describe("RecipeShoppingSection", () => {
 			panel.getByRole("button", { name: "選んだものを入れる（1件）" }),
 		);
 
-		await waitFor(() => expect(repository.saved).toHaveLength(1));
-		expect(repository.saved[0]?.name).toBe("玉ねぎ");
+		await waitFor(() => expect(repository.items).toHaveLength(1));
+		expect(repository.items[0]?.name).toBe("玉ねぎ");
 	});
 });

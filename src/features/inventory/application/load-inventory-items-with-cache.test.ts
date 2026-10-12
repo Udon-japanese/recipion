@@ -1,43 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type {
-	InventoryCacheRepository,
-	InventoryCacheSnapshot,
-} from "./inventory-cache-repository";
-import type { InventoryListItem } from "./inventory-query-repository";
+import { buildInventoryListItem } from "#/test/builders/build-inventory-list-item";
+import { createFakeInventoryCacheRepository } from "#/test/fakes/fake-inventory-cache-repository";
+import type { InventoryCacheSnapshot } from "./inventory-cache-repository";
 import { loadInventoryItemsWithCache } from "./load-inventory-items-with-cache";
 
-const egg: InventoryListItem = {
-	inventoryItemId: "inventory-id",
-	ingredientId: "ingredient-id",
-	name: "卵",
-	quantity: 6,
-	lots: [],
-	stockUnitCode: "count",
-	stockUnitLabel: "個",
-	trackingMode: "exact",
-	defaultExpiryKind: null,
-	defaultStorage: null,
-	updatedAt: "2026-09-23T00:00:00.000Z",
-};
-
-function createCacheRepository(
-	snapshot?: InventoryCacheSnapshot,
-): InventoryCacheRepository {
-	return {
-		find: vi.fn().mockResolvedValue(snapshot),
-		save: vi.fn().mockImplementation(async (ownerScope, items, now) => ({
-			ownerScope,
-			items: [...items],
-			cachedAt: (now ?? new Date()).toISOString(),
-		})),
-		updateStock: vi.fn().mockResolvedValue(undefined),
-	};
-}
+const egg = buildInventoryListItem();
 
 describe("loadInventoryItemsWithCache", () => {
 	it("通信で取得した在庫をキャッシュへ保存する", async () => {
-		const cacheRepository = createCacheRepository();
+		const cacheRepository = createFakeInventoryCacheRepository();
 		const now = new Date("2026-09-23T12:00:00.000Z");
 
 		const result = await loadInventoryItemsWithCache(
@@ -47,11 +19,11 @@ describe("loadInventoryItemsWithCache", () => {
 			now,
 		);
 
-		expect(cacheRepository.save).toHaveBeenCalledWith(
-			"user:user-id",
-			[egg],
-			now,
-		);
+		await expect(cacheRepository.find("user:user-id")).resolves.toEqual({
+			ownerScope: "user:user-id",
+			items: [egg],
+			cachedAt: "2026-09-23T12:00:00.000Z",
+		});
 
 		expect(result).toEqual({
 			items: [egg],
@@ -70,7 +42,7 @@ describe("loadInventoryItemsWithCache", () => {
 		const result = await loadInventoryItemsWithCache(
 			"user:user-id",
 			vi.fn().mockRejectedValue(new Error("offline")),
-			createCacheRepository(snapshot),
+			createFakeInventoryCacheRepository([snapshot]),
 		);
 
 		expect(result).toEqual({
@@ -85,17 +57,15 @@ describe("loadInventoryItemsWithCache", () => {
 			loadInventoryItemsWithCache(
 				"user:user-id",
 				vi.fn().mockRejectedValue(new Error("offline")),
-				createCacheRepository(),
+				createFakeInventoryCacheRepository(),
 			),
 		).rejects.toThrow("offline");
 	});
 
 	it("キャッシュ保存だけ失敗しても取得した在庫を返す", async () => {
-		const cacheRepository = createCacheRepository();
+		const cacheRepository = createFakeInventoryCacheRepository();
 
-		vi.mocked(cacheRepository.save).mockRejectedValue(
-			new Error("cache failed"),
-		);
+		cacheRepository.failNext("save", new Error("cache failed"));
 
 		const result = await loadInventoryItemsWithCache(
 			"user:user-id",

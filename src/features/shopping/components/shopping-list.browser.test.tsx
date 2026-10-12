@@ -1,19 +1,9 @@
 import { expect, test, vi } from "vitest";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import type { ShoppingRepository } from "../application/shopping-repository";
-import { createShoppingItem, type ShoppingItem } from "../domain/shopping-item";
+import { createFakeShoppingRepository } from "#/test/fakes/fake-shopping-repository";
+import { createShoppingItem } from "../domain/shopping-item";
 import { ShoppingList } from "./shopping-list";
-
-function createRepository(items: readonly ShoppingItem[]): ShoppingRepository {
-	return {
-		list: vi.fn().mockResolvedValue([...items]),
-		findById: vi.fn().mockResolvedValue(undefined),
-		save: vi.fn().mockResolvedValue(undefined),
-		saveAll: vi.fn().mockResolvedValue(undefined),
-		remove: vi.fn().mockResolvedValue(undefined),
-	};
-}
 
 test("ドラッグ操作で買い物項目を並び替える", async () => {
 	const items = [
@@ -45,7 +35,7 @@ test("ドラッグ操作で買い物項目を並び替える", async () => {
 			2,
 		),
 	];
-	const repository = createRepository(items);
+	const repository = createFakeShoppingRepository(items);
 
 	// 入力フォームが縦に長くなっても、並び替えの項目が、画面の外に出ないようにする。
 	await page.viewport(900, 1600);
@@ -60,7 +50,7 @@ test("ドラッグ操作で買い物項目を並び替える", async () => {
 	await dragHandle.dropTo(lastItem);
 
 	await vi.waitFor(() => {
-		expect(repository.saveAll).toHaveBeenCalledWith([
+		expect(repository.items).toEqual([
 			expect.objectContaining({
 				name: "牛乳",
 				sortOrder: 0,

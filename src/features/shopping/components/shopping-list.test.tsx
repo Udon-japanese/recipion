@@ -5,39 +5,16 @@ import {
 	addDays,
 	toDateString,
 } from "#/features/inventory/domain/inventory-lot";
-import type { ShoppingRepository } from "../application/shopping-repository";
+import { buildShoppingItem } from "#/test/builders/build-shopping-item";
+import { createFakeShoppingRepository } from "#/test/fakes/fake-shopping-repository";
 import type { ShoppingItem } from "../domain/shopping-item";
 import { ShoppingList } from "./shopping-list";
 
-const storedItem: ShoppingItem = {
-	id: "item-1",
-	name: "卵",
+const storedItem: ShoppingItem = buildShoppingItem({
 	quantity: 6,
 	unitLabel: "個",
-	categoryId: null,
-	inventoryConversion: null,
 	categoryAssignment: "manual",
-	storeId: null,
-	branchId: null,
-	branchSide: null,
-	status: "pending",
-	sortOrder: 0,
-	createdAt: "2026-09-21T10:00:00.000Z",
-	updatedAt: "2026-09-21T10:00:00.000Z",
-};
-
-function createRepository(
-	overrides: Partial<ShoppingRepository> = {},
-): ShoppingRepository {
-	return {
-		list: vi.fn().mockResolvedValue([]),
-		findById: vi.fn().mockResolvedValue(undefined),
-		save: vi.fn().mockResolvedValue(undefined),
-		saveAll: vi.fn().mockResolvedValue(undefined),
-		remove: vi.fn().mockResolvedValue(undefined),
-		...overrides,
-	};
-}
+});
 
 afterEach(() => {
 	// 期限の目安の設定・覚えた期限が、テストの間で残らないようにする。
@@ -46,9 +23,7 @@ afterEach(() => {
 
 describe("ShoppingList", () => {
 	it("保存済みの買い物項目を表示する", async () => {
-		const repository = createRepository({
-			list: vi.fn().mockResolvedValue([storedItem]),
-		});
+		const repository = createFakeShoppingRepository([storedItem]);
 
 		render(<ShoppingList repository={repository} />);
 
@@ -63,7 +38,7 @@ describe("ShoppingList", () => {
 
 	it("買い物項目を追加する", async () => {
 		const user = userEvent.setup();
-		const repository = createRepository();
+		const repository = createFakeShoppingRepository();
 
 		render(<ShoppingList repository={repository} />);
 
@@ -75,7 +50,7 @@ describe("ShoppingList", () => {
 		await user.click(screen.getByRole("button", { name: "追加" }));
 
 		await waitFor(() => {
-			expect(repository.save).toHaveBeenCalledWith(
+			expect(repository.items).toContainEqual(
 				expect.objectContaining({
 					name: "卵",
 					quantity: 6,
@@ -99,9 +74,7 @@ describe("ShoppingList", () => {
 
 	it("買い物項目のチェック状態を切り替える", async () => {
 		const user = userEvent.setup();
-		const repository = createRepository({
-			list: vi.fn().mockResolvedValue([storedItem]),
-		});
+		const repository = createFakeShoppingRepository([storedItem]);
 
 		render(<ShoppingList repository={repository} />);
 
@@ -112,7 +85,7 @@ describe("ShoppingList", () => {
 		await user.click(checkbox);
 
 		await waitFor(() => {
-			expect(repository.save).toHaveBeenCalledWith(
+			expect(repository.items).toContainEqual(
 				expect.objectContaining({
 					id: storedItem.id,
 					status: "checked",
@@ -125,9 +98,7 @@ describe("ShoppingList", () => {
 
 	it("買い物項目を削除する", async () => {
 		const user = userEvent.setup();
-		const repository = createRepository({
-			list: vi.fn().mockResolvedValue([storedItem]),
-		});
+		const repository = createFakeShoppingRepository([storedItem]);
 
 		render(<ShoppingList repository={repository} />);
 
@@ -138,7 +109,7 @@ describe("ShoppingList", () => {
 		);
 
 		await waitFor(() => {
-			expect(repository.remove).toHaveBeenCalledWith(storedItem.id);
+			expect(repository.items).toEqual([]);
 		});
 
 		expect(
@@ -149,9 +120,9 @@ describe("ShoppingList", () => {
 	});
 
 	it("読み込みに失敗した場合はエラーを表示する", async () => {
-		const repository = createRepository({
-			list: vi.fn().mockRejectedValue(new Error("failed")),
-		});
+		const repository = createFakeShoppingRepository();
+
+		repository.failNext("list");
 
 		render(<ShoppingList repository={repository} />);
 
@@ -162,7 +133,7 @@ describe("ShoppingList", () => {
 
 	it("0以下の数量を追加しない", async () => {
 		const user = userEvent.setup();
-		const repository = createRepository();
+		const repository = createFakeShoppingRepository();
 
 		render(<ShoppingList repository={repository} />);
 
@@ -175,12 +146,12 @@ describe("ShoppingList", () => {
 		expect(await screen.findByRole("alert")).toHaveTextContent(
 			"数量は0より大きい数にしてください",
 		);
-		expect(repository.save).not.toHaveBeenCalled();
+		expect(repository.items).toEqual([]);
 	});
 
 	it("商品名に応じた数量プリセットを選択できる", async () => {
 		const user = userEvent.setup();
-		const repository = createRepository();
+		const repository = createFakeShoppingRepository();
 
 		render(<ShoppingList repository={repository} />);
 
@@ -206,7 +177,7 @@ describe("ShoppingList", () => {
 		);
 
 		await waitFor(() => {
-			expect(repository.save).toHaveBeenCalledWith(
+			expect(repository.items).toContainEqual(
 				expect.objectContaining({
 					name: "卵",
 					quantity: 6,
@@ -225,7 +196,7 @@ describe("ShoppingList", () => {
 
 	it("商品の購入単位と在庫換算後の数量を表示する", async () => {
 		const user = userEvent.setup();
-		const repository = createRepository();
+		const repository = createFakeShoppingRepository();
 
 		render(<ShoppingList repository={repository} />);
 
@@ -266,15 +237,13 @@ describe("ShoppingList", () => {
 			sortOrder: 1,
 		};
 
-		const repository = createRepository({
-			list: vi.fn().mockResolvedValue([
-				{
-					...storedItem,
-					sortOrder: 0,
-				},
-				secondItem,
-			]),
-		});
+		const repository = createFakeShoppingRepository([
+			{
+				...storedItem,
+				sortOrder: 0,
+			},
+			secondItem,
+		]);
 
 		render(<ShoppingList repository={repository} />);
 
@@ -297,7 +266,7 @@ describe("ShoppingList", () => {
 		await user.click(moveDownButton);
 
 		await waitFor(() => {
-			expect(repository.saveAll).toHaveBeenCalledWith([
+			expect(repository.items).toEqual([
 				expect.objectContaining({
 					id: secondItem.id,
 					sortOrder: 0,
@@ -320,7 +289,7 @@ describe("ShoppingList", () => {
 
 	it("商品名からカテゴリを自動選択する", async () => {
 		const user = userEvent.setup();
-		const repository = createRepository();
+		const repository = createFakeShoppingRepository();
 
 		render(<ShoppingList repository={repository} />);
 
@@ -336,7 +305,7 @@ describe("ShoppingList", () => {
 		);
 
 		await waitFor(() => {
-			expect(repository.save).toHaveBeenCalledWith(
+			expect(repository.items).toContainEqual(
 				expect.objectContaining({
 					name: "タマゴ",
 					categoryId: "eggs",
@@ -347,7 +316,7 @@ describe("ShoppingList", () => {
 
 	it("手動で選択したカテゴリを商品名で上書きしない", async () => {
 		const user = userEvent.setup();
-		const repository = createRepository();
+		const repository = createFakeShoppingRepository();
 
 		render(<ShoppingList repository={repository} />);
 
@@ -374,9 +343,7 @@ describe("ShoppingList", () => {
 			sortOrder: 1,
 		};
 
-		const repository = createRepository({
-			list: vi.fn().mockResolvedValue([eggItem, produceItem]),
-		});
+		const repository = createFakeShoppingRepository([eggItem, produceItem]);
 
 		render(<ShoppingList repository={repository} />);
 
@@ -387,7 +354,7 @@ describe("ShoppingList", () => {
 		);
 
 		await waitFor(() => {
-			expect(repository.saveAll).toHaveBeenCalledWith([
+			expect(repository.items).toEqual([
 				expect.objectContaining({
 					id: produceItem.id,
 					sortOrder: 0,
@@ -423,9 +390,7 @@ describe("ShoppingList", () => {
 			sortOrder: 1,
 		};
 
-		const repository = createRepository({
-			list: vi.fn().mockResolvedValue([produceItem, eggItem]),
-		});
+		const repository = createFakeShoppingRepository([produceItem, eggItem]);
 
 		render(<ShoppingList repository={repository} />);
 
@@ -436,7 +401,7 @@ describe("ShoppingList", () => {
 		);
 
 		await waitFor(() => {
-			expect(repository.saveAll).toHaveBeenCalledWith([
+			expect(repository.items).toEqual([
 				expect.objectContaining({
 					id: eggItem.id,
 					sortOrder: 0,
@@ -456,16 +421,14 @@ describe("ShoppingList", () => {
 	});
 
 	it("未判定の既存項目を読み込み時に分類して保存する", async () => {
-		const repository = createRepository({
-			list: vi.fn().mockResolvedValue([
-				{
-					...storedItem,
-					name: "卵",
-					categoryId: null,
-					categoryAssignment: null,
-				},
-			]),
-		});
+		const repository = createFakeShoppingRepository([
+			{
+				...storedItem,
+				name: "卵",
+				categoryId: null,
+				categoryAssignment: null,
+			},
+		]);
 
 		render(<ShoppingList repository={repository} />);
 
@@ -476,7 +439,7 @@ describe("ShoppingList", () => {
 		).toBeInTheDocument();
 
 		await waitFor(() => {
-			expect(repository.saveAll).toHaveBeenCalledWith([
+			expect(repository.items).toEqual([
 				expect.objectContaining({
 					categoryId: "eggs",
 					categoryAssignment: "automatic",
@@ -486,16 +449,14 @@ describe("ShoppingList", () => {
 	});
 
 	it("手動で未設定にしたカテゴリを自動分類しない", async () => {
-		const repository = createRepository({
-			list: vi.fn().mockResolvedValue([
-				{
-					...storedItem,
-					name: "卵",
-					categoryId: null,
-					categoryAssignment: "manual",
-				},
-			]),
-		});
+		const repository = createFakeShoppingRepository([
+			{
+				...storedItem,
+				name: "卵",
+				categoryId: null,
+				categoryAssignment: "manual",
+			},
+		]);
 
 		render(<ShoppingList repository={repository} />);
 
@@ -505,18 +466,19 @@ describe("ShoppingList", () => {
 			}),
 		).toBeInTheDocument();
 
-		expect(repository.saveAll).not.toHaveBeenCalled();
+		expect(repository.items[0]).toMatchObject({
+			categoryId: null,
+			categoryAssignment: "manual",
+		});
 	});
 
 	it("買い物項目にドラッグ用ハンドルを表示する", async () => {
-		const repository = createRepository({
-			list: vi.fn().mockResolvedValue([
-				{
-					...storedItem,
-					categoryAssignment: "manual",
-				},
-			]),
-		});
+		const repository = createFakeShoppingRepository([
+			{
+				...storedItem,
+				categoryAssignment: "manual",
+			},
+		]);
 
 		render(<ShoppingList repository={repository} />);
 
@@ -529,7 +491,7 @@ describe("ShoppingList", () => {
 
 	it("ホケミの包装量を買い物項目へ保存する", async () => {
 		const user = userEvent.setup();
-		const repository = createRepository();
+		const repository = createFakeShoppingRepository();
 
 		render(<ShoppingList repository={repository} />);
 
@@ -547,7 +509,7 @@ describe("ShoppingList", () => {
 		);
 
 		await waitFor(() => {
-			expect(repository.save).toHaveBeenCalledWith(
+			expect(repository.items).toContainEqual(
 				expect.objectContaining({
 					name: "HM",
 					quantity: 1,
@@ -582,9 +544,7 @@ describe("ShoppingList", () => {
 			status: "purchased",
 		};
 
-		const repository = createRepository({
-			list: vi.fn().mockResolvedValue([checkedItem]),
-		});
+		const repository = createFakeShoppingRepository([checkedItem]);
 
 		const confirmPurchases = vi.fn().mockResolvedValue({
 			status: "confirmed",
@@ -636,9 +596,7 @@ describe("ShoppingList", () => {
 			inventoryConversion: null,
 		};
 
-		const repository = createRepository({
-			list: vi.fn().mockResolvedValue([checkedItem]),
-		});
+		const repository = createFakeShoppingRepository([checkedItem]);
 
 		const confirmPurchases = vi.fn().mockResolvedValue({
 			status: "missing-conversion",
@@ -691,9 +649,7 @@ describe("ShoppingList", () => {
 			status: "purchased",
 		};
 
-		const repository = createRepository({
-			list: vi.fn().mockResolvedValue([checkedItem]),
-		});
+		const repository = createFakeShoppingRepository([checkedItem]);
 
 		const confirmPurchases = vi.fn().mockResolvedValue({
 			status: "confirmed",
@@ -756,9 +712,7 @@ describe("ShoppingList", () => {
 
 		render(
 			<ShoppingList
-				repository={createRepository({
-					list: vi.fn().mockResolvedValue([checkedItem]),
-				})}
+				repository={createFakeShoppingRepository([checkedItem])}
 				confirmPurchases={confirmPurchases}
 			/>,
 		);
@@ -816,9 +770,7 @@ describe("ShoppingList", () => {
 
 		render(
 			<ShoppingList
-				repository={createRepository({
-					list: vi.fn().mockResolvedValue([checkedItem]),
-				})}
+				repository={createFakeShoppingRepository([checkedItem])}
 				confirmPurchases={confirmPurchases}
 			/>,
 		);
@@ -877,9 +829,7 @@ describe("ShoppingList", () => {
 
 		render(
 			<ShoppingList
-				repository={createRepository({
-					list: vi.fn().mockResolvedValue([checkedItem]),
-				})}
+				repository={createFakeShoppingRepository([checkedItem])}
 				confirmPurchases={confirmPurchases}
 			/>,
 		);
@@ -925,9 +875,7 @@ describe("ShoppingList", () => {
 
 		render(
 			<ShoppingList
-				repository={createRepository({
-					list: vi.fn().mockResolvedValue([household]),
-				})}
+				repository={createFakeShoppingRepository([household])}
 				confirmPurchases={confirmPurchases}
 			/>,
 		);
@@ -962,9 +910,7 @@ describe("ShoppingList", () => {
 
 		render(
 			<ShoppingList
-				repository={createRepository({
-					list: vi.fn().mockResolvedValue([checkedItem]),
-				})}
+				repository={createFakeShoppingRepository([checkedItem])}
 				confirmPurchases={confirmPurchases}
 			/>,
 		);
@@ -1012,9 +958,7 @@ describe("ShoppingList", () => {
 			status: "purchased",
 		};
 
-		const repository = createRepository({
-			list: vi.fn().mockResolvedValue([checkedItem]),
-		});
+		const repository = createFakeShoppingRepository([checkedItem]);
 
 		const confirmPurchases = vi
 			.fn()
@@ -1056,7 +1000,7 @@ describe("ShoppingList", () => {
 		);
 
 		await waitFor(() => {
-			expect(repository.save).toHaveBeenCalledWith(
+			expect(repository.items).toContainEqual(
 				expect.objectContaining({
 					id: checkedItem.id,
 					quantity: 6,
