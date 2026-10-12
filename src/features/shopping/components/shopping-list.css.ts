@@ -448,3 +448,82 @@ export const purchasedLabel = style({
 	fontSize: 12,
 	fontWeight: 600,
 });
+
+export const viewToggle = style({
+	display: "flex",
+	gap: 8,
+	marginRight: "auto",
+});
+
+export const pressedButton = style({
+	selectors: {
+		'&[aria-pressed="true"]': {
+			color: "var(--color-surface)",
+			background: "var(--color-primary)",
+			borderColor: "var(--color-primary)",
+		},
+	},
+});
+
+export const storeFilter = style({
+	display: "flex",
+	alignItems: "center",
+	gap: 8,
+	marginBottom: 12,
+});
+
+export const storeGroup = style({
+	marginBottom: 16,
+});
+
+export const storeGroupTitle = style({
+	marginBlock: "0 8px",
+	color: "var(--color-text)",
+	fontSize: 18,
+	fontWeight: 700,
+});
+
+export const storeLabel = style({
+	marginLeft: 8,
+	padding: "2px 8px",
+	color: "var(--color-text-muted)",
+	background: "var(--color-surface-subtle)",
+	border: "1px solid var(--color-border)",
+	borderRadius: 999,
+	fontSize: 12,
+	fontWeight: 600,
+});
+
+export const storeInlineForm = style({
+	display: "flex",
+	gap: 8,
+	marginTop: 6,
+});
+
+export const storeManager = style({
+	marginBottom: 16,
+	padding: 12,
+	background: "var(--color-surface-subtle)",
+	border: "1px solid var(--color-border)",
+	borderRadius: 8,
+});
+
+export const storeManagerList = style({
+	display: "grid",
+	gap: 8,
+	margin: "8px 0 0",
+	padding: 0,
+	listStyle: "none",
+});
+
+export const storeManagerRow = style({
+	display: "flex",
+	flexWrap: "wrap",
+	alignItems: "center",
+	gap: 8,
+});
+
+// 並び替えの持ち手がない行（店ごとの表示）。
+export const itemWithoutHandle = style({
+	gridTemplateColumns: "auto 1fr auto",
+});
