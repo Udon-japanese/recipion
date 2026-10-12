@@ -21,6 +21,35 @@ export function withDefaultCategory(
 	return entries.map((item) => ({ categoryId, ...item }));
 }
 
+// 食材の管理方法の初期値を決める。数量プリセットの換算の管理方法も、食材と同じにそろえる
+// （そろえないと、プリセットで買ったときに、食材と違う管理方法で登録される）。
+// `except` に入れた ID の食材は、そのまま。
+export function withDefaultTrackingMode(
+	trackingMode: InventoryTrackingMode,
+	entries: readonly IngredientCatalogEntry[],
+	except: ReadonlySet<string> = new Set(),
+): IngredientCatalogEntry[] {
+	return entries.map((item) =>
+		except.has(item.id)
+			? item
+			: {
+					...item,
+					defaultTrackingMode: trackingMode,
+					...(item.presets
+						? {
+								presets: item.presets.map((preset) => ({
+									...preset,
+									inventoryConversion: {
+										...preset.inventoryConversion,
+										trackingMode,
+									},
+								})),
+							}
+						: {}),
+				},
+	);
+}
+
 type PurchasePresetSpec = {
 	label: string;
 	quantity: number;

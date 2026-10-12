@@ -1,4 +1,5 @@
 import type { IngredientCatalogEntry } from "../ingredient-catalog";
+import { withDefaultTrackingMode } from "../ingredient-catalog-entry";
 import { dairyAndEggsEntries } from "./dairy-and-eggs";
 import { driedGoodsEntries } from "./dried-goods";
 import { ingredientExpiryById } from "./expiry";
@@ -27,6 +28,18 @@ import { vegetablesEntries } from "./vegetables";
 // `approximate: true` は、出典によって値が違う、個体差・商品差が大きい、または確かな出典を確認できていない値。
 // 計算に使うが、画面では「約」と示す前提にする。出典を確認できなかったものは、コメントで「出典未確認」と書いている
 // （密度・重さを入れず、省いたものもある）。
+// 量を追わない（有無だけで管理する）食材：調味料・油・ソース・チューブ類（seasonings.ts の全部）と、
+// 塩・砂糖・胡椒・スパイス・だしの素・ルー。小麦粉・片栗粉・パン粉・ホットケーキミックスは、量が多いので、量を追う。
+const quantityTrackedPowderIds: ReadonlySet<string> = new Set([
+	"wheat-flour",
+	"medium-flour",
+	"bread-flour",
+	"potato-starch",
+	"bread-crumbs",
+	"fresh-bread-crumbs",
+	"hotcake-mix",
+]);
+
 const entriesWithoutExpiry: readonly IngredientCatalogEntry[] = [
 	...dairyAndEggsEntries,
 	...soyAndProcessedEntries,
@@ -36,8 +49,12 @@ const entriesWithoutExpiry: readonly IngredientCatalogEntry[] = [
 	...frozenVegetablesEntries,
 	...staplesEntries,
 	...driedGoodsEntries,
-	...powdersAndSpicesEntries,
-	...seasoningsEntries,
+	...withDefaultTrackingMode(
+		"presence",
+		powdersAndSpicesEntries,
+		quantityTrackedPowderIds,
+	),
+	...withDefaultTrackingMode("presence", seasoningsEntries),
 ];
 
 // 期限の目安と読み仮名を、食材に付ける（別のファイルで管理している）。
