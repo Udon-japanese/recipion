@@ -384,7 +384,7 @@ describe("RecipeShoppingSection", () => {
 		expect(panel.getByLabelText("玉ねぎを買い物メモに入れる")).toBeChecked();
 	});
 
-	it("量が決まっている行にも「ある」が出て、押すと、同じ食材の行がすべて足りているになる", async () => {
+	it("量が決まっている食材にも「ある」が出て、押すと、足りているになる（同じ食材の行は1行にまとまる）", async () => {
 		const user = userEvent.setup();
 		let isRegistered = false;
 		const registerAvailable = vi.fn(async () => {
@@ -418,8 +418,8 @@ describe("RecipeShoppingSection", () => {
 			name: "オリーブオイルを在庫に「ある」で登録する",
 		});
 
-		// 「適量」の行にも、「大さじ2」の行にも、出る。
-		expect(buttons).toHaveLength(2);
+		// 「適量」と「大さじ2」の2行は、1行にまとまっているので、ボタンも1つ。
+		expect(buttons).toHaveLength(1);
 
 		await user.click(buttons[0] as HTMLElement);
 
@@ -431,9 +431,47 @@ describe("RecipeShoppingSection", () => {
 			).toBeNull(),
 		);
 		expect(registerAvailable).toHaveBeenCalledWith("オリーブオイル");
-		expect(panel.getAllByText("足りている（在庫あり）")).toHaveLength(2);
+		expect(panel.getAllByText("足りている（在庫あり）")).toHaveLength(1);
 		expect(
 			panel.getByRole("button", { name: "選んだものを入れる（0件）" }),
 		).toBeInTheDocument();
+	});
+
+	it("同じ食材の行は1行にまとめ、内訳を表示し、メモには1項目だけ入る", async () => {
+		const user = userEvent.setup();
+		const repository = createFakeShoppingRepository();
+
+		render(
+			<RecipeShoppingSection
+				ingredients={[
+					ingredient("i1", "オリーブオイル", 1.5, "大さじ", "大さじ1と1/2"),
+					ingredient("i2", "オリーブオイル", null, null, "少し"),
+					ingredient("i3", "卵", 2, "個", "2個"),
+				]}
+				ownerScope="user:user-id"
+				loadInventoryItems={async () => []}
+				shoppingRepository={repository}
+			/>,
+		);
+
+		const panel = within(await openPanel(user));
+
+		// チェックの欄は、食材ごとに1つ
+		expect(
+			await panel.findAllByLabelText("オリーブオイルを買い物メモに入れる"),
+		).toHaveLength(1);
+		expect(
+			panel.getByText(/2行をまとめています（大さじ1と1\/2 ＋ 少し）/u),
+		).toBeInTheDocument();
+
+		await user.click(
+			panel.getByRole("button", { name: "選んだものを入れる（2件）" }),
+		);
+
+		await waitFor(() => expect(repository.items).toHaveLength(2));
+		expect(repository.items.map((item) => item.name).sort()).toEqual([
+			"オリーブオイル",
+			"卵",
+		]);
 	});
 });

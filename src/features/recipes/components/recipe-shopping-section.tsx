@@ -23,6 +23,7 @@ import {
 } from "../application/load-linked-shopping-sections";
 import type { RecipeDetail } from "../application/recipe-repository";
 import { resolveIngredientLinks } from "../domain/link-ingredient-needs";
+import { mergeRecipeNeeds } from "../domain/merge-recipe-needs";
 import {
 	type DuplicateMode,
 	flattenRecipeIngredients,
@@ -187,11 +188,13 @@ export function RecipeShoppingSection({
 		[ingredients, linkViews],
 	);
 
+	// 同じ食材の行（「オリーブオイル 大さじ1」と「オリーブオイル 少し」など）は、1行にまとめる。
 	const needs = useMemo(
-		() => [
-			...resolvedNeeds.filter((need) => !need.linkedRecipe),
-			...linkedSections.sections.flatMap((section) => section.needs),
-		],
+		() =>
+			mergeRecipeNeeds([
+				...resolvedNeeds.filter((need) => !need.linkedRecipe),
+				...linkedSections.sections.flatMap((section) => section.needs),
+			]),
 		[resolvedNeeds, linkedSections],
 	);
 
@@ -476,6 +479,15 @@ export function RecipeShoppingSection({
 										>
 											{stock.text}
 										</span>
+
+										{row.need.mergedAmountTexts &&
+										row.need.mergedAmountTexts.length > 1 ? (
+											<span className={styles.status}>
+												{row.need.mergedAmountTexts.length}
+												行をまとめています（
+												{row.need.mergedAmountTexts.join(" ＋ ")}）
+											</span>
+										) : null}
 
 										{existingText ? (
 											<span className={styles.status}>{existingText}</span>

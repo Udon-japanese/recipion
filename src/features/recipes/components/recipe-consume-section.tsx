@@ -12,6 +12,7 @@ import {
 import { loadLinkedShoppingSections } from "../application/load-linked-shopping-sections";
 import type { RecipeDetail } from "../application/recipe-repository";
 import { resolveIngredientLinks } from "../domain/link-ingredient-needs";
+import { mergeRecipeNeeds } from "../domain/merge-recipe-needs";
 import {
 	planRecipeConsumption,
 	type RecipeConsumptionAlternative,
@@ -102,7 +103,7 @@ export function RecipeConsumeSection({
 		const own = resolvedNeeds.filter((need) => !need.linkedRecipe);
 
 		if (!loadLinkedRecipe || !resolvedNeeds.some((need) => need.linkedRecipe)) {
-			return own;
+			return mergeRecipeNeeds(own);
 		}
 
 		const linked = await loadLinkedShoppingSections(
@@ -110,7 +111,11 @@ export function RecipeConsumeSection({
 			loadLinkedRecipe,
 		);
 
-		return [...own, ...linked.sections.flatMap((section) => section.needs)];
+		// 同じ食材の行は、1行にまとめる（引き算が1回になる）。
+		return mergeRecipeNeeds([
+			...own,
+			...linked.sections.flatMap((section) => section.needs),
+		]);
 	}
 
 	async function handleMade() {
