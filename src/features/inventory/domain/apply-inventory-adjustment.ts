@@ -8,6 +8,8 @@ export type InventoryOperation = "increase" | "decrease";
 export type InventoryTransactionReason =
 	| "purchase"
 	| "recipe-consumption"
+	// 「作った」で引いた分を、取り消して戻したときの履歴（元の履歴は消さずに、戻した分を足す）。
+	| "recipe-consumption-undo"
 	| "manual-adjustment";
 
 export type InventoryTransactionSourceType = "shopping-item" | "recipe";

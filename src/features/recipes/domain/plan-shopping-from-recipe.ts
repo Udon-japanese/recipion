@@ -167,10 +167,10 @@ export type PlanShoppingFromRecipeInput = {
  * - 人数による量の調整はしない（レシピの量のまま）。
  */
 // 在庫の食材が、この材料の代わりになる食材（冷凍野菜など）か。
-function findStandInItems(
+export function findStandInItems<T extends RecipeShoppingStockItem>(
 	needName: string,
-	stockItems: readonly RecipeShoppingStockItem[],
-): RecipeShoppingStockItem[] {
+	stockItems: readonly T[],
+): T[] {
 	const standInIds = getStandInCatalogEntryIds(needName);
 
 	if (standInIds.size === 0) {

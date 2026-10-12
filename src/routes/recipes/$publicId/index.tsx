@@ -12,9 +12,20 @@ import {
 import { loadInventoryItemsWithCache } from "#/features/inventory/application/load-inventory-items-with-cache";
 import { useOwnerScope } from "#/features/inventory/hooks/use-owner-scope";
 import { createDexieInventoryCacheRepository } from "#/features/inventory/infrastructure/dexie-inventory-cache-repository";
+import { adjustInventory as adjustInventoryServerFn } from "#/features/inventory/server/adjust-inventory";
 import { listInventoryItemsServerFn } from "#/features/inventory/server/list-inventory-items";
 import { registerInventoryItemServerFn } from "#/features/inventory/server/register-inventory-item";
+import { undoRecipeConsumptionServerFn } from "#/features/inventory/server/undo-recipe-consumption";
+import type {
+	RecipeConsumptionEntryResult,
+	RecipeConsumptionOperation,
+} from "#/features/recipes/application/consume-recipe-ingredients";
+import {
+	runRecipeConsumption,
+	undoRecipeConsumptionWithCache,
+} from "#/features/recipes/application/consume-recipe-ingredients";
 import type { RecipeDetail } from "#/features/recipes/application/recipe-repository";
+import { RecipeConsumeSection } from "#/features/recipes/components/recipe-consume-section";
 import { RecipeDeleteButton } from "#/features/recipes/components/recipe-delete-button";
 import { RecipePassphraseSection } from "#/features/recipes/components/recipe-passphrase-section";
 import { RecipeRouteError } from "#/features/recipes/components/recipe-route-error";
@@ -105,6 +116,43 @@ function useRecipeViewSupport(recipe: RecipeDetail) {
 		});
 	}, []);
 
+	// 「作った」：在庫から引く（キャッシュも更新）。
+	const consume = useCallback(
+		async (
+			operation: RecipeConsumptionOperation,
+			onlyNeedIds?: ReadonlySet<string>,
+		): Promise<RecipeConsumptionEntryResult[]> => {
+			if (!ownerScope || ownerScope === "guest") {
+				throw new Error("在庫を操作できるユーザーではありません");
+			}
+
+			return runRecipeConsumption(
+				ownerScope,
+				operation,
+				(command) => adjustInventoryServerFn({ data: command }),
+				createDexieInventoryCacheRepository(),
+				onlyNeedIds,
+			);
+		},
+		[ownerScope],
+	);
+
+	const undoConsumption = useCallback(
+		async (sourceId: string) => {
+			if (!ownerScope || ownerScope === "guest") {
+				throw new Error("在庫を操作できるユーザーではありません");
+			}
+
+			return undoRecipeConsumptionWithCache(
+				ownerScope,
+				sourceId,
+				(id) => undoRecipeConsumptionServerFn({ data: { sourceId: id } }),
+				createDexieInventoryCacheRepository(),
+			);
+		},
+		[ownerScope],
+	);
+
 	return {
 		ownerScope,
 		loadLinkedRecipe,
@@ -113,6 +161,8 @@ function useRecipeViewSupport(recipe: RecipeDetail) {
 		regeneratePassphrase,
 		loadInventoryItems,
 		registerAvailable,
+		consume,
+		undoConsumption,
 	};
 }
 
@@ -126,6 +176,8 @@ function OwnRecipePage({ recipe }: { recipe: RecipeDetail }) {
 		regeneratePassphrase,
 		loadInventoryItems,
 		registerAvailable,
+		consume,
+		undoConsumption,
 	} = useRecipeViewSupport(recipe);
 
 	return (
@@ -155,6 +207,16 @@ function OwnRecipePage({ recipe }: { recipe: RecipeDetail }) {
 				ownerScope={ownerScope}
 				loadInventoryItems={loadInventoryItems}
 				registerAvailable={registerAvailable}
+			/>
+			<RecipeConsumeSection
+				recipePublicId={recipe.publicId}
+				ingredients={recipe.ingredients}
+				linkViews={recipe.linkViews}
+				loadLinkedRecipe={loadLinkedRecipe}
+				ownerScope={ownerScope}
+				loadInventoryItems={loadInventoryItems}
+				consume={consume}
+				undo={undoConsumption}
 			/>
 			<p>
 				<Link
@@ -190,6 +252,8 @@ function SharedRecipePage({
 		loadLinkedRecipes,
 		loadInventoryItems,
 		registerAvailable,
+		consume,
+		undoConsumption,
 	} = useRecipeViewSupport(recipe);
 
 	return (
@@ -215,6 +279,16 @@ function SharedRecipePage({
 				ownerScope={ownerScope}
 				loadInventoryItems={loadInventoryItems}
 				registerAvailable={registerAvailable}
+			/>
+			<RecipeConsumeSection
+				recipePublicId={recipe.publicId}
+				ingredients={recipe.ingredients}
+				linkViews={recipe.linkViews}
+				loadLinkedRecipe={loadLinkedRecipe}
+				ownerScope={ownerScope}
+				loadInventoryItems={loadInventoryItems}
+				consume={consume}
+				undo={undoConsumption}
 			/>
 			<ReportRecipeForm
 				onReport={(input) =>

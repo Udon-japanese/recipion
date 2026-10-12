@@ -11,6 +11,7 @@ import { createIngredientRegistration } from "../application/create-ingredient-r
 import type {
 	InventoryAdjustmentCommand,
 	InventoryAdjustmentRepository,
+	RecipeConsumptionUndoRepository,
 } from "../application/inventory-adjustment-repository";
 import type {
 	InventoryItemResolver,
@@ -137,6 +138,7 @@ export function createDrizzleInventoryRepository(
 	db: DB,
 	userId: string,
 ): InventoryAdjustmentRepository &
+	RecipeConsumptionUndoRepository &
 	InventoryItemResolver &
 	InventoryLotRepository &
 	InventoryQueryRepository {
@@ -657,6 +659,132 @@ export function createDrizzleInventoryRepository(
 					quantity: sumLotQuantities(lots),
 					lots,
 				};
+			});
+		},
+
+		async undoRecipeConsumption(sourceId: string) {
+			return db.transaction(async (transaction) => {
+				const consumed = await transaction
+					.select({
+						inventoryItemId: inventoryTransaction.inventoryItemId,
+						inventoryLotId: inventoryTransaction.inventoryLotId,
+						quantityDelta: inventoryTransaction.quantityDelta,
+						stockUnitCode: inventoryTransaction.stockUnitCode,
+					})
+					.from(inventoryTransaction)
+					.where(
+						and(
+							eq(inventoryTransaction.userId, userId),
+							eq(inventoryTransaction.reason, "recipe-consumption"),
+							eq(inventoryTransaction.sourceId, sourceId),
+						),
+					);
+
+				if (consumed.length === 0) {
+					return { status: "nothing-to-undo" as const, items: [] };
+				}
+
+				// 食材の行を、順番を決めてロックする（同時に、別の操作と入れ違いにならないように）。
+				const itemIds = [
+					...new Set(consumed.map((row) => row.inventoryItemId)),
+				].sort();
+
+				for (const itemId of itemIds) {
+					await transaction
+						.select({ id: inventoryItem.id })
+						.from(inventoryItem)
+						.where(
+							and(
+								eq(inventoryItem.id, itemId),
+								eq(inventoryItem.userId, userId),
+							),
+						)
+						.for("update", { of: inventoryItem });
+				}
+
+				const loadItems = async () =>
+					Promise.all(
+						itemIds.map(async (inventoryItemId) => {
+							const lots = toStockedLots(
+								await loadLots(transaction, userId, inventoryItemId),
+							);
+
+							return {
+								inventoryItemId,
+								quantity: sumLotQuantities(lots),
+								lots,
+							};
+						}),
+					);
+
+				const [alreadyUndone] = await transaction
+					.select({ id: inventoryTransaction.id })
+					.from(inventoryTransaction)
+					.where(
+						and(
+							eq(inventoryTransaction.userId, userId),
+							eq(inventoryTransaction.reason, "recipe-consumption-undo"),
+							eq(inventoryTransaction.sourceId, sourceId),
+						),
+					)
+					.limit(1);
+
+				if (alreadyUndone) {
+					return {
+						status: "already-undone" as const,
+						items: await loadItems(),
+					};
+				}
+
+				const now = new Date();
+
+				for (const row of consumed) {
+					// ロットが消えている（引いたあとで削除された）履歴は、戻す先がないので、飛ばす。
+					if (row.inventoryLotId === null) {
+						continue;
+					}
+
+					const restored = Math.abs(Number(row.quantityDelta));
+
+					if (restored === 0) {
+						continue;
+					}
+
+					const [updatedLot] = await transaction
+						.update(inventoryLot)
+						.set({
+							quantity: sql`${inventoryLot.quantity} + ${toNumeric(restored)}`,
+						})
+						.where(
+							and(
+								eq(inventoryLot.id, row.inventoryLotId),
+								eq(inventoryLot.userId, userId),
+							),
+						)
+						.returning({ quantity: inventoryLot.quantity });
+
+					if (!updatedLot) {
+						continue;
+					}
+
+					await transaction.insert(inventoryTransaction).values({
+						userId,
+						inventoryItemId: row.inventoryItemId,
+						inventoryLotId: row.inventoryLotId,
+						inputQuantity: toNumeric(restored),
+						inputUnitCode: row.stockUnitCode,
+						requestedQuantityDelta: toNumeric(restored),
+						quantityDelta: toNumeric(restored),
+						resultingQuantity: updatedLot.quantity,
+						stockUnitCode: row.stockUnitCode,
+						reason: "recipe-consumption-undo",
+						sourceType: "recipe",
+						sourceId,
+						occurredAt: now,
+					});
+				}
+
+				return { status: "undone" as const, items: await loadItems() };
 			});
 		},
 
