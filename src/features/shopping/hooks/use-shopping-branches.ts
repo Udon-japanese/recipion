@@ -1,0 +1,169 @@
+import { useEffect, useState } from "react";
+import type { ShoppingBranchRepository } from "../application/shopping-branch-repository";
+import { getShoppingErrorMessage } from "../components/shopping-error-message";
+import {
+	type CreateShoppingBranchInput,
+	createShoppingBranch,
+	decideShoppingBranch,
+	maxShoppingBranchCount,
+	type ShoppingBranch,
+	type ShoppingBranchSide,
+} from "../domain/shopping-branch";
+import {
+	type CreateShoppingItemInput,
+	createShoppingItem,
+	type ShoppingItem,
+} from "../domain/shopping-item";
+
+type UseShoppingBranchesOptions = {
+	repository: ShoppingBranchRepository;
+	// 分岐の中の項目も含む、すべての項目。
+	allItems: readonly ShoppingItem[];
+	setItems: (update: (current: ShoppingItem[]) => ShoppingItem[]) => void;
+	onError: (message: string | null) => void;
+};
+
+// 分岐型のメモ：作成・削除と、条件が決まったときの確定。
+export function useShoppingBranches({
+	repository,
+	allItems,
+	setItems,
+	onError,
+}: UseShoppingBranchesOptions) {
+	const [branches, setBranches] = useState<ShoppingBranch[]>([]);
+
+	useEffect(() => {
+		let isActive = true;
+
+		async function load() {
+			try {
+				const loaded = await repository.list();
+
+				if (isActive) {
+					setBranches(loaded);
+				}
+			} catch {
+				if (isActive) {
+					onError("条件つきのメモを読み込めませんでした");
+				}
+			}
+		}
+
+		void load();
+
+		return () => {
+			isActive = false;
+		};
+	}, [repository, onError]);
+
+	// 条件の材料（通常のメモと同じ入力）と、どんな時か、で分岐を作る。
+	async function addBranch(
+		input: CreateShoppingBranchInput,
+		conditionItemInput: CreateShoppingItemInput,
+	): Promise<boolean> {
+		onError(null);
+
+		try {
+			if (branches.length >= maxShoppingBranchCount) {
+				onError(`条件つきのメモは${maxShoppingBranchCount}件までです`);
+
+				return false;
+			}
+
+			const nextSortOrder =
+				branches.reduce(
+					(highest, branch) => Math.max(highest, branch.sortOrder),
+					-1,
+				) + 1;
+			const branch = createShoppingBranch(input, nextSortOrder);
+
+			const nextItemSortOrder =
+				allItems.reduce(
+					(highest, item) => Math.max(highest, item.sortOrder),
+					-1,
+				) + 1;
+			const conditionItem = createShoppingItem(
+				{
+					...conditionItemInput,
+					branchId: branch.id,
+					branchSide: "condition",
+				},
+				new Date(),
+				nextItemSortOrder,
+			);
+
+			await repository.create(branch, conditionItem);
+			setBranches((current) => [...current, branch]);
+			setItems((current) => [...current, conditionItem]);
+
+			return true;
+		} catch (error) {
+			onError(getShoppingErrorMessage(error));
+
+			return false;
+		}
+	}
+
+	async function removeBranch(branch: ShoppingBranch): Promise<boolean> {
+		onError(null);
+
+		try {
+			await repository.remove(branch.id);
+			setBranches((current) =>
+				current.filter((entry) => entry.id !== branch.id),
+			);
+			setItems((current) =>
+				current.filter((item) => item.branchId !== branch.id),
+			);
+
+			return true;
+		} catch (error) {
+			onError(getShoppingErrorMessage(error));
+
+			return false;
+		}
+	}
+
+	// 条件が決まった：選んだ側を通常の項目にして一覧の最後に加え、選ばなかった側と分岐を消す。
+	async function decideBranch(
+		branch: ShoppingBranch,
+		side: ShoppingBranchSide,
+	): Promise<boolean> {
+		onError(null);
+
+		try {
+			const startSortOrder =
+				allItems
+					.filter((item) => !item.branchId)
+					.reduce((highest, item) => Math.max(highest, item.sortOrder), -1) + 1;
+			const { released, discardedIds } = decideShoppingBranch(
+				allItems,
+				branch.id,
+				side,
+				startSortOrder,
+			);
+
+			await repository.applyDecision(branch.id, released, discardedIds);
+
+			const releasedById = new Map(released.map((item) => [item.id, item]));
+			const discarded = new Set(discardedIds);
+
+			setBranches((current) =>
+				current.filter((entry) => entry.id !== branch.id),
+			);
+			setItems((current) =>
+				current
+					.filter((item) => !discarded.has(item.id))
+					.map((item) => releasedById.get(item.id) ?? item),
+			);
+
+			return true;
+		} catch (error) {
+			onError(getShoppingErrorMessage(error));
+
+			return false;
+		}
+	}
+
+	return { branches, addBranch, removeBranch, decideBranch };
+}

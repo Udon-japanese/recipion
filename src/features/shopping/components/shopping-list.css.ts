@@ -527,3 +527,65 @@ export const storeManagerRow = style({
 export const itemWithoutHandle = style({
 	gridTemplateColumns: "auto 1fr auto",
 });
+
+export const branchSection = style({
+	display: "grid",
+	gap: 12,
+	marginBottom: 24,
+});
+
+export const branchCard = style({
+	display: "grid",
+	gap: 12,
+	padding: 12,
+	background: "var(--color-surface-subtle)",
+	border: "1px dashed var(--color-border)",
+	borderRadius: 10,
+});
+
+export const branchCondition = style({
+	margin: 0,
+	color: "var(--color-text)",
+	fontSize: 17,
+	fontWeight: 700,
+});
+
+export const branchSides = style({
+	display: "grid",
+	gap: 12,
+	"@media": {
+		"(min-width: 560px)": {
+			gridTemplateColumns: "1fr 1fr",
+		},
+	},
+});
+
+export const branchSide = style({
+	display: "grid",
+	alignContent: "start",
+	gap: 8,
+	padding: 10,
+	background: "var(--color-surface)",
+	border: "1px solid var(--color-border)",
+	borderRadius: 8,
+});
+
+export const branchSideTitle = style({
+	margin: 0,
+	color: "var(--color-text-muted)",
+	fontSize: 14,
+	fontWeight: 700,
+});
+
+export const branchItemRow = style({
+	display: "flex",
+	alignItems: "center",
+	justifyContent: "space-between",
+	gap: 8,
+});
+
+export const branchActions = style({
+	display: "flex",
+	flexWrap: "wrap",
+	gap: 8,
+});

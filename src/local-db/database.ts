@@ -1,6 +1,7 @@
 import Dexie, { type Table } from "dexie";
 import type { InventoryCacheSnapshot } from "../features/inventory/application/inventory-cache-repository";
 import type { InventoryPurchaseOutboxEntry } from "../features/inventory/application/inventory-purchase-outbox";
+import type { ShoppingBranch } from "../features/shopping/domain/shopping-branch";
 import type { ShoppingItem } from "../features/shopping/domain/shopping-item";
 import type { ShoppingStore } from "../features/shopping/domain/shopping-store";
 
@@ -12,12 +13,19 @@ export type ShoppingStoreDefault = {
 
 type MigratingShoppingItem = Omit<
 	ShoppingItem,
-	"categoryId" | "categoryAssignment" | "inventoryConversion" | "storeId"
+	| "categoryId"
+	| "categoryAssignment"
+	| "inventoryConversion"
+	| "storeId"
+	| "branchId"
+	| "branchSide"
 > & {
 	categoryId?: ShoppingItem["categoryId"] | "tofu-noodles";
 	categoryAssignment?: ShoppingItem["categoryAssignment"];
 	inventoryConversion?: ShoppingItem["inventoryConversion"];
 	storeId?: ShoppingItem["storeId"];
+	branchId?: ShoppingItem["branchId"];
+	branchSide?: ShoppingItem["branchSide"];
 };
 
 export class LocalDatabase extends Dexie {
@@ -25,6 +33,7 @@ export class LocalDatabase extends Dexie {
 	inventoryPurchaseOutbox!: Table<InventoryPurchaseOutboxEntry, string>;
 	inventorySnapshots!: Table<InventoryCacheSnapshot, string>;
 	shoppingStores!: Table<ShoppingStore, string>;
+	shoppingBranches!: Table<ShoppingBranch, string>;
 	shoppingStoreDefaults!: Table<ShoppingStoreDefault, string>;
 
 	constructor(databaseName = "app-local") {
@@ -147,6 +156,27 @@ export class LocalDatabase extends Dexie {
 
 				await shoppingItems.toCollection().modify((item) => {
 					item.storeId ??= null;
+				});
+			});
+
+		this.version(10)
+			.stores({
+				shoppingItems:
+					"id, status, categoryId, categoryAssignment, storeId, branchId, sortOrder, createdAt, updatedAt",
+				inventoryPurchaseOutbox: "id, ownerScope, status, createdAt, updatedAt",
+				inventorySnapshots: "ownerScope, cachedAt",
+				shoppingStores: "id, sortOrder",
+				shoppingStoreDefaults: "nameKey, storeId",
+				shoppingBranches: "id, sortOrder",
+			})
+			.upgrade(async (transaction) => {
+				const shoppingItems = transaction.table<MigratingShoppingItem, string>(
+					"shoppingItems",
+				);
+
+				await shoppingItems.toCollection().modify((item) => {
+					item.branchId ??= null;
+					item.branchSide ??= null;
 				});
 			});
 	}

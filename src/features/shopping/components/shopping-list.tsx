@@ -4,10 +4,12 @@ import clsx from "clsx";
 import { useState } from "react";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import { useStorageItem } from "#/local-storage/use-storage-item";
+import type { ShoppingBranchRepository } from "../application/shopping-branch-repository";
 import type { ShoppingRepository } from "../application/shopping-repository";
 import type { ShoppingStoreRepository } from "../application/shopping-store-repository";
 import { type ShoppingItem, toggleShoppingItem } from "../domain/shopping-item";
 import { groupShoppingItemsByStore } from "../domain/shopping-store";
+import { useShoppingBranches } from "../hooks/use-shopping-branches";
 import { useShoppingItems } from "../hooks/use-shopping-items";
 import {
 	type ConfirmPurchases,
@@ -15,11 +17,13 @@ import {
 	useShoppingPurchase,
 } from "../hooks/use-shopping-purchase";
 import { useShoppingStores } from "../hooks/use-shopping-stores";
+import { dexieShoppingBranchRepository } from "../infrastructure/dexie-shopping-branch-repository";
 import { confirmCheckedShoppingItemsPurchase } from "../infrastructure/dexie-shopping-purchase";
 import { dexieShoppingRepository } from "../infrastructure/dexie-shopping-repository";
 import { dexieShoppingStoreRepository } from "../infrastructure/dexie-shopping-store-repository";
 import { shoppingViewStorage } from "../infrastructure/shopping-view-storage";
 import { PurchaseExpiryReview } from "./purchase-expiry-review";
+import { ShoppingBranchSection } from "./shopping-branch-section";
 import { ShoppingItemEditForm } from "./shopping-item-edit-form";
 import { ShoppingItemForm } from "./shopping-item-form";
 import { ShoppingItemInventoryConversionForm } from "./shopping-item-inventory-conversion-form";
@@ -43,6 +47,7 @@ const defaultConfirmPurchases: ConfirmPurchases = (ownerScope, options) =>
 type ShoppingListProps = {
 	repository?: ShoppingRepository;
 	storeRepository?: ShoppingStoreRepository;
+	branchRepository?: ShoppingBranchRepository;
 	confirmPurchases?: ConfirmPurchases;
 	syncPurchases?: SyncPurchases;
 	ownerScope?: InventoryPurchaseOwnerScope | null;
@@ -51,6 +56,7 @@ type ShoppingListProps = {
 export function ShoppingList({
 	repository = dexieShoppingRepository,
 	storeRepository = dexieShoppingStoreRepository,
+	branchRepository = dexieShoppingBranchRepository,
 	confirmPurchases = defaultConfirmPurchases,
 	syncPurchases,
 	ownerScope = "guest",
@@ -73,6 +79,12 @@ export function ShoppingList({
 		onStoreRemoved: handleStoreRemoved,
 	});
 	const { stores } = storeState;
+	const branchState = useShoppingBranches({
+		repository: branchRepository,
+		allItems: shopping.allItems,
+		setItems: shopping.setItems,
+		onError: setErrorMessage,
+	});
 	const storeNamesById = new Map(stores.map((store) => [store.id, store.name]));
 
 	const purchase = useShoppingPurchase({
@@ -259,6 +271,31 @@ export function ShoppingList({
 						: `チェック済みを購入確定（${purchase.checkedItemCount}件）`}
 				</button>
 			</div>
+
+			<ShoppingBranchSection
+				branches={branchState.branches}
+				items={shopping.allItems}
+				stores={stores}
+				defaultStoreIdFor={storeState.defaultStoreIdFor}
+				onCreateStore={storeState.addStore}
+				onAddBranch={branchState.addBranch}
+				onRemoveBranch={branchState.removeBranch}
+				onDecide={branchState.decideBranch}
+				onAddItem={async (branch, side, input) => {
+					const added = await shopping.addItem({
+						...input,
+						branchId: branch.id,
+						branchSide: side,
+					});
+
+					if (added) {
+						await storeState.rememberStore(input.name, input.storeId ?? null);
+					}
+
+					return added;
+				}}
+				onRemoveItem={shopping.removeItem}
+			/>
 
 			{isLoading ? <p className={styles.message}>読み込んでいます…</p> : null}
 

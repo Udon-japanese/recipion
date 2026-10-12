@@ -22,7 +22,8 @@ import {
 // 買い物メモの項目の読み込みと、追加・更新・削除・並び替え。
 // 操作は、保存に成功したあとで画面の状態に反映する。失敗したときは、エラーの文を出して false を返す。
 export function useShoppingItems(repository: ShoppingRepository) {
-	const [items, setItems] = useState<ShoppingItem[]>([]);
+	// 分岐型のメモの中の項目も含む、すべての項目。
+	const [allItems, setItems] = useState<ShoppingItem[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [isReordering, setIsReordering] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -69,6 +70,9 @@ export function useShoppingItems(repository: ShoppingRepository) {
 		};
 	}, [repository]);
 
+	// 通常の一覧の項目（分岐の中の項目は、条件が決まるまで、一覧に出さない）。
+	const items = allItems.filter((item) => !item.branchId);
+
 	async function run(action: () => Promise<void>): Promise<boolean> {
 		setErrorMessage(null);
 
@@ -94,7 +98,7 @@ export function useShoppingItems(repository: ShoppingRepository) {
 	function addItem(input: CreateShoppingItemInput): Promise<boolean> {
 		return run(async () => {
 			const nextSortOrder =
-				items.reduce(
+				allItems.reduce(
 					(highestSortOrder, item) =>
 						Math.max(highestSortOrder, item.sortOrder),
 					-1,
@@ -153,7 +157,10 @@ export function useShoppingItems(repository: ShoppingRepository) {
 				const reorderedItems = createOrder(items);
 
 				await repository.saveAll(reorderedItems);
-				setItems(reorderedItems);
+				setItems((current) => [
+					...reorderedItems,
+					...current.filter((item) => item.branchId),
+				]);
 			});
 		} finally {
 			setIsReordering(false);
@@ -182,6 +189,8 @@ export function useShoppingItems(repository: ShoppingRepository) {
 
 	return {
 		items,
+		allItems,
+		setItems,
 		isLoading,
 		isReordering,
 		errorMessage,
