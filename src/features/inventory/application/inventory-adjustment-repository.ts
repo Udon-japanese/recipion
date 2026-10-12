@@ -25,8 +25,24 @@ export type InventoryAdjustmentRepositoryResult = {
 	lots: InventoryLot[];
 };
 
+export type UndoRecipeConsumptionResult = {
+	// undone: 戻した / already-undone: すでに戻してある / nothing-to-undo: 戻す履歴がない。
+	status: "undone" | "already-undone" | "nothing-to-undo";
+	// 戻した食材の、操作後の数量とロット（キャッシュの更新に使う）。
+	items: {
+		inventoryItemId: string;
+		quantity: number;
+		lots: InventoryLot[];
+	}[];
+};
+
 export interface InventoryAdjustmentRepository {
 	applyAdjustment(
 		command: InventoryAdjustmentCommand,
 	): Promise<InventoryAdjustmentRepositoryResult>;
+}
+
+export interface RecipeConsumptionUndoRepository {
+	// 「作った」で引いた分（同じ sourceId の履歴）を、引いたロットへ戻す。二重には戻さない。
+	undoRecipeConsumption(sourceId: string): Promise<UndoRecipeConsumptionResult>;
 }
