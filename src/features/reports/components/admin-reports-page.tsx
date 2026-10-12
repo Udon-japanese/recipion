@@ -120,6 +120,15 @@ export function AdminReportsPage({
 									? `・作者：${report.ownerName}（@${report.ownerHandle}）`
 									: null}
 							</p>
+							{report.ownerHandle ? (
+								<p className={styles.meta}>
+									<a
+										href={`/admin/users?q=${encodeURIComponent(report.ownerHandle)}`}
+									>
+										投稿者を停止する（ユーザーの画面へ）
+									</a>
+								</p>
+							) : null}
 							{report.detail === "" ? null : (
 								<p className={styles.detail}>{report.detail}</p>
 							)}

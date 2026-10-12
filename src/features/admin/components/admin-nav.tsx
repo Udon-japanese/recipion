@@ -7,6 +7,7 @@ export function AdminNav() {
 		{ to: "/admin", label: "管理の入口", exact: true },
 		{ to: "/admin/reports", label: "通報", exact: false },
 		{ to: "/admin/appeals", label: "停止への申し立て", exact: false },
+		{ to: "/admin/users", label: "ユーザー", exact: false },
 	] as const;
 
 	return (
@@ -17,6 +18,8 @@ export function AdminNav() {
 					activeProps={{ className: `${styles.link} ${styles.currentLink}` }}
 					activeOptions={{ exact: item.exact }}
 					to={item.to}
+					// ユーザーの画面は、検索の条件（空）が要る。
+					search={item.to === "/admin/users" ? { q: "" } : undefined}
 					key={item.to}
 				>
 					{item.label}
