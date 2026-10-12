@@ -40,6 +40,8 @@ export async function confirmCheckedShoppingItemsPurchase(
 			const checkedItems = await database.shoppingItems
 				.where("status")
 				.equals("checked")
+				// 条件つきのメモの中の項目は、条件が決まる（通常の項目になる）までは、購入確定の対象にしない。
+				.filter((item) => !item.branchId)
 				.sortBy("sortOrder");
 
 			if (checkedItems.length === 0) {

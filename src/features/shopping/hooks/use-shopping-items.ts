@@ -18,6 +18,7 @@ import {
 	moveShoppingItemToIndex,
 	type ShoppingItemMoveDirection,
 } from "../domain/shopping-item-order";
+import { upsertById } from "../domain/upsert-by-id";
 
 // 買い物メモの項目の読み込みと、追加・更新・削除・並び替え。
 // 操作は、保存に成功したあとで画面の状態に反映する。失敗したときは、エラーの文を出して false を返す。
@@ -31,39 +32,61 @@ export function useShoppingItems(repository: ShoppingRepository) {
 	useEffect(() => {
 		let isActive = true;
 
-		async function loadItems() {
-			try {
-				const storedItems = await repository.list();
-				const categorizedItems = categorizeUnassignedShoppingItems(storedItems);
-				const categoryChanged = categorizedItems.some(
-					(item, index) => item !== storedItems[index],
-				);
+		// 最初に届いた一覧だけ、カテゴリが未設定の項目を自動で埋めて保存する。
+		async function applyInitialItems(storedItems: ShoppingItem[]) {
+			const categorizedItems = categorizeUnassignedShoppingItems(storedItems);
+			const categoryChanged = categorizedItems.some(
+				(item, index) => item !== storedItems[index],
+			);
 
-				if (isActive) {
-					setItems(categorizedItems);
-				}
+			if (isActive) {
+				setItems(categorizedItems);
+				setIsLoading(false);
+			}
 
-				if (categoryChanged) {
-					try {
-						await repository.saveAll(categorizedItems);
-					} catch {
-						if (isActive) {
-							setErrorMessage("買い物メモの商品カテゴリを保存できませんでした");
-						}
+			if (categoryChanged) {
+				try {
+					await repository.saveAll(categorizedItems);
+				} catch {
+					if (isActive) {
+						setErrorMessage("買い物メモの商品カテゴリを保存できませんでした");
 					}
-				}
-			} catch {
-				if (isActive) {
-					setErrorMessage("買い物メモを読み込めませんでした");
-				}
-			} finally {
-				if (isActive) {
-					setIsLoading(false);
 				}
 			}
 		}
 
-		void loadItems();
+		function handleLoadError() {
+			if (isActive) {
+				setErrorMessage("買い物メモを読み込めませんでした");
+				setIsLoading(false);
+			}
+		}
+
+		// 購読できる保存先（Dexie）は、別のタブや画面の外からの変更も、自動で受け取る。
+		if (repository.watch) {
+			let isInitial = true;
+			const unsubscribe = repository.watch((storedItems) => {
+				if (!isActive) {
+					return;
+				}
+
+				if (isInitial) {
+					isInitial = false;
+					void applyInitialItems(storedItems);
+
+					return;
+				}
+
+				setItems(storedItems);
+			}, handleLoadError);
+
+			return () => {
+				isActive = false;
+				unsubscribe();
+			};
+		}
+
+		repository.list().then(applyInitialItems, handleLoadError);
 
 		return () => {
 			isActive = false;
@@ -106,7 +129,7 @@ export function useShoppingItems(repository: ShoppingRepository) {
 			const item = createShoppingItem(input, new Date(), nextSortOrder);
 
 			await repository.save(item);
-			setItems((currentItems) => [...currentItems, item]);
+			setItems((currentItems) => upsertById(currentItems, item));
 		});
 	}
 

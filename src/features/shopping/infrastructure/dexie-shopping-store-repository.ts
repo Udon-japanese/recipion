@@ -1,9 +1,18 @@
+import { liveQuery } from "dexie";
 import { getLocalDatabase } from "../../../local-db/database";
 import type { ShoppingStoreRepository } from "../application/shopping-store-repository";
 
 export const dexieShoppingStoreRepository = {
 	async list() {
 		return getLocalDatabase().shoppingStores.orderBy("sortOrder").toArray();
+	},
+
+	watch(onChange, onError) {
+		const subscription = liveQuery(() =>
+			getLocalDatabase().shoppingStores.orderBy("sortOrder").toArray(),
+		).subscribe({ next: onChange, error: onError });
+
+		return () => subscription.unsubscribe();
 	},
 
 	async save(store) {

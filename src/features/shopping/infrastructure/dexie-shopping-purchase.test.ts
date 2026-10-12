@@ -45,6 +45,25 @@ afterEach(async () => {
 });
 
 describe("confirmCheckedShoppingItemsPurchase", () => {
+	it("条件つきのメモの中の項目は、チェック済みの状態でも購入確定の対象にしない", async () => {
+		const database = createDatabase();
+		const branchItem = {
+			...createCheckedHotcakeMix(),
+			branchId: "branch-1",
+			branchSide: "then" as const,
+		};
+
+		await database.shoppingItems.put(branchItem);
+
+		await expect(
+			confirmCheckedShoppingItemsPurchase("guest", database),
+		).resolves.toEqual({ status: "nothing-to-confirm" });
+		await expect(
+			database.shoppingItems.get(branchItem.id),
+		).resolves.toMatchObject({ status: "checked", branchId: "branch-1" });
+		await expect(database.inventoryPurchaseOutbox.count()).resolves.toBe(0);
+	});
+
 	it("チェック済み商品を購入済みにしてoutboxへ追加する", async () => {
 		const database = createDatabase();
 		const checkedItem = createCheckedHotcakeMix();

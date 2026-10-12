@@ -1,9 +1,18 @@
+import { liveQuery } from "dexie";
 import { getLocalDatabase } from "../../../local-db/database";
 import type { ShoppingBranchRepository } from "../application/shopping-branch-repository";
 
 export const dexieShoppingBranchRepository = {
 	async list() {
 		return getLocalDatabase().shoppingBranches.orderBy("sortOrder").toArray();
+	},
+
+	watch(onChange, onError) {
+		const subscription = liveQuery(() =>
+			getLocalDatabase().shoppingBranches.orderBy("sortOrder").toArray(),
+		).subscribe({ next: onChange, error: onError });
+
+		return () => subscription.unsubscribe();
 	},
 
 	async create(branch, conditionItem) {
