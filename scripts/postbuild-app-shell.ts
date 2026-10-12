@@ -12,8 +12,11 @@
 //   アプリは workerd の中で動き、ビルドを実行する Node の環境変数は届かないため、
 //   プレビューの Worker に、`dist/server/.dev.vars` 経由で一時的に渡す（終了後に必ず元へ戻す）。
 //   本番の Worker には、この変数は渡らない。
-//   Workers AI のバインディング（ai）は、プレビューでも Cloudflare に接続しようとして待ち続けるため、
-//   プレビューの間だけ、dist/server/wrangler.json から外す（終了後に必ず元へ戻す。シェルの描画では AI を使わない）。
+//   Workers AI のバインディング（ai）は、プラグインが、常にリモート（Cloudflare 上の本物）で動かす。
+//   プレビューを起動すると、Cloudflare との接続が張られ、server.close() のあとも残って、Node のプロセスが終了しない
+//   （ビルドのコマンドが、終わらなくなる）。そのため、vite.config.ts で、プレビューのときだけ、
+//   プラグインの公式のオプション `remoteBindings: false` を指定している（デプロイされる設定には、影響しない）。
+//   （以前は、dist/server/wrangler.json から ai を一時的に消していたが、止めたときに戻らない危険があったので、やめた。）
 //   ※ TSS_PRERENDERING と X-TSS_SHELL は TanStack Start の内部実装。更新時は動作を確認すること。
 import {
 	existsSync,
@@ -41,7 +44,6 @@ import {
 
 const clientDir = "dist/client";
 const devVarsPath = "dist/server/.dev.vars";
-const serverConfigPath = "dist/server/wrangler.json";
 const viteManifestPath = `${clientDir}/.vite/manifest.json`;
 const shellPath = `${clientDir}/_shell.html`;
 const buildScriptPath = `${clientDir}/sw-build.js`;
@@ -60,13 +62,6 @@ async function generateOutputs(): Promise<GeneratedOutputs> {
 		devVarsPath,
 		`${originalDevVars ?? ""}\nTSS_PRERENDERING=true\n`,
 	);
-
-	const originalServerConfig = readFileSync(serverConfigPath, "utf8");
-	const { ai: _ai, ...serverConfigWithoutAi } = JSON.parse(
-		originalServerConfig,
-	) as Record<string, unknown>;
-
-	writeFileSync(serverConfigPath, JSON.stringify(serverConfigWithoutAi));
 
 	let server: Awaited<ReturnType<typeof preview>> | undefined;
 
@@ -111,8 +106,6 @@ async function generateOutputs(): Promise<GeneratedOutputs> {
 		return { shell, pages };
 	} finally {
 		await server?.close();
-
-		writeFileSync(serverConfigPath, originalServerConfig);
 
 		if (originalDevVars === null) {
 			rmSync(devVarsPath, { force: true });

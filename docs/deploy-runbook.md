@@ -106,6 +106,7 @@ nr deploy
 
 - マイグレーション適用（6）から、デプロイまでの間に、時間をあけない（旧コードが、新しい制約と合わない操作をしないように）。
 - `wrangler.jsonc` に、次のバインディングが入っている：`hyperdrive`、`ai`（Workers AI）、`ratelimits`（ログイン用 3 つと、`LINK_SEARCH_LIMITER`）。
+- ビルドは、数秒で終わる（後処理のプレビューは、`vite.config.ts` の `remoteBindings: !isPreview` で、リモートのバインディング（Workers AI）を使わない。公式のオプション。デプロイされる設定の `ai` には、影響しない）。ビルドが終わらないときは、この設定が外れていないかを確認する。
 - ビルドのたびに、サービスワーカーのビルド ID が変わる（想定どおり）。
 - ビルドの後処理が、静的ページ（`terms.html`・`privacy.html`）と、シェルのコピー（`shopping.html`・`inventory.html`・`recipes/new.html`）を、`dist/client` に作る（`dist` は、ビルドのたびに作り直される）。デプロイは、必ず `nr deploy`（ビルド込み）で行う。規約・ポリシーの文面を変えたら、デプロイで、静的ファイルが更新される。
 
