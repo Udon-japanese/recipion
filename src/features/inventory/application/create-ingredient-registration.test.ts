@@ -106,6 +106,18 @@ describe("createIngredientRegistration", () => {
 		expect(registration.defaultTrackingMode).toBe("estimated");
 	});
 
+	it("有無だけで登録するときは、プリセットのある食材でも、管理方式は有無だけにする（単位はカタログに固定）", () => {
+		const registration = createIngredientRegistration({
+			ingredientName: "醤油",
+			stockUnitCode: "g",
+			stockUnitLabel: "g",
+			trackingMode: "presence",
+		});
+
+		expect(registration.stockUnitCode).toBe("ml");
+		expect(registration.defaultTrackingMode).toBe("presence");
+	});
+
 	it("プリセットのない食材は、名前と別名をカタログに揃え、単位は入力に従う", () => {
 		const registration = createIngredientRegistration({
 			ingredientName: "ニンニク",

@@ -13,6 +13,10 @@ import type {
 } from "../application/inventory-lot-repository";
 import type { InventoryPurchaseOwnerScope } from "../application/inventory-purchase-outbox";
 import type { InventoryListItem } from "../application/inventory-query-repository";
+import type {
+	ChangeInventoryTrackingModeCommand,
+	ChangeInventoryTrackingModeResult,
+} from "../application/inventory-tracking-mode-repository";
 import type { LoadInventoryItemsResult } from "../application/load-inventory-items-with-cache";
 import type { InventoryOperation } from "../domain/apply-inventory-adjustment";
 import {
@@ -21,6 +25,7 @@ import {
 	storageLabels,
 } from "../domain/expiry-labels";
 import { type InventoryLot, toDateString } from "../domain/inventory-lot";
+import type { QuantityTrackingMode } from "../domain/inventory-tracking-mode";
 import type { InventoryUnitCode } from "../domain/inventory-unit";
 import { recordExpiryHint } from "../infrastructure/expiry-hints-storage";
 import {
@@ -40,12 +45,18 @@ type UpdateInventoryLot = (
 	command: UpdateInventoryLotCommand,
 ) => Promise<UpdateInventoryLotResult>;
 
+type ChangeTrackingMode = (
+	command: ChangeInventoryTrackingModeCommand,
+) => Promise<ChangeInventoryTrackingModeResult>;
+
 type InventoryListProps = {
 	ownerScope: InventoryPurchaseOwnerScope | null;
 	loadInventoryItems: LoadInventoryItems;
 	adjustInventoryItem?: AdjustInventoryItem;
 	// ロットの期限・保存方法を更新する（渡さないと、編集のボタンは出ない）。
 	updateInventoryLot?: UpdateInventoryLot;
+	// 管理方法（有無だけ／だいたい／正確）を変える（渡さないと、切り替えのボタンは出ない）。
+	changeTrackingMode?: ChangeTrackingMode;
 	refreshKey?: number;
 };
 
@@ -74,6 +85,7 @@ export function InventoryList({
 	loadInventoryItems,
 	adjustInventoryItem,
 	updateInventoryLot,
+	changeTrackingMode,
 	refreshKey = 0,
 }: InventoryListProps) {
 	const [items, setItems] = useState<InventoryListItem[]>([]);
@@ -87,6 +99,13 @@ export function InventoryList({
 		{},
 	);
 	const [isAdjusting, setIsAdjusting] = useState(false);
+	// 有無だけ → 数量を追う管理に変えるときの入力（いまの量と、管理方法）。
+	const [trackingChangeItemId, setTrackingChangeItemId] = useState<
+		string | null
+	>(null);
+	const [trackingChangeQuantity, setTrackingChangeQuantity] = useState("");
+	const [trackingChangeMode, setTrackingChangeMode] =
+		useState<QuantityTrackingMode>("estimated");
 	// ロットの期限・保存方法の編集。
 	const [editingLotId, setEditingLotId] = useState<string | null>(null);
 	const [lotExpiry, setLotExpiry] =
@@ -200,6 +219,88 @@ export function InventoryList({
 			);
 		} finally {
 			setIsSavingLot(false);
+		}
+	}
+
+	function applyItemUpdate(
+		inventoryItemId: string,
+		update: Partial<InventoryListItem>,
+	) {
+		setItems((currentItems) =>
+			currentItems.map((currentItem) =>
+				currentItem.inventoryItemId === inventoryItemId
+					? { ...currentItem, ...update }
+					: currentItem,
+			),
+		);
+	}
+
+	// 有無だけの食材の「ある」「なくなった」。数量は扱わない。
+	async function handlePresenceToggle(
+		item: InventoryListItem,
+		operation: InventoryOperation,
+	) {
+		if (!adjustInventoryItem) {
+			return;
+		}
+
+		setErrorMessage(null);
+		setIsAdjusting(true);
+
+		try {
+			const result = await adjustInventoryItem(
+				createManualInventoryAdjustment({
+					inventoryItemId: item.inventoryItemId,
+					quantity: 1,
+					stockUnitCode: item.stockUnitCode,
+					operation,
+				}),
+			);
+
+			applyItemUpdate(item.inventoryItemId, {
+				quantity: result.quantity,
+				lots: result.lots,
+			});
+		} catch (error) {
+			setErrorMessage(
+				error instanceof Error ? error.message : "在庫を変更できませんでした",
+			);
+		} finally {
+			setIsAdjusting(false);
+		}
+	}
+
+	async function handleChangeTrackingMode(
+		item: InventoryListItem,
+		command: Omit<ChangeInventoryTrackingModeCommand, "inventoryItemId">,
+	) {
+		if (!changeTrackingMode) {
+			return;
+		}
+
+		setErrorMessage(null);
+		setIsAdjusting(true);
+
+		try {
+			const result = await changeTrackingMode({
+				inventoryItemId: item.inventoryItemId,
+				...command,
+			});
+
+			applyItemUpdate(item.inventoryItemId, {
+				trackingMode: result.trackingMode,
+				quantity: result.quantity,
+				lots: result.lots,
+			});
+			setTrackingChangeItemId(null);
+		} catch (error) {
+			setErrorMessage(
+				error instanceof Error
+					? error.message
+					: "管理方法を変更できませんでした",
+			);
+		} finally {
+			setIsAdjusting(false);
 		}
 	}
 
@@ -348,13 +449,35 @@ export function InventoryList({
 							<div className={styles.itemSummary}>
 								<span className={styles.itemName}>{item.name}</span>
 
-								<span className={styles.quantity}>
-									{item.trackingMode === "estimated" ? "約 " : ""}
-									{formatStockQuantity(item.quantity, item.stockUnitCode)}
-									{item.stockUnitLabel}
-								</span>
+								{item.trackingMode === "presence" ? (
+									<span className={styles.quantity}>
+										{item.quantity > 0 ? "あり" : "なし"}
+									</span>
+								) : (
+									<span className={styles.quantity}>
+										{item.trackingMode === "estimated" ? "約 " : ""}
+										{formatStockQuantity(item.quantity, item.stockUnitCode)}
+										{item.stockUnitLabel}
+									</span>
+								)}
 
-								{adjustInventoryItem ? (
+								{item.trackingMode === "presence" && adjustInventoryItem ? (
+									<button
+										className={styles.adjustButton}
+										type="button"
+										disabled={isAdjusting || itemsSource === "cache"}
+										onClick={() =>
+											void handlePresenceToggle(
+												item,
+												item.quantity > 0 ? "decrease" : "increase",
+											)
+										}
+									>
+										{item.quantity > 0 ? "なくなった" : "ある"}
+									</button>
+								) : null}
+
+								{item.trackingMode !== "presence" && adjustInventoryItem ? (
 									<button
 										className={styles.adjustButton}
 										type="button"
@@ -364,7 +487,114 @@ export function InventoryList({
 										調整
 									</button>
 								) : null}
+
+								{changeTrackingMode && itemsSource !== "cache" ? (
+									item.trackingMode === "presence" ? (
+										<button
+											className={styles.adjustButton}
+											type="button"
+											disabled={isAdjusting}
+											onClick={() => {
+												setTrackingChangeItemId(item.inventoryItemId);
+												setTrackingChangeQuantity("");
+												setTrackingChangeMode("estimated");
+											}}
+										>
+											量を追う管理にする
+										</button>
+									) : (
+										<button
+											className={styles.adjustButton}
+											type="button"
+											disabled={isAdjusting}
+											onClick={() =>
+												void handleChangeTrackingMode(item, {
+													trackingMode: "presence",
+												})
+											}
+										>
+											有無だけにする
+										</button>
+									)
+								) : null}
 							</div>
+
+							{trackingChangeItemId === item.inventoryItemId ? (
+								<div className={styles.adjustmentForm}>
+									<div className={styles.adjustmentField}>
+										<span className={styles.adjustmentLabel}>
+											{item.name}のいまの量
+										</span>
+
+										<span className={styles.quantityInput}>
+											<QuantityInput
+												className={styles.input}
+												aria-label={`${item.name}のいまの量`}
+												value={trackingChangeQuantity}
+												onChange={setTrackingChangeQuantity}
+												showFractionButtons={item.stockUnitCode === "count"}
+											/>
+											<span>{item.stockUnitLabel}</span>
+										</span>
+									</div>
+
+									<label className={styles.adjustmentField}>
+										<span className={styles.adjustmentLabel}>管理方法</span>
+										<select
+											className={styles.input}
+											value={trackingChangeMode}
+											onChange={(event) =>
+												setTrackingChangeMode(
+													event.target.value === "exact"
+														? "exact"
+														: "estimated",
+												)
+											}
+										>
+											<option value="estimated">だいたいで管理</option>
+											<option value="exact">正確に管理</option>
+										</select>
+									</label>
+
+									<div className={styles.adjustmentActions}>
+										<button
+											className={styles.cancelButton}
+											type="button"
+											disabled={isAdjusting}
+											onClick={() => setTrackingChangeItemId(null)}
+										>
+											キャンセル
+										</button>
+
+										<button
+											className={styles.increaseButton}
+											type="button"
+											disabled={isAdjusting}
+											onClick={() => {
+												const quantity =
+													trackingChangeQuantity.trim() === ""
+														? 0
+														: parseQuantityInput(trackingChangeQuantity);
+
+												if (quantity === null) {
+													setErrorMessage(
+														"数量を確認してください（例：2、0.5、1/2）",
+													);
+
+													return;
+												}
+
+												void handleChangeTrackingMode(item, {
+													trackingMode: trackingChangeMode,
+													currentQuantity: quantity,
+												});
+											}}
+										>
+											この量で管理する
+										</button>
+									</div>
+								</div>
+							) : null}
 
 							{item.lots.length > 0 ? (
 								<ul
@@ -387,14 +617,16 @@ export function InventoryList({
 														{expiryText ? <span>{expiryText}</span> : null}
 													</span>
 
-													<span>
-														{item.trackingMode === "estimated" ? "約 " : ""}
-														{formatStockQuantity(
-															lot.quantity,
-															item.stockUnitCode,
-														)}
-														{item.stockUnitLabel}
-													</span>
+													{item.trackingMode === "presence" ? null : (
+														<span>
+															{item.trackingMode === "estimated" ? "約 " : ""}
+															{formatStockQuantity(
+																lot.quantity,
+																item.stockUnitCode,
+															)}
+															{item.stockUnitLabel}
+														</span>
+													)}
 
 													{updateInventoryLot && itemsSource !== "cache" ? (
 														<button

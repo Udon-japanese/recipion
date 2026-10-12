@@ -4,8 +4,10 @@ import {
 	getStandInCatalogEntryIds,
 } from "#/features/ingredients/domain/ingredient-catalog";
 import { findInventoryItemByName } from "#/features/inventory/domain/build-expiry-prefill";
+import type { InventoryTrackingMode } from "#/features/inventory/domain/inventory-tracking-mode";
 import type { InventoryUnitCode } from "#/features/inventory/domain/inventory-unit";
 import {
+	type IngredientStock,
 	type IngredientStockJudgment,
 	judgeIngredientStock,
 } from "./judge-ingredient-stock";
@@ -31,6 +33,8 @@ export type RecipeShoppingStockItem = {
 	quantity: number;
 	stockUnitCode: InventoryUnitCode;
 	stockUnitLabel: string;
+	// 省略は、数量を追う管理。
+	trackingMode?: InventoryTrackingMode;
 };
 
 // 買い物メモにある項目（未購入だけを渡す）。
@@ -188,6 +192,14 @@ export function findStandInItems<T extends RecipeShoppingStockItem>(
 	});
 }
 
+function toIngredientStock(item: RecipeShoppingStockItem): IngredientStock {
+	return {
+		quantity: item.quantity,
+		stockUnitCode: item.stockUnitCode,
+		isPresenceOnly: item.trackingMode === "presence",
+	};
+}
+
 // 形が決まっている代わりの食材（自動では代わりにしない）のうち、在庫があるもの。
 export function findFixedShapeStandInItems<T extends RecipeShoppingStockItem>(
 	needName: string,
@@ -214,9 +226,7 @@ function judgeWithStandIns(
 ): RecipeShoppingStock {
 	const judgment = judgeIngredientStock(
 		need,
-		stockItem
-			? { quantity: stockItem.quantity, stockUnitCode: stockItem.stockUnitCode }
-			: null,
+		stockItem ? toIngredientStock(stockItem) : null,
 	);
 
 	if (judgment.status === "enough") {
@@ -224,10 +234,10 @@ function judgeWithStandIns(
 	}
 
 	for (const standIn of findStandInItems(need.name, stockItems)) {
-		const standInJudgment = judgeIngredientStock(need, {
-			quantity: standIn.quantity,
-			stockUnitCode: standIn.stockUnitCode,
-		});
+		const standInJudgment = judgeIngredientStock(
+			need,
+			toIngredientStock(standIn),
+		);
 
 		if (standInJudgment.status === "enough") {
 			return {

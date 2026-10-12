@@ -10,6 +10,10 @@ import {
 	normalizeIngredientName,
 } from "#/features/ingredients/domain/normalize-ingredient-name";
 import {
+	type InventoryTrackingMode,
+	inventoryTrackingModeSchema,
+} from "../domain/inventory-tracking-mode";
+import {
 	type InventoryUnitCode,
 	inventoryUnitCodeSchema,
 } from "../domain/inventory-unit";
@@ -22,7 +26,7 @@ const inputSchema = v.object({
 		v.trim(),
 		v.minLength(1, "表示単位を入力してください"),
 	),
-	trackingMode: v.optional(v.picklist(["exact", "estimated"]), "estimated"),
+	trackingMode: v.optional(inventoryTrackingModeSchema, "estimated"),
 });
 
 export type CreateIngredientRegistrationInput = v.InferInput<
@@ -40,7 +44,7 @@ export type IngredientRegistration = {
 	stockUnitCode: InventoryUnitCode;
 	stockUnitLabel: string;
 	aliases: IngredientAliasRegistration[];
-	defaultTrackingMode: "exact" | "estimated";
+	defaultTrackingMode: InventoryTrackingMode;
 };
 
 // カタログにある食材は、名前と別名をカタログに揃える（「しょうゆ」と「醤油」を、同じ食材にする）。
@@ -51,7 +55,7 @@ function createFromCatalogEntry(
 	input: {
 		stockUnitCode: InventoryUnitCode;
 		stockUnitLabel: string;
-		trackingMode: "exact" | "estimated";
+		trackingMode: InventoryTrackingMode;
 	},
 ): IngredientRegistration {
 	const primaryNormalizedName = normalizeIngredientName(entry.name);
@@ -84,9 +88,11 @@ function createFromCatalogEntry(
 			? getDefaultStockUnitLabel(entry.stockUnitCode)
 			: input.stockUnitLabel,
 		aliases: [...aliasesByNormalizedName.values()],
-		defaultTrackingMode: isUnitFixed
-			? entry.defaultTrackingMode
-			: input.trackingMode,
+		// 「有無だけ」は、数量の単位に関係しないので、いつでも優先する（それ以外は、プリセットのある食材はカタログに固定）。
+		defaultTrackingMode:
+			input.trackingMode === "presence" || !isUnitFixed
+				? input.trackingMode
+				: entry.defaultTrackingMode,
 	};
 }
 

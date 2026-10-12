@@ -51,6 +51,37 @@ describe("ShoppingItemInventoryConversionForm", () => {
 		});
 	});
 
+	it("在庫管理方法を「有無だけ」にすると、量の換算を求めず、保存できる", async () => {
+		const user = userEvent.setup();
+		const onSave = vi.fn();
+
+		render(
+			<ShoppingItemInventoryConversionForm
+				item={createItem({ name: "謎の調味料", unitLabel: "袋" })}
+				onSave={onSave}
+				onCancel={vi.fn()}
+			/>,
+		);
+
+		await user.selectOptions(
+			screen.getByRole("combobox", { name: "在庫管理方法" }),
+			"presence",
+		);
+
+		expect(screen.queryByText(/あたりの数量/u)).toBeNull();
+
+		await user.click(screen.getByRole("button", { name: "設定を保存" }));
+
+		expect(onSave).toHaveBeenCalledWith({
+			quantity: 1,
+			unitLabel: "袋",
+			inventoryConversion: expect.objectContaining({
+				trackingMode: "presence",
+				stockQuantityPerInputUnit: 1,
+			}),
+		});
+	});
+
 	it("未知の商品では在庫換算を入力できる", async () => {
 		const user = userEvent.setup();
 		const onSave = vi.fn();

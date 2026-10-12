@@ -19,6 +19,7 @@ function stock(
 	quantity: number,
 	stockUnitCode: "count" | "g" | "ml",
 	stockUnitLabel: string,
+	trackingMode: "exact" | "estimated" | "presence" = "estimated",
 ): RecipeConsumptionStockItem {
 	return {
 		inventoryItemId: `inv-${name}`,
@@ -26,6 +27,7 @@ function stock(
 		quantity,
 		stockUnitCode,
 		stockUnitLabel,
+		trackingMode,
 	};
 }
 
@@ -89,6 +91,24 @@ const cases: [
 			target: "inv-冷凍ブロッコリー",
 			viaStandIn: true,
 		},
+	],
+	[
+		"有無だけで管理している食材は、量が決まっていても、減らさない",
+		need("オリーブオイル", 2, "大さじ"),
+		[stock("オリーブオイル", 1, "ml", "ml", "presence")],
+		{ status: "presence-only", deduct: null, target: "inv-オリーブオイル" },
+	],
+	[
+		"有無だけで管理している食材は、「適量」でも、減らさない（理由は、量ではなく管理方法）",
+		need("オリーブオイル", null, null),
+		[stock("オリーブオイル", 1, "ml", "ml", "presence")],
+		{ status: "presence-only", deduct: null, target: "inv-オリーブオイル" },
+	],
+	[
+		"有無だけの食材が「ない」（0）なら、引かず、在庫なしとして扱う",
+		need("オリーブオイル", 2, "大さじ"),
+		[stock("オリーブオイル", 0, "ml", "ml", "presence")],
+		{ status: "no-stock", deduct: null },
 	],
 	[
 		"形が決まっている冷凍は、自動では引かない",

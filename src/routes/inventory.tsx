@@ -1,9 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useState } from "react";
 import { adjustInventoryWithCache } from "#/features/inventory/application/adjust-inventory-with-cache";
+import { changeInventoryTrackingModeWithCache } from "#/features/inventory/application/change-inventory-tracking-mode-with-cache";
 import type { InventoryAdjustmentCommand } from "#/features/inventory/application/inventory-adjustment-repository";
 import type { UpdateInventoryLotCommand } from "#/features/inventory/application/inventory-lot-repository";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
+import type { ChangeInventoryTrackingModeCommand } from "#/features/inventory/application/inventory-tracking-mode-repository";
 import { loadInventoryItemsWithCache } from "#/features/inventory/application/load-inventory-items-with-cache";
 import type { RegisterInventoryItemInput } from "#/features/inventory/application/register-inventory-item";
 import { updateInventoryLotWithCache } from "#/features/inventory/application/update-inventory-lot-with-cache";
@@ -17,6 +19,7 @@ import { useOwnerScope } from "#/features/inventory/hooks/use-owner-scope";
 import { createDexieInventoryCacheRepository } from "#/features/inventory/infrastructure/dexie-inventory-cache-repository";
 import { syncDexieInventoryPurchaseOutbox } from "#/features/inventory/infrastructure/sync-dexie-inventory-purchase-outbox";
 import { adjustInventory as adjustInventoryServerFn } from "#/features/inventory/server/adjust-inventory";
+import { changeInventoryTrackingModeServerFn } from "#/features/inventory/server/change-inventory-tracking-mode";
 import { listInventoryItemsServerFn } from "#/features/inventory/server/list-inventory-items";
 import { registerInventoryItemServerFn } from "#/features/inventory/server/register-inventory-item";
 import { updateInventoryLotServerFn } from "#/features/inventory/server/update-inventory-lot";
@@ -81,6 +84,23 @@ function InventoryPage() {
 		[ownerScope],
 	);
 
+	const changeTrackingMode = useCallback(
+		async (command: ChangeInventoryTrackingModeCommand) => {
+			if (!ownerScope || ownerScope === "guest") {
+				throw new Error("管理方法を変えられるユーザーではありません");
+			}
+
+			return changeInventoryTrackingModeWithCache(
+				ownerScope,
+				command,
+				(changeCommand) =>
+					changeInventoryTrackingModeServerFn({ data: changeCommand }),
+				createDexieInventoryCacheRepository(),
+			);
+		},
+		[ownerScope],
+	);
+
 	const syncPurchases = useCallback(
 		async (scope: InventoryPurchaseOwnerScope) => {
 			const result = await syncDexieInventoryPurchaseOutbox(scope);
@@ -130,6 +150,7 @@ function InventoryPage() {
 				loadInventoryItems={loadInventoryItems}
 				adjustInventoryItem={adjustInventoryItem}
 				updateInventoryLot={updateInventoryLot}
+				changeTrackingMode={changeTrackingMode}
 				refreshKey={inventoryRefreshKey}
 			/>
 		</>

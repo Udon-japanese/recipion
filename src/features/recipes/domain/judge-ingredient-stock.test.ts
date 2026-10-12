@@ -16,7 +16,43 @@ describe("judgeIngredientStock", () => {
 			basis: "compared",
 			shortage: 2,
 			isRegistered: true,
+			hasStock: true,
 		});
+	});
+
+	it("有無だけで管理している食材は、量にかかわらず、在庫があれば足りている（大さじ2でも）", () => {
+		const need = { name: "オリーブオイル", quantity: 2, unitLabel: "大さじ" };
+
+		expect(
+			judgeIngredientStock(need, {
+				quantity: 1,
+				stockUnitCode: "ml",
+				isPresenceOnly: true,
+			}),
+		).toEqual({ status: "enough", basis: "presence" });
+
+		// 「ない」（0）なら、不足。在庫が 0 なので、hasStock は false。
+		expect(
+			judgeIngredientStock(need, {
+				quantity: 0,
+				stockUnitCode: "ml",
+				isPresenceOnly: true,
+			}),
+		).toEqual({
+			status: "short",
+			basis: "presence",
+			shortage: null,
+			isRegistered: true,
+			hasStock: false,
+		});
+	});
+
+	it("目印の量（1ml）と比べない：数量を追う食材は、足りなければ不足のまま", () => {
+		const need = { name: "オリーブオイル", quantity: 2, unitLabel: "大さじ" };
+
+		expect(
+			judgeIngredientStock(need, { quantity: 1, stockUnitCode: "ml" }),
+		).toMatchObject({ status: "short", basis: "compared", hasStock: true });
 	});
 
 	it("カタログで換算して比べる（塩 大さじ1 は 18g）", () => {
@@ -48,12 +84,14 @@ describe("judgeIngredientStock", () => {
 			basis: "presence",
 			shortage: null,
 			isRegistered: true,
+			hasStock: false,
 		});
 		expect(judgeIngredientStock(need, null)).toEqual({
 			status: "short",
 			basis: "presence",
 			shortage: null,
 			isRegistered: false,
+			hasStock: false,
 		});
 	});
 

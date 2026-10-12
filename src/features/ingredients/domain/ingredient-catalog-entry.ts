@@ -1,3 +1,4 @@
+import type { InventoryTrackingMode } from "#/features/inventory/domain/inventory-tracking-mode";
 import type {
 	IngredientCatalogEntry,
 	IngredientPurchasePreset,
@@ -36,7 +37,7 @@ type PurchasePresetSpec = {
 export function presetsFor(
 	stockUnitCode: IngredientStockUnitCode,
 	specs: readonly PurchasePresetSpec[],
-	trackingMode: "exact" | "estimated" = "estimated",
+	trackingMode: InventoryTrackingMode = "estimated",
 ): IngredientPurchasePreset[] {
 	const stockUnitLabels = { count: "個", g: "g", ml: "ml" } as const;
 

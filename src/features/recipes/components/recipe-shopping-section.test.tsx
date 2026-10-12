@@ -387,4 +387,57 @@ describe("RecipeShoppingSection", () => {
 		).toBeInTheDocument();
 		expect(panel.getByLabelText("玉ねぎを買い物メモに入れる")).toBeChecked();
 	});
+
+	it("量が決まっている行にも「ある」が出て、押すと、同じ食材の行がすべて足りているになる", async () => {
+		const user = userEvent.setup();
+		let isRegistered = false;
+		const registerAvailable = vi.fn(async () => {
+			isRegistered = true;
+		});
+
+		render(
+			<RecipeShoppingSection
+				ingredients={[
+					ingredient("i1", "オリーブオイル", null, null, "適量"),
+					ingredient("i2", "オリーブオイル", 2, "大さじ", "大さじ2"),
+				]}
+				ownerScope="user:user-id"
+				loadInventoryItems={async () =>
+					isRegistered
+						? [
+								{
+									...stockItem("オリーブオイル", 1, "ml", "ml"),
+									trackingMode: "presence" as const,
+								},
+							]
+						: []
+				}
+				shoppingRepository={createFakeShoppingRepository()}
+				registerAvailable={registerAvailable}
+			/>,
+		);
+
+		const panel = within(await openPanel(user));
+		const buttons = await panel.findAllByRole("button", {
+			name: "オリーブオイルを在庫に「ある」で登録する",
+		});
+
+		// 「適量」の行にも、「大さじ2」の行にも、出る。
+		expect(buttons).toHaveLength(2);
+
+		await user.click(buttons[0] as HTMLElement);
+
+		await waitFor(() =>
+			expect(
+				panel.queryByRole("button", {
+					name: "オリーブオイルを在庫に「ある」で登録する",
+				}),
+			).toBeNull(),
+		);
+		expect(registerAvailable).toHaveBeenCalledWith("オリーブオイル");
+		expect(panel.getAllByText("足りている（在庫あり）")).toHaveLength(2);
+		expect(
+			panel.getByRole("button", { name: "選んだものを入れる（0件）" }),
+		).toBeInTheDocument();
+	});
 });

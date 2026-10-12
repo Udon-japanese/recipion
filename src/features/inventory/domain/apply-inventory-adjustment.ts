@@ -1,7 +1,11 @@
 import * as v from "valibot";
 import { convertInventoryQuantity } from "./convert-inventory-quantity";
+import {
+	type InventoryTrackingMode,
+	inventoryTrackingModeSchema,
+} from "./inventory-tracking-mode";
 
-export type InventoryTrackingMode = "exact" | "estimated";
+export type { InventoryTrackingMode };
 
 export type InventoryOperation = "increase" | "decrease";
 
@@ -26,7 +30,7 @@ const adjustmentInputSchema = v.object({
 		v.minValue(0, "現在庫は0以上にしてください"),
 	),
 	inputQuantity: v.number(),
-	trackingMode: v.picklist(["exact", "estimated"]),
+	trackingMode: inventoryTrackingModeSchema,
 	transactionId: v.pipe(
 		v.string(),
 		v.trim(),

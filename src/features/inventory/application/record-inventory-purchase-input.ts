@@ -1,4 +1,5 @@
 import * as v from "valibot";
+import { inventoryTrackingModeSchema } from "../domain/inventory-tracking-mode";
 import { inventoryUnitCodeSchema } from "../domain/inventory-unit";
 import { inventoryLotInputSchema } from "./inventory-lot-input";
 import type { RecordInventoryPurchaseInput } from "./record-inventory-purchase";
@@ -21,7 +22,7 @@ const recordInventoryPurchaseInputSchema = v.object({
 	ingredientName: requiredTextSchema,
 	stockUnitCode: inventoryUnitCodeSchema,
 	stockUnitLabel: requiredTextSchema,
-	trackingMode: v.optional(v.picklist(["exact", "estimated"]), "estimated"),
+	trackingMode: v.optional(inventoryTrackingModeSchema, "estimated"),
 	inputQuantity: positiveQuantitySchema,
 	inputUnitCode: requiredTextSchema,
 	stockQuantityPerInputUnit: positiveQuantitySchema,

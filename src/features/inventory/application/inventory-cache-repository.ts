@@ -29,6 +29,7 @@ export interface InventoryCacheRepository {
 			lots: readonly InventoryLot[];
 			defaultExpiryKind?: InventoryListItem["defaultExpiryKind"];
 			defaultStorage?: InventoryListItem["defaultStorage"];
+			trackingMode?: InventoryListItem["trackingMode"];
 		},
 		now?: Date,
 	): Promise<void>;
