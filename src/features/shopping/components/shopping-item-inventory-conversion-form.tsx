@@ -1,6 +1,5 @@
 import { type SubmitEvent, useState } from "react";
 import * as v from "valibot";
-
 import {
 	findIngredientCatalogEntry,
 	getDefaultStockUnitLabel,
@@ -9,6 +8,7 @@ import {
 	type InventoryTrackingMode,
 	inventoryTrackingModeSchema,
 } from "#/features/inventory/domain/inventory-tracking-mode";
+import { formatQuantityForUnit } from "#/features/quantity/domain/format-quantity";
 
 import type {
 	ShoppingItem,
@@ -158,7 +158,7 @@ export function ShoppingItemInventoryConversionForm({
 			<h2 className={styles.title}>{item.name}を在庫へ追加する方法</h2>
 
 			<p className={styles.description}>
-				購入した{item.quantity}
+				購入した{formatQuantityForUnit(item.quantity, item.unitLabel)}
 				{item.unitLabel ?? "単位"}
 				を、在庫ではどの数量として管理するか設定します。
 			</p>

@@ -88,6 +88,23 @@ describe("createShoppingItem", () => {
 		).toBe("500ml");
 	});
 
+	it("端数の数量は、読みやすく表す：大根 1/3本（333g）。333.333g のような長い小数にしない", () => {
+		const item = createShoppingItem({
+			name: "大根",
+			quantity: 1 / 3,
+			unitLabel: "本",
+			inventoryConversion: {
+				inputUnitCode: "count",
+				stockUnitCode: "g",
+				stockUnitLabel: "g",
+				stockQuantityPerInputUnit: 1000,
+				trackingMode: "estimated",
+			},
+		});
+
+		expect(getShoppingItemConvertedQuantityLabel(item)).toBe("333g");
+	});
+
 	it("商品カテゴリを指定できる", () => {
 		const item = createShoppingItem({
 			name: "卵",

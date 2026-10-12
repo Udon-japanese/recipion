@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { QuantityInput } from "#/features/quantity/components/quantity-input";
-import { formatQuantity } from "#/features/quantity/domain/format-quantity";
+import { formatStockAmount } from "#/features/quantity/domain/format-quantity";
 import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
 import { createManualInventoryAdjustment } from "../application/create-manual-inventory-adjustment";
 import type {
@@ -77,7 +77,7 @@ type InventoryListProps = {
 
 // 個数・枚数・本数は、1/2 のような分数で表示する。g と ml は、小数のまま。
 function formatStockQuantity(value: number, stockUnitCode: InventoryUnitCode) {
-	return formatQuantity(value, { allowFractions: stockUnitCode === "count" });
+	return formatStockAmount(value, stockUnitCode);
 }
 
 // ロットの期限の表示（「消費期限 10/10」。目安は「約」を付ける）。

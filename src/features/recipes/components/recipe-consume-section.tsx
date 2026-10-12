@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import type { UndoRecipeConsumptionResult } from "#/features/inventory/application/inventory-adjustment-repository";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import type { InventoryListItem } from "#/features/inventory/application/inventory-query-repository";
-import { formatQuantity } from "#/features/quantity/domain/format-quantity";
+import { formatStockAmount } from "#/features/quantity/domain/format-quantity";
 import {
 	addAlternativeConsumption,
 	type RecipeConsumptionEntryResult,
@@ -60,9 +60,9 @@ function describeRow(row: RecipeConsumptionRow, isFailed: boolean): string {
 
 	switch (row.status) {
 		case "consume":
-			return `${name}：${formatQuantity(row.deduct ?? 0)}${unit}を引きました${row.viaStandIn && row.target ? `（${row.target.name}から）` : ""}`;
+			return `${name}：${formatStockAmount(row.deduct ?? 0, row.target?.stockUnitCode ?? "count")}${unit}を引きました${row.viaStandIn && row.target ? `（${row.target.name}から）` : ""}`;
 		case "partial":
-			return `${name}：在庫が足りず、${formatQuantity(row.deduct ?? 0)}${unit}だけ引きました（必要な量は${formatQuantity(row.required ?? 0)}${unit}）`;
+			return `${name}：在庫が足りず、${formatStockAmount(row.deduct ?? 0, row.target?.stockUnitCode ?? "count")}${unit}だけ引きました（必要な量は${formatStockAmount(row.required ?? 0, row.target?.stockUnitCode ?? "count")}${unit}）`;
 		case "presence-only":
 			return `${name}：「ある」で管理しているため、減らしていません`;
 		case "unmeasurable":
@@ -259,7 +259,7 @@ export function RecipeConsumeSection({
 														void handleUseAlternative(row, alternative)
 													}
 												>
-													{`${alternative.name}を引く（${formatQuantity(alternative.deduct)}${alternative.stockUnitLabel}）`}
+													{`${alternative.name}を引く（${formatStockAmount(alternative.deduct, alternative.stockUnitCode)}${alternative.stockUnitLabel}）`}
 												</button>
 											))
 										: null}

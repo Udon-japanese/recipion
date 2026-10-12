@@ -2,6 +2,7 @@ import * as v from "valibot";
 import type { InventoryTrackingMode } from "#/features/inventory/domain/apply-inventory-adjustment";
 import { inventoryTrackingModeSchema } from "#/features/inventory/domain/inventory-tracking-mode";
 import type { InventoryUnitCode } from "#/features/inventory/domain/inventory-unit";
+import { formatStockAmount } from "#/features/quantity/domain/format-quantity";
 import { inferInventoryConversion } from "./infer-inventory-conversion";
 import type { ShoppingBranchRole } from "./shopping-branch";
 import {
@@ -259,5 +260,5 @@ export function getShoppingItemConvertedQuantityLabel(
 		(item.quantity * conversion.stockQuantityPerInputUnit).toFixed(6),
 	);
 
-	return `${convertedQuantity}${conversion.stockUnitLabel}`;
+	return `${formatStockAmount(convertedQuantity, conversion.stockUnitCode)}${conversion.stockUnitLabel}`;
 }

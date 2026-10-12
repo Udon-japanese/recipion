@@ -1,4 +1,5 @@
 import clsx from "clsx";
+import { formatQuantityForUnit } from "#/features/quantity/domain/format-quantity";
 import {
 	getShoppingItemConvertedQuantityLabel,
 	type ShoppingItem,
@@ -66,7 +67,7 @@ export function ShoppingItemRow({
 			>
 				{item.name}
 				<span className={styles.quantity}>
-					{item.quantity}
+					{formatQuantityForUnit(item.quantity, item.unitLabel)}
 					{item.unitLabel}
 
 					{convertedQuantityLabel ? (
