@@ -181,6 +181,26 @@ describe("RecipeConsumeSection", () => {
 		expect(consume.mock.calls[0]?.[0].entries).toEqual([]);
 	});
 
+	it("同じ食材の行は1行にまとめて、1回で引く（足りる量なら、合計を引く）", async () => {
+		const user = userEvent.setup();
+		const { consume } = setup({
+			ingredients: [
+				ingredient("i1", "玉ねぎ", 1, "個"),
+				ingredient("i2", "玉ねぎ", 1, "個"),
+			],
+		});
+
+		await user.click(screen.getByRole("button", { name: /作った/u }));
+
+		await screen.findByText(/在庫から1件を引きました/u);
+		expect(
+			consume.mock.calls[0]?.[0].entries.map((entry) => [
+				entry.inventoryItemId,
+				entry.quantity,
+			]),
+		).toEqual([["inv-onion", 2]]);
+	});
+
 	it("元に戻すと、同じ操作の印で取り消す", async () => {
 		const user = userEvent.setup();
 		const { consume, undo } = setup();

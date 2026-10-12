@@ -25,6 +25,8 @@ export type RecipeShoppingNeed = {
 	linkedRecipe?: { publicId: string; name: string };
 	// リンク先のレシピから展開した材料のとき、そのレシピの名前（一覧で、まとめて表示する）。
 	sectionTitle?: string;
+	// 同じ食材の行を1行にまとめたとき、元の分量の原文（内訳の表示用）。まとめていなければ、なし。
+	mergedAmountTexts?: string[];
 };
 
 // 在庫の1食材（在庫の一覧から、必要な項目だけ）。
