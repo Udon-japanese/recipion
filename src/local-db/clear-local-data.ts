@@ -1,6 +1,5 @@
+import { storageKeyPrefix } from "#/local-storage/storage-item";
 import { getLocalDatabase } from "./database";
-
-const storageKeyPrefix = "recipion:";
 
 // このサービスが localStorage に保存した設定を消す（キーの先頭が recipion: のもの）。
 export function clearAppLocalStorage(

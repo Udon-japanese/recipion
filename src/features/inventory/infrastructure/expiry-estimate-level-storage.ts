@@ -1,44 +1,28 @@
+import { storageKeys } from "#/local-storage/keys";
+import {
+	enumStorageItem,
+	type KeyValueStorage,
+} from "#/local-storage/storage-item";
 import type { ExpiryEstimateLevel } from "../domain/estimate-lot-expiry";
-
-const storageKey = "recipion:expiry-estimate-level";
 
 export const defaultExpiryEstimateLevel: ExpiryEstimateLevel = "reliable";
 
-type KeyValueStorage = Pick<Storage, "getItem" | "setItem">;
+// 期限の目安の設定（この端末だけに保存する）。使えない環境では、既定値で動く。
+export const expiryEstimateLevelItem = enumStorageItem<ExpiryEstimateLevel>({
+	key: storageKeys.expiryEstimateLevel,
+	values: ["off", "reliable", "all"],
+	defaultValue: defaultExpiryEstimateLevel,
+});
 
-// ブラウザの保存領域は、使えないことがある（プライベートモードなど）。そのときは、既定値で動く。
-function getDefaultStorage(): KeyValueStorage | null {
-	try {
-		return typeof localStorage === "undefined" ? null : localStorage;
-	} catch {
-		return null;
-	}
-}
-
-function isLevel(value: unknown): value is ExpiryEstimateLevel {
-	return value === "off" || value === "reliable" || value === "all";
-}
-
-// 期限の目安の設定（この端末だけに保存する）。
 export function readExpiryEstimateLevel(
-	storage: KeyValueStorage | null = getDefaultStorage(),
+	storage?: KeyValueStorage | null,
 ): ExpiryEstimateLevel {
-	try {
-		const value = storage?.getItem(storageKey);
-
-		return isLevel(value) ? value : defaultExpiryEstimateLevel;
-	} catch {
-		return defaultExpiryEstimateLevel;
-	}
+	return expiryEstimateLevelItem.read(storage);
 }
 
 export function writeExpiryEstimateLevel(
 	level: ExpiryEstimateLevel,
-	storage: KeyValueStorage | null = getDefaultStorage(),
+	storage?: KeyValueStorage | null,
 ): void {
-	try {
-		storage?.setItem(storageKey, level);
-	} catch {
-		// 保存できなくても、画面の操作は続ける。
-	}
+	expiryEstimateLevelItem.write(level, storage);
 }

@@ -1,28 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useStorageItem } from "#/local-storage/use-storage-item";
 import type { ExpiryEstimateLevel } from "../domain/estimate-lot-expiry";
-import {
-	defaultExpiryEstimateLevel,
-	readExpiryEstimateLevel,
-	writeExpiryEstimateLevel,
-} from "../infrastructure/expiry-estimate-level-storage";
+import { expiryEstimateLevelItem } from "../infrastructure/expiry-estimate-level-storage";
 
-// 期限の目安の設定（この端末に保存）。画面を作ったあとで、保存した値を読む（サーバーの描画と、ずれないように）。
+// 期限の目安の設定（この端末に保存）。サーバーと最初の描画は、既定値で、ブラウザで、保存した値に切り替わる。他のタブでの変更も、反映される。
 export function useExpiryEstimateLevel(): [
 	ExpiryEstimateLevel,
 	(level: ExpiryEstimateLevel) => void,
 ] {
-	const [level, setLevelState] = useState<ExpiryEstimateLevel>(
-		defaultExpiryEstimateLevel,
-	);
-
-	useEffect(() => {
-		setLevelState(readExpiryEstimateLevel());
-	}, []);
-
-	const setLevel = useCallback((nextLevel: ExpiryEstimateLevel) => {
-		setLevelState(nextLevel);
-		writeExpiryEstimateLevel(nextLevel);
-	}, []);
-
-	return [level, setLevel];
+	return useStorageItem(expiryEstimateLevelItem);
 }

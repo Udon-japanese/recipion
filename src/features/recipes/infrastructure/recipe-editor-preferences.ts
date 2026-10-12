@@ -1,27 +1,18 @@
-// レシピの入力欄の設定を、この端末に保存する（localStorage。使えない環境では、保存しない）。
-const templateKey = "recipion:recipe-editor-template";
+import { storageKeys } from "#/local-storage/keys";
+import { defineStorageItem } from "#/local-storage/storage-item";
 
-function getStorage(): Storage | null {
-	try {
-		return typeof localStorage === "undefined" ? null : localStorage;
-	} catch {
-		return null;
-	}
-}
+// 新規登録で、見出しを最初から入れるか（初期値は、入れる）。この端末に保存する。使えない環境では、保存しない。
+export const recipeEditorTemplateItem = defineStorageItem<boolean>({
+	key: storageKeys.recipeEditorTemplate,
+	defaultValue: true,
+	parse: (raw) => (raw === "on" ? true : raw === "off" ? false : undefined),
+	serialize: (enabled) => (enabled ? "on" : "off"),
+});
 
-// 新規登録で、見出しを最初から入れるか（初期値は、入れる）。
 export function readTemplatePreference(): boolean {
-	try {
-		return getStorage()?.getItem(templateKey) !== "off";
-	} catch {
-		return true;
-	}
+	return recipeEditorTemplateItem.read();
 }
 
 export function writeTemplatePreference(enabled: boolean): void {
-	try {
-		getStorage()?.setItem(templateKey, enabled ? "on" : "off");
-	} catch {
-		// 保存できなくても、入力には影響しない。
-	}
+	recipeEditorTemplateItem.write(enabled);
 }
