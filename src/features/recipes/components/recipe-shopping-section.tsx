@@ -9,7 +9,7 @@ import {
 } from "react";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import type { InventoryListItem } from "#/features/inventory/application/inventory-query-repository";
-import { formatQuantity } from "#/features/quantity/domain/format-quantity";
+import { formatQuantityForUnit } from "#/features/quantity/domain/format-quantity";
 import type { ShoppingRepository } from "#/features/shopping/application/shopping-repository";
 import type { ShoppingItem } from "#/features/shopping/domain/shopping-item";
 import { dexieShoppingRepository } from "#/features/shopping/infrastructure/dexie-shopping-repository";
@@ -105,7 +105,7 @@ function describeStockBase(row: RecipeShoppingRow): {
 
 	if (judgment.shortage !== null) {
 		return {
-			text: `あと ${formatQuantity(judgment.shortage)}${row.amount.unitLabel ?? ""}`,
+			text: `あと ${formatQuantityForUnit(judgment.shortage, row.amount.unitLabel)}${row.amount.unitLabel ?? ""}`,
 			isShort: true,
 		};
 	}
@@ -121,10 +121,10 @@ function describeExisting(row: RecipeShoppingRow): string | null {
 		return null;
 	}
 
-	const current = `${formatQuantity(row.existing.quantity)}${row.existing.unitLabel ?? ""}`;
+	const current = `${formatQuantityForUnit(row.existing.quantity, row.existing.unitLabel)}${row.existing.unitLabel ?? ""}`;
 
 	if (row.plan === "update") {
-		return `メモに「${row.existing.name} ${current}」あり → ${formatQuantity(row.nextQuantity)}${row.existing.unitLabel ?? ""}に更新`;
+		return `メモに「${row.existing.name} ${current}」あり → ${formatQuantityForUnit(row.nextQuantity, row.existing.unitLabel)}${row.existing.unitLabel ?? ""}に更新`;
 	}
 
 	const label = `メモに「${row.existing.name} ${current}」あり`;

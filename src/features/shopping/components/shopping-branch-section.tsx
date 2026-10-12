@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { formatQuantityForUnit } from "#/features/quantity/domain/format-quantity";
 import type { ShoppingRepository } from "../application/shopping-repository";
 import {
 	type CreateShoppingBranchInput,
@@ -93,7 +94,7 @@ export function ShoppingBranchSection({
 					<div className={styles.branchCard} key={branch.id}>
 						<h2 className={styles.branchCondition}>
 							{conditionItem
-								? `${conditionItem.name} ${conditionItem.quantity}${conditionItem.unitLabel ?? ""}`
+								? `${conditionItem.name} ${formatQuantityForUnit(conditionItem.quantity, conditionItem.unitLabel)}${conditionItem.unitLabel ?? ""}`
 								: ""}
 							{conditionItem?.storeId &&
 							storeNamesById.get(conditionItem.storeId) ? (
@@ -127,7 +128,11 @@ export function ShoppingBranchSection({
 												{sideItems.map((item) => (
 													<li className={styles.branchItemRow} key={item.id}>
 														<span>
-															{item.name} {item.quantity}
+															{item.name}{" "}
+															{formatQuantityForUnit(
+																item.quantity,
+																item.unitLabel,
+															)}
 															{item.unitLabel}
 															{item.storeId &&
 															storeNamesById.get(item.storeId) ? (

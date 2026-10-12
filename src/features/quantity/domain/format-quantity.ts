@@ -52,3 +52,37 @@ export function formatQuantity(
 
 	return decimalFormatter.format(value);
 }
+
+// 小数で表す単位（重さ・体積）。分数にはしない（1/2kg ではなく 0.5kg）。
+const decimalUnits = new Set(["g", "kg", "ml", "l", "cc"]);
+
+/**
+ * 買うときの数量を、単位に合わせて表す。個・本・玉などは分数（1/3本）、g・kg・ml・l は小数。
+ */
+export function formatQuantityForUnit(
+	value: number,
+	unitLabel: string | null,
+): string {
+	return formatQuantity(value, {
+		allowFractions:
+			unitLabel === null ||
+			!decimalUnits.has(unitLabel.toLocaleLowerCase("ja-JP")),
+	});
+}
+
+/**
+ * 在庫の単位での数量を、読みやすく丸めて表す。個数は分数（1/3）、g・ml は丸める
+ * （10 以上は整数、それ未満は小数第1位まで。333.333g → 333g）。
+ */
+export function formatStockAmount(
+	value: number,
+	stockUnitCode: "count" | "g" | "ml",
+): string {
+	if (stockUnitCode === "count") {
+		return formatQuantity(value);
+	}
+
+	const rounded = value >= 10 ? Math.round(value) : Math.round(value * 10) / 10;
+
+	return formatQuantity(rounded, { allowFractions: false });
+}

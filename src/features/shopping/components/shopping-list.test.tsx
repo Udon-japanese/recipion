@@ -36,6 +36,30 @@ describe("ShoppingList", () => {
 		expect(screen.getByText("6個")).toBeInTheDocument();
 	});
 
+	it("端数の数量は分数で表し、換算後の重さは丸める（大根 1/3本（333g））", async () => {
+		const repository = createFakeShoppingRepository([
+			buildShoppingItem({
+				id: "daikon",
+				name: "大根",
+				quantity: 0.333333,
+				unitLabel: "本",
+				categoryAssignment: "manual",
+				inventoryConversion: {
+					inputUnitCode: "count",
+					stockUnitCode: "g",
+					stockUnitLabel: "g",
+					stockQuantityPerInputUnit: 1000,
+					trackingMode: "estimated",
+				},
+			}),
+		]);
+
+		render(<ShoppingList repository={repository} />);
+
+		expect(await screen.findByText("1/3本")).toBeInTheDocument();
+		expect(screen.getByText("（333g）")).toBeInTheDocument();
+	});
+
 	it("買い物項目を追加する", async () => {
 		const user = userEvent.setup();
 		const repository = createFakeShoppingRepository();
