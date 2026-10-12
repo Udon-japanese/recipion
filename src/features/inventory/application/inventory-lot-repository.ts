@@ -26,7 +26,23 @@ export type UpdateInventoryLotResult = {
 	defaultStorage: InventoryStorage | null;
 };
 
+export type SetLotQuantityCommand = {
+	lotId: string;
+	// ロットの数量（在庫の単位）。0 以上。0 にすると、そのロットは在庫から外れる。
+	quantity: number;
+};
+
+export type SetLotQuantityResult = {
+	inventoryItemId: string;
+	// 食材の数量（ロットの合計）と、操作後の、在庫のあるロット。
+	quantity: number;
+	lots: InventoryLot[];
+};
+
 export interface InventoryLotRepository {
+	// ロットの数量を、直接直す（その差を、履歴に残す）。有無だけの食材は直せない。
+	setLotQuantity(command: SetLotQuantityCommand): Promise<SetLotQuantityResult>;
+
 	updateLot(
 		command: UpdateInventoryLotCommand,
 	): Promise<UpdateInventoryLotResult>;

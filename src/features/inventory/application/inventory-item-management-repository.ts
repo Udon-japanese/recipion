@@ -16,9 +16,9 @@ export type ChangeStockUnitCommand = {
 	stockUnitCode: "count" | "g" | "ml";
 	// 在庫の単位の呼び名（個・本・玉・枚・g・ml）。
 	stockUnitLabel: string;
-	// いまの量（新しい単位）。換算した目安と食い違うときは、期限が近いロットから調整する。
-	// 換算できない単位に変えるときは、必須。
-	currentQuantity?: number;
+	// ロットごとの数量（新しい単位）。ないロットは、換算した数量になる。
+	// 換算できない単位に変えるときは、在庫のある全ロットの数量が必要。
+	lotQuantities?: { lotId: string; quantity: number }[];
 };
 
 export type ChangeStockUnitResult = {

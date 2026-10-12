@@ -24,6 +24,8 @@ import type {
 } from "../application/inventory-item-management-repository";
 import { maxInventoryDisplayNameLength } from "../application/inventory-item-management-repository";
 import type {
+	SetLotQuantityCommand,
+	SetLotQuantityResult,
 	UpdateInventoryLotCommand,
 	UpdateInventoryLotResult,
 } from "../application/inventory-lot-repository";
@@ -67,6 +69,10 @@ type RenameInventoryItem = (
 	command: RenameInventoryItemCommand,
 ) => Promise<RenameInventoryItemResult>;
 
+type SetLotQuantity = (
+	command: SetLotQuantityCommand,
+) => Promise<SetLotQuantityResult>;
+
 type ChangeStockUnit = (
 	command: ChangeStockUnitCommand,
 ) => Promise<ChangeStockUnitResult>;
@@ -83,6 +89,8 @@ type InventoryListProps = {
 	updateInventoryLot?: UpdateInventoryLot;
 	// 管理方法（有無だけ／だいたい／正確）を変える（渡さないと、切り替えのボタンは出ない）。
 	changeTrackingMode?: ChangeTrackingMode;
+	// ロットの数量を直接直す（渡さないと、「数量を直す」のボタンは出ない）。
+	setLotQuantity?: SetLotQuantity;
 	// 在庫の単位の変更（渡さないと、「単位を変える」のボタンは出ない）。
 	changeStockUnit?: ChangeStockUnit;
 	// 在庫の食材の削除（渡さないと、削除のボタンは出ない）。
@@ -132,12 +140,21 @@ export function InventoryList({
 	deleteInventoryItem,
 	renameInventoryItem,
 	changeStockUnit,
+	setLotQuantity,
 	refreshKey = 0,
 }: InventoryListProps) {
 	// 在庫の単位を変えている食材と、選んだ単位（"count:本" の形）、入力中のいまの量。
 	const [unitChangeItemId, setUnitChangeItemId] = useState<string | null>(null);
 	const [unitChangeOption, setUnitChangeOption] = useState("");
-	const [unitChangeQuantity, setUnitChangeQuantity] = useState("");
+	// ロットごとの、新しい単位での数量（入力中の文字）。
+	const [unitChangeLotQuantities, setUnitChangeLotQuantities] = useState<
+		Record<string, string>
+	>({});
+	// 数量を直しているロットと、入力中の数量。
+	const [quantityEditLotId, setQuantityEditLotId] = useState<string | null>(
+		null,
+	);
+	const [quantityEditValue, setQuantityEditValue] = useState("");
 	// 削除の確認中の食材。
 	const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
 	// 呼び名を変えている食材と、入力中の呼び名。
@@ -325,14 +342,27 @@ export function InventoryList({
 		}
 	}
 
-	// 選んだ単位に換算した、いまの量の目安（換算できなければ、空）。
+	// 選んだ単位に換算した、ロットごとの量の目安（換算できなければ、空）。
+	function estimateLotQuantities(
+		item: InventoryListItem,
+		option: StockUnitOption,
+	): Record<string, string> {
+		return Object.fromEntries(
+			item.lots.map((lot) => [
+				lot.id,
+				estimateQuantityInUnit(item, lot.quantity, option),
+			]),
+		);
+	}
+
 	function estimateQuantityInUnit(
 		item: InventoryListItem,
+		quantity: number,
 		option: StockUnitOption,
 	): string {
 		const converted = convertToStockQuantity(
 			{
-				quantity: item.quantity,
+				quantity,
 				unitLabel:
 					item.stockUnitCode === "count"
 						? item.stockUnitLabel
@@ -371,7 +401,7 @@ export function InventoryList({
 
 		if (first) {
 			setUnitChangeOption(toOptionValue(first));
-			setUnitChangeQuantity(estimateQuantityInUnit(item, first));
+			setUnitChangeLotQuantities(estimateLotQuantities(item, first));
 		}
 	}
 
@@ -388,15 +418,25 @@ export function InventoryList({
 			return;
 		}
 
-		const quantity =
-			unitChangeQuantity.trim() === ""
-				? undefined
-				: parseQuantityInput(unitChangeQuantity);
+		// ロットごとの数量（空のロットは、サーバーが換算する）。
+		const lotQuantities: { lotId: string; quantity: number }[] = [];
 
-		if (quantity === null) {
-			setErrorMessage("数量を確認してください（例：2、0.5、1/2）");
+		for (const lot of item.lots) {
+			const text = unitChangeLotQuantities[lot.id] ?? "";
 
-			return;
+			if (text.trim() === "") {
+				continue;
+			}
+
+			const quantity = parseQuantityInput(text);
+
+			if (quantity === null) {
+				setErrorMessage("数量を確認してください（例：2、0.5、1/2）");
+
+				return;
+			}
+
+			lotQuantities.push({ lotId: lot.id, quantity });
 		}
 
 		setErrorMessage(null);
@@ -407,7 +447,7 @@ export function InventoryList({
 				inventoryItemId: item.inventoryItemId,
 				stockUnitCode: option.stockUnitCode,
 				stockUnitLabel: option.stockUnitLabel,
-				currentQuantity: quantity,
+				lotQuantities,
 			});
 
 			applyItemUpdate(item.inventoryItemId, {
@@ -420,6 +460,42 @@ export function InventoryList({
 		} catch (error) {
 			setErrorMessage(
 				error instanceof Error ? error.message : "単位を変更できませんでした",
+			);
+		} finally {
+			setIsAdjusting(false);
+		}
+	}
+
+	async function handleSaveLotQuantity(
+		item: InventoryListItem,
+		lot: InventoryLot,
+	) {
+		if (!setLotQuantity) {
+			return;
+		}
+
+		const quantity = parseQuantityInput(quantityEditValue);
+
+		if (quantity === null) {
+			setErrorMessage("数量を確認してください（例：2、0.5、1/2）");
+
+			return;
+		}
+
+		setErrorMessage(null);
+		setIsAdjusting(true);
+
+		try {
+			const result = await setLotQuantity({ lotId: lot.id, quantity });
+
+			applyItemUpdate(item.inventoryItemId, {
+				quantity: result.quantity,
+				lots: result.lots,
+			});
+			setQuantityEditLotId(null);
+		} catch (error) {
+			setErrorMessage(
+				error instanceof Error ? error.message : "数量を直せませんでした",
 			);
 		} finally {
 			setIsAdjusting(false);
@@ -793,8 +869,8 @@ export function InventoryList({
 												setUnitChangeOption(event.target.value);
 
 												if (option) {
-													setUnitChangeQuantity(
-														estimateQuantityInUnit(item, option),
+													setUnitChangeLotQuantities(
+														estimateLotQuantities(item, option),
 													);
 												}
 											}}
@@ -812,20 +888,32 @@ export function InventoryList({
 										</select>
 									</label>
 
-									<div className={styles.adjustmentField}>
+									<div className={styles.lotSpecification}>
 										<span className={styles.adjustmentLabel}>
-											{item.name}
-											のいまの量（換算した目安が入っています。違えば直してください）
+											ロットごとの量（換算した目安が入っています。違えば直してください）
 										</span>
 
-										<span className={styles.quantityInput}>
-											<QuantityInput
-												className={styles.input}
-												aria-label={`${item.name}の新しい単位でのいまの量`}
-												value={unitChangeQuantity}
-												onChange={setUnitChangeQuantity}
-											/>
-										</span>
+										{item.lots.map((lot) => (
+											<div className={styles.adjustmentField} key={lot.id}>
+												<span className={styles.adjustmentLabel}>
+													{formatShortDate(lot.acquiredOn)}に追加
+													{formatLotExpiry(lot)
+														? `（${formatLotExpiry(lot)}）`
+														: ""}
+												</span>
+												<QuantityInput
+													className={styles.input}
+													aria-label={`${formatShortDate(lot.acquiredOn)}に追加のロットの新しい単位での量`}
+													value={unitChangeLotQuantities[lot.id] ?? ""}
+													onChange={(value) =>
+														setUnitChangeLotQuantities((current) => ({
+															...current,
+															[lot.id]: value,
+														}))
+													}
+												/>
+											</div>
+										))}
 									</div>
 
 									<div className={styles.adjustmentActions}>
@@ -1029,6 +1117,29 @@ export function InventoryList({
 														</span>
 													)}
 
+													{setLotQuantity &&
+													item.trackingMode !== "presence" &&
+													itemsSource !== "cache" ? (
+														<button
+															className={styles.lotEditButton}
+															type="button"
+															disabled={isAdjusting}
+															aria-label={`${formatShortDate(lot.acquiredOn)}に追加のロットの数量を直す`}
+															onClick={() => {
+																setQuantityEditLotId(lot.id);
+																setQuantityEditValue(
+																	formatQuantity(lot.quantity, {
+																		grouping: false,
+																		allowFractions:
+																			item.stockUnitCode === "count",
+																	}),
+																);
+															}}
+														>
+															数量
+														</button>
+													) : null}
+
 													{updateInventoryLot && itemsSource !== "cache" ? (
 														<button
 															className={styles.lotEditButton}
@@ -1041,6 +1152,44 @@ export function InventoryList({
 														</button>
 													) : null}
 												</div>
+
+												{quantityEditLotId === lot.id ? (
+													<div className={styles.lotEditForm}>
+														<span className={styles.quantityInput}>
+															<QuantityInput
+																className={styles.input}
+																aria-label={`${formatShortDate(lot.acquiredOn)}に追加のロットの数量`}
+																value={quantityEditValue}
+																onChange={setQuantityEditValue}
+																showFractionButtons={
+																	item.stockUnitCode === "count"
+																}
+															/>
+															<span>{item.stockUnitLabel}</span>
+														</span>
+
+														<div className={styles.adjustmentActions}>
+															<button
+																className={styles.cancelButton}
+																type="button"
+																disabled={isAdjusting}
+																onClick={() => setQuantityEditLotId(null)}
+															>
+																キャンセル
+															</button>
+															<button
+																className={styles.increaseButton}
+																type="button"
+																disabled={isAdjusting}
+																onClick={() =>
+																	void handleSaveLotQuantity(item, lot)
+																}
+															>
+																この数量にする
+															</button>
+														</div>
+													</div>
+												) : null}
 
 												{editingLotId === lot.id ? (
 													<div className={styles.lotEditForm}>

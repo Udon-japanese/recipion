@@ -4,7 +4,10 @@ import {
 	expiryKindSchema,
 	storageSchema,
 } from "./inventory-lot-input";
-import type { UpdateInventoryLotCommand } from "./inventory-lot-repository";
+import type {
+	SetLotQuantityCommand,
+	UpdateInventoryLotCommand,
+} from "./inventory-lot-repository";
 
 const updateInventoryLotInputSchema = v.object({
 	lotId: v.pipe(v.string(), v.uuid("ロットIDが不正です")),
@@ -19,4 +22,19 @@ export function parseUpdateInventoryLotInput(
 	input: unknown,
 ): UpdateInventoryLotCommand {
 	return v.parse(updateInventoryLotInputSchema, input);
+}
+
+const setLotQuantityInputSchema = v.object({
+	lotId: v.pipe(v.string(), v.uuid("ロットIDが不正です")),
+	quantity: v.pipe(
+		v.number(),
+		v.finite("数量には有限の数値を指定してください"),
+		v.minValue(0, "数量は0以上にしてください"),
+	),
+});
+
+export function parseSetLotQuantityInput(
+	input: unknown,
+): SetLotQuantityCommand {
+	return v.parse(setLotQuantityInputSchema, input);
 }

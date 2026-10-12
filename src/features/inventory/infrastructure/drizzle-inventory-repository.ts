@@ -25,6 +25,7 @@ import type {
 } from "../application/inventory-item-resolver";
 import type {
 	InventoryLotRepository,
+	SetLotQuantityCommand,
 	UpdateInventoryLotCommand,
 } from "../application/inventory-lot-repository";
 import type { InventoryQueryRepository } from "../application/inventory-query-repository";
@@ -950,10 +951,10 @@ export function createDrizzleInventoryRepository(
 					const plan = planStockUnitChange({
 						lots: allLots,
 						factor,
-						currentQuantity: command.currentQuantity,
+						lotQuantities: command.lotQuantities,
 					});
 
-					for (const { lotId, quantity } of plan.lotQuantities) {
+					for (const { lotId, quantity, adjustment } of plan) {
 						await transaction
 							.update(inventoryLot)
 							.set({ quantity: toNumeric(quantity) })
@@ -963,23 +964,23 @@ export function createDrizzleInventoryRepository(
 									eq(inventoryLot.userId, userId),
 								),
 							);
-					}
 
-					let adjustedLotId: string | null =
-						plan.lotQuantities[0]?.lotId ?? null;
-
-					if (plan.newLotQuantity > 0) {
-						const [createdLot] = await transaction
-							.insert(inventoryLot)
-							.values({
+						// 入力された数量が、換算した数量と食い違ったロットだけ、その差を履歴に残す（新しい単位で）。
+						if (adjustment !== 0) {
+							await transaction.insert(inventoryTransaction).values({
 								userId,
 								inventoryItemId: command.inventoryItemId,
-								quantity: toNumeric(plan.newLotQuantity),
-								acquiredOn: toDateString(new Date()),
-							})
-							.returning();
-
-						adjustedLotId = createdLot?.id ?? adjustedLotId;
+								inventoryLotId: lotId,
+								inputQuantity: toNumeric(Math.abs(adjustment)),
+								inputUnitCode: command.stockUnitCode,
+								requestedQuantityDelta: toNumeric(adjustment),
+								quantityDelta: toNumeric(adjustment),
+								resultingQuantity: toNumeric(quantity),
+								stockUnitCode: command.stockUnitCode,
+								reason: "manual-adjustment",
+								occurredAt: new Date(),
+							});
+						}
 					}
 
 					await transaction
@@ -994,32 +995,6 @@ export function createDrizzleInventoryRepository(
 								eq(ingredient.userId, userId),
 							),
 						);
-
-					// 入力された量が、換算の目安と食い違ったときだけ、その差を履歴に残す（新しい単位で）。
-					const adjustment = plan.adjustmentFromConversion;
-
-					if (adjustment !== 0 && adjustedLotId) {
-						const lotRows = await loadLots(
-							transaction,
-							userId,
-							command.inventoryItemId,
-						);
-						const adjustedLot = lotRows.find((lot) => lot.id === adjustedLotId);
-
-						await transaction.insert(inventoryTransaction).values({
-							userId,
-							inventoryItemId: command.inventoryItemId,
-							inventoryLotId: adjustedLotId,
-							inputQuantity: toNumeric(Math.abs(adjustment)),
-							inputUnitCode: command.stockUnitCode,
-							requestedQuantityDelta: toNumeric(adjustment),
-							quantityDelta: toNumeric(adjustment),
-							resultingQuantity: toNumeric(adjustedLot?.quantity ?? 0),
-							stockUnitCode: command.stockUnitCode,
-							reason: "manual-adjustment",
-							occurredAt: new Date(),
-						});
-					}
 				}
 
 				const lots = toStockedLots(
@@ -1181,6 +1156,90 @@ export function createDrizzleInventoryRepository(
 				return {
 					inventoryItemId: command.inventoryItemId,
 					trackingMode: command.trackingMode,
+					quantity: sumLotQuantities(lots),
+					lots,
+				};
+			});
+		},
+
+		async setLotQuantity(command: SetLotQuantityCommand) {
+			return db.transaction(async (transaction) => {
+				const [storedLot] = await transaction
+					.select({
+						id: inventoryLot.id,
+						quantity: inventoryLot.quantity,
+						inventoryItemId: inventoryLot.inventoryItemId,
+						trackingMode: inventoryItem.trackingMode,
+						stockUnitCode: ingredient.stockUnitCode,
+					})
+					.from(inventoryLot)
+					.innerJoin(
+						inventoryItem,
+						and(
+							eq(inventoryItem.id, inventoryLot.inventoryItemId),
+							eq(inventoryItem.userId, inventoryLot.userId),
+						),
+					)
+					.innerJoin(
+						ingredient,
+						and(
+							eq(ingredient.id, inventoryItem.ingredientId),
+							eq(ingredient.userId, inventoryItem.userId),
+						),
+					)
+					.where(
+						and(
+							eq(inventoryLot.id, command.lotId),
+							eq(inventoryLot.userId, userId),
+						),
+					)
+					.for("update", { of: inventoryItem })
+					.limit(1);
+
+				if (!storedLot) {
+					throw new Error("ロットが見つかりません");
+				}
+
+				if (parseTrackingMode(storedLot.trackingMode) === "presence") {
+					throw new Error("有無だけで管理している食材は、数量を直せません");
+				}
+
+				const delta = Number(
+					(command.quantity - Number(storedLot.quantity)).toFixed(6),
+				);
+
+				if (delta !== 0) {
+					await transaction
+						.update(inventoryLot)
+						.set({ quantity: toNumeric(command.quantity) })
+						.where(
+							and(
+								eq(inventoryLot.id, command.lotId),
+								eq(inventoryLot.userId, userId),
+							),
+						);
+
+					await transaction.insert(inventoryTransaction).values({
+						userId,
+						inventoryItemId: storedLot.inventoryItemId,
+						inventoryLotId: command.lotId,
+						inputQuantity: toNumeric(Math.abs(delta)),
+						inputUnitCode: storedLot.stockUnitCode,
+						requestedQuantityDelta: toNumeric(delta),
+						quantityDelta: toNumeric(delta),
+						resultingQuantity: toNumeric(command.quantity),
+						stockUnitCode: storedLot.stockUnitCode,
+						reason: "manual-adjustment",
+						occurredAt: new Date(),
+					});
+				}
+
+				const lots = toStockedLots(
+					await loadLots(transaction, userId, storedLot.inventoryItemId),
+				);
+
+				return {
+					inventoryItemId: storedLot.inventoryItemId,
 					quantity: sumLotQuantities(lots),
 					lots,
 				};
