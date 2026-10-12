@@ -9,7 +9,8 @@
 
 - 本番の URL は `https://recipion.app`。Worker は `recipion`。デプロイは、手元から `nr deploy`（= ビルド → `wrangler deploy`）だけ（CI なし）。
 - **`BETTER_AUTH_SECRET` は、変えない。** ログインだけでなく、①限定公開のパスフレーズの暗号化の鍵、②永久停止のメールアドレスのハッシュの鍵、にも使っている。変えると、保存済みのパスフレーズが読めなくなり、永久停止の記録が効かなくなる。
-- マイグレーションは、新しいテーブルを足す形（0013・0014 は、列とテーブルの追加だけ）。**古い Worker のコードのままでも、DB は壊れない**（ロールバックが安全）。
+- マイグレーションは、表・列の追加が中心（`0015` だけは、在庫の管理方法の制約に `presence`（有無だけ）を許す差し替え）。**古い Worker のコードのままでも、DB は壊れない**。ただし、`presence` の在庫が作られたあとで、古いコードに戻すと、その在庫の行が読めない（ロールバックの注意は、11 を参照）。
+- **このアプリは、まだリリース前。本番の DB に、守るべき利用者のデータがないなら、マイグレーションを 1 本にまとめて、DB をリセットしてもよい**（13 を参照。リセットと本番への適用は、運営者が行う）。
 
 ## 1. 出す前の確認（手元）
 
@@ -25,8 +26,12 @@
 select id, created_at from drizzle.__drizzle_migrations order by id;
 ```
 
-- 手元の `drizzle/` には、`0000`〜`0014` の 15 本がある。行数が 15 未満なら、足りない分が、保留中。
-- 参考：`0009`（ハンドル）・`0010`（リンク）は適用済みのはず。`0011`〜`0014` は、状況を確認する。
+- 手元の `drizzle/` には、`0000`〜`0018` の 19 本がある。行数が 19 未満なら、足りない分が、保留中。
+- 参考：`0009`（ハンドル）・`0010`（リンク）は適用済みのはず。`0011` 以降は、状況を確認する。
+  - `0015`：在庫の管理方法に `presence`（有無だけ）を許す
+  - `0016`：在庫の呼び名（`display_name`）
+  - `0017`：管理者への通知の記録（`admin_notification_log`）
+  - `0018`：ユーザー名への通報（`user_report`）
 
 ## 3. バックアップを取る（必須）
 
@@ -41,9 +46,9 @@ select id, created_at from drizzle.__drizzle_migrations order by id;
 |---|---|---|
 | `BETTER_AUTH_SECRET` | 認証、パスフレーズの暗号化、永久停止のハッシュ | 設定済み。**変えない** |
 | `BETTER_AUTH_URL` | `https://recipion.app` | 設定済み |
-| `RESEND_API_KEY` | ログイン用コード・退会の確認メール | 設定済み |
+| `RESEND_API_KEY` | ログイン用コード・退会の確認メール・管理者への通知メール | 設定済み |
 | `TURNSTILE_SECRET_KEY` | ログイン画面のボット対策 | 設定済み |
-| `ADMIN_EMAILS` | 管理者のメール（カンマ区切り） | **新規**（管理者の画面） |
+| `ADMIN_EMAILS` | 管理者のメール（カンマ区切り）。管理者の画面の許可と、**管理者への通知メールの宛先**にも使う | **新規**（管理者の画面） |
 | `CF_ACCESS_TEAM_DOMAIN` | 例：`https://<チーム名>.cloudflareaccess.com` | **新規** |
 | `CF_ACCESS_AUD` | Access のアプリケーションの AUD タグ | **新規**（次の手順のあとで分かる） |
 
@@ -65,7 +70,7 @@ select id, created_at from drizzle.__drizzle_migrations order by id;
 DATABASE_URL='<本番の直接の接続文字列>' nr db:migrate
 ```
 
-- 適用後、2 のクエリで、15 行になったことを確認する。
+- 適用後、2 のクエリで、19 行になったことを確認する。
 
 ## 7. Hyperdrive の専用ユーザーに権限を付ける（必須）
 
@@ -81,7 +86,9 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON
   moderation_violation,
   suspension_appeal,
   recipe_unlock,
-  recipe_unlock_attempt
+  recipe_unlock_attempt,
+  admin_notification_log,
+  user_report
 TO "hyperdrive-user";
 ```
 
@@ -119,7 +126,7 @@ nr waf:allowlist
 ```
 
 - Cloudflare ダッシュボード → Security → Security rules → カスタムルール（許可リスト以外を Block）の式を、出力で置き換える。
-- 前回から増えたパス：`/profile`、`/terms`、`/privacy`、`/account-deleted`、`/admin/reports`、`/admin/appeals` ほか（式は、出力が正）。
+- 前回から増えたパス：`/profile`、`/terms`、`/privacy`、`/account-deleted`、`/admin`、`/admin/reports`、`/admin/appeals`、`/admin/users`、`/admin/user-reports` ほか（式は、出力が正）。
 
 ## 10. デプロイ後の確認
 
@@ -131,7 +138,11 @@ nr waf:allowlist
 - [ ] **限定公開**で保存 → パスフレーズが表示される → 別のアカウントで、パスフレーズを入れて開ける。
 - [ ] 別のアカウントで、`[[@` → ユーザー → レシピ → リンクが入る。
 - [ ] 他の人のレシピに、通報ボタンがある。通報が、管理者の画面に載る。
-- [ ] `/admin/reports`、`/admin/appeals` が、運営者のメールだけで開く（Access のログインが出る）。
+- [ ] `/admin`（入口）、`/admin/reports`、`/admin/user-reports`、`/admin/appeals`、`/admin/users` が、運営者のメールだけで開く（Access のログインが出る）。入口に、未対応の件数が出る。
+- [ ] **管理者への通知メール**：テスト用のアカウントで、他の人のレシピを通報する → `ADMIN_EMAILS` にメールが届く（件数と画面のリンクだけ。30分以内の2通目は届かない）。
+- [ ] 管理者の画面の「ユーザー」で、テスト用のアカウントを探して、停止 → 解除できる。**管理者自身のアカウントは、停止できない**。
+- [ ] 他の人のレシピの作者に、「この作者のユーザー名を通報する」がある。
+- [ ] 在庫：「有無だけ」の食材（塩・醤油など）が、「あり」と表示される。単位を変える・ロットの数量を直す・名前を変える・削除ができる。
 - [ ] プロフィールの名前の変更が、審査される。
 - [ ] **退会**：テスト用のアカウントで、確認メール → リンク → 削除される。
 - [ ] **静的ページが、Worker を通っていない**：`/terms`、`/privacy`、`/shopping`、`/inventory`、`/recipes/new` を開いても、Cloudflare ダッシュボードの Workers のリクエスト数が増えない（静的ファイルは、無料・無制限）。`/terms/`（末尾にスラッシュ）は、`/terms` に転送される。ログイン済みで `/shopping` を開いたとき、ログイン画面が一瞬見えない（「ログイン状態を確認しています…」→ ログイン中の表示）。
@@ -143,7 +154,7 @@ nr waf:allowlist
 
 | 問題 | 対処 |
 |---|---|
-| コードの不具合 | `nlx --local wrangler rollback`（直前のバージョンに戻す）。0013・0014 は追加だけなので、DB は、そのままでよい。 |
+| コードの不具合 | `nlx --local wrangler rollback`（直前のバージョンに戻す）。マイグレーションは、追加と制約の緩和だけなので、DB は、そのままでよい。**ただし、「有無だけ」（`presence`）の在庫が作られたあとで、`0015` より前のコードに戻すと、その在庫の行が読めず、在庫の画面がエラーになる**（その場合は、DB も戻すか、`presence` の在庫を、量を追う管理に切り替える）。 |
 | DB の不具合 | 3 のバックアップのブランチから、復元する（コードも、戻す）。 |
 | 管理者の画面に入れない | 4 のシークレット（`ADMIN_EMAILS`・`CF_ACCESS_*`）と、5 の Access のポリシーを確認する。 |
 
@@ -152,7 +163,8 @@ nr waf:allowlist
 - **Workers AI（審査）**：無料枠は、1日 10,000 Neurons。使い切ると、公開の審査が `unavailable` になり、**公開できなくなる**（非公開の保存は、できる）。1人1日 20 回までの上限（`maxAiChecksPerDay`）がある。
 - **Resend**：送信が増えたら、他のプロバイダに替える方針。送信は、`send-login-code.ts` と `send-delete-account-email.ts` の2か所。
 - **Workers 無料枠**：1日 10 万リクエスト（超えると Error 1027）。1回の処理の CPU は約 10ms。WAF で止めた分は、Worker を起動しない。
-- **管理者の操作**：`/admin/reports`（通報・自動検知）、`/admin/appeals`（停止への申し立て。永久停止は、ここで確定）。
+- **管理者の操作**：`/admin`（入口。未対応の件数）、`/admin/reports`（レシピの通報・自動検知）、`/admin/user-reports`（ユーザー名の通報）、`/admin/appeals`（停止への申し立て。永久停止は、ここで確定）、`/admin/users`（ユーザーを探して、停止・永久停止・解除）。各画面の下に、対応済みの履歴（直近100件）。
+- **管理者への通知**：新しい通報・自動検知・停止への申し立て・ユーザー名の通報が来ると、`ADMIN_EMAILS` にメール（件数と画面のリンクだけ）。**同じ種類は30分に1通まで**（`admin_notification_log`）。メールが届かないときは、`RESEND_API_KEY`・`ADMIN_EMAILS` と、Resend の送信ログを確認する。
 
 ## 未完了の確認事項（デプロイの前までに）
 
@@ -163,3 +175,17 @@ nr waf:allowlist
 - [ ] 情報漏えいが起きたときの手順は、`docs/incident-response.md`。
 - [ ] 商標：J-PlatPat で「れしぴょん」は、出なかった。念のため、`recipion`・`レシピオン` でも確認する。
 - [ ] Windows での、変換中のクリックの確認（デプロイ後に、本番で。上の確認項目）。
+
+## 13. リリース前の整理（任意。本番の DB に、守るべきデータがないとき）
+
+このアプリは、まだリリース前なので、互換のための仕組みは持たない方針。次の整理を、**リリース前に一度だけ**してよい（リリース後は、しない）。
+
+- **Dexie（ブラウザの IndexedDB）**：すでに 1 つのバージョンにまとめてある（データベース名は `recipion-local`）。古い `app-local` は、使われない（DevTools で消せる）。
+- **drizzle（サーバーの DB）**：`0000`〜`0018` を、1 本の最初のマイグレーションにまとめ、DB を作り直す。
+  1. （手元）`drizzle/` と、`drizzle/meta/` を作り直す（`nr db:generate`。履歴を消してから）。
+  2. Neon の `production` を、空にする（または、新しいブランチを作り、Hyperdrive の接続先を替える）。**実行は、運営者が行う。** その前に、バックアップのブランチを作る。
+  3. 6 のとおり、`nr db:migrate` を実行する。
+  4. 権限は、テーブルごとの GRANT ではなく、一括で付けられる：`GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO "hyperdrive-user";` と、7 の `ALTER DEFAULT PRIVILEGES`（今後のテーブルにも効く）。
+  5. 7 の確認のクエリで、権限のないテーブルが 1 つもないことを確かめる。
+- これをしないときは、2〜7 のとおり、足りないマイグレーションを順に適用する。
+
