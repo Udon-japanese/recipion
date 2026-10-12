@@ -1,12 +1,22 @@
 import { Link } from "@tanstack/react-router";
-import { Fragment, useCallback, useMemo, useState } from "react";
+import {
+	Fragment,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import type { InventoryListItem } from "#/features/inventory/application/inventory-query-repository";
 import { formatQuantity } from "#/features/quantity/domain/format-quantity";
 import type { ShoppingRepository } from "#/features/shopping/application/shopping-repository";
 import type { ShoppingItem } from "#/features/shopping/domain/shopping-item";
 import { dexieShoppingRepository } from "#/features/shopping/infrastructure/dexie-shopping-repository";
-import { buildShoppingChanges } from "../application/build-shopping-changes";
+import {
+	buildShoppingChanges,
+	type ShoppingDestination,
+} from "../application/build-shopping-changes";
 import {
 	type LinkedShoppingSections,
 	loadLinkedShoppingSections,
@@ -35,6 +45,15 @@ type RecipeShoppingSectionProps = {
 	shoppingRepository?: ShoppingRepository;
 	// 「ある」を押したとき、その食材を、在庫に「ある」で登録する（塩・醤油など）。
 	registerAvailable?: (ingredientName: string) => Promise<void>;
+	// 買い物メモの画面の中で使うとき（レシピから入れる）。開いた状態で始め、閉じると onClose を呼ぶ。
+	// 「買い物メモを開く」のリンクは出さない。
+	embedded?: {
+		onClose: () => void;
+		// 入れたあとに呼ぶ（買い物メモの画面が、一覧を読み直す）。
+		onApplied?: () => void;
+		// 入れ先。省略は通常のメモ。条件つきのメモの側にも入れられる。
+		destination?: ShoppingDestination;
+	};
 };
 
 const duplicateModeLabels: Record<DuplicateMode, string> = {
@@ -138,8 +157,12 @@ export function RecipeShoppingSection({
 	loadInventoryItems,
 	shoppingRepository = dexieShoppingRepository,
 	registerAvailable,
+	embedded,
 }: RecipeShoppingSectionProps) {
-	const [isOpen, setIsOpen] = useState(false);
+	const [isOpen, setIsOpen] = useState(embedded !== undefined);
+	// 入れ先を考えた、新しい項目の並び順の起点（全項目の最大値）。
+	const [highestSortOrder, setHighestSortOrder] = useState(-1);
+	const destination = embedded?.destination;
 	const [isLoading, setIsLoading] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [resultMessage, setResultMessage] = useState<string | null>(null);
@@ -203,15 +226,30 @@ export function RecipeShoppingSection({
 		rows.filter(isChecked).map((row) => row.need.id),
 	);
 
+	// 重複の判定に使う項目。通常のメモに入れるときは、条件つきのメモの中の項目を除く
+	// （まだ買うと決まっていないため）。条件つきのメモの側に入れるときは、その側の項目だけ。
+	const loadMemoItems = useCallback(async () => {
+		const all = await shoppingRepository.list();
+
+		setHighestSortOrder(
+			all.reduce((highest, item) => Math.max(highest, item.sortOrder), -1),
+		);
+
+		return destination
+			? all.filter(
+					(item) =>
+						item.branchId === destination.branchId &&
+						item.branchSide === destination.side,
+				)
+			: all.filter((item) => !item.branchId);
+	}, [destination, shoppingRepository]);
+
 	const load = useCallback(async () => {
 		setIsLoading(true);
 		setErrorMessage(null);
 
 		try {
-			// 条件つきのメモの中の項目は、まだ買うと決まっていないので、重複の判定に入れない。
-			setMemoItems(
-				(await shoppingRepository.list()).filter((item) => !item.branchId),
-			);
+			setMemoItems(await loadMemoItems());
 		} catch {
 			setErrorMessage("買い物メモを読み込めませんでした");
 		}
@@ -248,10 +286,20 @@ export function RecipeShoppingSection({
 	}, [
 		loadInventoryItems,
 		loadLinkedRecipe,
+		loadMemoItems,
 		ownerScope,
 		resolvedNeeds,
-		shoppingRepository,
 	]);
+
+	// 買い物メモの画面の中では、開いた状態で始まるので、最初に読み込む。
+	const hasAutoLoaded = useRef(false);
+
+	useEffect(() => {
+		if (embedded && !hasAutoLoaded.current) {
+			hasAutoLoaded.current = true;
+			void load();
+		}
+	}, [embedded, load]);
 
 	async function handleOpen() {
 		setIsOpen(true);
@@ -262,7 +310,13 @@ export function RecipeShoppingSection({
 	}
 
 	async function handleApply() {
-		const changes = buildShoppingChanges(rows, selectedNeedIds, memoItems);
+		const changes = buildShoppingChanges(
+			rows,
+			selectedNeedIds,
+			memoItems,
+			undefined,
+			{ destination, highestSortOrder },
+		);
 
 		if (changes.created.length === 0 && changes.updated.length === 0) {
 			setResultMessage("買い物メモに入れるものが、選ばれていません");
@@ -292,10 +346,8 @@ export function RecipeShoppingSection({
 					.join("、"),
 			);
 			setCheckedOverrides({});
-			// 条件つきのメモの中の項目は、まだ買うと決まっていないので、重複の判定に入れない。
-			setMemoItems(
-				(await shoppingRepository.list()).filter((item) => !item.branchId),
-			);
+			setMemoItems(await loadMemoItems());
+			embedded?.onApplied?.();
 		} catch {
 			setErrorMessage(
 				"買い物メモに保存できませんでした。もう一度お試しください",
@@ -457,7 +509,8 @@ export function RecipeShoppingSection({
 
 				{resultMessage ? (
 					<output className={styles.hint}>
-						{resultMessage}。<Link to="/shopping">買い物メモを開く</Link>
+						{resultMessage}。
+						{embedded ? null : <Link to="/shopping">買い物メモを開く</Link>}
 					</output>
 				) : null}
 
@@ -466,7 +519,10 @@ export function RecipeShoppingSection({
 						className={styles.cancelButton}
 						type="button"
 						disabled={isApplying}
-						onClick={() => setIsOpen(false)}
+						onClick={() => {
+							setIsOpen(false);
+							embedded?.onClose();
+						}}
 					>
 						閉じる
 					</button>

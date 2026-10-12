@@ -23,6 +23,7 @@ import { dexieShoppingRepository } from "../infrastructure/dexie-shopping-reposi
 import { dexieShoppingStoreRepository } from "../infrastructure/dexie-shopping-store-repository";
 import { shoppingViewStorage } from "../infrastructure/shopping-view-storage";
 import { PurchaseExpiryReview } from "./purchase-expiry-review";
+import type { RenderRecipePicker } from "./recipe-picker-slot";
 import { ShoppingBranchSection } from "./shopping-branch-section";
 import { ShoppingItemEditForm } from "./shopping-item-edit-form";
 import { ShoppingItemForm } from "./shopping-item-form";
@@ -51,6 +52,8 @@ type ShoppingListProps = {
 	confirmPurchases?: ConfirmPurchases;
 	syncPurchases?: SyncPurchases;
 	ownerScope?: InventoryPurchaseOwnerScope | null;
+	// 「レシピから入れる」の部品。渡されたとき（ログイン中）だけ、ボタンを出す。
+	renderRecipePicker?: RenderRecipePicker;
 };
 
 export function ShoppingList({
@@ -60,12 +63,23 @@ export function ShoppingList({
 	confirmPurchases = defaultConfirmPurchases,
 	syncPurchases,
 	ownerScope = "guest",
+	renderRecipePicker,
 }: ShoppingListProps) {
 	const shopping = useShoppingItems(repository);
 	const { items, isLoading, isReordering, errorMessage, setErrorMessage } =
 		shopping;
 	const [editingItemId, setEditingItemId] = useState<string | null>(null);
 	const [view, setView] = useStorageItem(shoppingViewStorage);
+	const [isPickingRecipe, setIsPickingRecipe] = useState(false);
+
+	// レシピの材料を入れたあと、保存済みの一覧を読み直す（購読できない保存先でも、画面に反映する）。
+	async function reloadItems() {
+		try {
+			shopping.setItems(await repository.list());
+		} catch {
+			setErrorMessage("買い物メモを読み込めませんでした");
+		}
+	}
 	// 店ごとの表示で、今いる店（その店と「どこでも」の項目だけを出す）。null はすべて。
 	const [currentStoreId, setCurrentStoreId] = useState<string | null>(null);
 	function handleStoreRemoved(storeId: string) {
@@ -219,6 +233,24 @@ export function ShoppingList({
 				onCreateStore={storeState.addStore}
 			/>
 
+			{renderRecipePicker ? (
+				isPickingRecipe ? (
+					renderRecipePicker({
+						repository,
+						onClose: () => setIsPickingRecipe(false),
+						onApplied: () => void reloadItems(),
+					})
+				) : (
+					<button
+						className={styles.sortButton}
+						type="button"
+						onClick={() => setIsPickingRecipe(true)}
+					>
+						レシピから入れる
+					</button>
+				)
+			) : null}
+
 			{purchase.conversionItem ? (
 				<ShoppingItemInventoryConversionForm
 					item={purchase.conversionItem}
@@ -295,6 +327,12 @@ export function ShoppingList({
 					return added;
 				}}
 				onRemoveItem={shopping.removeItem}
+				repository={repository}
+				renderRecipePicker={renderRecipePicker}
+				onRecipeApplied={(branch, side, recipeName) => {
+					void branchState.labelSideIfEmpty(branch.id, side, recipeName);
+					void reloadItems();
+				}}
 			/>
 
 			{isLoading ? <p className={styles.message}>読み込んでいます…</p> : null}

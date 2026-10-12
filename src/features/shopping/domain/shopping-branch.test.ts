@@ -3,6 +3,8 @@ import {
 	createShoppingBranch,
 	decideShoppingBranch,
 	getShoppingBranchSideItems,
+	maxShoppingBranchLabelLength,
+	suggestShoppingBranchSideLabel,
 } from "./shopping-branch";
 import { createShoppingItem } from "./shopping-item";
 
@@ -82,5 +84,28 @@ describe("decideShoppingBranch", () => {
 		expect(getShoppingBranchSideItems(items, "branch-2", "then")).toHaveLength(
 			1,
 		);
+	});
+});
+
+describe("suggestShoppingBranchSideLabel", () => {
+	it("呼び名が空の側だけ、名前を提案する。あれば提案しない", () => {
+		expect(suggestShoppingBranchSideLabel(branch, "else", "カレー")).toBe(
+			"カレー",
+		);
+		expect(suggestShoppingBranchSideLabel(branch, "then", "カレー")).toBeNull();
+	});
+
+	it("前後の空白を除き、長すぎる名前は切り詰め、空の名前は提案しない", () => {
+		expect(suggestShoppingBranchSideLabel(branch, "else", "  カレー  ")).toBe(
+			"カレー",
+		);
+		expect(
+			suggestShoppingBranchSideLabel(
+				branch,
+				"else",
+				"あ".repeat(maxShoppingBranchLabelLength + 10),
+			),
+		).toHaveLength(maxShoppingBranchLabelLength);
+		expect(suggestShoppingBranchSideLabel(branch, "else", "   ")).toBeNull();
 	});
 });

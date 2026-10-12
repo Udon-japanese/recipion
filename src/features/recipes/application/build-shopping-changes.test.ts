@@ -99,4 +99,23 @@ describe("buildShoppingChanges", () => {
 
 		expect(changes.created.map((item) => item.sortOrder)).toEqual([5, 6]);
 	});
+
+	it("入れ先が条件つきのメモの側なら、新しい項目はその側の項目になり、並び順は全項目の続きにする", () => {
+		const changes = buildShoppingChanges(rows, new Set(["卵", "塩"]), [], now, {
+			destination: { branchId: "branch-1", side: "else" },
+			highestSortOrder: 9,
+		});
+
+		expect(
+			changes.created.map((item) => [
+				item.name,
+				item.branchId,
+				item.branchSide,
+				item.sortOrder,
+			]),
+		).toEqual([
+			["卵", "branch-1", "else", 10],
+			["塩", "branch-1", "else", 11],
+		]);
+	});
 });
