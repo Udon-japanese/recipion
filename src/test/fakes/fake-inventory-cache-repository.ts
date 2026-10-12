@@ -128,6 +128,12 @@ export function createFakeInventoryCacheRepository(
 								...(stock.trackingMode !== undefined
 									? { trackingMode: stock.trackingMode }
 									: {}),
+								...(stock.stockUnitCode !== undefined
+									? { stockUnitCode: stock.stockUnitCode }
+									: {}),
+								...(stock.stockUnitLabel !== undefined
+									? { stockUnitLabel: stock.stockUnitLabel }
+									: {}),
 								updatedAt: now.toISOString(),
 							}
 						: item,

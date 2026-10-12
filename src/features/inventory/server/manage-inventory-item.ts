@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import {
+	parseChangeStockUnitInput,
 	parseDeleteInventoryItemInput,
 	parseRenameInventoryItemInput,
 } from "#/features/inventory/application/inventory-item-management-input";
@@ -26,4 +27,14 @@ export const renameInventoryItemServerFn = createServerFn({
 		const { db, userId } = await requireSession();
 
 		return createDrizzleInventoryRepository(db, userId).renameItem(data);
+	});
+
+export const changeStockUnitServerFn = createServerFn({
+	method: "POST",
+})
+	.validator((input) => parseChangeStockUnitInput(input))
+	.handler(async ({ data }) => {
+		const { db, userId } = await requireSession();
+
+		return createDrizzleInventoryRepository(db, userId).changeStockUnit(data);
 	});

@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { convertToStockQuantity } from "#/features/ingredients/domain/convert-to-stock-quantity";
+import { findIngredientCatalogEntry } from "#/features/ingredients/domain/ingredient-catalog";
+import {
+	listStockUnitOptions,
+	type StockUnitOption,
+} from "#/features/ingredients/domain/list-stock-unit-options";
 import { QuantityInput } from "#/features/quantity/components/quantity-input";
-import { formatStockAmount } from "#/features/quantity/domain/format-quantity";
+import {
+	formatQuantity,
+	formatStockAmount,
+} from "#/features/quantity/domain/format-quantity";
 import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
 import { createManualInventoryAdjustment } from "../application/create-manual-inventory-adjustment";
 import type {
@@ -8,6 +17,8 @@ import type {
 	InventoryAdjustmentRepositoryResult,
 } from "../application/inventory-adjustment-repository";
 import type {
+	ChangeStockUnitCommand,
+	ChangeStockUnitResult,
 	RenameInventoryItemCommand,
 	RenameInventoryItemResult,
 } from "../application/inventory-item-management-repository";
@@ -56,6 +67,10 @@ type RenameInventoryItem = (
 	command: RenameInventoryItemCommand,
 ) => Promise<RenameInventoryItemResult>;
 
+type ChangeStockUnit = (
+	command: ChangeStockUnitCommand,
+) => Promise<ChangeStockUnitResult>;
+
 type ChangeTrackingMode = (
 	command: ChangeInventoryTrackingModeCommand,
 ) => Promise<ChangeInventoryTrackingModeResult>;
@@ -68,12 +83,25 @@ type InventoryListProps = {
 	updateInventoryLot?: UpdateInventoryLot;
 	// 管理方法（有無だけ／だいたい／正確）を変える（渡さないと、切り替えのボタンは出ない）。
 	changeTrackingMode?: ChangeTrackingMode;
+	// 在庫の単位の変更（渡さないと、「単位を変える」のボタンは出ない）。
+	changeStockUnit?: ChangeStockUnit;
 	// 在庫の食材の削除（渡さないと、削除のボタンは出ない）。
 	deleteInventoryItem?: DeleteInventoryItem;
 	// 在庫の一覧に出す呼び名の変更（渡さないと、名前の変更のボタンは出ない）。
 	renameInventoryItem?: RenameInventoryItem;
 	refreshKey?: number;
 };
+
+function toOptionValue(option: StockUnitOption): string {
+	return `${option.stockUnitCode}:${option.stockUnitLabel}`;
+}
+
+function isCurrentUnit(item: InventoryListItem, option: StockUnitOption) {
+	return (
+		option.stockUnitCode === item.stockUnitCode &&
+		option.stockUnitLabel === item.stockUnitLabel
+	);
+}
 
 // 個数・枚数・本数は、1/2 のような分数で表示する。g と ml は、小数のまま。
 function formatStockQuantity(value: number, stockUnitCode: InventoryUnitCode) {
@@ -103,8 +131,13 @@ export function InventoryList({
 	changeTrackingMode,
 	deleteInventoryItem,
 	renameInventoryItem,
+	changeStockUnit,
 	refreshKey = 0,
 }: InventoryListProps) {
+	// 在庫の単位を変えている食材と、選んだ単位（"count:本" の形）、入力中のいまの量。
+	const [unitChangeItemId, setUnitChangeItemId] = useState<string | null>(null);
+	const [unitChangeOption, setUnitChangeOption] = useState("");
+	const [unitChangeQuantity, setUnitChangeQuantity] = useState("");
 	// 削除の確認中の食材。
 	const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
 	// 呼び名を変えている食材と、入力中の呼び名。
@@ -286,6 +319,107 @@ export function InventoryList({
 		} catch (error) {
 			setErrorMessage(
 				error instanceof Error ? error.message : "在庫を変更できませんでした",
+			);
+		} finally {
+			setIsAdjusting(false);
+		}
+	}
+
+	// 選んだ単位に換算した、いまの量の目安（換算できなければ、空）。
+	function estimateQuantityInUnit(
+		item: InventoryListItem,
+		option: StockUnitOption,
+	): string {
+		const converted = convertToStockQuantity(
+			{
+				quantity: item.quantity,
+				unitLabel:
+					item.stockUnitCode === "count"
+						? item.stockUnitLabel
+						: item.stockUnitCode,
+				stockUnitCode: option.stockUnitCode,
+				stockUnitLabel: option.stockUnitLabel,
+			},
+			findIngredientCatalogEntry(item.name),
+		);
+
+		if (converted === null) {
+			return "";
+		}
+
+		// g・ml は丸める（個数は、分数のまま。入力欄で編集できるように、桁区切りは付けない）。
+		const rounded =
+			option.stockUnitCode === "count"
+				? converted
+				: converted >= 10
+					? Math.round(converted)
+					: Math.round(converted * 10) / 10;
+
+		return formatQuantity(rounded, {
+			grouping: false,
+			allowFractions: option.stockUnitCode === "count",
+		});
+	}
+
+	function handleStartUnitChange(item: InventoryListItem) {
+		const [first] = listStockUnitOptions(item.name).filter(
+			(option) => !isCurrentUnit(item, option),
+		);
+
+		setErrorMessage(null);
+		setUnitChangeItemId(item.inventoryItemId);
+
+		if (first) {
+			setUnitChangeOption(toOptionValue(first));
+			setUnitChangeQuantity(estimateQuantityInUnit(item, first));
+		}
+	}
+
+	async function handleChangeUnit(item: InventoryListItem) {
+		if (!changeStockUnit) {
+			return;
+		}
+
+		const option = listStockUnitOptions(item.name).find(
+			(candidate) => toOptionValue(candidate) === unitChangeOption,
+		);
+
+		if (!option) {
+			return;
+		}
+
+		const quantity =
+			unitChangeQuantity.trim() === ""
+				? undefined
+				: parseQuantityInput(unitChangeQuantity);
+
+		if (quantity === null) {
+			setErrorMessage("数量を確認してください（例：2、0.5、1/2）");
+
+			return;
+		}
+
+		setErrorMessage(null);
+		setIsAdjusting(true);
+
+		try {
+			const result = await changeStockUnit({
+				inventoryItemId: item.inventoryItemId,
+				stockUnitCode: option.stockUnitCode,
+				stockUnitLabel: option.stockUnitLabel,
+				currentQuantity: quantity,
+			});
+
+			applyItemUpdate(item.inventoryItemId, {
+				stockUnitCode: result.stockUnitCode,
+				stockUnitLabel: result.stockUnitLabel,
+				quantity: result.quantity,
+				lots: result.lots,
+			});
+			setUnitChangeItemId(null);
+		} catch (error) {
+			setErrorMessage(
+				error instanceof Error ? error.message : "単位を変更できませんでした",
 			);
 		} finally {
 			setIsAdjusting(false);
@@ -598,6 +732,20 @@ export function InventoryList({
 									)
 								) : null}
 
+								{changeStockUnit &&
+								item.trackingMode !== "presence" &&
+								itemsSource !== "cache" ? (
+									<button
+										className={styles.adjustButton}
+										type="button"
+										disabled={isAdjusting}
+										aria-label={`${item.displayName ?? item.name}の単位を変える`}
+										onClick={() => handleStartUnitChange(item)}
+									>
+										単位を変える
+									</button>
+								) : null}
+
 								{renameInventoryItem && itemsSource !== "cache" ? (
 									<button
 										className={styles.adjustButton}
@@ -625,6 +773,82 @@ export function InventoryList({
 									</button>
 								) : null}
 							</div>
+
+							{unitChangeItemId === item.inventoryItemId ? (
+								<div className={styles.adjustmentForm}>
+									<label className={styles.adjustmentField}>
+										<span className={styles.adjustmentLabel}>
+											{item.name}の新しい単位（いまは{item.stockUnitLabel}）
+										</span>
+										<select
+											className={styles.input}
+											aria-label={`${item.name}の新しい単位`}
+											value={unitChangeOption}
+											onChange={(event) => {
+												const option = listStockUnitOptions(item.name).find(
+													(candidate) =>
+														toOptionValue(candidate) === event.target.value,
+												);
+
+												setUnitChangeOption(event.target.value);
+
+												if (option) {
+													setUnitChangeQuantity(
+														estimateQuantityInUnit(item, option),
+													);
+												}
+											}}
+										>
+											{listStockUnitOptions(item.name)
+												.filter((option) => !isCurrentUnit(item, option))
+												.map((option) => (
+													<option
+														value={toOptionValue(option)}
+														key={toOptionValue(option)}
+													>
+														{option.stockUnitLabel}
+													</option>
+												))}
+										</select>
+									</label>
+
+									<div className={styles.adjustmentField}>
+										<span className={styles.adjustmentLabel}>
+											{item.name}
+											のいまの量（換算した目安が入っています。違えば直してください）
+										</span>
+
+										<span className={styles.quantityInput}>
+											<QuantityInput
+												className={styles.input}
+												aria-label={`${item.name}の新しい単位でのいまの量`}
+												value={unitChangeQuantity}
+												onChange={setUnitChangeQuantity}
+											/>
+										</span>
+									</div>
+
+									<div className={styles.adjustmentActions}>
+										<button
+											className={styles.cancelButton}
+											type="button"
+											disabled={isAdjusting}
+											onClick={() => setUnitChangeItemId(null)}
+										>
+											キャンセル
+										</button>
+
+										<button
+											className={styles.increaseButton}
+											type="button"
+											disabled={isAdjusting || unitChangeOption === ""}
+											onClick={() => void handleChangeUnit(item)}
+										>
+											この単位にする
+										</button>
+									</div>
+								</div>
+							) : null}
 
 							{renamingItemId === item.inventoryItemId ? (
 								<div className={styles.adjustmentForm}>

@@ -2,11 +2,12 @@ import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import * as v from "valibot";
 
 import type { DB } from "#/db/client";
+import { convertToStockQuantity } from "#/features/ingredients/domain/convert-to-stock-quantity";
+import { findIngredientCatalogEntry } from "#/features/ingredients/domain/ingredient-catalog";
 import {
 	ingredient,
 	ingredientAlias,
 } from "#/features/ingredients/infrastructure/ingredient.sql";
-
 import { createIngredientRegistration } from "../application/create-ingredient-registration";
 import type {
 	InventoryAdjustmentCommand,
@@ -14,6 +15,7 @@ import type {
 	RecipeConsumptionUndoRepository,
 } from "../application/inventory-adjustment-repository";
 import type {
+	ChangeStockUnitCommand,
 	InventoryItemManagementRepository,
 	RenameInventoryItemCommand,
 } from "../application/inventory-item-management-repository";
@@ -56,6 +58,7 @@ import {
 	type InventoryUnitCode,
 	inventoryUnitCodeSchema,
 } from "../domain/inventory-unit";
+import { planStockUnitChange } from "../domain/plan-stock-unit-change";
 import {
 	inventoryItem,
 	inventoryLot,
@@ -791,7 +794,36 @@ export function createDrizzleInventoryRepository(
 
 				const now = new Date();
 
+				// 引いたあとで在庫の単位を変えていたら、その食材の分は、単位が違うので戻さない（数量が狂うため）。
+				const currentUnits = new Map(
+					(
+						await transaction
+							.select({
+								id: inventoryItem.id,
+								stockUnitCode: ingredient.stockUnitCode,
+							})
+							.from(inventoryItem)
+							.innerJoin(
+								ingredient,
+								and(
+									eq(ingredient.id, inventoryItem.ingredientId),
+									eq(ingredient.userId, inventoryItem.userId),
+								),
+							)
+							.where(
+								and(
+									eq(inventoryItem.userId, userId),
+									inArray(inventoryItem.id, itemIds),
+								),
+							)
+					).map((row) => [row.id, row.stockUnitCode]),
+				);
+
 				for (const row of consumed) {
+					if (currentUnits.get(row.inventoryItemId) !== row.stockUnitCode) {
+						continue;
+					}
+
 					// ロットが消えている（引いたあとで削除された）履歴は、戻す先がないので、飛ばす。
 					if (row.inventoryLotId === null) {
 						continue;
@@ -854,6 +886,154 @@ export function createDrizzleInventoryRepository(
 				.returning({ id: inventoryItem.id });
 
 			return deleted.length > 0;
+		},
+
+		async changeStockUnit(command: ChangeStockUnitCommand) {
+			return db.transaction(async (transaction) => {
+				const [storedItem] = await transaction
+					.select({
+						id: inventoryItem.id,
+						trackingMode: inventoryItem.trackingMode,
+						ingredientId: ingredient.id,
+						name: ingredient.name,
+						stockUnitCode: ingredient.stockUnitCode,
+						stockUnitLabel: ingredient.stockUnitLabel,
+					})
+					.from(inventoryItem)
+					.innerJoin(
+						ingredient,
+						and(
+							eq(ingredient.id, inventoryItem.ingredientId),
+							eq(ingredient.userId, inventoryItem.userId),
+						),
+					)
+					.where(
+						and(
+							eq(inventoryItem.id, command.inventoryItemId),
+							eq(inventoryItem.userId, userId),
+						),
+					)
+					.for("update", { of: inventoryItem })
+					.limit(1);
+
+				if (!storedItem) {
+					throw new Error("在庫項目が見つかりません");
+				}
+
+				if (parseTrackingMode(storedItem.trackingMode) === "presence") {
+					throw new Error("有無だけで管理している食材は、単位を変えられません");
+				}
+
+				const allLots = await loadLots(
+					transaction,
+					userId,
+					command.inventoryItemId,
+				);
+				const isSameUnit =
+					storedItem.stockUnitCode === command.stockUnitCode &&
+					storedItem.stockUnitLabel === command.stockUnitLabel;
+
+				if (!isSameUnit) {
+					// 古い単位の1つ分が、新しい単位でいくつか（換算できなければ null）。
+					const factor = convertToStockQuantity(
+						{
+							quantity: 1,
+							unitLabel:
+								storedItem.stockUnitCode === "count"
+									? storedItem.stockUnitLabel
+									: storedItem.stockUnitCode,
+							stockUnitCode: command.stockUnitCode,
+							stockUnitLabel: command.stockUnitLabel,
+						},
+						findIngredientCatalogEntry(storedItem.name),
+					);
+					const plan = planStockUnitChange({
+						lots: allLots,
+						factor,
+						currentQuantity: command.currentQuantity,
+					});
+
+					for (const { lotId, quantity } of plan.lotQuantities) {
+						await transaction
+							.update(inventoryLot)
+							.set({ quantity: toNumeric(quantity) })
+							.where(
+								and(
+									eq(inventoryLot.id, lotId),
+									eq(inventoryLot.userId, userId),
+								),
+							);
+					}
+
+					let adjustedLotId: string | null =
+						plan.lotQuantities[0]?.lotId ?? null;
+
+					if (plan.newLotQuantity > 0) {
+						const [createdLot] = await transaction
+							.insert(inventoryLot)
+							.values({
+								userId,
+								inventoryItemId: command.inventoryItemId,
+								quantity: toNumeric(plan.newLotQuantity),
+								acquiredOn: toDateString(new Date()),
+							})
+							.returning();
+
+						adjustedLotId = createdLot?.id ?? adjustedLotId;
+					}
+
+					await transaction
+						.update(ingredient)
+						.set({
+							stockUnitCode: command.stockUnitCode,
+							stockUnitLabel: command.stockUnitLabel,
+						})
+						.where(
+							and(
+								eq(ingredient.id, storedItem.ingredientId),
+								eq(ingredient.userId, userId),
+							),
+						);
+
+					// 入力された量が、換算の目安と食い違ったときだけ、その差を履歴に残す（新しい単位で）。
+					const adjustment = plan.adjustmentFromConversion;
+
+					if (adjustment !== 0 && adjustedLotId) {
+						const lotRows = await loadLots(
+							transaction,
+							userId,
+							command.inventoryItemId,
+						);
+						const adjustedLot = lotRows.find((lot) => lot.id === adjustedLotId);
+
+						await transaction.insert(inventoryTransaction).values({
+							userId,
+							inventoryItemId: command.inventoryItemId,
+							inventoryLotId: adjustedLotId,
+							inputQuantity: toNumeric(Math.abs(adjustment)),
+							inputUnitCode: command.stockUnitCode,
+							requestedQuantityDelta: toNumeric(adjustment),
+							quantityDelta: toNumeric(adjustment),
+							resultingQuantity: toNumeric(adjustedLot?.quantity ?? 0),
+							stockUnitCode: command.stockUnitCode,
+							reason: "manual-adjustment",
+							occurredAt: new Date(),
+						});
+					}
+				}
+
+				const lots = toStockedLots(
+					await loadLots(transaction, userId, command.inventoryItemId),
+				);
+
+				return {
+					inventoryItemId: command.inventoryItemId,
+					stockUnitCode: parseInventoryUnitCode(command.stockUnitCode),
+					stockUnitLabel: command.stockUnitLabel,
+					quantity: sumLotQuantities(lots),
+					lots,
+				};
+			});
 		},
 
 		async renameItem(command: RenameInventoryItemCommand) {

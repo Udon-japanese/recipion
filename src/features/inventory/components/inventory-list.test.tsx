@@ -769,4 +769,156 @@ describe("InventoryList", () => {
 			expect(screen.getByText("鶏もも肉")).toBeInTheDocument();
 		});
 	});
+
+	describe("単位を変える", () => {
+		const chickenId = "6b1d4f0e-0a0e-4c85-9a3f-333333333333";
+
+		function chicken() {
+			return buildInventoryListItem({
+				inventoryItemId: chickenId,
+				name: "鶏もも肉",
+				quantity: 900,
+				stockUnitCode: "g",
+				stockUnitLabel: "g",
+				lots: [
+					createLot({ id: "early", quantity: 300, expiresOn: "2026-10-10" }),
+					createLot({ id: "late", quantity: 600, expiresOn: "2026-10-20" }),
+				],
+			});
+		}
+
+		it("候補から単位を選ぶと、換算した目安の量が入り、その単位で保存できる", async () => {
+			const user = userEvent.setup();
+			const changeStockUnit = vi.fn().mockResolvedValue({
+				inventoryItemId: chickenId,
+				stockUnitCode: "count",
+				stockUnitLabel: "枚",
+				quantity: 3,
+				lots: [
+					createLot({ id: "early", quantity: 0.6, expiresOn: "2026-10-10" }),
+					createLot({ id: "late", quantity: 2.4, expiresOn: "2026-10-20" }),
+				],
+			});
+
+			render(
+				<InventoryList
+					ownerScope="user:user-id"
+					loadInventoryItems={async () => createNetworkResult([chicken()])}
+					changeStockUnit={changeStockUnit}
+				/>,
+			);
+
+			await user.click(
+				await screen.findByRole("button", { name: "鶏もも肉の単位を変える" }),
+			);
+
+			// 900g ÷ 250g/枚 = 3.6枚 が、目安として入る
+			await user.selectOptions(
+				screen.getByLabelText("鶏もも肉の新しい単位"),
+				"count:枚",
+			);
+			expect(
+				screen.getByLabelText("鶏もも肉の新しい単位でのいまの量"),
+			).toHaveValue("3.6");
+
+			await user.clear(
+				screen.getByLabelText("鶏もも肉の新しい単位でのいまの量"),
+			);
+			await user.type(
+				screen.getByLabelText("鶏もも肉の新しい単位でのいまの量"),
+				"3",
+			);
+			await user.click(screen.getByRole("button", { name: "この単位にする" }));
+
+			expect(await screen.findAllByText("3枚")).not.toHaveLength(0);
+			expect(changeStockUnit).toHaveBeenCalledWith({
+				inventoryItemId: chickenId,
+				stockUnitCode: "count",
+				stockUnitLabel: "枚",
+				currentQuantity: 3,
+			});
+		});
+
+		it("現在の単位は候補に出ない。有無だけの食材には、ボタンを出さない", async () => {
+			const user = userEvent.setup();
+
+			render(
+				<InventoryList
+					ownerScope="user:user-id"
+					loadInventoryItems={async () =>
+						createNetworkResult([
+							chicken(),
+							buildInventoryListItem({
+								inventoryItemId: "oil",
+								name: "オリーブオイル",
+								trackingMode: "presence",
+								quantity: 1,
+							}),
+						])
+					}
+					changeStockUnit={vi.fn()}
+				/>,
+			);
+
+			await user.click(
+				await screen.findByRole("button", { name: "鶏もも肉の単位を変える" }),
+			);
+
+			const options = screen
+				.getAllByRole("option")
+				.map((option) => option.textContent);
+
+			expect(options).toContain("枚");
+			expect(options).not.toContain("g");
+			expect(
+				screen.queryByRole("button", { name: "オリーブオイルの単位を変える" }),
+			).toBeNull();
+		});
+
+		it("換算できない単位では、目安が空になり、変更に失敗したら、エラーを出して元の単位のまま", async () => {
+			const user = userEvent.setup();
+			const changeStockUnit = vi
+				.fn()
+				.mockRejectedValue(
+					new Error("この単位には換算できないため、いまの量を入力してください"),
+				);
+
+			render(
+				<InventoryList
+					ownerScope="user:user-id"
+					loadInventoryItems={async () =>
+						createNetworkResult([
+							buildInventoryListItem({
+								inventoryItemId: chickenId,
+								name: "謎の食材",
+								quantity: 900,
+								stockUnitCode: "g",
+								stockUnitLabel: "g",
+							}),
+						])
+					}
+					changeStockUnit={changeStockUnit}
+				/>,
+			);
+
+			await user.click(
+				await screen.findByRole("button", { name: "謎の食材の単位を変える" }),
+			);
+			// カタログにない食材は、重さと個数の換算の手がかりがないので、目安は空になる
+			await user.selectOptions(
+				screen.getByLabelText("謎の食材の新しい単位"),
+				"count:個",
+			);
+			expect(
+				screen.getByLabelText("謎の食材の新しい単位でのいまの量"),
+			).toHaveValue("");
+
+			await user.click(screen.getByRole("button", { name: "この単位にする" }));
+
+			expect(await screen.findByRole("alert")).toHaveTextContent(
+				"いまの量を入力",
+			);
+			expect(screen.getByText("謎の食材")).toBeInTheDocument();
+		});
+	});
 });
