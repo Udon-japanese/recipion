@@ -1,4 +1,4 @@
-import { desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 
 import type { DB } from "#/db/client";
 import {
@@ -8,6 +8,7 @@ import {
 } from "#/features/moderation/infrastructure/moderation.sql";
 import { recipe } from "#/features/recipes/infrastructure/recipe.sql";
 import { recipeReport } from "#/features/reports/infrastructure/report.sql";
+import { userReport } from "#/features/reports/infrastructure/user-report.sql";
 import { user } from "#/integrations/better-auth/auth.sql";
 import type { AdminUserRepository } from "../application/admin-user-repository";
 import type { AdminUserSummary } from "../domain/admin-user";
@@ -111,6 +112,17 @@ export function createDrizzleAdminUserRepository(db: DB): AdminUserRepository {
 						.values({ emailHash, bannedAt: now })
 						.onConflictDoNothing();
 				}
+
+				// このユーザーへの、未対応のユーザー名の通報は、「停止した」で対応済みにする。
+				await transaction
+					.update(userReport)
+					.set({ status: "resolved", resolution: "suspended", resolvedAt: now })
+					.where(
+						and(
+							eq(userReport.reportedUserId, userId),
+							eq(userReport.status, "open"),
+						),
+					);
 
 				if (makePrivate) {
 					// 限定公開のパスフレーズは、非公開では持たない（制約）。

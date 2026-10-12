@@ -4,10 +4,15 @@ import * as styles from "./admin-history-list.css";
 type AdminHomeProps = {
 	openReports: number;
 	openAppeals: number;
+	openUserReports: number;
 };
 
 // 管理者の入口：未対応の件数と、各画面へのリンク。
-export function AdminHome({ openReports, openAppeals }: AdminHomeProps) {
+export function AdminHome({
+	openReports,
+	openAppeals,
+	openUserReports,
+}: AdminHomeProps) {
 	return (
 		<main className={styles.container}>
 			<h1>管理の入口</h1>
@@ -18,6 +23,12 @@ export function AdminHome({ openReports, openAppeals }: AdminHomeProps) {
 						<Link to="/admin/reports">通報</Link>
 					</p>
 					<p className={styles.meta}>未対応：{openReports}件</p>
+				</li>
+				<li className={styles.item}>
+					<p className={styles.title}>
+						<Link to="/admin/user-reports">ユーザー名の通報</Link>
+					</p>
+					<p className={styles.meta}>未対応：{openUserReports}件</p>
 				</li>
 				<li className={styles.item}>
 					<p className={styles.title}>

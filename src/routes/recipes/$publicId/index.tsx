@@ -44,7 +44,9 @@ import {
 	viewRecipeServerFn,
 } from "#/features/recipes/server/view-recipe";
 import { ReportRecipeForm } from "#/features/reports/components/report-recipe-form";
+import { ReportUserForm } from "#/features/reports/components/report-user-form";
 import { createReportServerFn } from "#/features/reports/server/create-report";
+import { createUserNameReportServerFn } from "#/features/reports/server/create-user-report";
 
 export const Route = createFileRoute("/recipes/$publicId/")({
 	// 見てはいけないレシピと、存在しないレシピは、どちらも null（パスフレーズの入力画面になる）。
@@ -289,6 +291,13 @@ function SharedRecipePage({
 				loadInventoryItems={loadInventoryItems}
 				consume={consume}
 				undo={undoConsumption}
+			/>
+			<ReportUserForm
+				onReport={(input) =>
+					createUserNameReportServerFn({
+						data: { handle: author.handle, ...input },
+					})
+				}
 			/>
 			<ReportRecipeForm
 				onReport={(input) =>

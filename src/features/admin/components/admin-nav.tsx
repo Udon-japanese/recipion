@@ -6,6 +6,7 @@ export function AdminNav() {
 	const links = [
 		{ to: "/admin", label: "管理の入口", exact: true },
 		{ to: "/admin/reports", label: "通報", exact: false },
+		{ to: "/admin/user-reports", label: "ユーザー名の通報", exact: false },
 		{ to: "/admin/appeals", label: "停止への申し立て", exact: false },
 		{ to: "/admin/users", label: "ユーザー", exact: false },
 	] as const;

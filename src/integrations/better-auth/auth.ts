@@ -21,6 +21,7 @@ import {
 	defaultDisplayName,
 	generateHandle,
 } from "#/features/profile/domain/profile";
+import { userReport } from "#/features/reports/infrastructure/user-report.sql";
 import * as authSchema from "#/integrations/better-auth/auth.sql";
 import { AUTH_RATE_LIMITED_CODE } from "#/integrations/better-auth/auth-error-message";
 import {
@@ -164,6 +165,12 @@ export function createAuth(db: DB) {
 							code: "ACCOUNT_SUSPENDED",
 						});
 					}
+
+					// 他の人から受けたユーザー名の通報の記録は残すが、名前とハンドルの控えは消す（退会した人の情報を残さない）。
+					await db
+						.update(userReport)
+						.set({ reportedName: "", reportedHandle: "" })
+						.where(eq(userReport.reportedUserId, user.id));
 				},
 			},
 		},

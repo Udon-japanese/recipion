@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { createDrizzleAppealRepository } from "#/features/moderation/infrastructure/drizzle-appeal-repository";
 import { createDrizzleReportRepository } from "#/features/reports/infrastructure/drizzle-report-repository";
+import { createDrizzleUserReportRepository } from "#/features/reports/infrastructure/drizzle-user-report-repository";
 import { requireAdmin } from "#/integrations/cloudflare-access/require-admin";
 
 // 管理者の入口に出す、未対応の件数（管理者だけ）。
@@ -9,10 +10,11 @@ export const getAdminSummaryServerFn = createServerFn({
 }).handler(async () => {
 	const { db } = await requireAdmin();
 
-	const [openReports, openAppeals] = await Promise.all([
+	const [openReports, openAppeals, openUserReports] = await Promise.all([
 		createDrizzleReportRepository(db).countOpen(),
 		createDrizzleAppealRepository(db).countOpen(),
+		createDrizzleUserReportRepository(db).countOpen(),
 	]);
 
-	return { openReports, openAppeals };
+	return { openReports, openAppeals, openUserReports };
 });
