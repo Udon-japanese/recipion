@@ -2,7 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import { buildInventoryListItem } from "#/test/builders/build-inventory-list-item";
 import { createFakeInventoryCacheRepository } from "#/test/fakes/fake-inventory-cache-repository";
 import type { UpdateInventoryLotCommand } from "./inventory-lot-repository";
-import { updateInventoryLotWithCache } from "./update-inventory-lot-with-cache";
+import {
+	setLotQuantityWithCache,
+	updateInventoryLotWithCache,
+} from "./update-inventory-lot-with-cache";
 
 const command: UpdateInventoryLotCommand = {
 	lotId: "6b1d4f0e-0a0e-4c85-9a3f-111111111111",
@@ -83,5 +86,42 @@ describe("updateInventoryLotWithCache", () => {
 				cacheRepository,
 			),
 		).resolves.toBe(result);
+	});
+});
+
+describe("setLotQuantityWithCache", () => {
+	it("ロットの数量を直し、キャッシュの食材の数量・ロットも更新する", async () => {
+		const cacheRepository = createCacheRepository();
+		const now = new Date("2026-10-05T00:00:00.000Z");
+
+		const result = await setLotQuantityWithCache(
+			"user:user-id",
+			{ lotId: command.lotId, quantity: 2 },
+			async () => ({ inventoryItemId: "item-1", quantity: 2, lots: [] }),
+			cacheRepository,
+			now,
+		);
+
+		expect(result.quantity).toBe(2);
+		expect(
+			(await cacheRepository.find("user:user-id"))?.items[0],
+		).toMatchObject({ quantity: 2, updatedAt: now.toISOString() });
+	});
+
+	it("サーバーの更新に失敗したら、エラーにして、キャッシュを変えない", async () => {
+		const cacheRepository = createCacheRepository();
+		const before = await cacheRepository.find("user:user-id");
+
+		await expect(
+			setLotQuantityWithCache(
+				"user:user-id",
+				{ lotId: command.lotId, quantity: 2 },
+				async () => {
+					throw new Error("failed");
+				},
+				cacheRepository,
+			),
+		).rejects.toThrow("failed");
+		await expect(cacheRepository.find("user:user-id")).resolves.toEqual(before);
 	});
 });

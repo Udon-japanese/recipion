@@ -32,11 +32,16 @@ const changeStockUnitInputSchema = v.object({
 	inventoryItemId: inventoryItemIdSchema,
 	stockUnitCode: v.picklist(["count", "g", "ml"]),
 	stockUnitLabel: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(10)),
-	currentQuantity: v.optional(
-		v.pipe(
-			v.number(),
-			v.finite("数量には有限の数値を指定してください"),
-			v.minValue(0, "数量は0以上にしてください"),
+	lotQuantities: v.optional(
+		v.array(
+			v.object({
+				lotId: v.pipe(v.string(), v.uuid("ロットIDが不正です")),
+				quantity: v.pipe(
+					v.number(),
+					v.finite("数量には有限の数値を指定してください"),
+					v.minValue(0, "数量は0以上にしてください"),
+				),
+			}),
 		),
 	),
 });

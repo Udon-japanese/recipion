@@ -49,20 +49,20 @@ describe("parseChangeStockUnitInput", () => {
 				inventoryItemId,
 				stockUnitCode: "count",
 				stockUnitLabel: " 枚 ",
-				currentQuantity: 3,
+				lotQuantities: [{ lotId: inventoryItemId, quantity: 3 }],
 			}),
 		).toEqual({
 			inventoryItemId,
 			stockUnitCode: "count",
 			stockUnitLabel: "枚",
-			currentQuantity: 3,
+			lotQuantities: [{ lotId: inventoryItemId, quantity: 3 }],
 		});
 		expect(
 			parseChangeStockUnitInput({
 				inventoryItemId,
 				stockUnitCode: "g",
 				stockUnitLabel: "g",
-			}).currentQuantity,
+			}).lotQuantities,
 		).toBeUndefined();
 		expect(() =>
 			parseChangeStockUnitInput({
@@ -76,7 +76,7 @@ describe("parseChangeStockUnitInput", () => {
 				inventoryItemId,
 				stockUnitCode: "g",
 				stockUnitLabel: "g",
-				currentQuantity: -1,
+				lotQuantities: [{ lotId: inventoryItemId, quantity: -1 }],
 			}),
 		).toThrow();
 	});

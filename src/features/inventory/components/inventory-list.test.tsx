@@ -787,7 +787,7 @@ describe("InventoryList", () => {
 			});
 		}
 
-		it("候補から単位を選ぶと、換算した目安の量が入り、その単位で保存できる", async () => {
+		it("候補から単位を選ぶと、ロットごとに換算した量が入り、ロットごとに直して保存できる", async () => {
 			const user = userEvent.setup();
 			const changeStockUnit = vi.fn().mockResolvedValue({
 				inventoryItemId: chickenId,
@@ -795,8 +795,8 @@ describe("InventoryList", () => {
 				stockUnitLabel: "枚",
 				quantity: 3,
 				lots: [
-					createLot({ id: "early", quantity: 0.6, expiresOn: "2026-10-10" }),
-					createLot({ id: "late", quantity: 2.4, expiresOn: "2026-10-20" }),
+					createLot({ id: "early", quantity: 1, expiresOn: "2026-10-10" }),
+					createLot({ id: "late", quantity: 2, expiresOn: "2026-10-20" }),
 				],
 			});
 
@@ -811,23 +811,26 @@ describe("InventoryList", () => {
 			await user.click(
 				await screen.findByRole("button", { name: "鶏もも肉の単位を変える" }),
 			);
-
-			// 900g ÷ 250g/枚 = 3.6枚 が、目安として入る
 			await user.selectOptions(
 				screen.getByLabelText("鶏もも肉の新しい単位"),
 				"count:枚",
 			);
-			expect(
-				screen.getByLabelText("鶏もも肉の新しい単位でのいまの量"),
-			).toHaveValue("3.6");
 
-			await user.clear(
-				screen.getByLabelText("鶏もも肉の新しい単位でのいまの量"),
+			// 300g → 1.2枚、600g → 2.4枚 が、ロットごとの目安として入る
+			const [early, late] = screen.getAllByLabelText(
+				"10/1に追加のロットの新しい単位での量",
 			);
-			await user.type(
-				screen.getByLabelText("鶏もも肉の新しい単位でのいまの量"),
-				"3",
-			);
+
+			if (!early || !late) {
+				throw new Error("ロットの欄が見つかりません");
+			}
+
+			expect(early).toHaveValue("1.2");
+			expect(late).toHaveValue("2.4");
+
+			// 早い方のロットだけ直す
+			await user.clear(early);
+			await user.type(early, "1");
 			await user.click(screen.getByRole("button", { name: "この単位にする" }));
 
 			expect(await screen.findAllByText("3枚")).not.toHaveLength(0);
@@ -835,7 +838,10 @@ describe("InventoryList", () => {
 				inventoryItemId: chickenId,
 				stockUnitCode: "count",
 				stockUnitLabel: "枚",
-				currentQuantity: 3,
+				lotQuantities: [
+					{ lotId: "early", quantity: 1 },
+					{ lotId: "late", quantity: 2.4 },
+				],
 			});
 		});
 
@@ -894,6 +900,7 @@ describe("InventoryList", () => {
 								quantity: 900,
 								stockUnitCode: "g",
 								stockUnitLabel: "g",
+								lots: [createLot({ id: "only", quantity: 900 })],
 							}),
 						])
 					}
@@ -910,7 +917,7 @@ describe("InventoryList", () => {
 				"count:個",
 			);
 			expect(
-				screen.getByLabelText("謎の食材の新しい単位でのいまの量"),
+				screen.getByLabelText("10/1に追加のロットの新しい単位での量"),
 			).toHaveValue("");
 
 			await user.click(screen.getByRole("button", { name: "この単位にする" }));
@@ -919,6 +926,104 @@ describe("InventoryList", () => {
 				"いまの量を入力",
 			);
 			expect(screen.getByText("謎の食材")).toBeInTheDocument();
+		});
+	});
+
+	describe("ロットごとの数量を直す", () => {
+		it("ロットの数量を直接直せる。有無だけの食材には、出さない", async () => {
+			const user = userEvent.setup();
+			const setLotQuantity = vi.fn().mockResolvedValue({
+				inventoryItemId: "milk",
+				quantity: 300,
+				lots: [createLot({ id: "lot-1", quantity: 300 })],
+			});
+
+			render(
+				<InventoryList
+					ownerScope="user:user-id"
+					loadInventoryItems={async () =>
+						createNetworkResult([
+							buildInventoryListItem({
+								inventoryItemId: "milk",
+								name: "牛乳",
+								quantity: 500,
+								stockUnitCode: "ml",
+								stockUnitLabel: "ml",
+								lots: [createLot({ id: "lot-1", quantity: 500 })],
+							}),
+							buildInventoryListItem({
+								inventoryItemId: "oil",
+								name: "オリーブオイル",
+								quantity: 1,
+								trackingMode: "presence",
+								lots: [createLot({ id: "lot-2", quantity: 1 })],
+							}),
+						])
+					}
+					setLotQuantity={setLotQuantity}
+				/>,
+			);
+
+			// 牛乳のロットだけに、「数量」が出る
+			const buttons = await screen.findAllByRole("button", {
+				name: "10/1に追加のロットの数量を直す",
+			});
+
+			expect(buttons).toHaveLength(1);
+
+			await user.click(buttons[0] as HTMLElement);
+			await user.clear(screen.getByLabelText("10/1に追加のロットの数量"));
+			await user.type(screen.getByLabelText("10/1に追加のロットの数量"), "300");
+			await user.click(screen.getByRole("button", { name: "この数量にする" }));
+
+			expect(setLotQuantity).toHaveBeenCalledWith({
+				lotId: "lot-1",
+				quantity: 300,
+			});
+			expect(await screen.findAllByText("300ml")).not.toHaveLength(0);
+		});
+
+		it("数量が読めないときは送らず、失敗したときはエラーを出す", async () => {
+			const user = userEvent.setup();
+			const setLotQuantity = vi.fn().mockRejectedValue(new Error("failed"));
+
+			render(
+				<InventoryList
+					ownerScope="user:user-id"
+					loadInventoryItems={async () =>
+						createNetworkResult([
+							buildInventoryListItem({
+								inventoryItemId: "milk",
+								name: "牛乳",
+								quantity: 500,
+								stockUnitCode: "ml",
+								stockUnitLabel: "ml",
+								lots: [createLot({ id: "lot-1", quantity: 500 })],
+							}),
+						])
+					}
+					setLotQuantity={setLotQuantity}
+				/>,
+			);
+
+			await user.click(
+				await screen.findByRole("button", {
+					name: "10/1に追加のロットの数量を直す",
+				}),
+			);
+			await user.clear(screen.getByLabelText("10/1に追加のロットの数量"));
+			await user.type(screen.getByLabelText("10/1に追加のロットの数量"), "abc");
+			await user.click(screen.getByRole("button", { name: "この数量にする" }));
+
+			expect(await screen.findByRole("alert")).toHaveTextContent("数量を確認");
+			expect(setLotQuantity).not.toHaveBeenCalled();
+
+			await user.clear(screen.getByLabelText("10/1に追加のロットの数量"));
+			await user.type(screen.getByLabelText("10/1に追加のロットの数量"), "100");
+			await user.click(screen.getByRole("button", { name: "この数量にする" }));
+
+			expect(await screen.findByRole("alert")).toHaveTextContent("failed");
+			expect(screen.getAllByText("500ml")).not.toHaveLength(0);
 		});
 	});
 });
