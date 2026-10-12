@@ -60,6 +60,28 @@ describe("ShoppingList", () => {
 		expect(screen.getByText("（333g）")).toBeInTheDocument();
 	});
 
+	it("数量のボタンは、入力した単位に合わせて変わる（本は 1/3、g は +50）", async () => {
+		const user = userEvent.setup();
+
+		render(<ShoppingList repository={createFakeShoppingRepository()} />);
+
+		await screen.findByText("買うものはまだありません。");
+		await user.type(screen.getByLabelText("単位"), "本");
+		await user.click(screen.getByRole("button", { name: "1/3にする" }));
+
+		expect(screen.getByLabelText("数量")).toHaveValue("1/3");
+		expect(screen.queryByRole("button", { name: "50を足す" })).toBeNull();
+
+		await user.clear(screen.getByLabelText("単位"));
+		await user.type(screen.getByLabelText("単位"), "g");
+		await user.clear(screen.getByLabelText("数量"));
+		await user.click(screen.getByRole("button", { name: "50を足す" }));
+		await user.click(screen.getByRole("button", { name: "100を足す" }));
+
+		expect(screen.getByLabelText("数量")).toHaveValue("150");
+		expect(screen.queryByRole("button", { name: "1/3にする" })).toBeNull();
+	});
+
 	it("買い物項目を追加する", async () => {
 		const user = userEvent.setup();
 		const repository = createFakeShoppingRepository();
