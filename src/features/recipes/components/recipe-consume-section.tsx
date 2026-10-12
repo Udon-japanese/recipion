@@ -4,6 +4,7 @@ import type { InventoryPurchaseOwnerScope } from "#/features/inventory/applicati
 import type { InventoryListItem } from "#/features/inventory/application/inventory-query-repository";
 import { formatQuantity } from "#/features/quantity/domain/format-quantity";
 import {
+	addAlternativeConsumption,
 	type RecipeConsumptionEntryResult,
 	type RecipeConsumptionOperation,
 	startRecipeConsumption,
@@ -13,6 +14,7 @@ import type { RecipeDetail } from "../application/recipe-repository";
 import { resolveIngredientLinks } from "../domain/link-ingredient-needs";
 import {
 	planRecipeConsumption,
+	type RecipeConsumptionAlternative,
 	type RecipeConsumptionRow,
 } from "../domain/plan-recipe-consumption";
 import {
@@ -63,7 +65,9 @@ function describeRow(row: RecipeConsumptionRow, isFailed: boolean): string {
 		case "unmeasurable":
 			return `${name}：量が決まっていない（または換算できない）ため、減らしていません`;
 		case "no-stock":
-			return `${name}：在庫にないため、引いていません`;
+			return row.alternatives.length > 0
+				? `${name}：在庫にないため、引いていません（${row.alternatives.map((alternative) => alternative.name).join("、")}の在庫があります）`
+				: `${name}：在庫にないため、引いていません`;
 	}
 }
 
@@ -158,6 +162,42 @@ export function RecipeConsumeSection({
 		}
 	}
 
+	// 在庫にない材料を、形が決まっている代わりの食材（冷凍玉ねぎ(みじん切り)など）から引く。
+	async function handleUseAlternative(
+		row: RecipeConsumptionRow,
+		alternative: RecipeConsumptionAlternative,
+	) {
+		if (!outcome) {
+			return;
+		}
+
+		setIsWorking(true);
+		setErrorMessage(null);
+
+		try {
+			const added = addAlternativeConsumption(
+				outcome.operation,
+				row,
+				alternative,
+			);
+			const results = await consume(added.operation, new Set([row.need.id]));
+			const failed = results.some((result) => !result.ok);
+
+			setOutcome({
+				...outcome,
+				operation: added.operation,
+				rows: outcome.rows.map((current) =>
+					current.need.id === row.need.id ? added.row : current,
+				),
+				failedNeedIds: failed
+					? new Set([...outcome.failedNeedIds, row.need.id])
+					: outcome.failedNeedIds,
+			});
+		} finally {
+			setIsWorking(false);
+		}
+	}
+
 	async function handleUndo() {
 		if (!outcome) {
 			return;
@@ -201,6 +241,21 @@ export function RecipeConsumeSection({
 									<span className={styles.status}>
 										{describeRow(row, outcome.failedNeedIds.has(row.need.id))}
 									</span>
+									{!outcome.isUndone
+										? row.alternatives.map((alternative) => (
+												<button
+													className={styles.smallButton}
+													type="button"
+													key={alternative.inventoryItemId}
+													disabled={isWorking}
+													onClick={() =>
+														void handleUseAlternative(row, alternative)
+													}
+												>
+													{`${alternative.name}を引く（${formatQuantity(alternative.deduct)}${alternative.stockUnitLabel}）`}
+												</button>
+											))
+										: null}
 								</li>
 							))}
 						</ul>

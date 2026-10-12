@@ -47,6 +47,21 @@ function describeStock(row: RecipeShoppingRow): {
 	text: string;
 	isShort: boolean;
 } {
+	const base = describeStockBase(row);
+
+	// 形が決まっている代わりの食材（冷凍玉ねぎ(みじん切り)など）は、足りているとは判定せず、在庫があることだけ知らせる。
+	const names =
+		row.stock.kind === "judged" ? row.stock.fixedShapeStandInNames : undefined;
+
+	return names && names.length > 0
+		? { ...base, text: `${base.text}（${names.join("、")}の在庫があります）` }
+		: base;
+}
+
+function describeStockBase(row: RecipeShoppingRow): {
+	text: string;
+	isShort: boolean;
+} {
 	if (row.stock.kind === "unknown") {
 		return { text: "在庫の情報なし", isShort: true };
 	}

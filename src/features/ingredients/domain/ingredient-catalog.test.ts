@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { inventoryUnitCodes } from "#/features/inventory/domain/inventory-unit";
 import {
 	findIngredientCatalogEntry,
+	getFixedShapeStandInCatalogEntryIds,
 	getStandInCatalogEntryIds,
 	ingredientCatalogEntries,
 	searchIngredientCatalog,
@@ -268,13 +269,22 @@ describe("読み仮名", () => {
 		});
 
 		it.each([
+			["オクラ", "frozen-okra-cut"],
+			["ブロッコリー", "frozen-broccoli"],
+			["とうもろこし", "frozen-corn"],
+		])("「%s」の代わりに、%s を自動で使える", (name, expectedId) => {
+			expect(getStandInCatalogEntryIds(name).has(expectedId)).toBe(true);
+		});
+
+		it.each([
 			["玉ねぎ", "frozen-onion-minced"],
+			["玉ねぎ", "frozen-onion-strips"],
 			["なす", "frozen-eggplant-chunks"],
 			["小ねぎ", "frozen-chopped-green-onion"],
-			["とうもろこし", "frozen-corn"],
-			["オクラ", "frozen-okra-cut"],
-		])("「%s」の代わりに、%s が使える", (name, expectedId) => {
-			expect(getStandInCatalogEntryIds(name).has(expectedId)).toBe(true);
+			["ごぼう", "frozen-burdock"],
+		])("「%s」の %s は、形が決まっているので、自動では使わず、別に知らせる", (name, id) => {
+			expect(getStandInCatalogEntryIds(name).has(id)).toBe(false);
+			expect(getFixedShapeStandInCatalogEntryIds(name).has(id)).toBe(true);
 		});
 
 		it.each([

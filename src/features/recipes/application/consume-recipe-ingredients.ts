@@ -8,7 +8,10 @@ import type {
 	InventoryCacheOwnerScope,
 	InventoryCacheRepository,
 } from "#/features/inventory/application/inventory-cache-repository";
-import type { RecipeConsumptionRow } from "../domain/plan-recipe-consumption";
+import type {
+	RecipeConsumptionAlternative,
+	RecipeConsumptionRow,
+} from "../domain/plan-recipe-consumption";
 
 export type RecipeConsumptionEntry = {
 	needId: string;
@@ -51,6 +54,48 @@ export function startRecipeConsumption(
 					]
 				: [],
 		),
+	};
+}
+
+/**
+ * 在庫にない材料の行に、形が決まっている代わりの食材（冷凍玉ねぎ(みじん切り)など）から引く分を足す。
+ * 同じ操作の印（sourceId）に足すので、全体を「元に戻す」で、まとめて戻せる。
+ * 引くのは、足したあとで、runRecipeConsumption（その行だけ）を呼んで行う。
+ */
+export function addAlternativeConsumption(
+	operation: RecipeConsumptionOperation,
+	row: RecipeConsumptionRow,
+	alternative: RecipeConsumptionAlternative,
+	createId: () => string = () => crypto.randomUUID(),
+): { operation: RecipeConsumptionOperation; row: RecipeConsumptionRow } {
+	return {
+		operation: {
+			...operation,
+			entries: [
+				...operation.entries,
+				{
+					needId: row.need.id,
+					inventoryItemId: alternative.inventoryItemId,
+					quantity: alternative.deduct,
+					stockUnitCode: alternative.stockUnitCode,
+					transactionId: createId(),
+				},
+			],
+		},
+		row: {
+			...row,
+			status: "consume",
+			target: {
+				inventoryItemId: alternative.inventoryItemId,
+				name: alternative.name,
+				stockUnitCode: alternative.stockUnitCode,
+				stockUnitLabel: alternative.stockUnitLabel,
+			},
+			deduct: alternative.deduct,
+			required: alternative.deduct,
+			viaStandIn: true,
+			alternatives: [],
+		},
 	};
 }
 

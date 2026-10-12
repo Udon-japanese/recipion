@@ -1,5 +1,6 @@
 import {
 	findIngredientCatalogEntry,
+	getFixedShapeStandInCatalogEntryIds,
 	getStandInCatalogEntryIds,
 } from "#/features/ingredients/domain/ingredient-catalog";
 import { findInventoryItemByName } from "#/features/inventory/domain/build-expiry-prefill";
@@ -51,6 +52,9 @@ export type RecipeShoppingStock =
 			judgment: IngredientStockJudgment;
 			// 代わりになる食材（冷凍野菜など）の在庫で足りているとき、その食材の名前。
 			standInName?: string;
+			// 形が決まっている代わりの食材（冷凍玉ねぎ(みじん切り)など）の在庫があるとき、その名前。
+			// 自動では代わりにしない（足りているとは判定しない）。知らせるだけ。
+			fixedShapeStandInNames?: string[];
 	  };
 
 export type RecipeShoppingRow = {
@@ -184,6 +188,24 @@ export function findStandInItems<T extends RecipeShoppingStockItem>(
 	});
 }
 
+// 形が決まっている代わりの食材（自動では代わりにしない）のうち、在庫があるもの。
+export function findFixedShapeStandInItems<T extends RecipeShoppingStockItem>(
+	needName: string,
+	stockItems: readonly T[],
+): T[] {
+	const ids = getFixedShapeStandInCatalogEntryIds(needName);
+
+	if (ids.size === 0) {
+		return [];
+	}
+
+	return stockItems.filter((item) => {
+		const id = findIngredientCatalogEntry(item.name)?.id;
+
+		return id !== undefined && ids.has(id) && item.quantity > 0;
+	});
+}
+
 // その食材の在庫で足りていなければ、代わりになる食材（冷凍野菜など）の在庫が足りているかも見る。
 function judgeWithStandIns(
 	need: { name: string; quantity: number | null; unitLabel: string | null },
@@ -216,7 +238,15 @@ function judgeWithStandIns(
 		}
 	}
 
-	return { kind: "judged", judgment };
+	const fixedShape = findFixedShapeStandInItems(need.name, stockItems);
+
+	return {
+		kind: "judged",
+		judgment,
+		...(fixedShape.length > 0
+			? { fixedShapeStandInNames: fixedShape.map((item) => item.name) }
+			: {}),
+	};
 }
 
 export function planShoppingFromRecipe(

@@ -338,10 +338,10 @@ describe("RecipeShoppingSection", () => {
 
 		render(
 			<RecipeShoppingSection
-				ingredients={[ingredient("i1", "玉ねぎ", 1, "個", "1個")]}
+				ingredients={[ingredient("i1", "ブロッコリー", 100, "g", "100g")]}
 				ownerScope="user:user-id"
 				loadInventoryItems={async () => [
-					stockItem("冷凍玉ねぎ(みじん切り)", 300, "g", "g"),
+					stockItem("冷凍ブロッコリー", 300, "g", "g"),
 				]}
 				shoppingRepository={repository}
 			/>,
@@ -350,10 +350,10 @@ describe("RecipeShoppingSection", () => {
 		const panel = within(await openPanel(user));
 
 		expect(
-			await panel.findByText("冷凍玉ねぎ(みじん切り)の在庫で足りています"),
+			await panel.findByText("冷凍ブロッコリーの在庫で足りています"),
 		).toBeInTheDocument();
 
-		const checkbox = panel.getByLabelText("玉ねぎを買い物メモに入れる");
+		const checkbox = panel.getByLabelText("ブロッコリーを買い物メモに入れる");
 
 		expect(checkbox).not.toBeChecked();
 
@@ -363,6 +363,28 @@ describe("RecipeShoppingSection", () => {
 		);
 
 		await waitFor(() => expect(repository.items).toHaveLength(1));
-		expect(repository.items[0]?.name).toBe("玉ねぎ");
+		expect(repository.items[0]?.name).toBe("ブロッコリー");
+	});
+
+	it("形が決まっている冷凍（みじん切り）の在庫は、足りているとはせず、在庫があることを知らせる", async () => {
+		const user = userEvent.setup();
+
+		render(
+			<RecipeShoppingSection
+				ingredients={[ingredient("i1", "玉ねぎ", 1, "個", "1個")]}
+				ownerScope="user:user-id"
+				loadInventoryItems={async () => [
+					stockItem("冷凍玉ねぎ(みじん切り)", 300, "g", "g"),
+				]}
+				shoppingRepository={createFakeShoppingRepository()}
+			/>,
+		);
+
+		const panel = within(await openPanel(user));
+
+		expect(
+			await panel.findByText(/冷凍玉ねぎ\(みじん切り\)の在庫があります/u),
+		).toBeInTheDocument();
+		expect(panel.getByLabelText("玉ねぎを買い物メモに入れる")).toBeChecked();
 	});
 });
