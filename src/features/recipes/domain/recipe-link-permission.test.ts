@@ -6,13 +6,13 @@ import {
 } from "./recipe-link-permission";
 
 describe("canLinkToRecipe", () => {
-	it("自分のレシピは、公開範囲に関わらず、リンクできる。他人のレシピは、公開されたものだけ", () => {
+	it("自分のレシピは、公開範囲に関わらず、リンクできる。他人のレシピは、全体公開のものだけ", () => {
 		const cases: [string, RecipeVisibility, boolean][] = [
 			["me", "private", true],
 			["me", "unlisted", true],
 			["me", "public", true],
 			["other", "private", false],
-			["other", "unlisted", true],
+			["other", "unlisted", false],
 			["other", "public", true],
 		];
 		const actual = cases.map(([ownerUserId, visibility]) =>

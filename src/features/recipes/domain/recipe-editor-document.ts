@@ -6,6 +6,7 @@ import type {
 import { parseRecipeIngredients } from "./parse-recipe-ingredients";
 import { parseRecipeInstructions } from "./parse-recipe-instructions";
 import { parseRecipePreparations } from "./parse-recipe-preparations";
+import type { RecipeVisibility } from "./recipe-link-permission";
 import type { RecipeLinkReference } from "./recipe-links";
 
 export type RecipeEditorIngredientItem = ParsedRecipeIngredientItem & {
@@ -46,6 +47,8 @@ export type RecipeEditorDocument = {
 	sourceUrl: string | null;
 	// 本文の [[ラベル]] が指すレシピ。本文に出てこないラベルは、保存のときに捨てる。
 	links: RecipeLinkReference[];
+	// 公開範囲。省略は private（自分だけ）。
+	visibility?: RecipeVisibility;
 };
 
 export type CreateRecipeEditorDocumentInput = {
@@ -57,6 +60,7 @@ export type CreateRecipeEditorDocumentInput = {
 	note?: string;
 	sourceUrl?: string;
 	links?: RecipeLinkReference[];
+	visibility?: RecipeVisibility;
 };
 
 type CreateId = () => string;
@@ -109,5 +113,6 @@ export function createRecipeEditorDocument(
 		note: input.note?.trim() ?? "",
 		sourceUrl: input.sourceUrl?.trim() || null,
 		links: input.links ? [...input.links] : [],
+		visibility: input.visibility ?? "private",
 	};
 }

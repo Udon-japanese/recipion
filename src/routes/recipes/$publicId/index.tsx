@@ -1,4 +1,9 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import {
+	createFileRoute,
+	Link,
+	useNavigate,
+	useRouter,
+} from "@tanstack/react-router";
 import { useCallback } from "react";
 import {
 	findIngredientCatalogEntry,
@@ -9,34 +14,37 @@ import { useOwnerScope } from "#/features/inventory/hooks/use-owner-scope";
 import { createDexieInventoryCacheRepository } from "#/features/inventory/infrastructure/dexie-inventory-cache-repository";
 import { listInventoryItemsServerFn } from "#/features/inventory/server/list-inventory-items";
 import { registerInventoryItemServerFn } from "#/features/inventory/server/register-inventory-item";
+import type { RecipeDetail } from "#/features/recipes/application/recipe-repository";
 import { RecipeDeleteButton } from "#/features/recipes/components/recipe-delete-button";
+import { RecipePassphraseSection } from "#/features/recipes/components/recipe-passphrase-section";
 import { RecipeRouteError } from "#/features/recipes/components/recipe-route-error";
 import { RecipeShoppingSection } from "#/features/recipes/components/recipe-shopping-section";
+import { RecipeUnlockForm } from "#/features/recipes/components/recipe-unlock-form";
 import { RecipeViewWithLinks } from "#/features/recipes/components/recipe-view-with-links";
 import { deleteRecipeServerFn } from "#/features/recipes/server/delete-recipe";
 import { getLinkedRecipesServerFn } from "#/features/recipes/server/get-linked-recipes";
 import { getRecipeServerFn } from "#/features/recipes/server/get-recipe";
-import { loadRecipe } from "#/features/recipes/server/load-recipe";
+import {
+	getRecipePassphraseServerFn,
+	regenerateRecipePassphraseServerFn,
+} from "#/features/recipes/server/recipe-passphrase";
+import {
+	unlockRecipeServerFn,
+	viewRecipeServerFn,
+} from "#/features/recipes/server/view-recipe";
+import { ReportRecipeForm } from "#/features/reports/components/report-recipe-form";
+import { createReportServerFn } from "#/features/reports/server/create-report";
 
 export const Route = createFileRoute("/recipes/$publicId/")({
-	loader: ({ params }) => loadRecipe(params.publicId),
+	// 見てはいけないレシピと、存在しないレシピは、どちらも null（パスフレーズの入力画面になる）。
+	loader: ({ params }) =>
+		viewRecipeServerFn({ data: { publicId: params.publicId } }),
 	errorComponent: RecipeRouteError,
-	notFoundComponent: RecipeNotFound,
 	component: RecipePage,
 });
 
-function RecipeNotFound() {
-	return (
-		<>
-			<p>レシピが見つかりません。</p>
-			<Link to="/recipes">レシピ一覧へ</Link>
-		</>
-	);
-}
-
-function RecipePage() {
-	const recipe = Route.useLoaderData();
-	const navigate = useNavigate();
+// 見る人によらない、画面の支え（リンク先の取得、在庫、「ある」の登録）。
+function useRecipeViewSupport(recipe: RecipeDetail) {
 	const ownerScope = useOwnerScope();
 
 	// リンク先のレシピ（プレビューと、買い物メモへの展開で使う）。
@@ -49,6 +57,19 @@ function RecipePage() {
 	const loadLinkedRecipes = useCallback(
 		(publicIds: string[]) => getLinkedRecipesServerFn({ data: { publicIds } }),
 		[],
+	);
+
+	// 限定公開のパスフレーズ（持ち主だけ）。
+	const loadPassphrase = useCallback(
+		() => getRecipePassphraseServerFn({ data: { publicId: recipe.publicId } }),
+		[recipe.publicId],
+	);
+	const regeneratePassphrase = useCallback(
+		() =>
+			regenerateRecipePassphraseServerFn({
+				data: { publicId: recipe.publicId },
+			}),
+		[recipe.publicId],
 	);
 
 	// ログインしているとき、在庫の一覧を取得する（通信できなければ、保存済みの一覧）。
@@ -84,6 +105,29 @@ function RecipePage() {
 		});
 	}, []);
 
+	return {
+		ownerScope,
+		loadLinkedRecipe,
+		loadLinkedRecipes,
+		loadPassphrase,
+		regeneratePassphrase,
+		loadInventoryItems,
+		registerAvailable,
+	};
+}
+
+function OwnRecipePage({ recipe }: { recipe: RecipeDetail }) {
+	const navigate = useNavigate();
+	const {
+		ownerScope,
+		loadLinkedRecipe,
+		loadLinkedRecipes,
+		loadPassphrase,
+		regeneratePassphrase,
+		loadInventoryItems,
+		registerAvailable,
+	} = useRecipeViewSupport(recipe);
+
 	return (
 		<>
 			{/* 別のレシピへ移ったとき、開いているプレビューを、閉じる（key で、状態を作り直す）。 */}
@@ -98,6 +142,12 @@ function RecipePage() {
 					</Link>
 				)}
 			/>
+			{recipe.visibility === "unlisted" ? (
+				<RecipePassphraseSection
+					loadPassphrase={loadPassphrase}
+					regeneratePassphrase={regeneratePassphrase}
+				/>
+			) : null}
 			<RecipeShoppingSection
 				ingredients={recipe.ingredients}
 				linkViews={recipe.linkViews}
@@ -124,5 +174,82 @@ function RecipePage() {
 				<Link to="/recipes">レシピ一覧へ</Link>
 			</p>
 		</>
+	);
+}
+
+function SharedRecipePage({
+	recipe,
+	author,
+}: {
+	recipe: RecipeDetail;
+	author: { name: string; handle: string };
+}) {
+	const {
+		ownerScope,
+		loadLinkedRecipe,
+		loadLinkedRecipes,
+		loadInventoryItems,
+		registerAvailable,
+	} = useRecipeViewSupport(recipe);
+
+	return (
+		<>
+			<p>
+				作者：{author.name}（@{author.handle}）
+			</p>
+			<RecipeViewWithLinks
+				key={recipe.publicId}
+				recipe={recipe}
+				loadLinkedRecipe={loadLinkedRecipe}
+				loadLinkedRecipes={loadLinkedRecipes}
+				renderOpenLink={(publicId) => (
+					<Link to="/recipes/$publicId" params={{ publicId }}>
+						レシピを開く
+					</Link>
+				)}
+			/>
+			<RecipeShoppingSection
+				ingredients={recipe.ingredients}
+				linkViews={recipe.linkViews}
+				loadLinkedRecipe={loadLinkedRecipe}
+				ownerScope={ownerScope}
+				loadInventoryItems={loadInventoryItems}
+				registerAvailable={registerAvailable}
+			/>
+			<ReportRecipeForm
+				onReport={(input) =>
+					createReportServerFn({
+						data: { recipePublicId: recipe.publicId, ...input },
+					})
+				}
+			/>
+			<p>
+				<Link to="/recipes">レシピ一覧へ</Link>
+			</p>
+		</>
+	);
+}
+
+function RecipePage() {
+	const viewable = Route.useLoaderData();
+	const router = useRouter();
+	const { publicId } = Route.useParams();
+
+	if (!viewable) {
+		return (
+			<RecipeUnlockForm
+				key={publicId}
+				onUnlock={(passphrase) =>
+					unlockRecipeServerFn({ data: { publicId, passphrase } })
+				}
+				onUnlocked={() => void router.invalidate()}
+			/>
+		);
+	}
+
+	return viewable.isOwn ? (
+		<OwnRecipePage recipe={viewable.recipe} />
+	) : (
+		<SharedRecipePage recipe={viewable.recipe} author={viewable.author} />
 	);
 }

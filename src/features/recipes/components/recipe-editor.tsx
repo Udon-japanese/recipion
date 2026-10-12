@@ -31,6 +31,7 @@ import {
 	type RecipeEditorDocument,
 	type RecipeEditorIngredientNode,
 } from "../domain/recipe-editor-document";
+import type { RecipeVisibility } from "../domain/recipe-link-permission";
 import {
 	extractLinkLabels,
 	type RecipeLinkReference,
@@ -61,6 +62,7 @@ import { RecipeLinkPreview } from "./recipe-link-preview";
 import { RecipeText } from "./recipe-text";
 import { RecipeTitleInput } from "./recipe-title-input";
 import type { LoadLinkedRecipes } from "./recipe-view-with-tree";
+import { RecipeVisibilityField } from "./recipe-visibility-field";
 
 type SavedRecipe = { publicId: string };
 
@@ -144,6 +146,9 @@ export function RecipeEditor({
 	// 見出しの「材料（2人分）」から人数を入れるのは、人数を自分で触るまで。
 	const [isServingsTouched, setIsServingsTouched] = useState(isEditing);
 	const [sourceUrl, setSourceUrl] = useState(initialDocument?.sourceUrl ?? "");
+	const [visibility, setVisibility] = useState<RecipeVisibility>(
+		initialDocument?.visibility ?? "private",
+	);
 	const [text, setText] = useState(initialState.text);
 	const [sync, setSync] = useState(initialState.sync);
 	const [useTemplate, setUseTemplate] = useState(true);
@@ -428,6 +433,7 @@ export function RecipeEditor({
 					instructionText: sections.instructionText,
 					note: sections.note,
 					sourceUrl,
+					visibility,
 					// 本文に出てくるラベルのリンクだけを送る（本文から消したリンクは、送らない）。
 					links: links.filter((link) =>
 						linkedLabels.some(({ label }) => label === link.label),
@@ -715,6 +721,15 @@ export function RecipeEditor({
 						) : null}
 					</div>
 				</div>
+
+				<RecipeVisibilityField
+					value={visibility}
+					onChange={(next) => {
+						setVisibility(next);
+						setSavedRecipeId(null);
+					}}
+					hasSourceUrl={sourceUrl.trim() !== ""}
+				/>
 
 				<button className={styles.saveButton} type="submit" disabled={isSaving}>
 					{isSaving ? "保存しています…" : "レシピを保存"}

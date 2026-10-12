@@ -58,6 +58,11 @@ const documentSchema = v.object({
 	sourceUrl: v.nullable(
 		v.pipe(v.string(), v.maxLength(2048), v.url(), v.regex(/^https?:\/\//iu)),
 	),
+	// 古い画面（visibility を送らない）からの保存は、private として扱う。
+	visibility: v.optional(
+		v.picklist(["private", "unlisted", "public"]),
+		"private",
+	),
 	// 古い画面（links を送らない）からの保存も受け付ける。
 	links: v.optional(
 		v.pipe(
@@ -107,6 +112,11 @@ export function validateRecipeEditorDocument(
 	const ids = new Set<string>();
 
 	validateIngredientIds(document.ingredients, ids);
+
+	// 引用元のあるレシピは、公開できない（他のサイトの転載を避ける。DB の制約と同じ）。
+	if (document.visibility !== "private" && document.sourceUrl !== null) {
+		throw new Error("引用元のURLがあるレシピは、公開できません");
+	}
 
 	const linkLabels = new Set<string>();
 

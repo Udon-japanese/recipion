@@ -8,6 +8,7 @@ import {
 	jsonb,
 	numeric,
 	pgTable,
+	primaryKey,
 	text,
 	timestamp,
 	unique,
@@ -35,6 +36,8 @@ export const recipe = pgTable(
 		sourceUrl: text("source_url"),
 		// 公開範囲：private（自分だけ。既定）／unlisted（パスワードを知っている人）／public（全体公開）。
 		visibility: text("visibility").default("private").notNull(),
+		// 限定公開のパスフレーズ（暗号化したもの。作者が、画面でいつでも確認できるように、ハッシュではなく暗号化して保存する）。限定公開のときだけ入る。
+		unlistedPassphrase: text("unlisted_passphrase"),
 		createdAt: timestamp("created_at", { withTimezone: true })
 			.defaultNow()
 			.notNull(),
@@ -59,6 +62,10 @@ export const recipe = pgTable(
 		check(
 			"recipe_public_has_no_source_url",
 			sql`${table.visibility} = 'private' OR ${table.sourceUrl} IS NULL`,
+		),
+		check(
+			"recipe_unlisted_has_passphrase",
+			sql`(${table.visibility} = 'unlisted') = (${table.unlistedPassphrase} IS NOT NULL)`,
 		),
 		index("recipe_user_id_idx").on(table.userId),
 		check("recipe_name_nonempty", sql`length(trim(${table.name})) > 0`),
@@ -238,6 +245,46 @@ export const recipeLink = pgTable(
 		check(
 			"recipe_link_label_valid",
 			sql`char_length(${table.label}) BETWEEN 1 AND 100 AND ${table.label} = btrim(${table.label}) AND ${table.label} !~ '[\\[\\]\\n\\r]'`,
+		),
+	],
+);
+
+// 限定公開のレシピを、パスフレーズで開けた人（ログインしたユーザー）の記録。パスフレーズを作り直すと、そのレシピの分は、すべて消す。
+export const recipeUnlock = pgTable(
+	"recipe_unlock",
+	{
+		recipeId: uuid("recipe_id")
+			.notNull()
+			.references(() => recipe.id, { onDelete: "cascade" }),
+		userId: text("user_id")
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade" }),
+		unlockedAt: timestamp("unlocked_at", { withTimezone: true })
+			.defaultNow()
+			.notNull(),
+	},
+	(table) => [primaryKey({ columns: [table.recipeId, table.userId] })],
+);
+
+// パスフレーズの入力に失敗した記録（総当たりを防ぐ。1時間に決まった回数で、ロックする）。
+// 存在しない・非公開の ID を試したときも、同じように記録する（存在を、推測させないため）。そのため、レシピへの外部キーは持たない。
+export const recipeUnlockAttempt = pgTable(
+	"recipe_unlock_attempt",
+	{
+		id: uuid("id").defaultRandom().primaryKey(),
+		publicId: text("public_id").notNull(),
+		userId: text("user_id")
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade" }),
+		createdAt: timestamp("created_at", { withTimezone: true })
+			.defaultNow()
+			.notNull(),
+	},
+	(table) => [
+		index("recipe_unlock_attempt_recent_idx").on(
+			table.userId,
+			table.publicId,
+			table.createdAt,
 		),
 	],
 );

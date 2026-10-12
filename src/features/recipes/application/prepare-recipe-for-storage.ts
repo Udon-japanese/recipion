@@ -2,6 +2,7 @@ import type {
 	RecipeEditorDocument,
 	RecipeEditorIngredientNode,
 } from "../domain/recipe-editor-document";
+import type { RecipeVisibility } from "../domain/recipe-link-permission";
 import {
 	extractLinkLabels,
 	type RecipeLinkReference,
@@ -27,6 +28,7 @@ export type PreparedRecipeForStorage = {
 	servings: number;
 	note: string;
 	sourceUrl: string | null;
+	visibility: RecipeVisibility;
 	ingredients: StoredRecipeIngredientNode[];
 	preparations: {
 		id: string;
@@ -125,6 +127,7 @@ export function prepareRecipeForStorage(
 		servings: document.servings,
 		note: document.note,
 		sourceUrl: document.sourceUrl,
+		visibility: document.visibility ?? "private",
 		ingredients,
 		preparations: document.preparations.map((preparation, sortOrder) => ({
 			id: preparation.id,

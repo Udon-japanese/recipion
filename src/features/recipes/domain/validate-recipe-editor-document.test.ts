@@ -51,6 +51,36 @@ describe("validateRecipeEditorDocument", () => {
 		}
 	});
 
+	it("公開範囲は、省略すると private。知らない値は拒否。引用元のあるレシピは公開できない", () => {
+		const document = createDocument();
+		const { visibility: _visibility, ...withoutVisibility } = document;
+
+		expect(validateRecipeEditorDocument(withoutVisibility).visibility).toBe(
+			"private",
+		);
+		expect(
+			validateRecipeEditorDocument({ ...document, visibility: "public" })
+				.visibility,
+		).toBe("public");
+		expect(() =>
+			validateRecipeEditorDocument({ ...document, visibility: "everyone" }),
+		).toThrow("レシピの入力内容を確認してください");
+		expect(() =>
+			validateRecipeEditorDocument({
+				...document,
+				visibility: "public",
+				sourceUrl: "https://example.com/recipe/1",
+			}),
+		).toThrow("引用元のURLがあるレシピは、公開できません");
+		// 非公開なら、引用元があってよい。
+		expect(
+			validateRecipeEditorDocument({
+				...document,
+				sourceUrl: "https://example.com/recipe/1",
+			}).visibility,
+		).toBe("private");
+	});
+
 	it("同じIDを二度使用できない", () => {
 		const document = createDocument();
 

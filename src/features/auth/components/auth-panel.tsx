@@ -257,7 +257,11 @@ export function AuthPanel() {
 							<a href="/terms" target="_blank" rel="noreferrer">
 								利用規約
 							</a>
-							に同意したものとみなします。
+							に同意したものとみなします。情報の扱いは、
+							<a href="/privacy" target="_blank" rel="noreferrer">
+								プライバシーポリシー
+							</a>
+							をご覧ください。
 						</p>
 					</>
 				) : (

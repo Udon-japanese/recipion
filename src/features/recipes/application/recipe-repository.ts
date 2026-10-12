@@ -2,7 +2,10 @@ import type { RecipeEditorDocument } from "../domain/recipe-editor-document";
 import type { RecipeLinkView } from "../domain/recipe-links";
 import type { PreparedRecipeForStorage } from "./prepare-recipe-for-storage";
 
-export type CreateRecipeCommand = PreparedRecipeForStorage;
+// passphraseCipher: 限定公開のパスフレーズ（暗号化したもの）。undefined は、いまのまま。null は、なし（限定公開でなくなる）。
+export type CreateRecipeCommand = PreparedRecipeForStorage & {
+	passphraseCipher?: string | null;
+};
 
 export type CreatedRecipe = {
 	id: string;
@@ -23,7 +26,9 @@ export type RecipeDetail = RecipeEditorDocument & {
 	linkViews: RecipeLinkView[];
 };
 
-export type UpdateRecipeCommand = PreparedRecipeForStorage;
+export type UpdateRecipeCommand = PreparedRecipeForStorage & {
+	passphraseCipher?: string | null;
+};
 
 export type RecipeRepository = {
 	create(command: CreateRecipeCommand): Promise<CreatedRecipe>;

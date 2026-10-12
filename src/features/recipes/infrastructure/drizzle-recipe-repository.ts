@@ -6,6 +6,7 @@ import type { DB } from "#/db/client";
 
 import type {
 	CreateRecipeCommand,
+	RecipeDetail,
 	RecipeRepository,
 } from "../application/recipe-repository";
 import { restoreRecipeIngredients } from "../application/restore-recipe-ingredients";
@@ -23,6 +24,8 @@ import {
 	recipeInstruction,
 	recipeLink,
 	recipePreparation,
+	recipeUnlock,
+	recipeUnlockAttempt,
 } from "./recipe.sql";
 
 const uuidSchema = v.pipe(v.string(), v.uuid());
@@ -164,6 +167,106 @@ async function replaceRecipeLinks(
 	await transaction.insert(recipeLink).values(rows);
 }
 
+// 保存されたレシピを、読める形にする。リンク先は、見る人（viewerUserId）が見てよいものだけを、見つかるものとして返す。
+export async function loadRecipeDetail(
+	db: DB,
+	found: typeof recipe.$inferSelect,
+	viewerUserId: string,
+): Promise<RecipeDetail> {
+	const [ingredientRows, preparationRows, instructionRows, linkRows] =
+		await Promise.all([
+			db
+				.select()
+				.from(recipeIngredientNode)
+				.where(eq(recipeIngredientNode.recipeId, found.id)),
+			db
+				.select()
+				.from(recipePreparation)
+				.where(eq(recipePreparation.recipeId, found.id))
+				.orderBy(asc(recipePreparation.sortOrder)),
+			db
+				.select()
+				.from(recipeInstruction)
+				.where(eq(recipeInstruction.recipeId, found.id))
+				.orderBy(asc(recipeInstruction.sortOrder)),
+			db
+				.select({
+					label: recipeLink.label,
+					targetPublicId: recipe.publicId,
+					targetName: recipe.name,
+					targetOwnerUserId: recipe.userId,
+					targetVisibility: recipe.visibility,
+				})
+				.from(recipeLink)
+				.leftJoin(recipe, eq(recipe.id, recipeLink.targetRecipeId))
+				.where(eq(recipeLink.recipeId, found.id))
+				.orderBy(asc(recipeLink.label)),
+		]);
+
+	// 相手が消えた、または、今は見られないリンクは、相手が見つからないものとして返す（ラベルは残す）。
+	const linkViews = linkRows.map((row) => {
+		const canView =
+			row.targetPublicId !== null &&
+			row.targetName !== null &&
+			row.targetOwnerUserId !== null &&
+			row.targetVisibility !== null &&
+			canLinkToRecipe(viewerUserId, {
+				ownerUserId: row.targetOwnerUserId,
+				visibility: parseRecipeVisibility(row.targetVisibility),
+			});
+
+		return {
+			label: row.label,
+			target:
+				canView && row.targetPublicId !== null && row.targetName !== null
+					? { publicId: row.targetPublicId, name: row.targetName }
+					: null,
+		};
+	});
+
+	return {
+		publicId: found.publicId,
+		name: found.name,
+		servings: Number(found.servings),
+		note: found.note,
+		sourceUrl: found.sourceUrl,
+		visibility: parseRecipeVisibility(found.visibility),
+		ingredients: restoreRecipeIngredients(
+			ingredientRows.map((row) => ({
+				id: row.id,
+				parentId: row.parentId,
+				sortOrder: row.sortOrder,
+				type: row.type === "group" ? "group" : "ingredient",
+				name: row.name,
+				rawText: row.rawText,
+				inferred: row.inferred,
+				status:
+					row.status === "parsed" || row.status === "missing-amount"
+						? row.status
+						: null,
+				amountText: row.amountText,
+				quantity: row.quantity === null ? null : Number(row.quantity),
+				unitLabel: row.unitLabel,
+			})),
+		),
+		preparations: preparationRows.map((row) => ({
+			id: row.id,
+			text: row.text,
+		})),
+		instructions: instructionRows.map((row) => ({
+			id: row.id,
+			text: row.text,
+			referencedInstructionIds: row.referencedInstructionIds,
+		})),
+		links: linkViews.flatMap((view) =>
+			view.target
+				? [{ label: view.label, targetPublicId: view.target.publicId }]
+				: [],
+		),
+		linkViews,
+	};
+}
+
 export function createDrizzleRecipeRepository(
 	db: DB,
 	userId: string,
@@ -187,6 +290,8 @@ export function createDrizzleRecipeRepository(
 						servings: formatRecipeServings(command.servings),
 						note: command.note,
 						sourceUrl: command.sourceUrl,
+						visibility: command.visibility,
+						unlistedPassphrase: command.passphraseCipher ?? null,
 					})
 					.returning({ id: recipe.id, publicId: recipe.publicId });
 
@@ -229,8 +334,22 @@ export function createDrizzleRecipeRepository(
 						servings: formatRecipeServings(command.servings),
 						note: command.note,
 						sourceUrl: command.sourceUrl,
+						visibility: command.visibility,
+						// undefined は、いまのまま。変えるときは、これまでに開けた人の記録を消す。
+						...(command.passphraseCipher === undefined
+							? {}
+							: { unlistedPassphrase: command.passphraseCipher }),
 					})
 					.where(eq(recipe.id, existing.id));
+
+				if (command.passphraseCipher !== undefined) {
+					await transaction
+						.delete(recipeUnlock)
+						.where(eq(recipeUnlock.recipeId, existing.id));
+					await transaction
+						.delete(recipeUnlockAttempt)
+						.where(eq(recipeUnlockAttempt.publicId, publicId));
+				}
 
 				// 材料・下準備・作り方は、すべて入れ替える（同じ ID で入れ直せる）。
 				await transaction
@@ -273,97 +392,7 @@ export function createDrizzleRecipeRepository(
 
 			if (!found) return null;
 
-			const [ingredientRows, preparationRows, instructionRows, linkRows] =
-				await Promise.all([
-					db
-						.select()
-						.from(recipeIngredientNode)
-						.where(eq(recipeIngredientNode.recipeId, found.id)),
-					db
-						.select()
-						.from(recipePreparation)
-						.where(eq(recipePreparation.recipeId, found.id))
-						.orderBy(asc(recipePreparation.sortOrder)),
-					db
-						.select()
-						.from(recipeInstruction)
-						.where(eq(recipeInstruction.recipeId, found.id))
-						.orderBy(asc(recipeInstruction.sortOrder)),
-					db
-						.select({
-							label: recipeLink.label,
-							targetPublicId: recipe.publicId,
-							targetName: recipe.name,
-							targetOwnerUserId: recipe.userId,
-							targetVisibility: recipe.visibility,
-						})
-						.from(recipeLink)
-						.leftJoin(recipe, eq(recipe.id, recipeLink.targetRecipeId))
-						.where(eq(recipeLink.recipeId, found.id))
-						.orderBy(asc(recipeLink.label)),
-				]);
-
-			// 相手が消えた、または、今は見られないリンクは、相手が見つからないものとして返す（ラベルは残す）。
-			const linkViews = linkRows.map((row) => {
-				const canView =
-					row.targetPublicId !== null &&
-					row.targetName !== null &&
-					row.targetOwnerUserId !== null &&
-					row.targetVisibility !== null &&
-					canLinkToRecipe(userId, {
-						ownerUserId: row.targetOwnerUserId,
-						visibility: parseRecipeVisibility(row.targetVisibility),
-					});
-
-				return {
-					label: row.label,
-					target:
-						canView && row.targetPublicId !== null && row.targetName !== null
-							? { publicId: row.targetPublicId, name: row.targetName }
-							: null,
-				};
-			});
-
-			return {
-				publicId: found.publicId,
-				name: found.name,
-				servings: Number(found.servings),
-				note: found.note,
-				sourceUrl: found.sourceUrl,
-				ingredients: restoreRecipeIngredients(
-					ingredientRows.map((row) => ({
-						id: row.id,
-						parentId: row.parentId,
-						sortOrder: row.sortOrder,
-						type: row.type === "group" ? "group" : "ingredient",
-						name: row.name,
-						rawText: row.rawText,
-						inferred: row.inferred,
-						status:
-							row.status === "parsed" || row.status === "missing-amount"
-								? row.status
-								: null,
-						amountText: row.amountText,
-						quantity: row.quantity === null ? null : Number(row.quantity),
-						unitLabel: row.unitLabel,
-					})),
-				),
-				preparations: preparationRows.map((row) => ({
-					id: row.id,
-					text: row.text,
-				})),
-				instructions: instructionRows.map((row) => ({
-					id: row.id,
-					text: row.text,
-					referencedInstructionIds: row.referencedInstructionIds,
-				})),
-				links: linkViews.flatMap((view) =>
-					view.target
-						? [{ label: view.label, targetPublicId: view.target.publicId }]
-						: [],
-				),
-				linkViews,
-			};
+			return loadRecipeDetail(db, found, userId);
 		},
 
 		async list() {

@@ -13,14 +13,11 @@ type LinkTarget = {
 	visibility: RecipeVisibility;
 };
 
-// 自分のレシピは、公開範囲に関わらず、リンクできる。他のユーザーのレシピは、公開されているもの（限定公開・全体公開）だけ。
+// 自分のレシピは、公開範囲に関わらず、リンクできる。他のユーザーのレシピは、全体公開のものだけ
+// （限定公開は、パスフレーズを知らない人にも、名前やリンクが見えてしまうため、リンクの対象にしない）。
 export function canLinkToRecipe(
 	viewerUserId: string,
 	target: LinkTarget,
 ): boolean {
-	return (
-		target.ownerUserId === viewerUserId ||
-		target.visibility === "unlisted" ||
-		target.visibility === "public"
-	);
+	return target.ownerUserId === viewerUserId || target.visibility === "public";
 }
