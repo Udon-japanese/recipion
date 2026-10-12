@@ -40,8 +40,9 @@ const measuredAmountPatterns = [
 	),
 ];
 
+// 数値にできない分量（「少々」「少し」「適量」など）。「とても少々」「ほんの少し」のような修飾も、分量に含める。
 const descriptiveAmountPattern =
-	/^(?<name>.+?)[\s:：]*(?<amount>お好みで\s*少々|適量|少々|ひとつまみ|お好みで)$/u;
+	/^(?<name>.+?)[\s:：]*(?<amount>お好みで\s*(?:少々|少し)|(?:とても|ほんの|ほんのちょっと|ちょっと|ごく)?\s*(?:少々|少し|少量|ちょっと)|適量|適宜|ひとつまみ|お好みで)$/u;
 
 // カタカナ表記の単位を、既存の単位ラベルへ寄せる。amountText には原文の表記が残る。
 const unitAliases: Record<string, string> = {
