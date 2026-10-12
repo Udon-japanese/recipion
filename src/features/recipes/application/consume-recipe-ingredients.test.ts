@@ -33,6 +33,7 @@ function row(
 		deduct,
 		required: deduct,
 		viaStandIn: false,
+		alternatives: [],
 	};
 }
 

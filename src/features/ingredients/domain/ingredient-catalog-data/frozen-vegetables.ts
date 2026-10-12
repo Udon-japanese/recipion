@@ -45,6 +45,7 @@ export const frozenVegetablesEntries: readonly IngredientCatalogEntry[] =
 		withStandsFor([
 			entry({
 				id: "frozen-onion-minced",
+				fixedShape: true,
 				name: "冷凍玉ねぎ(みじん切り)",
 				aliases: [
 					"冷凍玉ねぎ(みじん切り)",
@@ -56,6 +57,7 @@ export const frozenVegetablesEntries: readonly IngredientCatalogEntry[] =
 			}),
 			entry({
 				id: "frozen-onion-strips",
+				fixedShape: true,
 				name: "冷凍玉ねぎ(短冊)",
 				aliases: ["冷凍玉ねぎ(短冊)", "冷凍短冊玉ねぎ", "冷凍玉ねぎスライス"],
 				stockUnitCode: "g",
@@ -63,6 +65,7 @@ export const frozenVegetablesEntries: readonly IngredientCatalogEntry[] =
 			}),
 			entry({
 				id: "frozen-potato-chunks",
+				fixedShape: true,
 				name: "冷凍じゃがいも(乱切り)",
 				aliases: ["冷凍じゃがいも(乱切り)", "冷凍じゃがいも", "冷凍ジャガイモ"],
 				stockUnitCode: "g",
@@ -115,6 +118,7 @@ export const frozenVegetablesEntries: readonly IngredientCatalogEntry[] =
 			}),
 			entry({
 				id: "frozen-eggplant-chunks",
+				fixedShape: true,
 				name: "冷凍なす(乱切り)",
 				aliases: [
 					"冷凍なす(乱切り)",
@@ -127,6 +131,7 @@ export const frozenVegetablesEntries: readonly IngredientCatalogEntry[] =
 			}),
 			entry({
 				id: "frozen-eggplant-whole",
+				fixedShape: true,
 				name: "冷凍なす(皮むき丸ごと)",
 				aliases: [
 					"冷凍なす(皮むき丸ごと)",
@@ -213,6 +218,7 @@ export const frozenVegetablesEntries: readonly IngredientCatalogEntry[] =
 			}),
 			entry({
 				id: "frozen-burdock",
+				fixedShape: true,
 				name: "冷凍ごぼう(ささがき)",
 				aliases: ["冷凍ごぼう(ささがき)", "冷凍ごぼう", "冷凍ささがきごぼう"],
 				stockUnitCode: "g",
@@ -257,6 +263,7 @@ export const frozenVegetablesEntries: readonly IngredientCatalogEntry[] =
 			}),
 			entry({
 				id: "frozen-chopped-green-onion",
+				fixedShape: true,
 				standsFor: ["ねぎ", "小ねぎ"],
 				name: "冷凍きざみねぎ",
 				aliases: ["冷凍きざみねぎ", "冷凍刻みねぎ", "冷凍ねぎ", "冷凍小口ねぎ"],

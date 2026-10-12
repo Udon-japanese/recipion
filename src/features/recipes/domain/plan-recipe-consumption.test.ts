@@ -80,15 +80,21 @@ const cases: [
 		{ status: "no-stock", deduct: null },
 	],
 	[
-		"生が無くて冷凍で足りるなら、冷凍から引く",
-		need("玉ねぎ", 100, "g"),
-		[stock("冷凍玉ねぎ(みじん切り)", 500, "g", "g")],
+		"生が無くて、形が自由な冷凍で足りるなら、冷凍から引く",
+		need("ブロッコリー", 100, "g"),
+		[stock("冷凍ブロッコリー", 500, "g", "g")],
 		{
 			status: "consume",
 			deduct: 100,
-			target: "inv-冷凍玉ねぎ(みじん切り)",
+			target: "inv-冷凍ブロッコリー",
 			viaStandIn: true,
 		},
+	],
+	[
+		"形が決まっている冷凍は、自動では引かない",
+		need("玉ねぎ", 100, "g"),
+		[stock("冷凍玉ねぎ(みじん切り)", 500, "g", "g")],
+		{ status: "no-stock", deduct: null },
 	],
 ];
 
@@ -105,6 +111,23 @@ describe("planRecipeConsumption", () => {
 		if (expected.target) {
 			expect(row?.target?.inventoryItemId).toBe(expected.target);
 		}
+	});
+
+	it("形が決まっている冷凍は、候補として知らせる（引く量は、必要な量と在庫の少ない方）", () => {
+		const [row] = planRecipeConsumption(
+			[need("玉ねぎ", 600, "g")],
+			[stock("冷凍玉ねぎ(みじん切り)", 500, "g", "g")],
+		);
+
+		expect(row?.alternatives).toEqual([
+			{
+				inventoryItemId: "inv-冷凍玉ねぎ(みじん切り)",
+				name: "冷凍玉ねぎ(みじん切り)",
+				stockUnitCode: "g",
+				stockUnitLabel: "g",
+				deduct: 500,
+			},
+		]);
 	});
 
 	it("同じ食材が複数行あるとき、残りの在庫を順に使う", () => {

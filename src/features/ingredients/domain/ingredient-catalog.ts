@@ -75,6 +75,10 @@ export type IngredientCatalogEntry = {
 	// この食材が、代わりに使える、別の食材の名前（冷凍野菜が、生の野菜の代わりになる）。
 	// レシピの材料が「玉ねぎ」のとき、在庫の「冷凍玉ねぎ」で足りているとみなすために使う。
 	standsFor?: readonly string[];
+	// 形（切り方）が決まっている代わりの食材（冷凍玉ねぎ(みじん切り)、冷凍なす(乱切り)など）。true のものは、
+	// 料理によって合わないことがあるので、自動では代わりにしない（買い物の判定でも、「作った」で引くときも、
+	// 「在庫があります」と知らせるだけにして、使うかどうかは、本人が選ぶ）。
+	fixedShape?: boolean;
 	// 将来の「材料の説明」の置き場所。
 	description?: string;
 };
@@ -125,11 +129,8 @@ for (const entry of ingredientCatalogEntries) {
 	}
 }
 
-/**
- * 材料の名前に対して、代わりに使える食材（冷凍野菜など）の ID を返す。
- * 名前が同じ、または、同じカタログの食材（別名）を指すものを、まとめて探す。
- */
-export function getStandInCatalogEntryIds(
+// 材料の名前に対して、代わりに使える食材（形が決まっているものも含む）の ID を集める。
+function collectStandInCatalogEntryIds(
 	ingredientName: string,
 ): ReadonlySet<string> {
 	const ids = new Set<string>();
@@ -145,6 +146,41 @@ export function getStandInCatalogEntryIds(
 	}
 
 	return ids;
+}
+
+const fixedShapeEntryIds = new Set(
+	ingredientCatalogEntries
+		.filter((entry) => entry.fixedShape)
+		.map((entry) => entry.id),
+);
+
+function filterByShape(
+	ids: ReadonlySet<string>,
+	fixedShape: boolean,
+): ReadonlySet<string> {
+	return new Set(
+		[...ids].filter((id) => fixedShapeEntryIds.has(id) === fixedShape),
+	);
+}
+
+/**
+ * 材料の名前に対して、自動で代わりにしてよい食材（冷凍ブロッコリーなど、形が自由なもの）の ID を返す。
+ * 名前が同じ、または、同じカタログの食材（別名）を指すものを、まとめて探す。
+ */
+export function getStandInCatalogEntryIds(
+	ingredientName: string,
+): ReadonlySet<string> {
+	return filterByShape(collectStandInCatalogEntryIds(ingredientName), false);
+}
+
+/**
+ * 材料の名前に対して、形が決まっている代わりの食材（冷凍玉ねぎ(みじん切り)など）の ID を返す。
+ * 自動では代わりにしない。「在庫があります」と知らせ、使うかどうかを、本人が選ぶために使う。
+ */
+export function getFixedShapeStandInCatalogEntryIds(
+	ingredientName: string,
+): ReadonlySet<string> {
+	return filterByShape(collectStandInCatalogEntryIds(ingredientName), true);
 }
 
 // 検索用に、ひらがな・カタカナの違い、全角半角、大文字小文字、空白を吸収する。

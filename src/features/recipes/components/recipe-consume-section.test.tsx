@@ -46,11 +46,14 @@ const stock = [
 function setup(
 	overrides: Partial<Parameters<typeof RecipeConsumeSection>[0]> = {},
 ) {
-	const consume = vi.fn(async (operation: RecipeConsumptionOperation) =>
-		operation.entries.map((entry) => ({
-			needId: entry.needId,
-			ok: true as const,
-		})),
+	const consume = vi.fn(
+		async (
+			operation: RecipeConsumptionOperation,
+			onlyNeedIds?: ReadonlySet<string>,
+		) =>
+			operation.entries
+				.filter((entry) => !onlyNeedIds || onlyNeedIds.has(entry.needId))
+				.map((entry) => ({ needId: entry.needId, ok: true as const })),
 	);
 	const undo = vi.fn(async () => ({ status: "undone" as const, items: [] }));
 
@@ -100,6 +103,56 @@ describe("RecipeConsumeSection", () => {
 			screen.getByText(/卵：在庫が足りず、4個だけ引きました（必要な量は6個）/u),
 		).toBeInTheDocument();
 		expect(screen.getByText(/塩：.*減らしていません/u)).toBeInTheDocument();
+	});
+
+	it("形が決まっている冷凍（みじん切り）は、自動では引かず、ボタンで選んだときだけ、同じ操作に足して引く", async () => {
+		const user = userEvent.setup();
+		const { consume } = setup({
+			ingredients: [ingredient("i1", "玉ねぎ", 100, "g")],
+			loadInventoryItems: async () => [
+				buildInventoryListItem({
+					inventoryItemId: "inv-frozen",
+					name: "冷凍玉ねぎ(みじん切り)",
+					quantity: 500,
+					stockUnitCode: "g",
+					stockUnitLabel: "g",
+				}),
+			],
+		});
+
+		await user.click(screen.getByRole("button", { name: /作った/u }));
+
+		expect(
+			await screen.findByText(
+				/玉ねぎ：在庫にないため.*冷凍玉ねぎ\(みじん切り\)の在庫があります/u,
+			),
+		).toBeInTheDocument();
+		expect(consume.mock.calls[0]?.[0].entries).toEqual([]);
+
+		await user.click(
+			screen.getByRole("button", {
+				name: "冷凍玉ねぎ(みじん切り)を引く（100g）",
+			}),
+		);
+
+		expect(
+			await screen.findByText(
+				/玉ねぎ：100gを引きました（冷凍玉ねぎ\(みじん切り\)から）/u,
+			),
+		).toBeInTheDocument();
+		expect(screen.getByText("在庫から1件を引きました")).toBeInTheDocument();
+
+		const [operation, only] = consume.mock.calls[1] ?? [];
+
+		expect(
+			operation?.entries.map((entry) => [
+				entry.inventoryItemId,
+				entry.quantity,
+			]),
+		).toEqual([["inv-frozen", 100]]);
+		expect(only).toEqual(new Set(["i1"]));
+		// 最初の操作と同じ印なので、「元に戻す」で、まとめて戻せる。
+		expect(operation?.sourceId).toBe(consume.mock.calls[0]?.[0].sourceId);
 	});
 
 	it("元に戻すと、同じ操作の印で取り消す", async () => {

@@ -3,6 +3,7 @@ import { findIngredientCatalogEntry } from "#/features/ingredients/domain/ingred
 import { findInventoryItemByName } from "#/features/inventory/domain/build-expiry-prefill";
 import type { InventoryUnitCode } from "#/features/inventory/domain/inventory-unit";
 import {
+	findFixedShapeStandInItems,
 	findStandInItems,
 	type RecipeShoppingNeed,
 	type RecipeShoppingStockItem,
@@ -23,6 +24,16 @@ export type RecipeConsumptionStatus =
 	// 在庫に登録がない、または在庫が0。
 	| "no-stock";
 
+// 自動では引かない、形が決まっている代わりの食材（冷凍玉ねぎ(みじん切り)など）。本人が選んだときだけ引く。
+export type RecipeConsumptionAlternative = {
+	inventoryItemId: string;
+	name: string;
+	stockUnitCode: InventoryUnitCode;
+	stockUnitLabel: string;
+	// 引く量（在庫の単位）。
+	deduct: number;
+};
+
 export type RecipeConsumptionRow = {
 	need: RecipeShoppingNeed;
 	status: RecipeConsumptionStatus;
@@ -39,6 +50,8 @@ export type RecipeConsumptionRow = {
 	required: number | null;
 	// 冷凍の食材など、代わりの食材の在庫から引くとき true。
 	viaStandIn: boolean;
+	// 在庫にないとき、形が決まっている代わりの食材の在庫があれば、その候補。
+	alternatives: RecipeConsumptionAlternative[];
 };
 
 function round(value: number): number {
@@ -92,6 +105,27 @@ export function planRecipeConsumption(
 		remaining.set(item.inventoryItemId, round(remainingOf(item) - amount));
 	};
 
+	// 形が決まっている代わりの食材の候補（自動では引かない）。
+	const findAlternatives = (
+		need: RecipeShoppingNeed,
+	): RecipeConsumptionAlternative[] =>
+		findFixedShapeStandInItems(need.name, stockItems).flatMap((item) => {
+			const available = remainingOf(item);
+			const required = requiredIn(need, item.stockUnitCode);
+
+			return available > 0 && required !== null
+				? [
+						{
+							inventoryItemId: item.inventoryItemId,
+							name: item.name,
+							stockUnitCode: item.stockUnitCode,
+							stockUnitLabel: item.stockUnitLabel,
+							deduct: round(Math.min(available, required)),
+						},
+					]
+				: [];
+		});
+
 	return needs.map((need): RecipeConsumptionRow => {
 		const own = findInventoryItemByName(stockItems, need.name);
 		const ownStock = own && remainingOf(own) > 0 ? own : undefined;
@@ -106,6 +140,7 @@ export function planRecipeConsumption(
 			deduct: null,
 			required: null,
 			viaStandIn: false,
+			alternatives: [],
 		};
 
 		// 比べられない分量は、引かない（食材が在庫にあるかどうかに関わらず）。
@@ -119,6 +154,7 @@ export function planRecipeConsumption(
 			return {
 				...unmeasurable,
 				status: "no-stock",
+				alternatives: findAlternatives(need),
 			};
 		}
 
@@ -144,6 +180,7 @@ export function planRecipeConsumption(
 				deduct: requiredOwn,
 				required: requiredOwn,
 				viaStandIn: false,
+				alternatives: [],
 			};
 		}
 
@@ -160,6 +197,7 @@ export function planRecipeConsumption(
 					deduct: requiredStandIn,
 					required: requiredStandIn,
 					viaStandIn: true,
+					alternatives: [],
 				};
 			}
 		}
@@ -176,10 +214,15 @@ export function planRecipeConsumption(
 				deduct: available,
 				required: requiredOwn,
 				viaStandIn: false,
+				alternatives: [],
 			};
 		}
 
 		// 自分の食材の在庫がなく、代わりの食材でも全量は足りない。
-		return { ...unmeasurable, status: "no-stock" };
+		return {
+			...unmeasurable,
+			status: "no-stock",
+			alternatives: findAlternatives(need),
+		};
 	});
 }

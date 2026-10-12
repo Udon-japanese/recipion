@@ -243,8 +243,8 @@ describe("planShoppingFromRecipe：買い物メモに、同じ食材がある", 
 });
 
 describe("planShoppingFromRecipe：冷凍野菜が代わりになる", () => {
-	const frozenOnion = {
-		name: "冷凍玉ねぎ(みじん切り)",
+	const frozenBroccoli = {
+		name: "冷凍ブロッコリー",
 		quantity: 300,
 		stockUnitCode: "g" as const,
 		stockUnitLabel: "g",
@@ -252,22 +252,22 @@ describe("planShoppingFromRecipe：冷凍野菜が代わりになる", () => {
 
 	it("生の在庫がなくても、冷凍の在庫で足りれば、足りている（初期のチェックなし）", () => {
 		const [row] = plan({
-			needs: [need("玉ねぎ", 1, "個")],
-			stockItems: [frozenOnion],
+			needs: [need("ブロッコリー", 100, "g")],
+			stockItems: [frozenBroccoli],
 		});
 
 		expect(row?.stock).toMatchObject({
 			kind: "judged",
 			judgment: { status: "enough" },
-			standInName: "冷凍玉ねぎ(みじん切り)",
+			standInName: "冷凍ブロッコリー",
 		});
 		expect(row?.defaultChecked).toBe(false);
 	});
 
 	it("冷凍の在庫でも足りないときは、不足のまま（チェックあり）", () => {
 		const [row] = plan({
-			needs: [need("玉ねぎ", 5, "個")],
-			stockItems: [frozenOnion],
+			needs: [need("ブロッコリー", 500, "g")],
+			stockItems: [frozenBroccoli],
 		});
 
 		expect(row?.stock).toMatchObject({
@@ -278,15 +278,15 @@ describe("planShoppingFromRecipe：冷凍野菜が代わりになる", () => {
 
 	it("生の在庫で足りているときは、生の判定のまま", () => {
 		const [row] = plan({
-			needs: [need("玉ねぎ", 1, "個")],
+			needs: [need("ブロッコリー", 100, "g")],
 			stockItems: [
 				{
-					name: "玉ねぎ",
-					quantity: 2,
-					stockUnitCode: "count",
-					stockUnitLabel: "個",
+					name: "ブロッコリー",
+					quantity: 500,
+					stockUnitCode: "g",
+					stockUnitLabel: "g",
 				},
-				frozenOnion,
+				frozenBroccoli,
 			],
 		});
 
@@ -306,6 +306,27 @@ describe("planShoppingFromRecipe：冷凍野菜が代わりになる", () => {
 			],
 		});
 
+		expect(row?.defaultChecked).toBe(true);
+	});
+
+	it("形が決まっている冷凍（みじん切りの玉ねぎ）は、足りているとは判定せず、在庫があることだけ知らせる", () => {
+		const [row] = plan({
+			needs: [need("玉ねぎ", 1, "個")],
+			stockItems: [
+				{
+					name: "冷凍玉ねぎ(みじん切り)",
+					quantity: 300,
+					stockUnitCode: "g",
+					stockUnitLabel: "g",
+				},
+			],
+		});
+
+		expect(row?.stock).toMatchObject({
+			judgment: { status: "short" },
+			fixedShapeStandInNames: ["冷凍玉ねぎ(みじん切り)"],
+		});
+		expect(row?.stock).not.toHaveProperty("standInName");
 		expect(row?.defaultChecked).toBe(true);
 	});
 });
