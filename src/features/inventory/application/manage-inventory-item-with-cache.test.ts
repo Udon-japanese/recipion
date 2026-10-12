@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildInventoryListItem } from "#/test/builders/build-inventory-list-item";
 import { createFakeInventoryCacheRepository } from "#/test/fakes/fake-inventory-cache-repository";
 import {
+	changeStockUnitWithCache,
 	deleteInventoryItemWithCache,
 	renameInventoryItemWithCache,
 } from "./manage-inventory-item-with-cache";
@@ -89,5 +90,50 @@ describe("renameInventoryItemWithCache", () => {
 			),
 		).rejects.toThrow("offline");
 		expect((await cache.find("user:u"))?.items[0]?.displayName).toBeNull();
+	});
+});
+
+describe("changeStockUnitWithCache", () => {
+	it("単位を変え、キャッシュの単位・数量・ロットも更新する", async () => {
+		const cache = createCache();
+
+		await changeStockUnitWithCache(
+			"user:u",
+			{
+				inventoryItemId: "inv-1",
+				stockUnitCode: "count",
+				stockUnitLabel: "枚",
+			},
+			async () => ({
+				inventoryItemId: "inv-1",
+				stockUnitCode: "count",
+				stockUnitLabel: "枚",
+				quantity: 3,
+				lots: [],
+			}),
+			cache,
+		);
+
+		expect((await cache.find("user:u"))?.items[0]).toMatchObject({
+			stockUnitCode: "count",
+			stockUnitLabel: "枚",
+			quantity: 3,
+		});
+	});
+
+	it("サーバーの変更に失敗したら、エラーにして、キャッシュを変えない", async () => {
+		const cache = createCache();
+
+		await expect(
+			changeStockUnitWithCache(
+				"user:u",
+				{ inventoryItemId: "inv-1", stockUnitCode: "g", stockUnitLabel: "g" },
+				async () => {
+					throw new Error("offline");
+				},
+				cache,
+			),
+		).rejects.toThrow("offline");
+		expect((await cache.find("user:u"))?.items[0]?.stockUnitLabel).toBe("個");
 	});
 });

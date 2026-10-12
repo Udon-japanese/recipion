@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+	parseChangeStockUnitInput,
 	parseDeleteInventoryItemInput,
 	parseRenameInventoryItemInput,
 } from "./inventory-item-management-input";
@@ -37,6 +38,46 @@ describe("parseRenameInventoryItemInput", () => {
 		).toThrow();
 		expect(() =>
 			parseDeleteInventoryItemInput({ inventoryItemId: "x" }),
+		).toThrow();
+	});
+});
+
+describe("parseChangeStockUnitInput", () => {
+	it("単位とコードと、いまの量（任意）を受け取る。不正な値を拒否する", () => {
+		expect(
+			parseChangeStockUnitInput({
+				inventoryItemId,
+				stockUnitCode: "count",
+				stockUnitLabel: " 枚 ",
+				currentQuantity: 3,
+			}),
+		).toEqual({
+			inventoryItemId,
+			stockUnitCode: "count",
+			stockUnitLabel: "枚",
+			currentQuantity: 3,
+		});
+		expect(
+			parseChangeStockUnitInput({
+				inventoryItemId,
+				stockUnitCode: "g",
+				stockUnitLabel: "g",
+			}).currentQuantity,
+		).toBeUndefined();
+		expect(() =>
+			parseChangeStockUnitInput({
+				inventoryItemId,
+				stockUnitCode: "kg",
+				stockUnitLabel: "kg",
+			}),
+		).toThrow();
+		expect(() =>
+			parseChangeStockUnitInput({
+				inventoryItemId,
+				stockUnitCode: "g",
+				stockUnitLabel: "g",
+				currentQuantity: -1,
+			}),
 		).toThrow();
 	});
 });

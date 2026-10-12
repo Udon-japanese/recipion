@@ -1,5 +1,6 @@
 import * as v from "valibot";
 import {
+	type ChangeStockUnitCommand,
 	maxInventoryDisplayNameLength,
 	type RenameInventoryItemCommand,
 } from "./inventory-item-management-repository";
@@ -26,6 +27,25 @@ const renameInventoryItemInputSchema = v.object({
 		),
 	),
 });
+
+const changeStockUnitInputSchema = v.object({
+	inventoryItemId: inventoryItemIdSchema,
+	stockUnitCode: v.picklist(["count", "g", "ml"]),
+	stockUnitLabel: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(10)),
+	currentQuantity: v.optional(
+		v.pipe(
+			v.number(),
+			v.finite("数量には有限の数値を指定してください"),
+			v.minValue(0, "数量は0以上にしてください"),
+		),
+	),
+});
+
+export function parseChangeStockUnitInput(
+	input: unknown,
+): ChangeStockUnitCommand {
+	return v.parse(changeStockUnitInputSchema, input);
+}
 
 export function parseDeleteInventoryItemInput(input: unknown): {
 	inventoryItemId: string;
