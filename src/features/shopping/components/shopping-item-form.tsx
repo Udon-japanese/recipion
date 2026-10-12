@@ -146,6 +146,7 @@ export function ShoppingItemForm({
 						name="quantity"
 						value={quantity}
 						onChange={setQuantity}
+						unitLabel={unitLabel}
 					/>
 				</div>
 

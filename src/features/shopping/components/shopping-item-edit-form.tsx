@@ -118,6 +118,7 @@ export function ShoppingItemEditForm({
 						id={`edit-quantity-${item.id}`}
 						value={quantity}
 						onChange={setQuantity}
+						unitLabel={unitLabel}
 					/>
 				</div>
 

@@ -258,6 +258,7 @@ export function InventoryRegistrationForm({
 							id="inventory-initial-quantity"
 							value={initialQuantity}
 							onChange={setInitialQuantity}
+							unitLabel={stockUnitLabels[stockUnitCode]}
 						/>
 					</div>
 				) : null}

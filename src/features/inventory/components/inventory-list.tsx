@@ -904,6 +904,12 @@ export function InventoryList({
 												<QuantityInput
 													className={styles.input}
 													aria-label={`${formatShortDate(lot.acquiredOn)}に追加のロットの新しい単位での量`}
+													unitLabel={
+														listStockUnitOptions(item.name).find(
+															(candidate) =>
+																toOptionValue(candidate) === unitChangeOption,
+														)?.stockUnitLabel
+													}
 													value={unitChangeLotQuantities[lot.id] ?? ""}
 													onChange={(value) =>
 														setUnitChangeLotQuantities((current) => ({
@@ -1021,7 +1027,7 @@ export function InventoryList({
 												aria-label={`${item.name}のいまの量`}
 												value={trackingChangeQuantity}
 												onChange={setTrackingChangeQuantity}
-												showFractionButtons={item.stockUnitCode === "count"}
+												unitLabel={item.stockUnitLabel}
 											/>
 											<span>{item.stockUnitLabel}</span>
 										</span>
@@ -1161,9 +1167,7 @@ export function InventoryList({
 																aria-label={`${formatShortDate(lot.acquiredOn)}に追加のロットの数量`}
 																value={quantityEditValue}
 																onChange={setQuantityEditValue}
-																showFractionButtons={
-																	item.stockUnitCode === "count"
-																}
+																unitLabel={item.stockUnitLabel}
 															/>
 															<span>{item.stockUnitLabel}</span>
 														</span>
@@ -1251,7 +1255,7 @@ export function InventoryList({
 												aria-label={`${item.name}の調整数量`}
 												value={adjustmentQuantity}
 												onChange={setAdjustmentQuantity}
-												showFractionButtons={item.stockUnitCode === "count"}
+												unitLabel={item.stockUnitLabel}
 											/>
 											<span>{item.stockUnitLabel}</span>
 										</span>
