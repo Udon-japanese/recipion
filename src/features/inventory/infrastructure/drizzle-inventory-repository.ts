@@ -14,6 +14,10 @@ import type {
 	RecipeConsumptionUndoRepository,
 } from "../application/inventory-adjustment-repository";
 import type {
+	InventoryItemManagementRepository,
+	RenameInventoryItemCommand,
+} from "../application/inventory-item-management-repository";
+import type {
 	InventoryItemResolver,
 	ResolveOrCreateInventoryItemCommand,
 } from "../application/inventory-item-resolver";
@@ -150,6 +154,7 @@ export function createDrizzleInventoryRepository(
 ): InventoryAdjustmentRepository &
 	RecipeConsumptionUndoRepository &
 	InventoryTrackingModeRepository &
+	InventoryItemManagementRepository &
 	InventoryItemResolver &
 	InventoryLotRepository &
 	InventoryQueryRepository {
@@ -164,6 +169,7 @@ export function createDrizzleInventoryRepository(
 					inventoryItemId: inventoryItem.id,
 					ingredientId: ingredient.id,
 					name: ingredient.name,
+					displayName: inventoryItem.displayName,
 					stockUnitCode: ingredient.stockUnitCode,
 					stockUnitLabel: ingredient.stockUnitLabel,
 					defaultExpiryKind: ingredient.defaultExpiryKind,
@@ -229,6 +235,7 @@ export function createDrizzleInventoryRepository(
 					inventoryItemId: row.inventoryItemId,
 					ingredientId: row.ingredientId,
 					name: row.name,
+					displayName: row.displayName,
 					quantity: sumLotQuantities(lots),
 					lots,
 					stockUnitCode: parseInventoryUnitCode(row.stockUnitCode),
@@ -832,6 +839,43 @@ export function createDrizzleInventoryRepository(
 
 				return { status: "undone" as const, items: await loadItems() };
 			});
+		},
+
+		async deleteItem(inventoryItemId: string) {
+			// ロットと履歴は、外部キーの連鎖で消える。食材（名前・別名）は残る。
+			const deleted = await db
+				.delete(inventoryItem)
+				.where(
+					and(
+						eq(inventoryItem.id, inventoryItemId),
+						eq(inventoryItem.userId, userId),
+					),
+				)
+				.returning({ id: inventoryItem.id });
+
+			return deleted.length > 0;
+		},
+
+		async renameItem(command: RenameInventoryItemCommand) {
+			const [updated] = await db
+				.update(inventoryItem)
+				.set({ displayName: command.displayName })
+				.where(
+					and(
+						eq(inventoryItem.id, command.inventoryItemId),
+						eq(inventoryItem.userId, userId),
+					),
+				)
+				.returning({
+					inventoryItemId: inventoryItem.id,
+					displayName: inventoryItem.displayName,
+				});
+
+			if (!updated) {
+				throw new Error("在庫項目が見つかりません");
+			}
+
+			return updated;
 		},
 
 		async changeTrackingMode(command: ChangeInventoryTrackingModeCommand) {

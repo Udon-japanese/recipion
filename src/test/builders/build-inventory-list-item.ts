@@ -8,6 +8,7 @@ export function buildInventoryListItem(
 		inventoryItemId: "inventory-id",
 		ingredientId: "ingredient-id",
 		name: "卵",
+		displayName: null,
 		quantity: 6,
 		lots: [],
 		stockUnitCode: "count",

@@ -8,6 +8,11 @@ import type {
 	InventoryAdjustmentRepositoryResult,
 } from "../application/inventory-adjustment-repository";
 import type {
+	RenameInventoryItemCommand,
+	RenameInventoryItemResult,
+} from "../application/inventory-item-management-repository";
+import { maxInventoryDisplayNameLength } from "../application/inventory-item-management-repository";
+import type {
 	UpdateInventoryLotCommand,
 	UpdateInventoryLotResult,
 } from "../application/inventory-lot-repository";
@@ -45,6 +50,12 @@ type UpdateInventoryLot = (
 	command: UpdateInventoryLotCommand,
 ) => Promise<UpdateInventoryLotResult>;
 
+type DeleteInventoryItem = (inventoryItemId: string) => Promise<boolean>;
+
+type RenameInventoryItem = (
+	command: RenameInventoryItemCommand,
+) => Promise<RenameInventoryItemResult>;
+
 type ChangeTrackingMode = (
 	command: ChangeInventoryTrackingModeCommand,
 ) => Promise<ChangeInventoryTrackingModeResult>;
@@ -57,6 +68,10 @@ type InventoryListProps = {
 	updateInventoryLot?: UpdateInventoryLot;
 	// 管理方法（有無だけ／だいたい／正確）を変える（渡さないと、切り替えのボタンは出ない）。
 	changeTrackingMode?: ChangeTrackingMode;
+	// 在庫の食材の削除（渡さないと、削除のボタンは出ない）。
+	deleteInventoryItem?: DeleteInventoryItem;
+	// 在庫の一覧に出す呼び名の変更（渡さないと、名前の変更のボタンは出ない）。
+	renameInventoryItem?: RenameInventoryItem;
 	refreshKey?: number;
 };
 
@@ -86,8 +101,15 @@ export function InventoryList({
 	adjustInventoryItem,
 	updateInventoryLot,
 	changeTrackingMode,
+	deleteInventoryItem,
+	renameInventoryItem,
 	refreshKey = 0,
 }: InventoryListProps) {
+	// 削除の確認中の食材。
+	const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
+	// 呼び名を変えている食材と、入力中の呼び名。
+	const [renamingItemId, setRenamingItemId] = useState<string | null>(null);
+	const [renameValue, setRenameValue] = useState("");
 	const [items, setItems] = useState<InventoryListItem[]>([]);
 	const [isLoading, setIsLoading] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -264,6 +286,59 @@ export function InventoryList({
 		} catch (error) {
 			setErrorMessage(
 				error instanceof Error ? error.message : "在庫を変更できませんでした",
+			);
+		} finally {
+			setIsAdjusting(false);
+		}
+	}
+
+	async function handleDelete(item: InventoryListItem) {
+		if (!deleteInventoryItem) {
+			return;
+		}
+
+		setErrorMessage(null);
+		setIsAdjusting(true);
+
+		try {
+			await deleteInventoryItem(item.inventoryItemId);
+			// すでに消えていた（見つからない）ときも、一覧からは消す。
+			setItems((currentItems) =>
+				currentItems.filter(
+					(currentItem) => currentItem.inventoryItemId !== item.inventoryItemId,
+				),
+			);
+			setDeletingItemId(null);
+		} catch (error) {
+			setErrorMessage(
+				error instanceof Error ? error.message : "在庫を削除できませんでした",
+			);
+		} finally {
+			setIsAdjusting(false);
+		}
+	}
+
+	async function handleRename(item: InventoryListItem) {
+		if (!renameInventoryItem) {
+			return;
+		}
+
+		setErrorMessage(null);
+		setIsAdjusting(true);
+
+		try {
+			const result = await renameInventoryItem({
+				inventoryItemId: item.inventoryItemId,
+				displayName: renameValue.trim() === "" ? null : renameValue,
+			});
+
+			applyItemUpdate(item.inventoryItemId, {
+				displayName: result.displayName,
+			});
+			setRenamingItemId(null);
+		} catch (error) {
+			setErrorMessage(
+				error instanceof Error ? error.message : "名前を変更できませんでした",
 			);
 		} finally {
 			setIsAdjusting(false);
@@ -447,7 +522,12 @@ export function InventoryList({
 					{items.map((item) => (
 						<li className={styles.item} key={item.inventoryItemId}>
 							<div className={styles.itemSummary}>
-								<span className={styles.itemName}>{item.name}</span>
+								<span className={styles.itemName}>
+									{item.displayName ?? item.name}
+									{item.displayName ? (
+										<span className={styles.originalName}>（{item.name}）</span>
+									) : null}
+								</span>
 
 								{item.trackingMode === "presence" ? (
 									<span className={styles.quantity}>
@@ -517,7 +597,104 @@ export function InventoryList({
 										</button>
 									)
 								) : null}
+
+								{renameInventoryItem && itemsSource !== "cache" ? (
+									<button
+										className={styles.adjustButton}
+										type="button"
+										disabled={isAdjusting}
+										aria-label={`${item.displayName ?? item.name}の名前を変更`}
+										onClick={() => {
+											setRenamingItemId(item.inventoryItemId);
+											setRenameValue(item.displayName ?? "");
+										}}
+									>
+										名前を変更
+									</button>
+								) : null}
+
+								{deleteInventoryItem && itemsSource !== "cache" ? (
+									<button
+										className={styles.adjustButton}
+										type="button"
+										disabled={isAdjusting}
+										aria-label={`${item.displayName ?? item.name}を在庫から削除`}
+										onClick={() => setDeletingItemId(item.inventoryItemId)}
+									>
+										削除
+									</button>
+								) : null}
 							</div>
+
+							{renamingItemId === item.inventoryItemId ? (
+								<div className={styles.adjustmentForm}>
+									<label className={styles.adjustmentField}>
+										<span className={styles.adjustmentLabel}>
+											在庫の一覧に出す名前（{item.name}
+											のまま、レシピとの照合に使います）
+										</span>
+										<input
+											className={styles.input}
+											aria-label={`${item.name}の呼び名`}
+											value={renameValue}
+											maxLength={maxInventoryDisplayNameLength}
+											placeholder={item.name}
+											onChange={(event) => setRenameValue(event.target.value)}
+										/>
+									</label>
+
+									<div className={styles.adjustmentActions}>
+										<button
+											className={styles.cancelButton}
+											type="button"
+											disabled={isAdjusting}
+											onClick={() => setRenamingItemId(null)}
+										>
+											キャンセル
+										</button>
+
+										<button
+											className={styles.increaseButton}
+											type="button"
+											disabled={isAdjusting}
+											onClick={() => void handleRename(item)}
+										>
+											{renameValue.trim() === ""
+												? "元の名前に戻す"
+												: "この名前にする"}
+										</button>
+									</div>
+								</div>
+							) : null}
+
+							{deletingItemId === item.inventoryItemId ? (
+								<div className={styles.adjustmentForm}>
+									<p className={styles.message}>
+										「{item.displayName ?? item.name}
+										」を在庫から削除します。ロットと履歴も消えます。よろしいですか。
+									</p>
+
+									<div className={styles.adjustmentActions}>
+										<button
+											className={styles.cancelButton}
+											type="button"
+											disabled={isAdjusting}
+											onClick={() => setDeletingItemId(null)}
+										>
+											やめる
+										</button>
+
+										<button
+											className={styles.decreaseButton}
+											type="button"
+											disabled={isAdjusting}
+											onClick={() => void handleDelete(item)}
+										>
+											削除する
+										</button>
+									</div>
+								</div>
+							) : null}
 
 							{trackingChangeItemId === item.inventoryItemId ? (
 								<div className={styles.adjustmentForm}>

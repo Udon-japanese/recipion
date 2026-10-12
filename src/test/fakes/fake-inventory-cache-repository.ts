@@ -4,7 +4,12 @@ import type {
 	InventoryCacheSnapshot,
 } from "#/features/inventory/application/inventory-cache-repository";
 
-type CacheMethod = "find" | "save" | "updateStock";
+type CacheMethod =
+	| "find"
+	| "save"
+	| "updateStock"
+	| "removeItem"
+	| "updateDisplayName";
 
 export type FakeInventoryCacheRepository = InventoryCacheRepository & {
 	// 次の呼び出しを1回だけ失敗させる。
@@ -52,6 +57,49 @@ export function createFakeInventoryCacheRepository(
 			snapshots.set(ownerScope, snapshot);
 
 			return snapshot;
+		},
+
+		async removeItem(ownerScope, inventoryItemId, now = new Date()) {
+			guard("removeItem");
+
+			const snapshot = snapshots.get(ownerScope);
+
+			if (!snapshot) {
+				return;
+			}
+
+			snapshots.set(ownerScope, {
+				...snapshot,
+				items: snapshot.items.filter(
+					(item) => item.inventoryItemId !== inventoryItemId,
+				),
+				cachedAt: now.toISOString(),
+			});
+		},
+
+		async updateDisplayName(
+			ownerScope,
+			inventoryItemId,
+			displayName,
+			now = new Date(),
+		) {
+			guard("updateDisplayName");
+
+			const snapshot = snapshots.get(ownerScope);
+
+			if (!snapshot) {
+				return;
+			}
+
+			snapshots.set(ownerScope, {
+				...snapshot,
+				items: snapshot.items.map((item) =>
+					item.inventoryItemId === inventoryItemId
+						? { ...item, displayName, updatedAt: now.toISOString() }
+						: item,
+				),
+				cachedAt: now.toISOString(),
+			});
 		},
 
 		async updateStock(ownerScope, inventoryItemId, stock, now = new Date()) {

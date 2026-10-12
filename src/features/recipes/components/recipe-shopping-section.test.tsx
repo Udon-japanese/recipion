@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { InventoryListItem } from "#/features/inventory/application/inventory-query-repository";
 import { createShoppingItem } from "#/features/shopping/domain/shopping-item";
+import { buildInventoryListItem } from "#/test/builders/build-inventory-list-item";
 import { createFakeShoppingRepository } from "#/test/fakes/fake-shopping-repository";
 import type { RecipeDetail } from "../application/recipe-repository";
 import type { RecipeEditorIngredientNode } from "../domain/recipe-editor-document";
@@ -46,19 +47,14 @@ function stockItem(
 	stockUnitCode: "count" | "g" | "ml",
 	stockUnitLabel: string,
 ): InventoryListItem {
-	return {
+	return buildInventoryListItem({
 		inventoryItemId: `item-${name}`,
 		ingredientId: `ingredient-${name}`,
 		name,
 		quantity,
-		lots: [],
 		stockUnitCode,
 		stockUnitLabel,
-		trackingMode: "estimated",
-		defaultExpiryKind: null,
-		defaultStorage: null,
-		updatedAt: "2026-10-05T00:00:00.000Z",
-	};
+	});
 }
 
 async function openPanel(user: ReturnType<typeof userEvent.setup>) {

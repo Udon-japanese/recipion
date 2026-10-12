@@ -1,6 +1,7 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import { buildInventoryListItem } from "#/test/builders/build-inventory-list-item";
 import type { InventoryListItem } from "../application/inventory-query-repository";
 import {
 	addDays,
@@ -39,6 +40,7 @@ describe("InventoryList", () => {
 					inventoryItemId: "inventory-id",
 					ingredientId: "ingredient-id",
 					name: "卵",
+					displayName: null,
 					quantity: 6,
 					lots: [],
 					stockUnitCode: "count",
@@ -52,6 +54,7 @@ describe("InventoryList", () => {
 					inventoryItemId: "milk-inventory-id",
 					ingredientId: "milk-ingredient-id",
 					name: "牛乳",
+					displayName: null,
 					quantity: 800,
 					lots: [],
 					stockUnitCode: "ml",
@@ -161,6 +164,7 @@ describe("InventoryList", () => {
 								inventoryItemId: "1fc94e80-a9cf-4458-b0e6-3d72550cce06",
 								ingredientId: "9af9c3eb-1ed5-485c-923e-ddda59dc4190",
 								name: "卵",
+								displayName: null,
 								quantity: 6,
 								lots: [],
 								stockUnitCode: "count",
@@ -250,6 +254,7 @@ describe("InventoryList", () => {
 								inventoryItemId: "inventory-id",
 								ingredientId: "ingredient-id",
 								name: "卵",
+								displayName: null,
 								quantity: 6,
 								lots: [],
 								stockUnitCode: "count",
@@ -286,6 +291,7 @@ describe("InventoryList", () => {
 			inventoryItemId: "1fc94e80-a9cf-4458-b0e6-3d72550cce06",
 			ingredientId: "9af9c3eb-1ed5-485c-923e-ddda59dc4190",
 			name: "卵",
+			displayName: null,
 			quantity: 5,
 			lots: [
 				createLot({
@@ -502,6 +508,7 @@ describe("InventoryList", () => {
 				inventoryItemId: oilId,
 				ingredientId: "oil-ingredient",
 				name: "オリーブオイル",
+				displayName: null,
 				quantity,
 				lots: quantity > 0 ? [createLot({ id: "lot-1", quantity })] : [],
 				stockUnitCode: "ml",
@@ -642,6 +649,124 @@ describe("InventoryList", () => {
 				inventoryItemId: oilId,
 				trackingMode: "presence",
 			});
+		});
+	});
+
+	describe("削除と呼び名の変更", () => {
+		const chickenId = "6b1d4f0e-0a0e-4c85-9a3f-222222222222";
+
+		function chicken(overrides: Partial<InventoryListItem> = {}) {
+			return buildInventoryListItem({
+				inventoryItemId: chickenId,
+				name: "鶏もも肉",
+				quantity: 300,
+				stockUnitCode: "g",
+				stockUnitLabel: "g",
+				...overrides,
+			});
+		}
+
+		it("削除は、確認のあとで行い、一覧から消える。やめれば消えない", async () => {
+			const user = userEvent.setup();
+			const deleteInventoryItem = vi.fn().mockResolvedValue(true);
+
+			render(
+				<InventoryList
+					ownerScope="user:user-id"
+					loadInventoryItems={async () => createNetworkResult([chicken()])}
+					deleteInventoryItem={deleteInventoryItem}
+				/>,
+			);
+
+			await user.click(
+				await screen.findByRole("button", { name: "鶏もも肉を在庫から削除" }),
+			);
+
+			expect(deleteInventoryItem).not.toHaveBeenCalled();
+			expect(screen.getByText(/ロットと履歴も消えます/u)).toBeInTheDocument();
+
+			await user.click(screen.getByRole("button", { name: "やめる" }));
+			expect(screen.queryByText(/ロットと履歴も消えます/u)).toBeNull();
+
+			await user.click(
+				screen.getByRole("button", { name: "鶏もも肉を在庫から削除" }),
+			);
+			await user.click(screen.getByRole("button", { name: "削除する" }));
+
+			await waitFor(() =>
+				expect(screen.queryByText("鶏もも肉")).not.toBeInTheDocument(),
+			);
+			expect(deleteInventoryItem).toHaveBeenCalledWith(chickenId);
+		});
+
+		it("削除に失敗したら、エラーを出し、一覧に残す", async () => {
+			const user = userEvent.setup();
+
+			render(
+				<InventoryList
+					ownerScope="user:user-id"
+					loadInventoryItems={async () => createNetworkResult([chicken()])}
+					deleteInventoryItem={vi.fn().mockRejectedValue(new Error("offline"))}
+				/>,
+			);
+
+			await user.click(
+				await screen.findByRole("button", { name: "鶏もも肉を在庫から削除" }),
+			);
+			await user.click(screen.getByRole("button", { name: "削除する" }));
+
+			expect(await screen.findByRole("alert")).toHaveTextContent("offline");
+			expect(screen.getByText("鶏もも肉")).toBeInTheDocument();
+		});
+
+		it("呼び名を付けると、一覧には呼び名が出て、元の食材の名前も添える。空にすると元に戻る", async () => {
+			const user = userEvent.setup();
+			const renameInventoryItem = vi
+				.fn()
+				.mockImplementation(async (command) => command);
+
+			render(
+				<InventoryList
+					ownerScope="user:user-id"
+					loadInventoryItems={async () => createNetworkResult([chicken()])}
+					renameInventoryItem={renameInventoryItem}
+				/>,
+			);
+
+			await user.click(
+				await screen.findByRole("button", { name: "鶏もも肉の名前を変更" }),
+			);
+			await user.type(
+				screen.getByLabelText("鶏もも肉の呼び名"),
+				"イオンで買った鶏もも",
+			);
+			await user.click(screen.getByRole("button", { name: "この名前にする" }));
+
+			expect(
+				await screen.findByText(/イオンで買った鶏もも/u),
+			).toBeInTheDocument();
+			expect(screen.getByText("（鶏もも肉）")).toBeInTheDocument();
+			expect(renameInventoryItem).toHaveBeenLastCalledWith({
+				inventoryItemId: chickenId,
+				displayName: "イオンで買った鶏もも",
+			});
+
+			await user.click(
+				screen.getByRole("button", {
+					name: "イオンで買った鶏ももの名前を変更",
+				}),
+			);
+			await user.clear(screen.getByLabelText("鶏もも肉の呼び名"));
+			await user.click(screen.getByRole("button", { name: "元の名前に戻す" }));
+
+			await waitFor(() =>
+				expect(screen.queryByText("（鶏もも肉）")).not.toBeInTheDocument(),
+			);
+			expect(renameInventoryItem).toHaveBeenLastCalledWith({
+				inventoryItemId: chickenId,
+				displayName: null,
+			});
+			expect(screen.getByText("鶏もも肉")).toBeInTheDocument();
 		});
 	});
 });
