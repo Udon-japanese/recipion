@@ -1,5 +1,6 @@
 import Dexie from "dexie";
 import { afterEach, describe, expect, it } from "vitest";
+import { createShoppingItem } from "../features/shopping/domain/shopping-item";
 import { LocalDatabase } from "./database";
 
 const databaseNames: string[] = [];
@@ -9,68 +10,39 @@ afterEach(async () => {
 });
 
 describe("LocalDatabase", () => {
-	it("バージョン1の買い物項目へ並び順を付与する", async () => {
-		const databaseName = `migration-test-${crypto.randomUUID()}`;
+	it("開いて、買い物項目を、並び順・店・分岐の索引で引ける", async () => {
+		const databaseName = `schema-test-${crypto.randomUUID()}`;
 		databaseNames.push(databaseName);
 
-		const legacyDatabase = new Dexie(databaseName);
-
-		legacyDatabase.version(1).stores({
-			shoppingItems: "id, status, createdAt, updatedAt",
-		});
-
-		await legacyDatabase.open();
-		await legacyDatabase.table("shoppingItems").bulkPut([
+		const database = new LocalDatabase(databaseName);
+		const first = createShoppingItem(
 			{
-				id: "newer",
-				name: "牛乳",
-				quantity: 1,
-				unitLabel: "本",
-				status: "pending",
-				createdAt: "2026-09-21T11:00:00.000Z",
-				updatedAt: "2026-09-21T11:00:00.000Z",
-			},
-			{
-				id: "older",
 				name: "卵",
-				quantity: 6,
-				unitLabel: "個",
-				status: "pending",
-				createdAt: "2026-09-21T10:00:00.000Z",
-				updatedAt: "2026-09-21T10:00:00.000Z",
+				storeId: "store-1",
+				branchId: "branch-1",
+				branchSide: "then",
 			},
-		]);
-		legacyDatabase.close();
+			new Date("2026-10-01T00:00:00.000Z"),
+			1,
+		);
+		const second = createShoppingItem(
+			{ name: "牛乳" },
+			new Date("2026-10-01T00:01:00.000Z"),
+			0,
+		);
 
-		const migratedDatabase = new LocalDatabase(databaseName);
-		await migratedDatabase.open();
+		await database.shoppingItems.bulkPut([first, second]);
 
-		const items = await migratedDatabase.shoppingItems
-			.orderBy("sortOrder")
-			.toArray();
+		await expect(
+			database.shoppingItems.orderBy("sortOrder").toArray(),
+		).resolves.toEqual([second, first]);
+		await expect(
+			database.shoppingItems.where("storeId").equals("store-1").toArray(),
+		).resolves.toEqual([first]);
+		await expect(
+			database.shoppingItems.where("branchId").equals("branch-1").toArray(),
+		).resolves.toEqual([first]);
 
-		expect(
-			items.map((item) => ({
-				id: item.id,
-				categoryId: item.categoryId,
-				categoryAssignment: item.categoryAssignment,
-				sortOrder: item.sortOrder,
-			})),
-		).toEqual([
-			{
-				id: "older",
-				categoryId: null,
-				categoryAssignment: null,
-				sortOrder: 0,
-			},
-			{
-				id: "newer",
-				categoryId: null,
-				categoryAssignment: null,
-				sortOrder: 1,
-			},
-		]);
-
-		migratedDatabase.close();
+		database.close();
 	});
 });

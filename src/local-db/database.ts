@@ -11,23 +11,6 @@ export type ShoppingStoreDefault = {
 	storeId: string;
 };
 
-type MigratingShoppingItem = Omit<
-	ShoppingItem,
-	| "categoryId"
-	| "categoryAssignment"
-	| "inventoryConversion"
-	| "storeId"
-	| "branchId"
-	| "branchSide"
-> & {
-	categoryId?: ShoppingItem["categoryId"] | "tofu-noodles";
-	categoryAssignment?: ShoppingItem["categoryAssignment"];
-	inventoryConversion?: ShoppingItem["inventoryConversion"];
-	storeId?: ShoppingItem["storeId"];
-	branchId?: ShoppingItem["branchId"];
-	branchSide?: ShoppingItem["branchSide"];
-};
-
 export class LocalDatabase extends Dexie {
 	shoppingItems!: Table<ShoppingItem, string>;
 	inventoryPurchaseOutbox!: Table<InventoryPurchaseOutboxEntry, string>;
@@ -36,149 +19,21 @@ export class LocalDatabase extends Dexie {
 	shoppingBranches!: Table<ShoppingBranch, string>;
 	shoppingStoreDefaults!: Table<ShoppingStoreDefault, string>;
 
-	constructor(databaseName = "app-local") {
+	// まだリリース前なので、バージョンは 1 つにまとめている（古いデータを新しい形に直す処理は持たない）。
+	// リリース後は、まとめず、スキーマを変えるたびに、バージョンを足す（.upgrade でデータを直す）。
+	// 古い名前（app-local）のデータベースは、バージョンの数が合わないため、使わない（名前を変えてある）。
+	constructor(databaseName = "recipion-local") {
 		super(databaseName);
 
 		this.version(1).stores({
-			shoppingItems: "id, status, createdAt, updatedAt",
-		});
-
-		this.version(2)
-			.stores({
-				shoppingItems: "id, status, sortOrder, createdAt, updatedAt",
-			})
-			.upgrade(async (transaction) => {
-				const shoppingItems = transaction.table<ShoppingItem, string>(
-					"shoppingItems",
-				);
-				const existingItems = await shoppingItems
-					.orderBy("createdAt")
-					.toArray();
-
-				await Promise.all(
-					existingItems.map((item, index) =>
-						shoppingItems.update(item.id, {
-							sortOrder: index,
-						}),
-					),
-				);
-			});
-
-		this.version(3)
-			.stores({
-				shoppingItems:
-					"id, status, categoryId, sortOrder, createdAt, updatedAt",
-			})
-			.upgrade(async (transaction) => {
-				const shoppingItems = transaction.table<MigratingShoppingItem, string>(
-					"shoppingItems",
-				);
-
-				await shoppingItems.toCollection().modify((item) => {
-					item.categoryId ??= null;
-				});
-			});
-
-		this.version(4)
-			.stores({
-				shoppingItems:
-					"id, status, categoryId, categoryAssignment, sortOrder, createdAt, updatedAt",
-			})
-			.upgrade(async (transaction) => {
-				const shoppingItems = transaction.table<MigratingShoppingItem, string>(
-					"shoppingItems",
-				);
-
-				await shoppingItems.toCollection().modify((item) => {
-					item.categoryAssignment = item.categoryId == null ? null : "manual";
-				});
-			});
-
-		this.version(5)
-			.stores({
-				shoppingItems:
-					"id, status, categoryId, categoryAssignment, sortOrder, createdAt, updatedAt",
-			})
-			.upgrade(async (transaction) => {
-				const shoppingItems = transaction.table<MigratingShoppingItem, string>(
-					"shoppingItems",
-				);
-
-				await shoppingItems.toCollection().modify((item) => {
-					if (item.categoryId === "tofu-noodles") {
-						item.categoryId = "chilled";
-					}
-				});
-			});
-
-		this.version(6).stores({
 			shoppingItems:
-				"id, status, categoryId, categoryAssignment, sortOrder, createdAt, updatedAt",
-			inventoryPurchaseOutbox: "id, ownerScope, status, createdAt, updatedAt",
-		});
-
-		this.version(7)
-			.stores({
-				shoppingItems:
-					"id, status, categoryId, categoryAssignment, sortOrder, createdAt, updatedAt",
-				inventoryPurchaseOutbox: "id, ownerScope, status, createdAt, updatedAt",
-			})
-			.upgrade(async (transaction) => {
-				const shoppingItems = transaction.table<MigratingShoppingItem, string>(
-					"shoppingItems",
-				);
-
-				await shoppingItems.toCollection().modify((item) => {
-					item.inventoryConversion ??= null;
-				});
-			});
-
-		this.version(8).stores({
-			shoppingItems:
-				"id, status, categoryId, categoryAssignment, sortOrder, createdAt, updatedAt",
+				"id, status, categoryId, categoryAssignment, storeId, branchId, sortOrder, createdAt, updatedAt",
 			inventoryPurchaseOutbox: "id, ownerScope, status, createdAt, updatedAt",
 			inventorySnapshots: "ownerScope, cachedAt",
+			shoppingStores: "id, sortOrder",
+			shoppingStoreDefaults: "nameKey, storeId",
+			shoppingBranches: "id, sortOrder",
 		});
-
-		this.version(9)
-			.stores({
-				shoppingItems:
-					"id, status, categoryId, categoryAssignment, storeId, sortOrder, createdAt, updatedAt",
-				inventoryPurchaseOutbox: "id, ownerScope, status, createdAt, updatedAt",
-				inventorySnapshots: "ownerScope, cachedAt",
-				shoppingStores: "id, sortOrder",
-				shoppingStoreDefaults: "nameKey, storeId",
-			})
-			.upgrade(async (transaction) => {
-				const shoppingItems = transaction.table<MigratingShoppingItem, string>(
-					"shoppingItems",
-				);
-
-				await shoppingItems.toCollection().modify((item) => {
-					item.storeId ??= null;
-				});
-			});
-
-		this.version(10)
-			.stores({
-				shoppingItems:
-					"id, status, categoryId, categoryAssignment, storeId, branchId, sortOrder, createdAt, updatedAt",
-				inventoryPurchaseOutbox: "id, ownerScope, status, createdAt, updatedAt",
-				inventorySnapshots: "ownerScope, cachedAt",
-				shoppingStores: "id, sortOrder",
-				shoppingStoreDefaults: "nameKey, storeId",
-				shoppingBranches: "id, sortOrder",
-			})
-			.upgrade(async (transaction) => {
-				const shoppingItems = transaction.table<MigratingShoppingItem, string>(
-					"shoppingItems",
-				);
-
-				await shoppingItems.toCollection().modify((item) => {
-					item.branchId ??= null;
-					item.branchSide ??= null;
-				});
-			});
 	}
 }
 
