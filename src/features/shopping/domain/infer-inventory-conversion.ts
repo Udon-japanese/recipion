@@ -68,6 +68,11 @@ export function inferInventoryConversion(
 		trackingMode,
 	});
 
+	// 有無だけで管理する食材（調味料など）は、量の換算がいらない。買ったら「ある」になる。
+	if (trackingMode === "presence") {
+		return conversion(unit ? toInputUnitCode(unit) : stockUnitCode, 1);
+	}
+
 	if (unit === null) {
 		return stockUnitCode === "count" ? conversion("count", 1) : null;
 	}

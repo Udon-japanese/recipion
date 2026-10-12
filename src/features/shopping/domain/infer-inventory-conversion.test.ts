@@ -12,12 +12,17 @@ const cases: [string, string | null, [string, string, number] | null][] = [
 	["小麦粉", null, null],
 	// 単位が在庫の単位と同じ
 	["玉ねぎ", "個", ["count", "count", 1]],
-	["醤油", "ml", ["ml", "ml", 1]],
+	["牛乳", "ml", ["ml", "ml", 1]],
 	// カタログの重さ・体積で換算できる
-	["醤油", "l", ["l", "ml", 1000]],
+	["牛乳", "l", ["l", "ml", 1000]],
 	["玉ねぎ", "g", ["g", "count", 0.005]],
 	["りんご", "個", ["count", "count", 1]],
 	["いちご", "粒", ["粒", "g", 15]],
+	// 有無だけで管理する食材（調味料など）は、どんな単位でも、換算の入力がいらない（買ったら「ある」）
+	["醤油", "本", ["本", "ml", 1]],
+	["醤油", "パック", ["パック", "ml", 1]],
+	["塩", null, ["g", "g", 1]],
+	["オリーブオイル", "l", ["l", "ml", 1]],
 	// 決められない：中身の数が分からない単位、同じ単位で中身が違うプリセットが複数ある（150g袋と200g袋）、カタログにない食材
 	["ホケミ", "袋", null],
 	["玉ねぎ", "パック", null],
@@ -46,6 +51,12 @@ describe("inferInventoryConversion", () => {
 		expect(inferInventoryConversion("卵", "個")?.trackingMode).toBe("exact");
 		expect(inferInventoryConversion("玉ねぎ", "個")?.trackingMode).toBe(
 			"estimated",
+		);
+	});
+
+	it("有無だけの食材の換算は、管理方法が有無だけになる", () => {
+		expect(inferInventoryConversion("醤油", "本")?.trackingMode).toBe(
+			"presence",
 		);
 	});
 });

@@ -91,7 +91,7 @@ describe("InventoryRegistrationForm", () => {
 			/>,
 		);
 
-		await user.type(screen.getByLabelText("食材名"), "塩");
+		await user.type(screen.getByLabelText("食材名"), "薄力粉");
 		await user.type(screen.getByLabelText(/^数量/u), "-5");
 		await user.click(screen.getByRole("button", { name: "在庫に追加" }));
 
@@ -134,14 +134,14 @@ describe("InventoryRegistrationForm", () => {
 			/>,
 		);
 
-		await user.type(screen.getByLabelText("食材名"), "塩");
+		await user.type(screen.getByLabelText("食材名"), "薄力粉");
 		await user.type(screen.getByLabelText(/^数量/u), "500");
 		await user.click(screen.getByRole("button", { name: /^ある/u }));
 
 		await waitFor(() =>
 			expect(registerInventoryItem).toHaveBeenCalledWith(
 				expect.objectContaining({
-					ingredientName: "塩",
+					ingredientName: "薄力粉",
 					stockUnitCode: "g",
 					initialQuantity: 0,
 					markAsAvailable: true,
@@ -150,8 +150,34 @@ describe("InventoryRegistrationForm", () => {
 		);
 		expect(onRegistered).toHaveBeenCalledTimes(1);
 		expect(
-			await screen.findByText("塩を「ある」で登録しました"),
+			await screen.findByText("薄力粉を「ある」で登録しました"),
 		).toBeInTheDocument();
+	});
+
+	it("調味料は、最初から「有無だけ」になり、数量の欄がない。小麦粉は、量を追う", async () => {
+		const user = userEvent.setup();
+
+		render(
+			<InventoryRegistrationForm
+				registerInventoryItem={vi.fn()}
+				onRegistered={() => {}}
+			/>,
+		);
+
+		await user.type(screen.getByLabelText("食材名"), "塩");
+
+		expect(screen.getByRole("combobox", { name: "管理方法" })).toHaveValue(
+			"presence",
+		);
+		expect(screen.queryByLabelText(/^数量/u)).toBeNull();
+
+		await user.clear(screen.getByLabelText("食材名"));
+		await user.type(screen.getByLabelText("食材名"), "薄力粉");
+
+		expect(screen.getByRole("combobox", { name: "管理方法" })).toHaveValue(
+			"estimated",
+		);
+		expect(screen.getByLabelText(/^数量/u)).toBeInTheDocument();
 	});
 
 	it("管理方法を「有無だけ」にすると、数量の欄を隠し、登録は「ある」になる", async () => {
