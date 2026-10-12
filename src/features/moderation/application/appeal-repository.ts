@@ -1,4 +1,9 @@
-import type { AppealAction, AppealVerdict, OpenAppeal } from "../domain/appeal";
+import type {
+	AppealAction,
+	AppealVerdict,
+	OpenAppeal,
+	ResolvedAppeal,
+} from "../domain/appeal";
 
 export type SubmitAppealResult =
 	| { status: "submitted"; verdict: AppealVerdict }
@@ -16,6 +21,10 @@ export type AppealRepository = {
 		now: Date;
 	}): Promise<void>;
 	listOpen(): Promise<OpenAppeal[]>;
+	// 対応済みの申し立て（新しい順に、limit 件）。
+	listResolved(limit: number): Promise<ResolvedAppeal[]>;
+	// 未対応の申し立ての数。
+	countOpen(): Promise<number>;
 	resolve(input: {
 		appealId: string;
 		action: AppealAction;

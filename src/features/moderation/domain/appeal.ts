@@ -48,6 +48,30 @@ export const resolveAppealInputSchema = v.object({
 // 1人が、1日に AI で判定してもらえる申し立ての数（申し立て自体は、何度でもできる）。
 export const maxJudgedAppealsPerDay = 5;
 
+export type AppealResolution = "lifted" | "banned" | "rejected";
+
+export const appealResolutionLabels: Record<AppealResolution, string> = {
+	lifted: "停止を解除した",
+	banned: "永久停止にした",
+	rejected: "申し立てを退けた",
+};
+
+// 対応済みの履歴で、出す件数（新しい順）。
+export const resolvedAppealHistoryLimit = 100;
+
+// 管理者の画面に出す、対応済みの申し立て（履歴）。
+export type ResolvedAppeal = {
+	id: string;
+	userName: string;
+	userHandle: string | null;
+	message: string;
+	verdict: AppealVerdict;
+	resolution: AppealResolution;
+	// ISO 8601
+	createdAt: string;
+	resolvedAt: string;
+};
+
 export type OpenAppeal = {
 	id: string;
 	userName: string;

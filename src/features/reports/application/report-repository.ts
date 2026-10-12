@@ -1,4 +1,9 @@
-import type { OpenReport, ReportAction, ReportReason } from "../domain/report";
+import type {
+	OpenReport,
+	ReportAction,
+	ReportReason,
+	ResolvedReport,
+} from "../domain/report";
 
 export type CreateReportInput = {
 	reporterUserId: string;
@@ -29,6 +34,10 @@ export type ReportRepository = {
 	}): Promise<"created" | "exists" | "not-found">;
 	// 未対応の通報（古い順）。
 	listOpen(): Promise<OpenReport[]>;
+	// 対応済みの通報（新しい順に、limit 件）。
+	listResolved(limit: number): Promise<ResolvedReport[]>;
+	// 未対応の通報の数。
+	countOpen(): Promise<number>;
 	// 通報されたレシピの、公開 ID と、持ち主（レシピが削除されていれば null）。
 	findReportedRecipe(
 		reportId: string,

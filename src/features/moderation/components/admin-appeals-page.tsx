@@ -1,14 +1,22 @@
 import { useState } from "react";
 import {
+	type AdminHistoryItem,
+	AdminHistoryList,
+} from "#/features/admin/components/admin-history-list";
+import {
 	type AppealAction,
 	appealActionLabels,
+	appealResolutionLabels,
 	appealVerdictLabels,
 	type OpenAppeal,
+	type ResolvedAppeal,
 } from "../domain/appeal";
 import * as styles from "./admin-appeals-page.css";
 
 type AdminAppealsPageProps = {
 	appeals: readonly OpenAppeal[];
+	// 対応済みの申し立ての履歴（新しい順）。
+	resolved?: readonly ResolvedAppeal[];
 	onResolve: (
 		appealId: string,
 		action: AppealAction,
@@ -25,6 +33,7 @@ function formatDateTime(iso: string): string {
 
 // 管理者の画面：停止への申し立てを、古い順に表示して、対応する。AI の見立ては参考で、決めるのは管理者。
 export function AdminAppealsPage({
+	resolved = [],
 	appeals,
 	onResolve,
 }: AdminAppealsPageProps) {
@@ -137,6 +146,22 @@ export function AdminAppealsPage({
 					);
 				})}
 			</ul>
+
+			<AdminHistoryList
+				heading="対応済みの申し立て"
+				items={resolved.map(toHistoryItem)}
+			/>
 		</section>
 	);
+}
+
+function toHistoryItem(appeal: ResolvedAppeal): AdminHistoryItem {
+	return {
+		id: appeal.id,
+		title: `${appeal.userName}${appeal.userHandle ? `（@${appeal.userHandle}）` : ""}`,
+		meta: [appealVerdictLabels[appeal.verdict]],
+		resolutionLabel: appealResolutionLabels[appeal.resolution],
+		resolvedAt: appeal.resolvedAt,
+		detail: appeal.message,
+	};
 }

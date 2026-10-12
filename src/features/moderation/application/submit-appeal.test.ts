@@ -15,6 +15,8 @@ function fakeRepository(options: {
 			created.push({ verdict });
 		},
 		listOpen: async () => [],
+		listResolved: async () => [],
+		countOpen: async () => 0,
 		resolve: async () => "done",
 	};
 

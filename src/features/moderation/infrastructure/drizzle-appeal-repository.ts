@@ -1,12 +1,14 @@
-import { and, asc, count, eq, gte } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte } from "drizzle-orm";
 
 import type { DB } from "#/db/client";
 import { user } from "#/integrations/better-auth/auth.sql";
 import type { AppealRepository } from "../application/appeal-repository";
 import {
+	type AppealResolution,
 	type AppealVerdict,
 	appealVerdicts,
 	type OpenAppeal,
+	type ResolvedAppeal,
 } from "../domain/appeal";
 import {
 	accountSuspension,
@@ -16,6 +18,10 @@ import {
 
 function toVerdict(value: string): AppealVerdict {
 	return appealVerdicts.find((verdict) => verdict === value) ?? "not-judged";
+}
+
+function toResolution(value: string | null): AppealResolution {
+	return value === "lifted" || value === "banned" ? value : "rejected";
 }
 
 // 申し立ての保存と、管理者の対応。管理者の確認は、呼び出す側（requireAdmin）で行う。
@@ -93,6 +99,47 @@ export function createDrizzleAppealRepository(db: DB): AppealRepository {
 					suspensionReason: row.suspensionReason,
 				}),
 			);
+		},
+
+		async listResolved(limit) {
+			const rows = await db
+				.select({
+					id: suspensionAppeal.id,
+					userName: user.name,
+					userHandle: user.handle,
+					message: suspensionAppeal.message,
+					verdict: suspensionAppeal.aiVerdict,
+					resolution: suspensionAppeal.resolution,
+					createdAt: suspensionAppeal.createdAt,
+					resolvedAt: suspensionAppeal.resolvedAt,
+				})
+				.from(suspensionAppeal)
+				.innerJoin(user, eq(user.id, suspensionAppeal.userId))
+				.where(eq(suspensionAppeal.status, "resolved"))
+				.orderBy(desc(suspensionAppeal.resolvedAt))
+				.limit(limit);
+
+			return rows.map(
+				(row): ResolvedAppeal => ({
+					id: row.id,
+					userName: row.userName,
+					userHandle: row.userHandle,
+					message: row.message,
+					verdict: toVerdict(row.verdict),
+					resolution: toResolution(row.resolution),
+					createdAt: row.createdAt.toISOString(),
+					resolvedAt: (row.resolvedAt ?? row.createdAt).toISOString(),
+				}),
+			);
+		},
+
+		async countOpen() {
+			const [row] = await db
+				.select({ total: count() })
+				.from(suspensionAppeal)
+				.where(eq(suspensionAppeal.status, "open"));
+
+			return row?.total ?? 0;
 		},
 
 		async resolve({ appealId, action, hashEmail, now }) {
