@@ -3,10 +3,15 @@ import { useCallback, useState } from "react";
 import { adjustInventoryWithCache } from "#/features/inventory/application/adjust-inventory-with-cache";
 import { changeInventoryTrackingModeWithCache } from "#/features/inventory/application/change-inventory-tracking-mode-with-cache";
 import type { InventoryAdjustmentCommand } from "#/features/inventory/application/inventory-adjustment-repository";
+import type { RenameInventoryItemCommand } from "#/features/inventory/application/inventory-item-management-repository";
 import type { UpdateInventoryLotCommand } from "#/features/inventory/application/inventory-lot-repository";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import type { ChangeInventoryTrackingModeCommand } from "#/features/inventory/application/inventory-tracking-mode-repository";
 import { loadInventoryItemsWithCache } from "#/features/inventory/application/load-inventory-items-with-cache";
+import {
+	deleteInventoryItemWithCache,
+	renameInventoryItemWithCache,
+} from "#/features/inventory/application/manage-inventory-item-with-cache";
 import type { RegisterInventoryItemInput } from "#/features/inventory/application/register-inventory-item";
 import { updateInventoryLotWithCache } from "#/features/inventory/application/update-inventory-lot-with-cache";
 import { ExpiryEstimateSetting } from "#/features/inventory/components/expiry-estimate-setting";
@@ -21,6 +26,10 @@ import { syncDexieInventoryPurchaseOutbox } from "#/features/inventory/infrastru
 import { adjustInventory as adjustInventoryServerFn } from "#/features/inventory/server/adjust-inventory";
 import { changeInventoryTrackingModeServerFn } from "#/features/inventory/server/change-inventory-tracking-mode";
 import { listInventoryItemsServerFn } from "#/features/inventory/server/list-inventory-items";
+import {
+	deleteInventoryItemServerFn,
+	renameInventoryItemServerFn,
+} from "#/features/inventory/server/manage-inventory-item";
 import { registerInventoryItemServerFn } from "#/features/inventory/server/register-inventory-item";
 import { updateInventoryLotServerFn } from "#/features/inventory/server/update-inventory-lot";
 
@@ -101,6 +110,38 @@ function InventoryPage() {
 		[ownerScope],
 	);
 
+	const deleteInventoryItem = useCallback(
+		async (inventoryItemId: string) => {
+			if (!ownerScope || ownerScope === "guest") {
+				throw new Error("在庫を削除できるユーザーではありません");
+			}
+
+			return deleteInventoryItemWithCache(
+				ownerScope,
+				inventoryItemId,
+				(id) => deleteInventoryItemServerFn({ data: { inventoryItemId: id } }),
+				createDexieInventoryCacheRepository(),
+			);
+		},
+		[ownerScope],
+	);
+
+	const renameInventoryItem = useCallback(
+		async (command: RenameInventoryItemCommand) => {
+			if (!ownerScope || ownerScope === "guest") {
+				throw new Error("名前を変更できるユーザーではありません");
+			}
+
+			return renameInventoryItemWithCache(
+				ownerScope,
+				command,
+				(renameCommand) => renameInventoryItemServerFn({ data: renameCommand }),
+				createDexieInventoryCacheRepository(),
+			);
+		},
+		[ownerScope],
+	);
+
 	const syncPurchases = useCallback(
 		async (scope: InventoryPurchaseOwnerScope) => {
 			const result = await syncDexieInventoryPurchaseOutbox(scope);
@@ -151,6 +192,8 @@ function InventoryPage() {
 				adjustInventoryItem={adjustInventoryItem}
 				updateInventoryLot={updateInventoryLot}
 				changeTrackingMode={changeTrackingMode}
+				deleteInventoryItem={deleteInventoryItem}
+				renameInventoryItem={renameInventoryItem}
 				refreshKey={inventoryRefreshKey}
 			/>
 		</>

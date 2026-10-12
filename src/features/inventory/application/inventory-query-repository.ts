@@ -9,7 +9,10 @@ import type { InventoryUnitCode } from "../domain/inventory-unit";
 export type InventoryListItem = {
 	inventoryItemId: string;
 	ingredientId: string;
+	// 食材の名前（レシピとの突き合わせは、これで行う）。
 	name: string;
+	// ユーザーが付けた呼び名（在庫の一覧に出す。空は、食材の名前のまま）。
+	displayName: string | null;
 	// ロットの数量の合計。
 	quantity: number;
 	// 在庫のあるロット（期限の早い順）。

@@ -113,6 +113,13 @@
       "when": 1791803805511,
       "tag": "0015_inventory_presence_mode",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1791805060783,
+      "tag": "0016_inventory_display_name",
+      "breakpoints": true
     }
   ]
 }

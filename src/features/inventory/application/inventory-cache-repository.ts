@@ -20,6 +20,21 @@ export interface InventoryCacheRepository {
 		now?: Date,
 	): Promise<InventoryCacheSnapshot>;
 
+	// 在庫の食材を、キャッシュから消す。
+	removeItem(
+		ownerScope: InventoryCacheOwnerScope,
+		inventoryItemId: string,
+		now?: Date,
+	): Promise<void>;
+
+	// 在庫の一覧に出す呼び名を、キャッシュに反映する。
+	updateDisplayName(
+		ownerScope: InventoryCacheOwnerScope,
+		inventoryItemId: string,
+		displayName: string | null,
+		now?: Date,
+	): Promise<void>;
+
 	// 操作後の、食材の数量（ロットの合計）と、在庫のあるロットを保存する。
 	updateStock(
 		ownerScope: InventoryCacheOwnerScope,

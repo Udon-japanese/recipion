@@ -196,6 +196,13 @@ export const itemName = style({
 	overflowWrap: "anywhere",
 });
 
+// 呼び名を付けたときの、元の食材の名前。
+export const originalName = style({
+	marginLeft: 4,
+	color: "var(--color-text-muted)",
+	fontSize: 13,
+});
+
 export const quantity = style({
 	flexShrink: 0,
 	color: "var(--color-text)",

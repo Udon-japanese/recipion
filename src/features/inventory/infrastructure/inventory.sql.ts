@@ -26,6 +26,8 @@ export const inventoryItem = pgTable(
 			}),
 		ingredientId: uuid("ingredient_id").notNull(),
 		trackingMode: text("tracking_mode").default("estimated").notNull(),
+		// 在庫の一覧に出す、ユーザーが付けた呼び名（空は、食材の名前のまま）。レシピとの突き合わせには使わない。
+		displayName: text("display_name"),
 		createdAt: timestamp("created_at", {
 			withTimezone: true,
 		})
@@ -53,6 +55,10 @@ export const inventoryItem = pgTable(
 			table.ingredientId,
 		),
 		index("inventory_item_user_id_idx").on(table.userId),
+		check(
+			"inventory_item_display_name_valid",
+			sql`${table.displayName} is null or char_length(btrim(${table.displayName})) between 1 and 50`,
+		),
 		check(
 			"inventory_item_tracking_mode_valid",
 			sql`${table.trackingMode} in ('exact', 'estimated', 'presence')`,
