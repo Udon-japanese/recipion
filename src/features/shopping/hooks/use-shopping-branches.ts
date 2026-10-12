@@ -14,6 +14,7 @@ import {
 	createShoppingItem,
 	type ShoppingItem,
 } from "../domain/shopping-item";
+import { upsertById } from "../domain/upsert-by-id";
 
 type UseShoppingBranchesOptions = {
 	repository: ShoppingBranchRepository;
@@ -35,21 +36,31 @@ export function useShoppingBranches({
 	useEffect(() => {
 		let isActive = true;
 
-		async function load() {
-			try {
-				const loaded = await repository.list();
-
-				if (isActive) {
-					setBranches(loaded);
-				}
-			} catch {
-				if (isActive) {
-					onError("条件つきのメモを読み込めませんでした");
-				}
+		function handleError() {
+			if (isActive) {
+				onError("条件つきのメモを読み込めませんでした");
 			}
 		}
 
-		void load();
+		// 購読できる保存先なら、別のタブからの変更も受け取る。
+		if (repository.watch) {
+			const unsubscribe = repository.watch((loaded) => {
+				if (isActive) {
+					setBranches(loaded);
+				}
+			}, handleError);
+
+			return () => {
+				isActive = false;
+				unsubscribe();
+			};
+		}
+
+		repository.list().then((loaded) => {
+			if (isActive) {
+				setBranches(loaded);
+			}
+		}, handleError);
 
 		return () => {
 			isActive = false;
@@ -93,8 +104,8 @@ export function useShoppingBranches({
 			);
 
 			await repository.create(branch, conditionItem);
-			setBranches((current) => [...current, branch]);
-			setItems((current) => [...current, conditionItem]);
+			setBranches((current) => upsertById(current, branch));
+			setItems((current) => upsertById(current, conditionItem));
 
 			return true;
 		} catch (error) {

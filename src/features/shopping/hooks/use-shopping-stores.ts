@@ -9,6 +9,7 @@ import {
 	type ShoppingStore,
 	toStoreDefaultKey,
 } from "../domain/shopping-store";
+import { upsertById } from "../domain/upsert-by-id";
 
 type UseShoppingStoresOptions = {
 	repository: ShoppingStoreRepository;
@@ -28,29 +29,38 @@ export function useShoppingStores({
 
 	useEffect(() => {
 		let isActive = true;
+		let unsubscribe: (() => void) | undefined;
 
-		async function load() {
-			try {
-				const [loadedStores, loadedDefaults] = await Promise.all([
-					repository.list(),
-					repository.listDefaults(),
-				]);
-
-				if (isActive) {
-					setStores(loadedStores);
-					setDefaults(loadedDefaults);
-				}
-			} catch {
-				if (isActive) {
-					onError("買う店の一覧を読み込めませんでした");
-				}
+		function handleError() {
+			if (isActive) {
+				onError("買う店の一覧を読み込めませんでした");
 			}
 		}
 
-		void load();
+		// 店の一覧は、購読できる保存先なら、別のタブからの変更も受け取る。
+		if (repository.watch) {
+			unsubscribe = repository.watch((loadedStores) => {
+				if (isActive) {
+					setStores(loadedStores);
+				}
+			}, handleError);
+		} else {
+			repository.list().then((loadedStores) => {
+				if (isActive) {
+					setStores(loadedStores);
+				}
+			}, handleError);
+		}
+
+		repository.listDefaults().then((loadedDefaults) => {
+			if (isActive) {
+				setDefaults(loadedDefaults);
+			}
+		}, handleError);
 
 		return () => {
 			isActive = false;
+			unsubscribe?.();
 		};
 	}, [repository, onError]);
 
@@ -77,7 +87,7 @@ export function useShoppingStores({
 			const store = createShoppingStore(name, nextSortOrder);
 
 			await repository.save(store);
-			setStores((current) => [...current, store]);
+			setStores((current) => upsertById(current, store));
 
 			return store;
 		} catch (error) {

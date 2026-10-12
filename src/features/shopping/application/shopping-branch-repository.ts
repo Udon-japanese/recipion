@@ -3,6 +3,11 @@ import type { ShoppingItem } from "../domain/shopping-item";
 
 export interface ShoppingBranchRepository {
 	list(): Promise<ShoppingBranch[]>;
+	// 分岐の一覧の変更を受け取る（最初に、いまの一覧が届く）。返り値は、購読をやめる関数。
+	watch?(
+		onChange: (branches: ShoppingBranch[]) => void,
+		onError: (error: unknown) => void,
+	): () => void;
 	// 分岐と、条件の材料を、まとめて保存する。
 	create(branch: ShoppingBranch, conditionItem: ShoppingItem): Promise<void>;
 	// 分岐を消す。中の項目もすべて消す。

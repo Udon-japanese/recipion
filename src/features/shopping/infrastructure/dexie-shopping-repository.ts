@@ -1,3 +1,4 @@
+import { liveQuery } from "dexie";
 import { getLocalDatabase } from "../../../local-db/database";
 import type { ShoppingRepository } from "../application/shopping-repository";
 
@@ -24,5 +25,13 @@ export const dexieShoppingRepository = {
 
 	async remove(id) {
 		await getLocalDatabase().shoppingItems.delete(id);
+	},
+
+	watch(onChange, onError) {
+		const subscription = liveQuery(() =>
+			getLocalDatabase().shoppingItems.orderBy("sortOrder").toArray(),
+		).subscribe({ next: onChange, error: onError });
+
+		return () => subscription.unsubscribe();
 	},
 } satisfies ShoppingRepository;
