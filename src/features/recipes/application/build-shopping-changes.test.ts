@@ -56,6 +56,11 @@ describe("buildShoppingChanges", () => {
 			sortOrder: 5,
 			categoryId: "eggs",
 			categoryAssignment: "automatic",
+			// 食材と単位から、在庫への換算が決まる（購入確定のとき、設定を求められない）。
+			inventoryConversion: expect.objectContaining({
+				stockUnitCode: "count",
+				stockQuantityPerInputUnit: 1,
+			}),
 		});
 		expect(changes.updated).toEqual([
 			{ ...existing, quantity: 3, updatedAt: now.toISOString() },

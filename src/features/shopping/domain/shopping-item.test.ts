@@ -13,7 +13,7 @@ describe("createShoppingItem", () => {
 
 		const item = createShoppingItem(
 			{
-				name: "  卵  ",
+				name: "  謎の食材  ",
 				unitLabel: "  個  ",
 			},
 			now,
@@ -21,7 +21,7 @@ describe("createShoppingItem", () => {
 
 		expect(item).toEqual({
 			id: expect.any(String),
-			name: "卵",
+			name: "謎の食材",
 			quantity: 1,
 			unitLabel: "個",
 			categoryId: null,
@@ -35,6 +35,29 @@ describe("createShoppingItem", () => {
 			createdAt: "2026-09-20T12:00:00.000Z",
 			updatedAt: "2026-09-20T12:00:00.000Z",
 		});
+	});
+
+	it("換算を指定しないときは、食材と単位から決め、指定すればそれを使う", () => {
+		expect(
+			createShoppingItem({ name: "玉ねぎ", unitLabel: "袋" })
+				.inventoryConversion,
+		).toMatchObject({ stockUnitCode: "count", stockQuantityPerInputUnit: 3 });
+
+		const specified = {
+			inputUnitCode: "bag",
+			stockUnitCode: "count" as const,
+			stockUnitLabel: "個",
+			stockQuantityPerInputUnit: 5,
+			trackingMode: "estimated" as const,
+		};
+
+		expect(
+			createShoppingItem({
+				name: "玉ねぎ",
+				unitLabel: "袋",
+				inventoryConversion: specified,
+			}).inventoryConversion,
+		).toEqual(specified);
 	});
 
 	it("商品カテゴリを指定できる", () => {
@@ -134,12 +157,36 @@ describe("updateShoppingItem", () => {
 			name: "平飼い卵",
 			quantity: 10,
 			unitLabel: "個",
+			// 名前が変わり、カタログにない食材になったので、今の換算は引き継がない。
+			inventoryConversion: null,
 			updatedAt: "2026-09-21T11:00:00.000Z",
 		});
 
 		expect(updatedItem.id).toBe(item.id);
 		expect(updatedItem.status).toBe("checked");
 		expect(updatedItem.createdAt).toBe(item.createdAt);
+	});
+
+	it("名前か単位を変えたら、換算を決め直し、変えなければ今の換算を保つ", () => {
+		const item = createShoppingItem({ name: "玉ねぎ", unitLabel: "個" });
+
+		expect(
+			updateShoppingItem(item, { name: "玉ねぎ", quantity: 3, unitLabel: "個" })
+				.inventoryConversion,
+		).toEqual(item.inventoryConversion);
+
+		expect(
+			updateShoppingItem(item, { name: "玉ねぎ", quantity: 1, unitLabel: "袋" })
+				.inventoryConversion,
+		).toMatchObject({ stockQuantityPerInputUnit: 3 });
+
+		expect(
+			updateShoppingItem(item, {
+				name: "謎の食材",
+				quantity: 1,
+				unitLabel: "個",
+			}).inventoryConversion,
+		).toBeNull();
 	});
 
 	it("不正な数量への変更を拒否する", () => {
