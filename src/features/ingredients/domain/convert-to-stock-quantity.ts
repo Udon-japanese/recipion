@@ -64,6 +64,26 @@ function findUnitWeight(
 	return sameUnit.find((weight) => weight.size === "中") ?? sameUnit[0];
 }
 
+// 「個」は、どの数え方にも使える総称。在庫の単位が「個」なら、数え方の違い（本・枚など）は、区別しない。
+const genericCountLabel = "個";
+
+// 在庫の単位が個数のとき、重さや体積から個数を出すための、1つ分の重さ。在庫の単位の呼び名（本・玉・枚など）に
+// 合う重さがあれば、それを使う。なければ、代表の重さ（中サイズ、なければ最初の定義）を使う。
+function findStockUnitWeight(
+	entry: IngredientCatalogEntry,
+	stockUnitLabel: string | null | undefined,
+): IngredientUnitWeight | undefined {
+	if (stockUnitLabel && stockUnitLabel !== genericCountLabel) {
+		const matched = findUnitWeight(entry, stockUnitLabel);
+
+		if (matched) {
+			return matched;
+		}
+	}
+
+	return findRepresentativeWeight(entry);
+}
+
 // 在庫の単位が「個」のとき、重さや体積から個数を出すための、代表の1個の重さ。
 function findRepresentativeWeight(
 	entry: IngredientCatalogEntry,
@@ -86,6 +106,8 @@ export function convertToStockQuantity(
 		quantity: number;
 		unitLabel: string | null;
 		stockUnitCode: IngredientStockUnitCode;
+		// 在庫の単位の呼び名（個・本・玉・枚など）。個数の在庫のとき、重さの換算と、数え方の違い（本と枚など）の換算に使う。
+		stockUnitLabel?: string | null;
 	},
 	entry?: IngredientCatalogEntry,
 ): number | null {
@@ -106,7 +128,8 @@ export function convertToStockQuantity(
 				return gramsPerMl ? round(base.grams / gramsPerMl) : null;
 			}
 
-			const representative = entry && findRepresentativeWeight(entry);
+			const representative =
+				entry && findStockUnitWeight(entry, input.stockUnitLabel);
 
 			return representative ? round(base.grams / representative.grams) : null;
 		}
@@ -126,14 +149,33 @@ export function convertToStockQuantity(
 				return round(grams);
 			}
 
-			const representative = entry && findRepresentativeWeight(entry);
+			const representative =
+				entry && findStockUnitWeight(entry, input.stockUnitLabel);
 
 			return representative ? round(grams / representative.grams) : null;
 		}
 
 		case "count": {
 			if (input.stockUnitCode === "count") {
-				return round(base.count);
+				const label = base.unitLabel;
+				const stockLabel = input.stockUnitLabel;
+
+				// 数え方が同じ、またはどちらかが総称（個）・指定なしなら、そのままの数。
+				if (
+					!label ||
+					!stockLabel ||
+					label === stockLabel ||
+					label === genericCountLabel ||
+					stockLabel === genericCountLabel
+				) {
+					return round(base.count);
+				}
+
+				// 数え方が違う（本と枚など）ときは、1つ分の重さを通して換算する。重さが分からなければ、換算しない。
+				const from = entry && findUnitWeight(entry, label);
+				const to = entry && findUnitWeight(entry, stockLabel);
+
+				return from && to ? round((base.count * from.grams) / to.grams) : null;
 			}
 
 			if (input.stockUnitCode === "g") {

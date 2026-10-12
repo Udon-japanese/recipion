@@ -62,7 +62,7 @@ function round(value: number): number {
 
 function requiredIn(
 	need: RecipeShoppingNeed,
-	stockUnitCode: InventoryUnitCode,
+	stock: { stockUnitCode: InventoryUnitCode; stockUnitLabel: string },
 ): number | null {
 	if (need.quantity === null) {
 		return null;
@@ -72,7 +72,8 @@ function requiredIn(
 		{
 			quantity: need.quantity,
 			unitLabel: need.unitLabel,
-			stockUnitCode,
+			stockUnitCode: stock.stockUnitCode,
+			stockUnitLabel: stock.stockUnitLabel,
 		},
 		findIngredientCatalogEntry(need.name),
 	);
@@ -119,7 +120,7 @@ export function planRecipeConsumption(
 			}
 
 			const available = remainingOf(item);
-			const required = requiredIn(need, item.stockUnitCode);
+			const required = requiredIn(need, item);
 
 			return available > 0 && required !== null
 				? [
@@ -183,9 +184,7 @@ export function planRecipeConsumption(
 			};
 		}
 
-		const requiredOwn = ownStock
-			? requiredIn(need, ownStock.stockUnitCode)
-			: null;
+		const requiredOwn = ownStock ? requiredIn(need, ownStock) : null;
 
 		if (ownStock && requiredOwn === null) {
 			return unmeasurable;
@@ -210,7 +209,7 @@ export function planRecipeConsumption(
 		}
 
 		for (const standIn of standIns) {
-			const requiredStandIn = requiredIn(need, standIn.stockUnitCode);
+			const requiredStandIn = requiredIn(need, standIn);
 
 			if (requiredStandIn !== null && remainingOf(standIn) >= requiredStandIn) {
 				take(standIn, requiredStandIn);

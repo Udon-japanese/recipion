@@ -198,6 +198,7 @@ function toIngredientStock(item: RecipeShoppingStockItem): IngredientStock {
 	return {
 		quantity: item.quantity,
 		stockUnitCode: item.stockUnitCode,
+		stockUnitLabel: item.stockUnitLabel,
 		isPresenceOnly: item.trackingMode === "presence",
 	};
 }
