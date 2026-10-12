@@ -25,6 +25,14 @@ export function AdminHome({ openReports, openAppeals }: AdminHomeProps) {
 					</p>
 					<p className={styles.meta}>未対応：{openAppeals}件</p>
 				</li>
+				<li className={styles.item}>
+					<p className={styles.title}>
+						<Link to="/admin/users" search={{ q: "" }}>
+							ユーザー
+						</Link>
+					</p>
+					<p className={styles.meta}>探して、停止・永久停止・解除をする</p>
+				</li>
 			</ul>
 		</main>
 	);

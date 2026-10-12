@@ -37,6 +37,9 @@ describe("AdminReportsPage", () => {
 		expect(screen.getByText(/権利を侵害している/u)).toBeInTheDocument();
 		expect(screen.getByText(/@user-abc/u)).toBeInTheDocument();
 		expect(screen.getByText("他のサイトと同じ文章です")).toBeInTheDocument();
+		expect(
+			screen.getByRole("link", { name: /投稿者を停止する/u }),
+		).toHaveAttribute("href", "/admin/users?q=user-abc");
 
 		await user.click(screen.getByRole("button", { name: "非公開にする" }));
 
