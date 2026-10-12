@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
 	type AuthRateLimiters,
 	checkAuthRateLimit,
+	DELETE_USER_PATH,
 	type RateLimiter,
 	SEND_CODE_PATH,
 	VERIFY_CODE_PATH,
@@ -137,5 +138,14 @@ describe("checkAuthRateLimit", () => {
 		expect(limiters.sendByEmail.keys).toHaveLength(0);
 		expect(limiters.sendByIp.keys).toHaveLength(0);
 		expect(limiters.verifyByIp.keys).toHaveLength(0);
+	});
+
+	it("アカウントの削除の確認メールの送信は、IP ごとに制限する", async () => {
+		const limiters = createLimiters({ sendByIp: 2 });
+		const request = { path: DELETE_USER_PATH, email: null, ip: "1.1.1.1" };
+
+		expect((await checkAuthRateLimit(request, limiters)).allowed).toBe(true);
+		expect((await checkAuthRateLimit(request, limiters)).allowed).toBe(true);
+		expect((await checkAuthRateLimit(request, limiters)).allowed).toBe(false);
 	});
 });

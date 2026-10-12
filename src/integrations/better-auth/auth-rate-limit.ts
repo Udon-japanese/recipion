@@ -25,6 +25,8 @@ type AuthRequestInfo = {
 
 export const SEND_CODE_PATH = "/email-otp/send-verification-otp";
 export const VERIFY_CODE_PATH = "/sign-in/email-otp";
+// アカウントの削除（確認のメールを送る）。メールの宛先ごとの制限は、送信のところ（auth.ts）で行う。
+export const DELETE_USER_PATH = "/delete-user";
 
 function normalizeEmail(email: string): string {
 	return email.trim().toLowerCase();
@@ -41,6 +43,11 @@ async function hashedKey(prefix: string, value: string): Promise<string> {
 		.join("");
 
 	return `${prefix}:${hex.slice(0, 32)}`;
+}
+
+// メールアドレス宛ての送信の制限に使うキー（ログイン用コードと、削除の確認メールで共通。同じ宛先への合計を数える）。
+export async function emailRateLimitKey(email: string): Promise<string> {
+	return hashedKey("email", normalizeEmail(email));
 }
 
 export async function checkAuthRateLimit(
@@ -63,6 +70,14 @@ export async function checkAuthRateLimit(
 		const results = await Promise.all(checks);
 
 		return { allowed: results.every((result) => result.success) };
+	}
+
+	if (request.path === DELETE_USER_PATH) {
+		const result = await limiters.sendByIp.limit({
+			key: await hashedKey("ip", request.ip),
+		});
+
+		return { allowed: result.success };
 	}
 
 	if (request.path === VERIFY_CODE_PATH) {

@@ -13,7 +13,10 @@ import {
 import { TURNSTILE_TEST_SECRET_KEY } from "#/config/turnstile";
 import type { DB } from "#/db/client";
 import { hashEmailForBan } from "#/features/moderation/infrastructure/hash-email";
-import { bannedEmail } from "#/features/moderation/infrastructure/moderation.sql";
+import {
+	accountSuspension,
+	bannedEmail,
+} from "#/features/moderation/infrastructure/moderation.sql";
 import {
 	defaultDisplayName,
 	generateHandle,
@@ -23,8 +26,13 @@ import { AUTH_RATE_LIMITED_CODE } from "#/integrations/better-auth/auth-error-me
 import {
 	type AuthRateLimiters,
 	checkAuthRateLimit,
+	emailRateLimitKey,
 	SEND_CODE_PATH,
 } from "#/integrations/better-auth/auth-rate-limit";
+import {
+	DELETE_ACCOUNT_LINK_EXPIRES_IN_SECONDS,
+	sendDeleteAccountEmail,
+} from "#/integrations/email/send-delete-account-email";
 import { sendLoginCodeEmail } from "#/integrations/email/send-login-code";
 
 const isDevelopment = import.meta.env.DEV;
@@ -42,6 +50,33 @@ function getRateLimiters(): AuthRateLimiters | null {
 	}
 
 	return limiters as AuthRateLimiters;
+}
+
+// 削除の確認メール。本番では Resend で送る。開発中に API キーがない場合は、リンクをコンソールに出す。
+async function deliverDeleteAccountLink(
+	email: string,
+	url: string,
+): Promise<void> {
+	if (env.RESEND_API_KEY && env.AUTH_EMAIL_FROM) {
+		await sendDeleteAccountEmail({
+			to: email,
+			url,
+			from: env.AUTH_EMAIL_FROM,
+			apiKey: env.RESEND_API_KEY,
+		});
+
+		return;
+	}
+
+	if (isDevelopment) {
+		console.log(`[開発用] アカウント削除の確認リンク（${email}）: ${url}`);
+
+		return;
+	}
+
+	throw new Error(
+		"メール送信の設定（RESEND_API_KEY、AUTH_EMAIL_FROM）がありません",
+	);
 }
 
 // コードの送信。本番では Resend で送る。
@@ -91,6 +126,45 @@ export function createAuth(db: DB) {
 			// ハンドル。クライアントからは書けない（input: false）。更新は、プロフィールの検証つきのサーバー関数で行う。
 			additionalFields: {
 				handle: { type: "string", required: false, input: false },
+			},
+			// アカウントの削除。確認のメールのリンクを開いたときに、すぐに削除する（取り消せない）。
+			// 連鎖で消えるもの・残るものは、DB の外部キーで決まっている（プライバシーポリシーの「保存と削除」を参照）。
+			deleteUser: {
+				enabled: true,
+				deleteTokenExpiresIn: DELETE_ACCOUNT_LINK_EXPIRES_IN_SECONDS,
+				sendDeleteAccountVerification: async ({ user, url }) => {
+					// 同じメールアドレス宛ての送信は、ログイン用コードと同じ上限で制限する（メール爆撃の防止）。
+					const limiters = getRateLimiters();
+
+					if (limiters) {
+						const key = await emailRateLimitKey(user.email);
+						const result = await limiters.sendByEmail.limit({ key });
+
+						if (!result.success) {
+							throw APIError.from("TOO_MANY_REQUESTS", {
+								message: "Too many requests",
+								code: AUTH_RATE_LIMITED_CODE,
+							});
+						}
+					}
+
+					await deliverDeleteAccountLink(user.email, url);
+				},
+				beforeDelete: async (user) => {
+					// 停止中のアカウントは、削除して作り直すことで停止から逃れられないよう、削除できない。
+					const [suspension] = await db
+						.select({ userId: accountSuspension.userId })
+						.from(accountSuspension)
+						.where(eq(accountSuspension.userId, user.id))
+						.limit(1);
+
+					if (suspension) {
+						throw APIError.from("FORBIDDEN", {
+							message: "停止中のアカウントは、削除できません",
+							code: "ACCOUNT_SUSPENDED",
+						});
+					}
+				},
 			},
 		},
 		databaseHooks: {
