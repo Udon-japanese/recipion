@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
+import { buildInventoryListItem } from "#/test/builders/build-inventory-list-item";
+import { createFakeInventoryCacheRepository } from "#/test/fakes/fake-inventory-cache-repository";
 import { adjustInventoryWithCache } from "./adjust-inventory-with-cache";
-import type { InventoryCacheRepository } from "./inventory-cache-repository";
 
 const lots = [
 	{
@@ -25,12 +26,19 @@ const command = {
 	reason: "manual-adjustment" as const,
 };
 
-function createCacheRepository(): InventoryCacheRepository {
-	return {
-		find: vi.fn(),
-		save: vi.fn(),
-		updateStock: vi.fn().mockResolvedValue(undefined),
-	};
+function createCacheRepository() {
+	return createFakeInventoryCacheRepository([
+		{
+			ownerScope: "user:user-id",
+			items: [
+				buildInventoryListItem({
+					inventoryItemId: command.inventoryItemId,
+					quantity: 6,
+				}),
+			],
+			cachedAt: "2026-09-23T00:00:00.000Z",
+		},
+	]);
 }
 
 describe("adjustInventoryWithCache", () => {
@@ -53,18 +61,17 @@ describe("adjustInventoryWithCache", () => {
 			now,
 		);
 
-		expect(cacheRepository.updateStock).toHaveBeenCalledWith(
-			"user:user-id",
-			command.inventoryItemId,
-			{ quantity: 8, lots },
-			now,
-		);
+		const cached = await cacheRepository.find("user:user-id");
+
+		expect(cached?.items[0]).toMatchObject({ quantity: 8, lots });
+		expect(cached?.cachedAt).toBe(now.toISOString());
 
 		expect(result.quantity).toBe(8);
 	});
 
 	it("サーバー調整に失敗した場合はキャッシュを変更しない", async () => {
 		const cacheRepository = createCacheRepository();
+		const before = await cacheRepository.find("user:user-id");
 
 		await expect(
 			adjustInventoryWithCache(
@@ -75,15 +82,13 @@ describe("adjustInventoryWithCache", () => {
 			),
 		).rejects.toThrow("failed");
 
-		expect(cacheRepository.updateStock).not.toHaveBeenCalled();
+		await expect(cacheRepository.find("user:user-id")).resolves.toEqual(before);
 	});
 
 	it("キャッシュ更新だけ失敗しても調整結果を返す", async () => {
 		const cacheRepository = createCacheRepository();
 
-		vi.mocked(cacheRepository.updateStock).mockRejectedValue(
-			new Error("cache failed"),
-		);
+		cacheRepository.failNext("updateStock", new Error("cache failed"));
 
 		const result = await adjustInventoryWithCache(
 			"user:user-id",

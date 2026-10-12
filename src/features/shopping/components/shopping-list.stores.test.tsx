@@ -1,19 +1,9 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { createFakeShoppingRepository } from "#/test/fakes/fake-shopping-repository";
 import { getLocalDatabase } from "../../../local-db/database";
-import type { ShoppingRepository } from "../application/shopping-repository";
 import { ShoppingList } from "./shopping-list";
-
-function createRepository(): ShoppingRepository {
-	return {
-		list: vi.fn().mockResolvedValue([]),
-		findById: vi.fn().mockResolvedValue(undefined),
-		save: vi.fn().mockResolvedValue(undefined),
-		saveAll: vi.fn().mockResolvedValue(undefined),
-		remove: vi.fn().mockResolvedValue(undefined),
-	};
-}
 
 beforeEach(async () => {
 	const database = getLocalDatabase();
@@ -29,7 +19,7 @@ afterEach(() => {
 describe("ShoppingList の店", () => {
 	it("その場で店を作って項目に付け、次に同じ食材を入れると、その店が初期値になり、店ごとの表示に出る", async () => {
 		const user = userEvent.setup();
-		const repository = createRepository();
+		const repository = createFakeShoppingRepository();
 
 		render(<ShoppingList repository={repository} />);
 
@@ -49,7 +39,7 @@ describe("ShoppingList の店", () => {
 		await user.click(screen.getByRole("button", { name: "追加" }));
 
 		await waitFor(() => {
-			expect(repository.save).toHaveBeenCalledWith(
+			expect(repository.items).toContainEqual(
 				expect.objectContaining({
 					name: "卵",
 					storeId: expect.any(String),
