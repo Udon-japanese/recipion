@@ -11,6 +11,8 @@ export const storageKeys = {
 	expiryEstimateLevel: "expiry-estimate-level",
 	// 在庫：過去に入力した期限から覚えた、日数の目安。
 	expiryHints: "expiry-hints",
+	// 買い物メモ：表示の切り替え（aisle＝売り場順 / store＝店ごと）。
+	shoppingView: "shopping-view",
 	// レシピの入力：新規登録で、見出しの雛形を最初から入れるか。
 	recipeEditorTemplate: "recipe-editor-template",
 } as const;

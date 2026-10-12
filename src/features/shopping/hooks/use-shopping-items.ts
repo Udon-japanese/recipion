@@ -127,6 +127,15 @@ export function useShoppingItems(repository: ShoppingRepository) {
 		return changeItem(() => updateShoppingItem(item, input));
 	}
 
+	// 店が消えたとき、画面の項目の店を「どこでも」に戻す（保存は、店の削除の側で済んでいる）。
+	function clearStore(storeId: string) {
+		setItems((currentItems) =>
+			currentItems.map((item) =>
+				item.storeId === storeId ? { ...item, storeId: null } : item,
+			),
+		);
+	}
+
 	function removeItem(id: string): Promise<boolean> {
 		return run(async () => {
 			await repository.remove(id);
@@ -182,6 +191,7 @@ export function useShoppingItems(repository: ShoppingRepository) {
 		changeItem,
 		updateItem,
 		removeItem,
+		clearStore,
 		moveItem,
 		sortByCategory,
 		dragMove,

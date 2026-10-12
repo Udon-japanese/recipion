@@ -9,7 +9,10 @@ import type { DragHandleRef } from "./sortable-shopping-item";
 
 type ShoppingItemRowProps = {
 	item: ShoppingItem;
-	dragHandleRef: DragHandleRef;
+	// 並び替えができる表示（売り場順）のときだけ、渡す。
+	dragHandleRef?: DragHandleRef;
+	// 買う店の名前（売り場順の表示で、店を示す）。
+	storeName?: string;
 	isFirst: boolean;
 	isLast: boolean;
 	isReordering: boolean;
@@ -23,6 +26,7 @@ type ShoppingItemRowProps = {
 export function ShoppingItemRow({
 	item,
 	dragHandleRef,
+	storeName,
 	isFirst,
 	isLast,
 	isReordering,
@@ -37,15 +41,17 @@ export function ShoppingItemRow({
 
 	return (
 		<>
-			<button
-				className={styles.dragHandle}
-				type="button"
-				ref={dragHandleRef}
-				aria-label={`${item.name}をドラッグして並び替え`}
-				disabled={isReordering}
-			>
-				⠿
-			</button>
+			{dragHandleRef ? (
+				<button
+					className={styles.dragHandle}
+					type="button"
+					ref={dragHandleRef}
+					aria-label={`${item.name}をドラッグして並び替え`}
+					disabled={isReordering}
+				>
+					⠿
+				</button>
+			) : null}
 			<input
 				className={styles.checkbox}
 				type="checkbox"
@@ -70,31 +76,39 @@ export function ShoppingItemRow({
 					) : null}
 				</span>
 
+				{storeName ? (
+					<span className={styles.storeLabel}>{storeName}</span>
+				) : null}
+
 				{isPurchased ? (
 					<span className={styles.purchasedLabel}>購入済み</span>
 				) : null}
 			</span>
 
 			<div className={styles.itemActions}>
-				<button
-					className={styles.moveButton}
-					type="button"
-					aria-label={`${item.name}を上へ`}
-					disabled={isFirst || isReordering}
-					onClick={() => onMove(item.id, "up")}
-				>
-					↑
-				</button>
+				{dragHandleRef ? (
+					<>
+						<button
+							className={styles.moveButton}
+							type="button"
+							aria-label={`${item.name}を上へ`}
+							disabled={isFirst || isReordering}
+							onClick={() => onMove(item.id, "up")}
+						>
+							↑
+						</button>
 
-				<button
-					className={styles.moveButton}
-					type="button"
-					aria-label={`${item.name}を下へ`}
-					disabled={isLast || isReordering}
-					onClick={() => onMove(item.id, "down")}
-				>
-					↓
-				</button>
+						<button
+							className={styles.moveButton}
+							type="button"
+							aria-label={`${item.name}を下へ`}
+							disabled={isLast || isReordering}
+							onClick={() => onMove(item.id, "down")}
+						>
+							↓
+						</button>
+					</>
+				) : null}
 
 				<button
 					className={styles.editButton}

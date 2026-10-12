@@ -31,6 +31,8 @@ export type ShoppingItem = {
 	inventoryConversion: ShoppingItemInventoryConversion | null;
 	categoryId: ShoppingCategoryId | null;
 	categoryAssignment: ShoppingCategoryAssignment;
+	// 買う店（ShoppingStore の ID）。null は「どこでも」。
+	storeId: string | null;
 	status: ShoppingItemStatus;
 	sortOrder: number;
 	createdAt: string;
@@ -76,6 +78,7 @@ export const createShoppingItemInputSchema = v.object({
 	inventoryConversion: v.optional(v.nullable(inventoryConversionSchema)),
 	categoryId: v.optional(v.nullable(shoppingCategoryIdSchema)),
 	categoryAssignment: v.optional(v.nullable(shoppingCategoryAssignmentSchema)),
+	storeId: v.optional(v.nullable(v.string())),
 });
 
 export type CreateShoppingItemInput = v.InferInput<
@@ -97,6 +100,7 @@ export const updateShoppingItemInputSchema = v.object({
 	unitLabel: v.nullable(v.pipe(v.string(), v.trim())),
 	categoryId: v.optional(v.nullable(shoppingCategoryIdSchema)),
 	categoryAssignment: v.optional(v.nullable(shoppingCategoryAssignmentSchema)),
+	storeId: v.optional(v.nullable(v.string())),
 });
 
 export type UpdateShoppingItemInput = v.InferInput<
@@ -129,6 +133,7 @@ export function createShoppingItem(
 				: parsedInput.categoryId
 					? "manual"
 					: null,
+		storeId: parsedInput.storeId ?? null,
 		status: "pending",
 		sortOrder,
 		createdAt: timestamp,
@@ -171,6 +176,8 @@ export function updateShoppingItem(
 		categoryId,
 		categoryAssignment,
 		inventoryConversion,
+		storeId:
+			parsedInput.storeId === undefined ? item.storeId : parsedInput.storeId,
 		updatedAt: now.toISOString(),
 	};
 }

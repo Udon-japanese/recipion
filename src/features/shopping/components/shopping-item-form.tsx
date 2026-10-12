@@ -17,18 +17,27 @@ import {
 	inferShoppingCategory,
 	isShoppingItemPresetSelected,
 } from "../domain/shopping-item-suggestion";
+import type { ShoppingStore } from "../domain/shopping-store";
 import * as styles from "./shopping-list.css";
+import { ShoppingStoreSelect } from "./shopping-store-select";
 
 type ShoppingItemFormProps = {
 	// 追加する。成功したら true（入力欄を空に戻す）。失敗したときのエラーは、呼び出し側が表示する。
 	onAdd: (input: CreateShoppingItemInput) => Promise<boolean>;
 	errorMessage: string | null;
+	stores: readonly ShoppingStore[];
+	// 食材名に対して、いつも買う店（なければ null）。
+	defaultStoreIdFor: (itemName: string) => string | null;
+	onCreateStore: (name: string) => Promise<ShoppingStore | null>;
 };
 
 // 買い物メモへ、商品を追加するフォーム。
 export function ShoppingItemForm({
 	onAdd,
 	errorMessage,
+	stores,
+	defaultStoreIdFor,
+	onCreateStore,
 }: ShoppingItemFormProps) {
 	const [name, setName] = useState("");
 	const [quantity, setQuantity] = useState("1");
@@ -38,6 +47,9 @@ export function ShoppingItemForm({
 	const [categoryId, setCategoryId] = useState<ShoppingCategoryId | "">("");
 	const [isCategoryManuallySelected, setIsCategoryManuallySelected] =
 		useState(false);
+	const [storeId, setStoreId] = useState<string | null>(null);
+	// 店を自分で選んだら、名前の入力で「いつも買う店」を入れ直さない。
+	const [isStoreChosen, setIsStoreChosen] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 
 	const presets = getShoppingItemPresets(name);
@@ -48,6 +60,10 @@ export function ShoppingItemForm({
 
 		if (!isCategoryManuallySelected) {
 			setCategoryId(inferShoppingCategory(value) ?? "");
+		}
+
+		if (!isStoreChosen) {
+			setStoreId(defaultStoreIdFor(value));
 		}
 	}
 
@@ -72,9 +88,12 @@ export function ShoppingItemForm({
 						? "manual"
 						: "automatic"
 					: null,
+				storeId,
 			});
 
 			if (added) {
+				setStoreId(null);
+				setIsStoreChosen(false);
 				setName("");
 				setQuantity("1");
 				setUnitLabel("");
@@ -162,6 +181,23 @@ export function ShoppingItemForm({
 						))}
 					</select>
 				</div>
+			</div>
+
+			<div className={styles.field}>
+				<label className={styles.fieldLabel} htmlFor="shopping-item-store">
+					買う店
+				</label>
+
+				<ShoppingStoreSelect
+					id="shopping-item-store"
+					stores={stores}
+					value={storeId}
+					onChange={(next) => {
+						setStoreId(next);
+						setIsStoreChosen(true);
+					}}
+					onCreateStore={onCreateStore}
+				/>
 			</div>
 
 			{presets.length > 0 ? (

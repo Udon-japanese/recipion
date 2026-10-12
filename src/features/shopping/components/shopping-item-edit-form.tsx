@@ -13,7 +13,9 @@ import type {
 	UpdateShoppingItemInput,
 } from "../domain/shopping-item";
 import { inferShoppingCategory } from "../domain/shopping-item-suggestion";
+import type { ShoppingStore } from "../domain/shopping-store";
 import * as styles from "./shopping-list.css";
+import { ShoppingStoreSelect } from "./shopping-store-select";
 
 type ShoppingItemEditFormProps = {
 	item: ShoppingItem;
@@ -23,6 +25,8 @@ type ShoppingItemEditFormProps = {
 		input: UpdateShoppingItemInput,
 	) => Promise<boolean>;
 	onCancel: () => void;
+	stores: readonly ShoppingStore[];
+	onCreateStore: (name: string) => Promise<ShoppingStore | null>;
 };
 
 // 一覧の中で、1 項目を編集する欄（商品名・数量・単位・カテゴリ）。
@@ -30,6 +34,8 @@ export function ShoppingItemEditForm({
 	item,
 	onSave,
 	onCancel,
+	stores,
+	onCreateStore,
 }: ShoppingItemEditFormProps) {
 	const [name, setName] = useState(item.name);
 	const [quantity, setQuantity] = useState(
@@ -42,6 +48,7 @@ export function ShoppingItemEditForm({
 	const [isCategoryManuallySelected, setIsCategoryManuallySelected] = useState(
 		item.categoryAssignment === "manual",
 	);
+	const [storeId, setStoreId] = useState<string | null>(item.storeId);
 	const [isSaving, setIsSaving] = useState(false);
 
 	function handleNameChange(value: string) {
@@ -72,6 +79,7 @@ export function ShoppingItemEditForm({
 						? "manual"
 						: "automatic"
 					: null,
+				storeId,
 			});
 		} finally {
 			setIsSaving(false);
@@ -150,6 +158,20 @@ export function ShoppingItemEditForm({
 						))}
 					</select>
 				</div>
+			</div>
+
+			<div className={styles.field}>
+				<label className={styles.fieldLabel} htmlFor={`edit-store-${item.id}`}>
+					買う店
+				</label>
+
+				<ShoppingStoreSelect
+					id={`edit-store-${item.id}`}
+					stores={stores}
+					value={storeId}
+					onChange={setStoreId}
+					onCreateStore={onCreateStore}
+				/>
 			</div>
 
 			<div className={styles.editActions}>

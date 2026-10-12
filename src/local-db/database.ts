@@ -2,20 +2,30 @@ import Dexie, { type Table } from "dexie";
 import type { InventoryCacheSnapshot } from "../features/inventory/application/inventory-cache-repository";
 import type { InventoryPurchaseOutboxEntry } from "../features/inventory/application/inventory-purchase-outbox";
 import type { ShoppingItem } from "../features/shopping/domain/shopping-item";
+import type { ShoppingStore } from "../features/shopping/domain/shopping-store";
+
+// 食材ごとに、いつも買う店を覚える（nameKey は、食材名を正規化したもの）。
+export type ShoppingStoreDefault = {
+	nameKey: string;
+	storeId: string;
+};
 
 type MigratingShoppingItem = Omit<
 	ShoppingItem,
-	"categoryId" | "categoryAssignment" | "inventoryConversion"
+	"categoryId" | "categoryAssignment" | "inventoryConversion" | "storeId"
 > & {
 	categoryId?: ShoppingItem["categoryId"] | "tofu-noodles";
 	categoryAssignment?: ShoppingItem["categoryAssignment"];
 	inventoryConversion?: ShoppingItem["inventoryConversion"];
+	storeId?: ShoppingItem["storeId"];
 };
 
 export class LocalDatabase extends Dexie {
 	shoppingItems!: Table<ShoppingItem, string>;
 	inventoryPurchaseOutbox!: Table<InventoryPurchaseOutboxEntry, string>;
 	inventorySnapshots!: Table<InventoryCacheSnapshot, string>;
+	shoppingStores!: Table<ShoppingStore, string>;
+	shoppingStoreDefaults!: Table<ShoppingStoreDefault, string>;
 
 	constructor(databaseName = "app-local") {
 		super(databaseName);
@@ -120,6 +130,25 @@ export class LocalDatabase extends Dexie {
 			inventoryPurchaseOutbox: "id, ownerScope, status, createdAt, updatedAt",
 			inventorySnapshots: "ownerScope, cachedAt",
 		});
+
+		this.version(9)
+			.stores({
+				shoppingItems:
+					"id, status, categoryId, categoryAssignment, storeId, sortOrder, createdAt, updatedAt",
+				inventoryPurchaseOutbox: "id, ownerScope, status, createdAt, updatedAt",
+				inventorySnapshots: "ownerScope, cachedAt",
+				shoppingStores: "id, sortOrder",
+				shoppingStoreDefaults: "nameKey, storeId",
+			})
+			.upgrade(async (transaction) => {
+				const shoppingItems = transaction.table<MigratingShoppingItem, string>(
+					"shoppingItems",
+				);
+
+				await shoppingItems.toCollection().modify((item) => {
+					item.storeId ??= null;
+				});
+			});
 	}
 }
 

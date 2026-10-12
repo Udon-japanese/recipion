@@ -17,6 +17,7 @@ const storedItem: ShoppingItem = {
 	categoryId: null,
 	inventoryConversion: null,
 	categoryAssignment: "manual",
+	storeId: null,
 	status: "pending",
 	sortOrder: 0,
 	createdAt: "2026-09-21T10:00:00.000Z",
