@@ -175,6 +175,30 @@ describe("confirmCheckedShoppingItemsPurchase", () => {
 		await expect(database.inventoryPurchaseOutbox.count()).resolves.toBe(0);
 	});
 
+	it("換算が未設定の古い項目でも、食材と単位から決められれば、購入確定できる", async () => {
+		const database = createDatabase();
+		const legacyItem = toggleShoppingItem({
+			...createShoppingItem({ name: "玉ねぎ", quantity: 2, unitLabel: "個" }),
+			inventoryConversion: null,
+		});
+
+		await database.shoppingItems.add(legacyItem);
+
+		const result = await confirmCheckedShoppingItemsPurchase("guest", database);
+
+		expect(result.status).toBe("confirmed");
+		await expect(database.inventoryPurchaseOutbox.toArray()).resolves.toEqual([
+			expect.objectContaining({
+				payload: expect.objectContaining({
+					ingredientName: "玉ねぎ",
+					inputQuantity: 2,
+					stockUnitCode: "count",
+					stockQuantityPerInputUnit: 1,
+				}),
+			}),
+		]);
+	});
+
 	it("チェック済み商品がなければ何も変更しない", async () => {
 		const database = createDatabase();
 		const pendingItem = createShoppingItem({

@@ -1,6 +1,7 @@
 import * as v from "valibot";
 import type { InventoryTrackingMode } from "#/features/inventory/domain/apply-inventory-adjustment";
 import type { InventoryUnitCode } from "#/features/inventory/domain/inventory-unit";
+import { inferInventoryConversion } from "./infer-inventory-conversion";
 import type { ShoppingBranchRole } from "./shopping-branch";
 import {
 	isShoppingCategoryId,
@@ -133,7 +134,10 @@ export function createShoppingItem(
 		quantity: parsedInput.quantity ?? 1,
 		unitLabel: parsedInput.unitLabel || null,
 		categoryId: parsedInput.categoryId ?? null,
-		inventoryConversion: parsedInput.inventoryConversion ?? null,
+		// 換算を指定しないときは、食材と単位から決める（決められなければ、購入確定のときに設定する）。
+		inventoryConversion:
+			parsedInput.inventoryConversion ??
+			inferInventoryConversion(parsedInput.name, parsedInput.unitLabel || null),
 		categoryAssignment:
 			parsedInput.categoryAssignment !== undefined
 				? parsedInput.categoryAssignment
@@ -170,12 +174,14 @@ export function updateShoppingItem(
 
 	const unitLabel = parsedInput.unitLabel || null;
 
+	const isSameIdentity =
+		parsedInput.name === item.name && unitLabel === item.unitLabel;
+
+	// 指定がなければ、名前と単位が同じ間は今の換算を保ち、変わったら（または未設定なら）食材と単位から決め直す。
 	const inventoryConversion =
-		parsedInput.inventoryConversion !== undefined
-			? parsedInput.inventoryConversion
-			: parsedInput.name === item.name && unitLabel === item.unitLabel
-				? item.inventoryConversion
-				: null;
+		parsedInput.inventoryConversion ??
+		(isSameIdentity ? item.inventoryConversion : null) ??
+		inferInventoryConversion(parsedInput.name, unitLabel);
 
 	return {
 		...item,
