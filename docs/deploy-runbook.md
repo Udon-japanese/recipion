@@ -9,8 +9,8 @@
 
 - 本番の URL は `https://recipion.app`。Worker は `recipion`。デプロイは、手元から `nr deploy`（= ビルド → `wrangler deploy`）だけ（CI なし）。
 - **`BETTER_AUTH_SECRET` は、変えない。** ログインだけでなく、①限定公開のパスフレーズの暗号化の鍵、②永久停止のメールアドレスのハッシュの鍵、にも使っている。変えると、保存済みのパスフレーズが読めなくなり、永久停止の記録が効かなくなる。
-- マイグレーションは、表・列の追加が中心（`0015` だけは、在庫の管理方法の制約に `presence`（有無だけ）を許す差し替え）。**古い Worker のコードのままでも、DB は壊れない**。ただし、`presence` の在庫が作られたあとで、古いコードに戻すと、その在庫の行が読めない（ロールバックの注意は、11 を参照）。
-- **このアプリは、まだリリース前。本番の DB に、守るべき利用者のデータがないなら、マイグレーションを 1 本にまとめて、DB をリセットしてもよい**（13 を参照。リセットと本番への適用は、運営者が行う）。
+- **マイグレーションは、リリース前に 1 本（`drizzle/0000_baseline.sql`）にまとめてある**（2026-10-12。以前の `0000`〜`0018` は、この 1 本に含まれる。スキーマは、完全に一致することを確認済み）。**本番の DB が、以前の 19 本を適用した状態なら、この 1 本とは合わない。13 の手順で、DB を作り直す**（本番に、守るべき利用者のデータがないことが前提。実行は、運営者が行う）。
+- リリース後は、まとめない。スキーマを変えるたびに、新しいマイグレーションを足す。
 
 ## 1. 出す前の確認（手元）
 
@@ -26,12 +26,8 @@
 select id, created_at from drizzle.__drizzle_migrations order by id;
 ```
 
-- 手元の `drizzle/` には、`0000`〜`0018` の 19 本がある。行数が 19 未満なら、足りない分が、保留中。
-- 参考：`0009`（ハンドル）・`0010`（リンク）は適用済みのはず。`0011` 以降は、状況を確認する。
-  - `0015`：在庫の管理方法に `presence`（有無だけ）を許す
-  - `0016`：在庫の呼び名（`display_name`）
-  - `0017`：管理者への通知の記録（`admin_notification_log`）
-  - `0018`：ユーザー名への通報（`user_report`）
+- 手元の `drizzle/` には、`0000_baseline.sql` の 1 本だけがある。
+- 本番の結果が **19 行**（以前の 19 本）なら、**13 の手順で作り直す**。**0 行**（まだ何も適用していない空の DB）か、13 のあとの **1 行** なら、6 に進む。
 
 ## 3. バックアップを取る（必須）
 
@@ -70,26 +66,17 @@ select id, created_at from drizzle.__drizzle_migrations order by id;
 DATABASE_URL='<本番の直接の接続文字列>' nr db:migrate
 ```
 
-- 適用後、2 のクエリで、19 行になったことを確認する。
+- 適用後、2 のクエリで、1 行になったことを確認する。
 
 ## 7. Hyperdrive の専用ユーザーに権限を付ける（必須）
 
-マイグレーションは `neondb_owner` で実行するので、新しいテーブルは、`hyperdrive-user`（Worker の接続ユーザー）には、権限がない。**テーブルごとに GRANT する。**
+マイグレーションは `neondb_owner` で実行するので、新しいテーブルは、`hyperdrive-user`（Worker の接続ユーザー）には、権限がない。**全テーブルに、まとめて GRANT する。今後のテーブルにも効くよう、既定の権限も設定する**（一度で済む）。
 
 ```sql
-GRANT SELECT, INSERT, UPDATE, DELETE ON
-  recipe_link,
-  recipe_report,
-  account_suspension,
-  banned_email,
-  moderation_cache,
-  moderation_violation,
-  suspension_appeal,
-  recipe_unlock,
-  recipe_unlock_attempt,
-  admin_notification_log,
-  user_report
-TO "hyperdrive-user";
+GRANT USAGE ON SCHEMA public TO "hyperdrive-user";
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO "hyperdrive-user";
+ALTER DEFAULT PRIVILEGES FOR ROLE neondb_owner IN SCHEMA public
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO "hyperdrive-user";
 ```
 
 確認：権限のないテーブルが、1つもないこと（結果が空であること）。
@@ -103,7 +90,7 @@ where n.nspname = 'public'
   and not has_table_privilege('hyperdrive-user', c.oid, 'INSERT');
 ```
 
-> 今後のテーブルにも、自動で権限を付けたいときは、`ALTER DEFAULT PRIVILEGES FOR ROLE neondb_owner IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO "hyperdrive-user";` を、一度実行する（すでにあるテーブルには効かない。現在は、見送り中）。
+> `ALTER DEFAULT PRIVILEGES` は、そのあとに作るテーブルにだけ効く（すでにあるテーブルには、上の `ON ALL TABLES` が効く）。リリース後に、マイグレーションでテーブルを足しても、権限は自動で付く。
 
 ## 8. デプロイする
 
@@ -176,16 +163,24 @@ nr waf:allowlist
 - [ ] 商標：J-PlatPat で「れしぴょん」は、出なかった。念のため、`recipion`・`レシピオン` でも確認する。
 - [ ] Windows での、変換中のクリックの確認（デプロイ後に、本番で。上の確認項目）。
 
-## 13. リリース前の整理（任意。本番の DB に、守るべきデータがないとき）
+## 13. 本番の DB を作り直す（以前の 19 本を適用済みの DB を、整理後の 1 本にそろえる）
 
-このアプリは、まだリリース前なので、互換のための仕組みは持たない方針。次の整理を、**リリース前に一度だけ**してよい（リリース後は、しない）。
+**運営者が行う。本番の DB の、すべてのデータ（ユーザー、レシピ、在庫、通報など）が消える。** 守るべきデータがないことを、確認してから行う。ログイン中のブラウザは、ログアウトされる（セッションも消えるため）。
+
+1. 3 のとおり、バックアップのブランチを作る。
+2. `neondb_owner` の**直接の接続**で、次を実行する（`psql`、または Neon の SQL エディタ）。
+
+   ```sql
+   DROP SCHEMA IF EXISTS drizzle CASCADE;
+   DROP SCHEMA public CASCADE;
+   CREATE SCHEMA public;
+   GRANT USAGE ON SCHEMA public TO PUBLIC;
+   ```
+
+3. 6 のとおり、マイグレーションを適用する（1 行になる）。
+4. 7 のとおり、権限を付ける（確認のクエリが空になる）。
+5. 8 以降へ進む。
+
+> 手元の開発用 DB は、同じ手順で作り直し済み（2026-10-12）。スキーマが、以前の 19 本を適用した状態と、完全に一致すること（列 181・制約 243・索引 66、差 0）を、確認してから、作り直した。
 
 - **Dexie（ブラウザの IndexedDB）**：すでに 1 つのバージョンにまとめてある（データベース名は `recipion-local`）。古い `app-local` は、使われない（DevTools で消せる）。
-- **drizzle（サーバーの DB）**：`0000`〜`0018` を、1 本の最初のマイグレーションにまとめ、DB を作り直す。
-  1. （手元）`drizzle/` と、`drizzle/meta/` を作り直す（`nr db:generate`。履歴を消してから）。
-  2. Neon の `production` を、空にする（または、新しいブランチを作り、Hyperdrive の接続先を替える）。**実行は、運営者が行う。** その前に、バックアップのブランチを作る。
-  3. 6 のとおり、`nr db:migrate` を実行する。
-  4. 権限は、テーブルごとの GRANT ではなく、一括で付けられる：`GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO "hyperdrive-user";` と、7 の `ALTER DEFAULT PRIVILEGES`（今後のテーブルにも効く）。
-  5. 7 の確認のクエリで、権限のないテーブルが 1 つもないことを確かめる。
-- これをしないときは、2〜7 のとおり、足りないマイグレーションを順に適用する。
-
