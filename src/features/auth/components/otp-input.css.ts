@@ -8,34 +8,56 @@ export const fieldset = style({
 	minInlineSize: 0,
 });
 
+// 見た目の枠と、その上に重ねる本物の入力欄の、基準。
+export const root = style({
+	position: "relative",
+	maxWidth: 360,
+});
+
 export const group = style({
 	display: "grid",
 	gridTemplateColumns: "repeat(6, minmax(0, 1fr))",
 	gap: 8,
-	maxWidth: 360,
 });
 
+// 見た目だけの枠（本物の入力欄は、その上に、透明で重なっている）。
 export const box = style({
+	display: "grid",
+	placeItems: "center",
 	minWidth: 0,
 	minHeight: 56,
-	padding: 0,
 	background: "var(--color-surface)",
 	border: "1px solid var(--color-border)",
 	borderRadius: 8,
-	font: "inherit",
 	fontSize: 24,
 	fontWeight: 700,
-	textAlign: "center",
-	caretColor: "var(--color-primary)",
-	selectors: {
-		"&:focus": {
-			outline: "3px solid var(--color-primary-soft)",
-			borderColor: "var(--color-primary)",
-		},
-		"&:disabled": { opacity: 0.6 },
-	},
+});
+
+// 入力中の桁（次に入る桁）。
+export const boxActive = style({
+	outline: "3px solid var(--color-primary-soft)",
+	borderColor: "var(--color-primary)",
 });
 
 export const boxInvalid = style({
 	borderColor: "#a23030",
+});
+
+export const boxDisabled = style({
+	opacity: 0.6,
+});
+
+// 本物の入力欄。透明にして、枠の全体に重ねる（クリックや貼り付けが、そのまま使える）。
+// 文字の大きさは、スマホで拡大されないよう、16px 以上にする。
+export const input = style({
+	position: "absolute",
+	inset: 0,
+	width: "100%",
+	height: "100%",
+	margin: 0,
+	padding: 0,
+	border: 0,
+	opacity: 0,
+	fontSize: 24,
+	cursor: "text",
 });

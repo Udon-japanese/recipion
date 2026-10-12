@@ -81,10 +81,18 @@ async function sendCodeFor(
 	await user.click(button);
 }
 
-function digitBoxes(): HTMLInputElement[] {
-	return screen.getAllByRole("textbox", {
-		name: /桁目/u,
-	}) as HTMLInputElement[];
+// コードの入力欄（1つ。見た目の枠は、その上に重なっている）。
+function codeInput(): HTMLInputElement {
+	return screen.getByRole("textbox", {
+		name: /ログイン用コード/u,
+	}) as HTMLInputElement;
+}
+
+// 見た目の枠に出ている桁。
+function digitBoxes(): string[] {
+	return [...document.querySelectorAll("[data-otp-box]")].map(
+		(box) => box.textContent ?? "",
+	);
 }
 
 describe("AuthPanel（メールのワンタイムコード）", () => {
@@ -103,7 +111,8 @@ describe("AuthPanel（メールのワンタイムコード）", () => {
 			{ headers: { "x-captcha-response": "captcha-token" } },
 		);
 
-		// コードの入力に進む（1桁ずつ6つの欄）
+		// コードの入力に進む（入力欄は1つ、見た目の枠は6つ）
+		expect(codeInput()).toBeTruthy();
 		expect(digitBoxes()).toHaveLength(6);
 		expect(
 			screen.getByText(/user@example.com に6桁のコードを送りました/u),
@@ -116,7 +125,7 @@ describe("AuthPanel（メールのワンタイムコード）", () => {
 		render(<AuthPanel />);
 		await sendCodeFor(user, "user@example.com");
 
-		await user.click(digitBoxes()[0] as HTMLInputElement);
+		await user.click(codeInput());
 		await user.keyboard("123456");
 
 		await waitFor(() =>
@@ -135,7 +144,7 @@ describe("AuthPanel（メールのワンタイムコード）", () => {
 		render(<AuthPanel />);
 		await sendCodeFor(user, "user@example.com");
 
-		await user.click(digitBoxes()[0] as HTMLInputElement);
+		await user.click(codeInput());
 		await user.paste("654321");
 
 		await waitFor(() =>
@@ -157,20 +166,14 @@ describe("AuthPanel（メールのワンタイムコード）", () => {
 		render(<AuthPanel />);
 		await sendCodeFor(user, "user@example.com");
 
-		await user.click(digitBoxes()[0] as HTMLInputElement);
+		await user.click(codeInput());
 		await user.keyboard("111111");
 
 		expect((await screen.findByRole("alert")).textContent).toBe(
 			"コードが正しくありません。",
 		);
-		expect(digitBoxes().map((box) => box.value)).toEqual([
-			"",
-			"",
-			"",
-			"",
-			"",
-			"",
-		]);
+		expect(digitBoxes()).toEqual(["", "", "", "", "", ""]);
+		expect(codeInput().value).toBe("");
 		expect(mocks.refetch).not.toHaveBeenCalled();
 	});
 
@@ -206,7 +209,9 @@ describe("AuthPanel（メールのワンタイムコード）", () => {
 			"しばらく待って",
 		);
 		// コードの入力には進まない
-		expect(screen.queryByRole("textbox", { name: "1桁目" })).toBeNull();
+		expect(
+			screen.queryByRole("textbox", { name: /ログイン用コード/u }),
+		).toBeNull();
 	});
 
 	it("コードを送ったあとは、再送の待ち時間を表示し、メールアドレスを変更できる", async () => {
@@ -227,7 +232,9 @@ describe("AuthPanel（メールのワンタイムコード）", () => {
 		expect(
 			screen.getByRole("textbox", { name: "メールアドレス" }),
 		).toBeTruthy();
-		expect(screen.queryByRole("textbox", { name: "1桁目" })).toBeNull();
+		expect(
+			screen.queryByRole("textbox", { name: /ログイン用コード/u }),
+		).toBeNull();
 	});
 
 	it("ログイン中は、名前とメールアドレスを表示し、ログアウトできる", async () => {
