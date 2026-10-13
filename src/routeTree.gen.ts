@@ -22,6 +22,7 @@ import { Route as AdminAppealsRouteImport } from './routes/admin/appeals'
 import { Route as AdminReportsRouteImport } from './routes/admin/reports'
 import { Route as AdminUserReportsRouteImport } from './routes/admin/user-reports'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
+import { Route as DevUiRouteImport } from './routes/dev.ui'
 import { Route as RecipesIndexRouteImport } from './routes/recipes/index'
 import { Route as RecipesNewRouteImport } from './routes/recipes/new'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
@@ -93,6 +94,11 @@ const AdminUsersRoute = AdminUsersRouteImport.update({
   path: '/users',
   getParentRoute: () => AdminRoute,
 } as any)
+const DevUiRoute = DevUiRouteImport.update({
+  id: '/dev/ui',
+  path: '/dev/ui',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RecipesIndexRoute = RecipesIndexRouteImport.update({
   id: '/recipes/',
   path: '/recipes/',
@@ -132,6 +138,7 @@ export interface FileRoutesByFullPath {
   '/admin/reports': typeof AdminReportsRoute
   '/admin/user-reports': typeof AdminUserReportsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/dev/ui': typeof DevUiRoute
   '/recipes/new': typeof RecipesNewRoute
   '/admin/': typeof AdminIndexRoute
   '/recipes/': typeof RecipesIndexRoute
@@ -151,6 +158,7 @@ export interface FileRoutesByTo {
   '/admin/reports': typeof AdminReportsRoute
   '/admin/user-reports': typeof AdminUserReportsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/dev/ui': typeof DevUiRoute
   '/recipes/new': typeof RecipesNewRoute
   '/admin': typeof AdminIndexRoute
   '/recipes': typeof RecipesIndexRoute
@@ -172,6 +180,7 @@ export interface FileRoutesById {
   '/admin/reports': typeof AdminReportsRoute
   '/admin/user-reports': typeof AdminUserReportsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/dev/ui': typeof DevUiRoute
   '/recipes/new': typeof RecipesNewRoute
   '/admin/': typeof AdminIndexRoute
   '/recipes/': typeof RecipesIndexRoute
@@ -194,6 +203,7 @@ export interface FileRouteTypes {
     | '/admin/reports'
     | '/admin/user-reports'
     | '/admin/users'
+    | '/dev/ui'
     | '/recipes/new'
     | '/admin/'
     | '/recipes/'
@@ -213,6 +223,7 @@ export interface FileRouteTypes {
     | '/admin/reports'
     | '/admin/user-reports'
     | '/admin/users'
+    | '/dev/ui'
     | '/recipes/new'
     | '/admin'
     | '/recipes'
@@ -233,6 +244,7 @@ export interface FileRouteTypes {
     | '/admin/reports'
     | '/admin/user-reports'
     | '/admin/users'
+    | '/dev/ui'
     | '/recipes/new'
     | '/admin/'
     | '/recipes/'
@@ -250,6 +262,7 @@ export interface RootRouteChildren {
   ProfileRoute: typeof ProfileRoute
   ShoppingRoute: typeof ShoppingRoute
   TermsRoute: typeof TermsRoute
+  DevUiRoute: typeof DevUiRoute
   RecipesNewRoute: typeof RecipesNewRoute
   RecipesIndexRoute: typeof RecipesIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
@@ -350,6 +363,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsersRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/dev/ui': {
+      id: '/dev/ui'
+      path: '/dev/ui'
+      fullPath: '/dev/ui'
+      preLoaderRoute: typeof DevUiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/recipes/': {
       id: '/recipes/'
       path: '/recipes'
@@ -415,6 +435,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProfileRoute: ProfileRoute,
   ShoppingRoute: ShoppingRoute,
   TermsRoute: TermsRoute,
+  DevUiRoute: DevUiRoute,
   RecipesNewRoute: RecipesNewRoute,
   RecipesIndexRoute: RecipesIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,

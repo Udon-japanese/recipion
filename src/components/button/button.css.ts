@@ -1,4 +1,4 @@
-import { createVar, style } from "@vanilla-extract/css";
+import { createVar, keyframes, style } from "@vanilla-extract/css";
 
 // 完了＝緑、失敗＝赤。形の変化は同じで、色だけを切り替える。
 const tone = createVar();
@@ -19,6 +19,7 @@ export const wrapper = style({
 	minWidth: "var(--box-width, 0)",
 	minHeight: "var(--box-height, 0)",
 	verticalAlign: "middle",
+	position: "relative",
 
 	selectors: {
 		'&[data-full-width="true"]': { display: "flex", width: "100%" },
@@ -44,6 +45,7 @@ export const button = style({
 	fontWeight: "var(--font-weight-bold)",
 	lineHeight: 1,
 	whiteSpace: "nowrap",
+	textDecoration: "none",
 	cursor: "pointer",
 	overflow: "hidden",
 	WebkitTapHighlightColor: "transparent",
@@ -113,6 +115,10 @@ export const button = style({
 			color: "var(--color-text)",
 			background: "transparent",
 			fontWeight: "var(--font-weight-semibold)",
+			// 文字だけでも、押せると分かるように、細い下線を付ける（暫定。デザインの案で決める）。
+			textDecoration: "underline",
+			textDecorationColor: "var(--color-border-strong)",
+			textUnderlineOffset: 4,
 		},
 		[`&[data-variant="ghost"]${canHover}`]: {
 			background: "var(--color-surface-muted)",
@@ -120,7 +126,7 @@ export const button = style({
 		[`&${canPress}`]: { transform: "translateY(1px) scale(0.98)" },
 
 		// ---- 使えない（入力が足りないなど） ----
-		"&:disabled": {
+		'&[data-disabled="true"]': {
 			color: "var(--color-text-disabled)",
 			background: "var(--color-surface-muted)",
 			borderColor: "var(--color-border)",
@@ -168,6 +174,9 @@ const inPhase = (phases: string[]) =>
 const resultPhases = ["success", "error", "success-expanded", "error-expanded"];
 
 export const label = style({
+	display: "inline-flex",
+	alignItems: "center",
+	gap: 8,
 	transition: `opacity 180ms ${ease}, transform 260ms ${emphasized}`,
 
 	selectors: {
@@ -284,4 +293,34 @@ export const srOnly = style({
 	clip: "rect(0 0 0 0)",
 	whiteSpace: "nowrap",
 	border: 0,
+});
+
+export const leadingIcon = style({
+	display: "inline-flex",
+	flexShrink: 0,
+});
+
+const reasonIn = keyframes({
+	from: { opacity: 0, transform: "translate(-50%, 4px)" },
+	to: { opacity: 1, transform: "translate(-50%, 0)" },
+});
+
+// 無効のボタンを押したときだけ出る、短い理由。
+export const reason = style({
+	position: "absolute",
+	left: "50%",
+	bottom: "calc(100% + 8px)",
+	zIndex: 30,
+	width: "max-content",
+	maxWidth: "min(280px, 90vw)",
+	padding: "6px 12px",
+	borderRadius: 12,
+	color: "var(--color-surface)",
+	background: "var(--color-text)",
+	boxShadow: "var(--shadow-md)",
+	fontSize: "var(--font-size-xs)",
+	lineHeight: 1.45,
+	textAlign: "center",
+	pointerEvents: "none",
+	animation: `${reasonIn} var(--duration-normal) var(--ease-emphasized) both`,
 });

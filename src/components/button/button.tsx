@@ -1,6 +1,8 @@
 import {
 	type ComponentProps,
 	type MouseEvent,
+	type ReactNode,
+	useEffect,
 	useLayoutEffect,
 	useRef,
 	useState,
@@ -27,7 +29,15 @@ type ButtonProps = Omit<ComponentProps<"button">, "className" | "style"> & {
 	successLabel?: string;
 	// 失敗したときの文言。
 	errorLabel?: string;
+	// ラベルの前に置くアイコン（飾り。読み上げない）。
+	leadingIcon?: ReactNode;
+	// 無効のボタンを押したときだけ、一瞬出す理由。渡すと、無効でも押せて（aria-disabled）、理由が出る。
+	// 常時の文字は、画面をごちゃつかせるので出さない。
+	disabledReason?: string;
 };
+
+// 理由を見せている時間（ミリ秒）。
+const REASON_VISIBLE_MS = 2500;
 
 type Box = { width: number; height: number };
 
@@ -41,6 +51,8 @@ export function Button({
 	pendingLabel = "処理中",
 	successLabel = "完了しました",
 	errorLabel = "失敗しました",
+	leadingIcon,
+	disabledReason,
 	type = "button",
 	onClick,
 	children,
@@ -53,6 +65,7 @@ export function Button({
 	// 変形のあいだ、もとの大きさを覚えておく（周りがずれないように、場所を保つ）。
 	const [box, setBox] = useState<Box | null>(null);
 	const [expandedWidth, setExpandedWidth] = useState(0);
+	const [isReasonShown, setIsReasonShown] = useState(false);
 
 	const tone = phase.startsWith("error") ? "error" : "success";
 	const isExpanded = phase.endsWith("expanded");
@@ -62,6 +75,25 @@ export function Button({
 	// 完了・失敗の表示中は、押せる（続けて登録するときに、待たされないように）。
 	// 押すと、新しい処理が始まり、表示は、処理中に切り替わる。
 	const isLocked = isBusy || phase === "loading";
+	const isDisabled = Boolean(disabled) && !isLocked;
+	// 理由があるときは、disabled にせず（押せるままにして）、押したときに理由を出す。
+	const explainsDisabled = isDisabled && disabledReason !== undefined;
+
+	// 理由は、少しだけ見せて、消す。使えるようになったら、すぐに消す。
+	useEffect(() => {
+		if (!isReasonShown) {
+			return;
+		}
+		if (!explainsDisabled) {
+			setIsReasonShown(false);
+			return;
+		}
+		const timer = window.setTimeout(
+			() => setIsReasonShown(false),
+			REASON_VISIBLE_MS,
+		);
+		return () => window.clearTimeout(timer);
+	}, [isReasonShown, explainsDisabled]);
 
 	// 変形の開始前に、もとの大きさを測る。
 	useLayoutEffect(() => {
@@ -99,6 +131,11 @@ export function Button({
 	}, [isIdle, box]);
 
 	function handleClick(event: MouseEvent<HTMLButtonElement>) {
+		if (explainsDisabled) {
+			event.preventDefault();
+			setIsReasonShown(true);
+			return;
+		}
 		if (isLocked) {
 			// 送信ボタンの場合は、フォームの送信も止める。
 			event.preventDefault();
@@ -116,13 +153,15 @@ export function Button({
 		: undefined;
 
 	const announcement =
-		status === "pending"
-			? pendingLabel
-			: status === "success" && !isIdle
-				? successLabel
-				: status === "error" && !isIdle
-					? errorLabel
-					: "";
+		isReasonShown && disabledReason
+			? disabledReason
+			: status === "pending"
+				? pendingLabel
+				: status === "success" && !isIdle
+					? successLabel
+					: status === "error" && !isIdle
+						? errorLabel
+						: "";
 
 	return (
 		<span
@@ -147,9 +186,10 @@ export function Button({
 				data-phase={phase}
 				data-tone={tone}
 				type={type}
-				disabled={disabled && !isLocked}
+				disabled={isDisabled && !explainsDisabled}
+				data-disabled={isDisabled || undefined}
 				aria-busy={isBusy || undefined}
-				aria-disabled={isLocked || undefined}
+				aria-disabled={isLocked || explainsDisabled || undefined}
 				onClick={handleClick}
 				style={{
 					width,
@@ -157,7 +197,14 @@ export function Button({
 					"--box-height": box ? `${box.height}px` : undefined,
 				}}
 			>
-				<span className={styles.label}>{children}</span>
+				<span className={styles.label}>
+					{leadingIcon ? (
+						<span className={styles.leadingIcon} aria-hidden="true">
+							{leadingIcon}
+						</span>
+					) : null}
+					{children}
+				</span>
 
 				<span className={styles.mascotLayer} aria-hidden="true">
 					<Mascot
@@ -175,6 +222,12 @@ export function Button({
 					</span>
 				</span>
 			</button>
+
+			{isReasonShown && disabledReason ? (
+				<span className={styles.reason} aria-hidden="true">
+					{disabledReason}
+				</span>
+			) : null}
 
 			<output className={styles.srOnly}>{announcement}</output>
 		</span>

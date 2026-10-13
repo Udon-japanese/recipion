@@ -20,6 +20,9 @@ export const body = style({
 	// 動き（形・傾き）は、フックが毎フレーム書き換える。
 	borderRadius: "50% 50% 38% 38% / 58% 58% 42% 42%",
 	background: "var(--color-mascot)",
+	// 縁（既定は、なし）。--mascot-outline-width と --mascot-outline-color で、外から指定できる。
+	border:
+		"var(--mascot-outline-width, 0px) solid var(--mascot-outline-color, transparent)",
 	// 足元を基準に変形させる。
 	transformOrigin: "50% 100%",
 	willChange: "transform, border-radius",

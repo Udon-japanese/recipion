@@ -70,6 +70,16 @@ describe("buildWafAllowlist", () => {
 		expect(allowlist.exactPaths).not.toContain("/recipes/new");
 		expect(allowlist.exactPaths).not.toContain("/recipes/");
 	});
+
+	it("開発中だけの確認用の画面（/dev 以下）は、許可しない", () => {
+		const withDev = buildWafAllowlist({
+			routePaths: ["/", "/dev/ui", "/dev"],
+			publicFiles: [],
+		});
+
+		expect(withDev.exactPaths).not.toContain("/dev/ui");
+		expect(withDev.exactPaths).not.toContain("/dev");
+	});
 });
 
 describe("buildWafBlockExpression", () => {
