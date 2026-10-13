@@ -1,10 +1,4 @@
-import {
-	act,
-	cleanup,
-	fireEvent,
-	render,
-	screen,
-} from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -13,7 +7,13 @@ import { createEmptyDigits } from "./otp-input-logic";
 
 afterEach(cleanup);
 
-function Harness({ onComplete }: { onComplete?: (code: string) => void }) {
+function Harness({
+	onComplete,
+	compositionCommit = "blur",
+}: {
+	onComplete?: (code: string) => void;
+	compositionCommit?: "blur" | "immediate";
+}) {
 	const [digits, setDigits] = useState(createEmptyDigits(6));
 
 	return (
@@ -23,6 +23,7 @@ function Harness({ onComplete }: { onComplete?: (code: string) => void }) {
 				onChange={setDigits}
 				onComplete={onComplete}
 				label="ログイン用コード（6桁）"
+				compositionCommit={compositionCommit}
 			/>
 			<button type="button" onClick={() => setDigits(createEmptyDigits(6))}>
 				リセット
@@ -158,30 +159,26 @@ describe("OtpInput", () => {
 		expect(field).not.toHaveFocus();
 	});
 
-	it("変換の確定の知らせが届かない環境でも、少し待って、完成を知らせる", () => {
-		vi.useFakeTimers();
+	it("Safari の方式：変換中に桁がそろったら、focus を外さず、すぐ完成を知らせる。確定しても、重ねて知らせない", () => {
+		const onComplete = vi.fn();
 
-		try {
-			const onComplete = vi.fn();
+		render(<Harness onComplete={onComplete} compositionCommit="immediate" />);
 
-			render(<Harness onComplete={onComplete} />);
+		const field = input();
 
-			const field = input();
+		field.focus();
+		fireEvent.compositionStart(field);
+		fireEvent.change(field, { target: { value: "１２３４５６" } });
 
-			fireEvent.compositionStart(field);
-			fireEvent.change(field, { target: { value: "１２３４５６" } });
-			expect(onComplete).not.toHaveBeenCalled();
+		expect(field).toHaveFocus();
+		expect(onComplete).toHaveBeenCalledTimes(1);
+		expect(onComplete).toHaveBeenCalledWith("123456");
 
-			act(() => {
-				vi.advanceTimersByTime(150);
-			});
+		// 確定しても、重ねて知らせない。
+		fireEvent.compositionEnd(field);
 
-			expect(onComplete).toHaveBeenCalledTimes(1);
-			expect(onComplete).toHaveBeenCalledWith("123456");
-			expect(field.value).toBe("123456");
-		} finally {
-			vi.useRealTimers();
-		}
+		expect(field.value).toBe("123456");
+		expect(onComplete).toHaveBeenCalledTimes(1);
 	});
 
 	it("変換中に Backspace で打ち間違いを直すと、枠も追従する（完成の知らせは、確定したコードで1度だけ）", () => {
