@@ -1,4 +1,6 @@
 import { type SubmitEvent, useState } from "react";
+import { Button } from "#/components/button/button";
+import { useButtonAction } from "#/components/button/use-button-action";
 import {
 	type CreateUserNameReportResult,
 	type UserNameReportReason,
@@ -28,12 +30,15 @@ export function ReportUserForm({ onReport }: ReportUserFormProps) {
 	const [isOpen, setIsOpen] = useState(false);
 	const [reason, setReason] = useState<UserNameReportReason>("inappropriate");
 	const [detail, setDetail] = useState("");
-	const [isBusy, setIsBusy] = useState(false);
+	const action = useButtonAction();
 	const [message, setMessage] = useState<string | null>(null);
 
-	async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
+	function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
 		event.preventDefault();
-		setIsBusy(true);
+		void action.run(submit);
+	}
+
+	async function submit() {
 		setMessage(null);
 
 		try {
@@ -45,10 +50,12 @@ export function ReportUserForm({ onReport }: ReportUserFormProps) {
 				setIsOpen(false);
 				setDetail("");
 			}
+
+			return result === "created";
 		} catch {
 			setMessage("通報できませんでした。もう一度お試しください");
-		} finally {
-			setIsBusy(false);
+
+			return false;
 		}
 	}
 
@@ -100,9 +107,15 @@ export function ReportUserForm({ onReport }: ReportUserFormProps) {
 			) : null}
 
 			<div className={styles.actions}>
-				<button className={styles.button} type="submit" disabled={isBusy}>
+				<Button
+					type="submit"
+					size="sm"
+					status={action.status}
+					successLabel="通報しました"
+					errorLabel="送れませんでした"
+				>
 					通報する
-				</button>
+				</Button>
 				<button
 					className={styles.button}
 					type="button"

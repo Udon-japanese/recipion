@@ -24,7 +24,7 @@ export const toolbar = style({
 export const sortButton = style({
 	minHeight: 40,
 	paddingInline: 14,
-	color: "var(--color-primary)",
+	color: "var(--color-accent-text)",
 	background: "var(--color-surface)",
 	border: "1px solid var(--color-border)",
 	borderRadius: 8,
@@ -35,7 +35,7 @@ export const sortButton = style({
 	selectors: {
 		"&:hover:not(:disabled)": {
 			borderColor: "var(--color-primary)",
-			background: "var(--color-surface-subtle)",
+			background: "var(--color-surface-muted)",
 		},
 
 		"&:disabled": {
@@ -44,7 +44,7 @@ export const sortButton = style({
 		},
 
 		"&:focus-visible": {
-			outline: "3px solid var(--color-primary-soft)",
+			outline: "3px solid var(--color-focus)",
 			outlineOffset: 2,
 		},
 	},
@@ -91,7 +91,7 @@ export const input = style({
 
 	selectors: {
 		"&:focus-visible": {
-			outline: "3px solid var(--color-primary-soft)",
+			outline: "3px solid var(--color-focus)",
 			borderColor: "var(--color-primary)",
 		},
 	},
@@ -131,18 +131,18 @@ export const presetButton = style({
 	cursor: "pointer",
 
 	selectors: {
-		"&:hover": {
+		"&:hover:not(:disabled)": {
 			borderColor: "var(--color-primary)",
 		},
 
 		"&[aria-pressed='true']": {
-			color: "var(--color-primary-text)",
+			color: "var(--color-on-primary)",
 			background: "var(--color-primary)",
 			borderColor: "var(--color-primary)",
 		},
 
 		"&:focus-visible": {
-			outline: "3px solid var(--color-primary-soft)",
+			outline: "3px solid var(--color-focus)",
 			outlineOffset: 2,
 		},
 	},
@@ -151,7 +151,7 @@ export const presetButton = style({
 export const addButton = style({
 	minHeight: 44,
 	paddingInline: 18,
-	color: "var(--color-primary-text)",
+	color: "var(--color-on-primary)",
 	background: "var(--color-primary)",
 	border: 0,
 	borderRadius: 8,
@@ -161,7 +161,7 @@ export const addButton = style({
 	justifySelf: "end",
 
 	selectors: {
-		"&:hover": {
+		"&:hover:not(:disabled)": {
 			background: "var(--color-primary-hover)",
 		},
 
@@ -171,7 +171,7 @@ export const addButton = style({
 		},
 
 		"&:focus-visible": {
-			outline: "3px solid var(--color-primary-soft)",
+			outline: "3px solid var(--color-focus)",
 			outlineOffset: 2,
 		},
 	},
@@ -179,7 +179,7 @@ export const addButton = style({
 
 export const error = style({
 	margin: 0,
-	color: "#a23030",
+	color: "var(--color-error)",
 	fontSize: 14,
 });
 
@@ -208,7 +208,7 @@ export const item = style({
 });
 
 export const checkedItem = style({
-	background: "var(--color-surface-subtle)",
+	background: "var(--color-surface-muted)",
 });
 
 export const checkbox = style({
@@ -253,13 +253,13 @@ export const deleteButton = style({
 	cursor: "pointer",
 
 	selectors: {
-		"&:hover": {
-			color: "#a23030",
-			background: "var(--color-surface-subtle)",
+		"&:hover:not(:disabled)": {
+			color: "var(--color-error)",
+			background: "var(--color-surface-muted)",
 		},
 
 		"&:focus-visible": {
-			outline: "3px solid var(--color-primary-soft)",
+			outline: "3px solid var(--color-focus)",
 		},
 	},
 });
@@ -274,7 +274,7 @@ export const editButton = style({
 	minWidth: 44,
 	minHeight: 44,
 	padding: 8,
-	color: "var(--color-primary)",
+	color: "var(--color-accent-text)",
 	background: "transparent",
 	border: 0,
 	borderRadius: 8,
@@ -282,12 +282,12 @@ export const editButton = style({
 	cursor: "pointer",
 
 	selectors: {
-		"&:hover": {
-			background: "var(--color-surface-subtle)",
+		"&:hover:not(:disabled)": {
+			background: "var(--color-surface-muted)",
 		},
 
 		"&:focus-visible": {
-			outline: "3px solid var(--color-primary-soft)",
+			outline: "3px solid var(--color-focus)",
 		},
 	},
 });
@@ -306,8 +306,8 @@ export const moveButton = style({
 
 	selectors: {
 		"&:hover:not(:disabled)": {
-			color: "var(--color-primary)",
-			background: "var(--color-surface-subtle)",
+			color: "var(--color-accent-text)",
+			background: "var(--color-surface-muted)",
 		},
 
 		"&:disabled": {
@@ -316,7 +316,7 @@ export const moveButton = style({
 		},
 
 		"&:focus-visible": {
-			outline: "3px solid var(--color-primary-soft)",
+			outline: "3px solid var(--color-focus)",
 		},
 	},
 });
@@ -348,7 +348,7 @@ export const cancelButton = style({
 export const saveButton = style({
 	minHeight: 40,
 	paddingInline: 18,
-	color: "var(--color-primary-text)",
+	color: "var(--color-on-primary)",
 	background: "var(--color-primary)",
 	border: 0,
 	borderRadius: 8,
@@ -366,7 +366,7 @@ export const saveButton = style({
 
 export const draggingItem = style({
 	opacity: 0.65,
-	boxShadow: "0 8px 24px rgb(0 0 0 / 16%)",
+	boxShadow: "var(--shadow-md)",
 });
 
 export const dragHandle = style({
@@ -385,8 +385,8 @@ export const dragHandle = style({
 
 	selectors: {
 		"&:hover:not(:disabled)": {
-			color: "var(--color-primary)",
-			background: "var(--color-surface-subtle)",
+			color: "var(--color-accent-text)",
+			background: "var(--color-surface-muted)",
 		},
 
 		"&:active": {
@@ -399,7 +399,7 @@ export const dragHandle = style({
 		},
 
 		"&:focus-visible": {
-			outline: "3px solid var(--color-primary-soft)",
+			outline: "3px solid var(--color-focus)",
 		},
 	},
 });
@@ -413,7 +413,7 @@ export const purchaseActions = style({
 export const purchaseButton = style({
 	minHeight: 44,
 	paddingInline: 18,
-	color: "var(--color-primary-text)",
+	color: "var(--color-on-primary)",
 	background: "var(--color-primary)",
 	border: 0,
 	borderRadius: 8,
@@ -432,7 +432,7 @@ export const purchaseButton = style({
 		},
 
 		"&:focus-visible": {
-			outline: "3px solid var(--color-primary-soft)",
+			outline: "3px solid var(--color-focus)",
 			outlineOffset: 2,
 		},
 	},
@@ -443,7 +443,7 @@ export const purchasedLabel = style({
 	marginLeft: 8,
 	padding: "2px 6px",
 	color: "var(--color-text-muted)",
-	background: "var(--color-surface-subtle)",
+	background: "var(--color-surface-muted)",
 	borderRadius: 4,
 	fontSize: 12,
 	fontWeight: 600,
@@ -487,7 +487,7 @@ export const storeLabel = style({
 	marginLeft: 8,
 	padding: "2px 8px",
 	color: "var(--color-text-muted)",
-	background: "var(--color-surface-subtle)",
+	background: "var(--color-surface-muted)",
 	border: "1px solid var(--color-border)",
 	borderRadius: 999,
 	fontSize: 12,
@@ -503,7 +503,7 @@ export const storeInlineForm = style({
 export const storeManager = style({
 	marginBottom: 16,
 	padding: 12,
-	background: "var(--color-surface-subtle)",
+	background: "var(--color-surface-muted)",
 	border: "1px solid var(--color-border)",
 	borderRadius: 8,
 });
@@ -538,7 +538,7 @@ export const branchCard = style({
 	display: "grid",
 	gap: 12,
 	padding: 12,
-	background: "var(--color-surface-subtle)",
+	background: "var(--color-surface-muted)",
 	border: "1px dashed var(--color-border)",
 	borderRadius: 10,
 });

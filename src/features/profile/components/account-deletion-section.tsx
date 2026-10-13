@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { Button } from "#/components/button/button";
+import { useButtonAction } from "#/components/button/use-button-action";
 import * as styles from "./account-deletion-section.css";
 
 type AccountDeletionSectionProps = {
@@ -16,27 +18,30 @@ export function AccountDeletionSection({
 }: AccountDeletionSectionProps) {
 	const [step, setStep] = useState<Step>("closed");
 	const [typedHandle, setTypedHandle] = useState("");
-	const [isBusy, setIsBusy] = useState(false);
+	const action = useButtonAction();
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-	async function handleSend() {
-		setIsBusy(true);
+	async function send() {
 		setErrorMessage(null);
 
 		try {
 			if (await onRequestDeletion()) {
 				setStep("sent");
-			} else {
-				setErrorMessage(
-					"確認のメールを送れませんでした。時間をおいて、もう一度お試しください。",
-				);
+
+				return true;
 			}
+
+			setErrorMessage(
+				"確認のメールを送れませんでした。時間をおいて、もう一度お試しください。",
+			);
+
+			return false;
 		} catch {
 			setErrorMessage(
 				"確認のメールを送れませんでした。時間をおいて、もう一度お試しください。",
 			);
-		} finally {
-			setIsBusy(false);
+
+			return false;
 		}
 	}
 
@@ -91,14 +96,17 @@ export function AccountDeletionSection({
 						</p>
 					) : null}
 					<div className={styles.actions}>
-						<button
-							className={`${styles.button} ${styles.dangerButton}`}
-							type="button"
-							disabled={isBusy || typedHandle.trim() !== handle}
-							onClick={() => void handleSend()}
+						<Button
+							variant="danger"
+							size="sm"
+							status={action.status}
+							successLabel="送りました"
+							errorLabel="送れませんでした"
+							disabled={typedHandle.trim() !== handle}
+							onClick={() => void action.run(send)}
 						>
 							確認のメールを送る
-						</button>
+						</Button>
 						<button
 							className={styles.button}
 							type="button"

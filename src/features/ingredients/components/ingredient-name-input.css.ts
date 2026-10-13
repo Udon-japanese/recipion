@@ -18,7 +18,7 @@ export const list = style({
 	background: "var(--color-surface)",
 	border: "1px solid var(--color-border)",
 	borderRadius: 8,
-	boxShadow: "0 6px 16px rgba(0, 0, 0, 0.12)",
+	boxShadow: "var(--shadow-md)",
 });
 
 export const option = style({

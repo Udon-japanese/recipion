@@ -53,7 +53,7 @@ export const hint = style({
 
 export const error = style({
 	margin: 0,
-	color: "#b91c1c",
+	color: "var(--color-error)",
 	fontSize: 14,
 });
 
@@ -62,17 +62,4 @@ export const actions = style({
 	flexWrap: "wrap",
 	alignItems: "center",
 	gap: 12,
-});
-
-export const primaryButton = style({
-	minHeight: 44,
-	padding: "8px 20px",
-	color: "var(--color-primary-text)",
-	background: "var(--color-primary)",
-	border: "none",
-	borderRadius: 8,
-	cursor: "pointer",
-	selectors: {
-		"&:disabled": { opacity: 0.6, cursor: "default" },
-	},
 });

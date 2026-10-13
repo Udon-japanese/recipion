@@ -10,7 +10,7 @@ export const container = style({
 export const openButton = style({
 	minHeight: 44,
 	paddingInline: 16,
-	color: "var(--color-primary-text)",
+	color: "var(--color-on-primary)",
 	background: "var(--color-primary)",
 	border: 0,
 	borderRadius: 8,
@@ -109,7 +109,7 @@ export const status = style({
 });
 
 export const shortStatus = style({
-	color: "var(--color-primary)",
+	color: "var(--color-accent-text)",
 	fontSize: 13,
 	fontWeight: 600,
 });
@@ -118,7 +118,7 @@ export const smallButton = style({
 	justifySelf: "start",
 	minHeight: 32,
 	paddingInline: 10,
-	color: "var(--color-primary)",
+	color: "var(--color-accent-text)",
 	background: "transparent",
 	border: "1px solid var(--color-border)",
 	borderRadius: 16,
@@ -152,26 +152,7 @@ export const cancelButton = style({
 	cursor: "pointer",
 });
 
-export const applyButton = style({
-	minHeight: 40,
-	paddingInline: 16,
-	color: "var(--color-primary-text)",
-	background: "var(--color-primary)",
-	border: 0,
-	borderRadius: 8,
-	font: "inherit",
-	fontWeight: 700,
-	cursor: "pointer",
-
-	selectors: {
-		"&:disabled": {
-			cursor: "not-allowed",
-			opacity: 0.5,
-		},
-	},
-});
-
 export const error = style({
 	margin: 0,
-	color: "#a23030",
+	color: "var(--color-error)",
 });

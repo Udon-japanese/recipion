@@ -10,7 +10,7 @@ export const form = style({
 	display: "grid",
 	gap: 12,
 	padding: 16,
-	background: "var(--color-surface-subtle)",
+	background: "var(--color-surface-muted)",
 	borderRadius: 10,
 });
 
@@ -37,28 +37,8 @@ export const input = style({
 
 	selectors: {
 		"&:focus-visible": {
-			outline: "3px solid var(--color-primary-soft)",
+			outline: "3px solid var(--color-focus)",
 			borderColor: "var(--color-primary)",
-		},
-	},
-});
-
-export const primaryButton = style({
-	minHeight: 44,
-	paddingInline: 18,
-	color: "var(--color-primary-text)",
-	background: "var(--color-primary)",
-	border: 0,
-	borderRadius: 8,
-	font: "inherit",
-	fontWeight: 700,
-	cursor: "pointer",
-	justifySelf: "end",
-
-	selectors: {
-		"&:disabled": {
-			cursor: "not-allowed",
-			opacity: 0.5,
 		},
 	},
 });
@@ -80,7 +60,7 @@ export const session = style({
 	justifyContent: "space-between",
 	gap: 16,
 	padding: 16,
-	background: "var(--color-surface-subtle)",
+	background: "var(--color-surface-muted)",
 	borderRadius: 10,
 });
 
@@ -109,7 +89,7 @@ export const message = style({
 
 export const error = style({
 	margin: 0,
-	color: "#a23030",
+	color: "var(--color-error)",
 	fontSize: 14,
 });
 

@@ -23,7 +23,7 @@ export const title = style({
 export const reloadButton = style({
 	minHeight: 40,
 	paddingInline: 14,
-	color: "var(--color-primary)",
+	color: "var(--color-accent-text)",
 	background: "var(--color-surface)",
 	border: "1px solid var(--color-border)",
 	borderRadius: 8,
@@ -38,7 +38,7 @@ export const reloadButton = style({
 		},
 
 		"&:focus-visible": {
-			outline: "3px solid var(--color-primary-soft)",
+			outline: "3px solid var(--color-focus)",
 			outlineOffset: 2,
 		},
 	},
@@ -51,7 +51,7 @@ export const message = style({
 
 export const error = style({
 	margin: 0,
-	color: "#a23030",
+	color: "var(--color-error)",
 });
 
 export const list = style({
@@ -82,7 +82,7 @@ export const itemSummary = style({
 export const adjustButton = style({
 	minHeight: 40,
 	paddingInline: 12,
-	color: "var(--color-primary)",
+	color: "var(--color-accent-text)",
 	background: "var(--color-surface)",
 	border: "1px solid var(--color-border)",
 	borderRadius: 8,
@@ -155,7 +155,7 @@ export const cancelButton = style({
 export const decreaseButton = style({
 	minHeight: 40,
 	paddingInline: 12,
-	color: "#a23030",
+	color: "var(--color-error)",
 	background: "var(--color-surface)",
 	border: "1px solid var(--color-border)",
 	borderRadius: 8,
@@ -174,7 +174,7 @@ export const decreaseButton = style({
 export const increaseButton = style({
 	minHeight: 40,
 	paddingInline: 12,
-	color: "var(--color-primary-text)",
+	color: "var(--color-on-primary)",
 	background: "var(--color-primary)",
 	border: 0,
 	borderRadius: 8,
@@ -263,7 +263,7 @@ export const lotBadge = style({
 export const lotEditButton = style({
 	minHeight: 28,
 	paddingInline: 8,
-	color: "var(--color-primary)",
+	color: "var(--color-accent-text)",
 	background: "transparent",
 	border: "1px solid var(--color-border)",
 	borderRadius: 6,

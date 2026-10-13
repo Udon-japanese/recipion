@@ -1,5 +1,7 @@
 import { type SubmitEvent, useEffect, useMemo, useState } from "react";
 import * as v from "valibot";
+import { Button } from "#/components/button/button";
+import { useButtonAction } from "#/components/button/use-button-action";
 import { IngredientNameInput } from "#/features/ingredients/components/ingredient-name-input";
 import {
 	findIngredientCatalogEntry,
@@ -78,7 +80,9 @@ export function InventoryRegistrationForm({
 	);
 	// クイック入力の基準になる、今日（日本時間）。
 	const today = useMemo(() => toDateString(new Date()), []);
-	const [isSubmitting, setIsSubmitting] = useState(false);
+	const submitAction = useButtonAction();
+	const availableAction = useButtonAction();
+	const isSubmitting = submitAction.isPending || availableAction.isPending;
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -148,13 +152,13 @@ export function InventoryRegistrationForm({
 	function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
 		event.preventDefault();
 		// 管理方法が「有無だけ」なら、数量はなく、「ある」で登録する。
-		void submit(trackingMode === "presence");
+		void submitAction.run(() => submit(trackingMode === "presence"));
 	}
 
 	// markAsAvailable が true のときは、数量を入れず、「ある」（有無だけ）で登録する（塩・醤油など）。
 	async function submit(markAsAvailable: boolean) {
 		if (isSubmitting) {
-			return;
+			return false;
 		}
 
 		setErrorMessage(null);
@@ -168,7 +172,7 @@ export function InventoryRegistrationForm({
 		) {
 			setErrorMessage("数量を確認してください（例：2、0.5、1/2）");
 
-			return;
+			return false;
 		}
 
 		let input: RegisterInventoryItemInput;
@@ -193,10 +197,8 @@ export function InventoryRegistrationForm({
 				error instanceof Error ? error.message : "入力内容を確認してください",
 			);
 
-			return;
+			return false;
 		}
-
-		setIsSubmitting(true);
 
 		try {
 			await registerInventoryItem(input);
@@ -222,10 +224,12 @@ export function InventoryRegistrationForm({
 			setIsExpiryTouched(false);
 			setPresets([]);
 			onRegistered();
+
+			return true;
 		} catch {
 			setErrorMessage("在庫に追加できませんでした。通信を確認してください");
-		} finally {
-			setIsSubmitting(false);
+
+			return false;
 		}
 	}
 
@@ -370,22 +374,27 @@ export function InventoryRegistrationForm({
 			) : null}
 
 			<div className={styles.actions}>
-				<button
-					className={styles.availableButton}
-					type="button"
+				<Button
+					variant="secondary"
+					status={availableAction.status}
+					successLabel="登録しました"
+					errorLabel="登録できません"
 					disabled={isSubmitting || ingredientName.trim() === ""}
-					onClick={() => void submit(true)}
+					onClick={() => void availableAction.run(() => submit(true))}
 				>
 					ある（量は追わない）
-				</button>
+				</Button>
 
-				<button
-					className={styles.submitButton}
+				<Button
 					type="submit"
+					status={submitAction.status}
+					pendingLabel="追加中"
+					successLabel="追加しました"
+					errorLabel="追加できません"
 					disabled={isSubmitting || ingredientName.trim() === ""}
 				>
-					{isSubmitting ? "追加中…" : "在庫に追加"}
-				</button>
+					在庫に追加
+				</Button>
 			</div>
 		</form>
 	);

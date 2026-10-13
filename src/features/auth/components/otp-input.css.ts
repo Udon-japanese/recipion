@@ -35,12 +35,12 @@ export const box = style({
 
 // 入力中の桁（次に入る桁）。
 export const boxActive = style({
-	outline: "3px solid var(--color-primary-soft)",
+	outline: "3px solid var(--color-focus)",
 	borderColor: "var(--color-primary)",
 });
 
 export const boxInvalid = style({
-	borderColor: "#a23030",
+	borderColor: "var(--color-error)",
 });
 
 export const boxDisabled = style({

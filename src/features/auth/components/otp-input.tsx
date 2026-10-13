@@ -13,6 +13,9 @@ import {
 	joinDigits,
 } from "./otp-input-logic";
 
+// 変換の確定の通知（compositionend）を待つ、最長の時間。
+const COMPOSITION_COMMIT_TIMEOUT_MS = 150;
+
 type OtpInputProps = {
 	// 桁ごとの値（空の桁は ""）。長さが、桁数になる。
 	digits: readonly string[];
@@ -29,7 +32,8 @@ type OtpInputProps = {
 
 // ワンタイムコードの入力欄。
 // 本物の入力欄は 1 つで、透明にして、見た目の桁ごとの枠の上に重ねる（欄を移さない）。
-// - 日本語入力がオンのままでも、全角の数字を、半角の数字として扱う。変換中は、入力欄の中身を書き換えない
+// - 日本語入力がオンのままでも、全角の数字を、半角の数字として扱う。変換中は、入力欄の中身を書き換えない。
+//   桁がそろったら、変換を確定させてから、完成を知らせる（確定前に検証して失敗すると、確定前の文字が残る）
 //   （書き換えると、IME と衝突して、桁が崩れる。実機の実験で確認：Mac の Chrome・Safari、Windows の Edge）。
 //   中身から数字だけを取り出して、枠に表示する。変換が確定したら、中身を数字だけに直す。
 // - 貼り付けや、ブラウザ・OS の自動入力（SMS やメールのコードの候補）は、1 つの欄に入るだけなので、そのまま動く。
@@ -82,7 +86,8 @@ export function OtpInput({
 		inputRef.current?.focus();
 	}, [focusRequestKey]);
 
-	function update(raw: string) {
+	// notify が false のときは、完成しても知らせない（変換の確定を待つため）。
+	function update(raw: string, notify = true) {
 		const next = digitsFromRaw(raw, length);
 		const nextJoined = joinDigits(next);
 
@@ -91,7 +96,7 @@ export function OtpInput({
 		}
 
 		if (isComplete(next)) {
-			if (lastCompletedRef.current !== nextJoined) {
+			if (notify && lastCompletedRef.current !== nextJoined) {
 				lastCompletedRef.current = nextJoined;
 				onComplete?.(nextJoined);
 			}
@@ -102,15 +107,42 @@ export function OtpInput({
 		return nextJoined;
 	}
 
+	// 変換の確定を待たずに、完成を知らせてはいけない。
+	// 知らせると、検証の失敗で親が中身を空にしても、確定前の文字がブラウザに残り、
+	// あとで確定したときに、もう一度入ってきてしまう（消せない）。
+	// そこで、変換中に完成したら、入力欄の focus を外して変換を確定させ（compositionend が届く）、そこで知らせる。
+	// compositionend が届かない環境のために、少し待って、強制的に確定させる。
+	function commitCompositionThenComplete(input: HTMLInputElement) {
+		input.blur();
+
+		window.setTimeout(() => {
+			if (!composingRef.current) {
+				return;
+			}
+
+			composingRef.current = false;
+			input.value = update(input.value);
+		}, COMPOSITION_COMMIT_TIMEOUT_MS);
+	}
+
 	function handleChange(event: ChangeEvent<HTMLInputElement>) {
 		const input = event.target;
-		const nextJoined = update(input.value);
 		const isComposing =
 			composingRef.current ||
 			(event.nativeEvent as InputEvent).isComposing === true;
+		const nextJoined = update(input.value, !isComposing);
 
-		// 変換中でなければ、中身を数字だけに直す（変換中は、書き換えない）。
-		if (!isComposing && input.value !== nextJoined) {
+		if (isComposing) {
+			// 変換中に、桁がそろったら、変換を確定させてから、完成を知らせる。
+			if (nextJoined.length === length) {
+				commitCompositionThenComplete(input);
+			}
+
+			return;
+		}
+
+		// 変換中でなければ、中身を数字だけに直す。
+		if (input.value !== nextJoined) {
 			input.value = nextJoined;
 		}
 	}

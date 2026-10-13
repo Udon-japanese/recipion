@@ -57,47 +57,9 @@ export const actions = style({
 	gap: 8,
 });
 
-export const availableButton = style({
-	minHeight: 40,
-	paddingInline: 16,
-	color: "var(--color-primary)",
-	background: "var(--color-surface)",
-	border: "1px solid var(--color-border)",
-	borderRadius: 8,
-	font: "inherit",
-	fontWeight: 600,
-	cursor: "pointer",
-
-	selectors: {
-		"&:disabled": {
-			cursor: "not-allowed",
-			opacity: 0.5,
-		},
-	},
-});
-
-export const submitButton = style({
-	minHeight: 40,
-	paddingInline: 16,
-	color: "var(--color-primary-text)",
-	background: "var(--color-primary)",
-	border: 0,
-	borderRadius: 8,
-	font: "inherit",
-	fontWeight: 700,
-	cursor: "pointer",
-
-	selectors: {
-		"&:disabled": {
-			cursor: "not-allowed",
-			opacity: 0.5,
-		},
-	},
-});
-
 export const error = style({
 	margin: 0,
-	color: "#a23030",
+	color: "var(--color-error)",
 });
 
 export const presets = style({
@@ -117,7 +79,7 @@ export const presetList = style({
 export const presetButton = style({
 	minHeight: 36,
 	paddingInline: 12,
-	color: "var(--color-primary)",
+	color: "var(--color-accent-text)",
 	background: "var(--color-surface)",
 	border: "1px solid var(--color-border)",
 	borderRadius: 18,

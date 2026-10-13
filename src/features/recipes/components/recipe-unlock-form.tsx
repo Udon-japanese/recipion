@@ -1,4 +1,6 @@
 import { type SubmitEvent, useState } from "react";
+import { Button } from "#/components/button/button";
+import { useButtonAction } from "#/components/button/use-button-action";
 import * as styles from "./recipe-unlock-form.css";
 
 type RecipeUnlockFormProps = {
@@ -12,7 +14,7 @@ export function RecipeUnlockForm({
 	onUnlocked,
 }: RecipeUnlockFormProps) {
 	const [passphrase, setPassphrase] = useState("");
-	const [isBusy, setIsBusy] = useState(false);
+	const action = useButtonAction();
 	const [message, setMessage] = useState<string | null>(null);
 
 	async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
@@ -24,7 +26,10 @@ export function RecipeUnlockForm({
 			return;
 		}
 
-		setIsBusy(true);
+		void action.run(unlock);
+	}
+
+	async function unlock() {
 		setMessage(null);
 
 		try {
@@ -33,7 +38,7 @@ export function RecipeUnlockForm({
 			if (result === "unlocked") {
 				onUnlocked();
 
-				return;
+				return true;
 			}
 
 			setMessage(
@@ -41,10 +46,12 @@ export function RecipeUnlockForm({
 					? "間違いが続いたため、しばらく試せません。1時間ほど待ってから、お試しください。"
 					: "パスフレーズが違うか、レシピが見つかりません。",
 			);
+
+			return false;
 		} catch {
 			setMessage("確認できませんでした。もう一度お試しください");
-		} finally {
-			setIsBusy(false);
+
+			return false;
 		}
 	}
 
@@ -70,9 +77,14 @@ export function RecipeUnlockForm({
 						{message}
 					</p>
 				) : null}
-				<button className={styles.button} type="submit" disabled={isBusy}>
+				<Button
+					type="submit"
+					status={action.status}
+					successLabel="開きます"
+					errorLabel="開けません"
+				>
 					開く
-				</button>
+				</Button>
 			</form>
 		</section>
 	);

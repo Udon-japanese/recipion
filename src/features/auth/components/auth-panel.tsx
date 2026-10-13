@@ -1,5 +1,6 @@
 import { type SubmitEvent, useEffect, useRef, useState } from "react";
 import * as v from "valibot";
+import { Button } from "#/components/button/button";
 import {
 	OTP_EXPIRES_IN_SECONDS,
 	OTP_LENGTH,
@@ -239,18 +240,19 @@ export function AuthPanel() {
 							/>
 						</label>
 
-						<button
-							className={styles.primaryButton}
+						<Button
 							type="submit"
+							align="end"
+							status={isSubmitting ? "pending" : "idle"}
+							pendingLabel="送信中"
 							disabled={
-								isSubmitting ||
 								email.trim() === "" ||
 								turnstileSiteKey === "" ||
 								captchaToken === null
 							}
 						>
-							{isSubmitting ? "送信中…" : "コードを送る"}
-						</button>
+							コードを送る
+						</Button>
 
 						<p className={styles.consent}>
 							ログインすると、
@@ -284,13 +286,15 @@ export function AuthPanel() {
 							/>
 						</div>
 
-						<button
-							className={styles.primaryButton}
+						<Button
 							type="submit"
-							disabled={isSubmitting || !isComplete(digits)}
+							align="end"
+							status={isSubmitting ? "pending" : "idle"}
+							pendingLabel="確認中"
+							disabled={!isComplete(digits)}
 						>
-							{isSubmitting ? "確認中…" : "ログインする"}
-						</button>
+							ログインする
+						</Button>
 
 						<div className={styles.actions}>
 							<button

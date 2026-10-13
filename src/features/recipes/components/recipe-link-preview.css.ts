@@ -4,7 +4,7 @@ export const backdrop = style({
 	position: "fixed",
 	inset: 0,
 	zIndex: 40,
-	background: "rgba(0, 0, 0, 0.4)",
+	background: "var(--color-overlay)",
 	border: "none",
 	cursor: "default",
 });
@@ -22,7 +22,7 @@ export const panel = style({
 	background: "var(--color-surface)",
 	borderTopLeftRadius: 16,
 	borderTopRightRadius: 16,
-	boxShadow: "0 -4px 24px rgba(0, 0, 0, 0.2)",
+	boxShadow: "var(--shadow-sheet)",
 	"@media": {
 		"(min-width: 640px)": {
 			top: "8vh",

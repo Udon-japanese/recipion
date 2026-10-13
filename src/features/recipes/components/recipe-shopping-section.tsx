@@ -7,6 +7,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { Button } from "#/components/button/button";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import type { InventoryListItem } from "#/features/inventory/application/inventory-query-repository";
 import { formatQuantityForUnit } from "#/features/quantity/domain/format-quantity";
@@ -537,16 +538,14 @@ export function RecipeShoppingSection({
 					>
 						閉じる
 					</button>
-					<button
-						className={styles.applyButton}
-						type="button"
-						disabled={isApplying || isLoading}
+					<Button
+						status={isApplying ? "pending" : "idle"}
+						pendingLabel="追加中"
+						disabled={isLoading}
 						onClick={() => void handleApply()}
 					>
-						{isApplying
-							? "追加中…"
-							: `選んだものを入れる（${selectedNeedIds.size}件）`}
-					</button>
+						{`選んだものを入れる（${selectedNeedIds.size}件）`}
+					</Button>
 				</div>
 			</div>
 		</section>

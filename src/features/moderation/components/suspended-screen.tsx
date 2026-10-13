@@ -1,4 +1,6 @@
 import { type SubmitEvent, useState } from "react";
+import { Button } from "#/components/button/button";
+import { useButtonAction } from "#/components/button/use-button-action";
 import { appealMessageMaxLength } from "../domain/appeal";
 import * as styles from "./suspended-screen.css";
 
@@ -13,7 +15,7 @@ export function SuspendedScreen({
 	onSubmitAppeal,
 }: SuspendedScreenProps) {
 	const [message, setMessage] = useState("");
-	const [isSubmitting, setIsSubmitting] = useState(false);
+	const action = useButtonAction();
 	const [sentCount, setSentCount] = useState(0);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -28,7 +30,10 @@ export function SuspendedScreen({
 			return;
 		}
 
-		setIsSubmitting(true);
+		void action.run(() => submit(trimmed));
+	}
+
+	async function submit(trimmed: string) {
 		setErrorMessage(null);
 
 		try {
@@ -37,13 +42,17 @@ export function SuspendedScreen({
 			if (result.status === "submitted") {
 				setSentCount((current) => current + 1);
 				setMessage("");
-			} else {
-				setErrorMessage("申し立てを受け付けられませんでした");
+
+				return true;
 			}
+
+			setErrorMessage("申し立てを受け付けられませんでした");
+
+			return false;
 		} catch {
 			setErrorMessage("送れませんでした。もう一度お試しください");
-		} finally {
-			setIsSubmitting(false);
+
+			return false;
 		}
 	}
 
@@ -94,9 +103,14 @@ export function SuspendedScreen({
 					</output>
 				) : null}
 
-				<button className={styles.button} type="submit" disabled={isSubmitting}>
+				<Button
+					type="submit"
+					status={action.status}
+					successLabel="送りました"
+					errorLabel="送れませんでした"
+				>
 					申し立てを送る
-				</button>
+				</Button>
 			</form>
 		</section>
 	);

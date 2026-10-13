@@ -50,7 +50,7 @@ export const item = style({
 	borderRadius: 6,
 	cursor: "pointer",
 	selectors: {
-		"&:hover": { background: "var(--color-surface-subtle)" },
+		"&:hover": { background: "var(--color-surface-muted)" },
 	},
 });
 

@@ -63,7 +63,7 @@ export const cancelButton = style({
 export const confirmButton = style({
 	minHeight: 40,
 	paddingInline: 16,
-	color: "var(--color-primary-text)",
+	color: "var(--color-on-primary)",
 	background: "var(--color-primary)",
 	border: 0,
 	borderRadius: 8,

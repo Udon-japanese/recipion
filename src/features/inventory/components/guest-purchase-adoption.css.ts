@@ -7,7 +7,7 @@ export const container = style({
 	margin: "16px auto 0",
 	padding: 16,
 	color: "var(--color-text)",
-	background: "var(--color-surface-subtle)",
+	background: "var(--color-surface-muted)",
 	border: "1px solid var(--color-border)",
 	borderRadius: 10,
 });
@@ -33,7 +33,7 @@ export const actions = style({
 export const primaryButton = style({
 	minHeight: 40,
 	paddingInline: 14,
-	color: "var(--color-primary-text)",
+	color: "var(--color-on-primary)",
 	background: "var(--color-primary)",
 	border: 0,
 	borderRadius: 8,
@@ -55,6 +55,6 @@ export const secondaryButton = style({
 
 export const error = style({
 	margin: 0,
-	color: "#a23030",
+	color: "var(--color-error)",
 	fontSize: 14,
 });

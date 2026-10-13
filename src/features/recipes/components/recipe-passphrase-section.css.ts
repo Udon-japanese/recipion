@@ -43,5 +43,3 @@ export const button = style({
 		"&:disabled": { cursor: "not-allowed", opacity: 0.5 },
 	},
 });
-
-export const dangerButton = style({ color: "#a23030" });

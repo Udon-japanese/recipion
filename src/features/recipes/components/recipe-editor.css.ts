@@ -33,7 +33,7 @@ const titleBase = {
 export const titleButton = style({
 	...titleBase,
 	selectors: {
-		"&:hover": { background: "var(--color-surface-subtle)" },
+		"&:hover": { background: "var(--color-surface-muted)" },
 	},
 });
 
@@ -41,7 +41,7 @@ export const titlePlaceholder = style({
 	...titleBase,
 	color: "var(--color-text-muted)",
 	selectors: {
-		"&:hover": { background: "var(--color-surface-subtle)" },
+		"&:hover": { background: "var(--color-surface-muted)" },
 	},
 });
 
@@ -87,12 +87,12 @@ export const tab = style({
 	minHeight: 44,
 	font: "inherit",
 	fontWeight: 600,
-	background: "var(--color-surface-subtle)",
+	background: "var(--color-surface-muted)",
 	borderRadius: 8,
 	cursor: "pointer",
 	selectors: {
 		'&[aria-selected="true"]': {
-			color: "var(--color-primary-text)",
+			color: "var(--color-on-primary)",
 			background: "var(--color-primary)",
 		},
 	},
@@ -150,7 +150,7 @@ export const editedBadge = style({
 	alignItems: "center",
 	gap: 6,
 	fontSize: 12,
-	color: "var(--color-primary)",
+	color: "var(--color-accent-text)",
 });
 
 export const linkButton = style({
@@ -205,7 +205,7 @@ export const preview = style({
 	display: "grid",
 	gap: 8,
 	padding: 16,
-	background: "var(--color-surface-subtle)",
+	background: "var(--color-surface-muted)",
 	borderRadius: 8,
 	selectors: {
 		'&[data-active="false"]': { display: "none" },
@@ -236,27 +236,8 @@ export const nestedList = style({
 	listStyle: "revert",
 });
 
-export const saveButton = style({
-	minHeight: 44,
-	paddingInline: 18,
-	justifySelf: "end",
-	color: "var(--color-primary-text)",
-	background: "var(--color-primary)",
-	borderRadius: 8,
-	font: "inherit",
-	fontWeight: 700,
-	cursor: "pointer",
-	selectors: {
-		"&:disabled": { opacity: 0.6, cursor: "not-allowed" },
-		"&:focus-visible": {
-			outline: "3px solid var(--color-primary-soft)",
-			outlineOffset: 2,
-		},
-	},
-});
-
 export const error = style({
-	color: "#a23030",
+	color: "var(--color-error)",
 });
 
 export const ingredientRow = style({
@@ -296,7 +277,7 @@ export const completionPopup = style({
 	background: "var(--color-surface)",
 	border: "1px solid var(--color-border)",
 	borderRadius: 8,
-	boxShadow: "0 4px 14px rgba(0, 0, 0, 0.15)",
+	boxShadow: "var(--shadow-md)",
 });
 
 export const completionPopupList = style({
@@ -316,7 +297,7 @@ export const completionPopupItem = style({
 	cursor: "pointer",
 	selectors: {
 		'&[aria-current="true"]': {
-			color: "var(--color-primary-text)",
+			color: "var(--color-on-primary)",
 			background: "var(--color-primary)",
 		},
 	},
@@ -371,7 +352,7 @@ export const completionItem = style({
 	cursor: "pointer",
 	selectors: {
 		'&[aria-current="true"]': {
-			color: "var(--color-primary-text)",
+			color: "var(--color-on-primary)",
 			background: "var(--color-primary)",
 			borderColor: "var(--color-primary)",
 		},

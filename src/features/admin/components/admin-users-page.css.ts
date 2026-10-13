@@ -48,7 +48,7 @@ export const userName = style({
 export const badge = style({
 	marginLeft: 8,
 	paddingInline: 8,
-	color: "var(--color-primary-text)",
+	color: "var(--color-on-primary)",
 	background: "var(--color-primary)",
 	borderRadius: 6,
 	fontSize: 13,
