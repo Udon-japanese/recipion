@@ -58,9 +58,10 @@ export function Button({
 	const isExpanded = phase.endsWith("expanded");
 	const isIdle = phase === "idle";
 	const isBusy = status === "pending";
-	// 処理中と、完了の表示中は、押しても何も起きない（二重送信の防止）。
-	// 失敗の表示中は、すぐにやり直せる。表示が元に戻れば、status が success/error のままでも押せる。
-	const isLocked = isBusy || !(isIdle || tone === "error");
+	// 押しても何も起きないのは、処理中だけ（二重送信の防止）。
+	// 完了・失敗の表示中は、押せる（続けて登録するときに、待たされないように）。
+	// 押すと、新しい処理が始まり、表示は、処理中に切り替わる。
+	const isLocked = isBusy || phase === "loading";
 
 	// 変形の開始前に、もとの大きさを測る。
 	useLayoutEffect(() => {

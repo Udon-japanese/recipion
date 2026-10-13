@@ -67,7 +67,7 @@ export const button = style({
 				[toneSoft]: "var(--color-error-soft)",
 			},
 		},
-		'&[data-size="sm"]': { minHeight: 36, paddingInline: 16 },
+		'&[data-size="sm"]': { minHeight: 40, paddingInline: 16 },
 		'&[data-size="lg"]': {
 			minHeight: 52,
 			paddingInline: 24,
@@ -148,15 +148,13 @@ export const button = style({
 			boxShadow: "var(--shadow-md)",
 			overflow: "hidden",
 		},
-		// 完了の表示中は押せない。失敗の表示中は、すぐにやり直せる（色は変えない）。
-		'&[data-phase="success"], &[data-phase="success-expanded"]': {
-			pointerEvents: "none",
-		},
-		[`&[data-phase="error"]${canHover}, &[data-phase="error"]${canPress}`]: {
-			background: "transparent",
-			borderColor: "transparent",
-		},
-		[`&[data-phase="error-expanded"]${canHover}, &[data-phase="error-expanded"]${canPress}`]:
+		// 完了・失敗の表示中も押せる。ホバーや押下で、色は変えない。
+		[`&[data-phase="success"]${canHover}, &[data-phase="success"]${canPress}, &[data-phase="error"]${canHover}, &[data-phase="error"]${canPress}`]:
+			{
+				background: "transparent",
+				borderColor: "transparent",
+			},
+		[`&[data-phase="success-expanded"]${canHover}, &[data-phase="success-expanded"]${canPress}, &[data-phase="error-expanded"]${canHover}, &[data-phase="error-expanded"]${canPress}`]:
 			{
 				background: toneSoft,
 				borderColor: toneSoft,

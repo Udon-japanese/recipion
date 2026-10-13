@@ -2,7 +2,6 @@ import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Button } from "./button";
-import { BUTTON_TIMINGS } from "./use-button-phase";
 
 afterEach(() => {
 	vi.useRealTimers();
@@ -82,8 +81,7 @@ describe("Button", () => {
 		expect(screen.getByRole("status")).toHaveTextContent("追加しました");
 	});
 
-	it("完了の表示が終わって元に戻れば、また押せる", async () => {
-		vi.useFakeTimers();
+	it("完了の表示中でも、続けて押せる（続けて登録するときに、待たされない）", () => {
 		const onClick = vi.fn();
 		render(
 			<Button status="success" onClick={onClick}>
@@ -91,13 +89,6 @@ describe("Button", () => {
 			</Button>,
 		);
 		const button = screen.getByRole("button", { name: /追加/u });
-		expect(button).toHaveAttribute("aria-disabled", "true");
-
-		act(() => {
-			vi.advanceTimersByTime(
-				BUTTON_TIMINGS.expandDelayMs + BUTTON_TIMINGS.successHoldMs,
-			);
-		});
 		expect(button).not.toHaveAttribute("aria-disabled");
 
 		button.click();
