@@ -5,28 +5,17 @@ export const container = style({
 	marginInline: "auto",
 	paddingBlock: 24,
 	display: "grid",
-	gap: 12,
+	gap: 16,
 	color: "var(--color-text)",
 });
 
-export const title = style({ margin: 0, fontSize: 22 });
+export const title = style({
+	margin: 0,
+	fontSize: "var(--font-size-xl)",
+	fontWeight: "var(--font-weight-extrabold)",
+	lineHeight: "var(--line-height-tight)",
+});
 
 export const text = style({ margin: 0, lineHeight: 1.7 });
 
-export const textarea = style({
-	minHeight: 140,
-	padding: 8,
-	color: "var(--color-text)",
-	background: "var(--color-surface)",
-	border: "1px solid var(--color-border)",
-	borderRadius: 8,
-	font: "inherit",
-});
-
-export const count = style({
-	margin: 0,
-	color: "var(--color-text-muted)",
-	fontSize: 13,
-});
-
-export const error = style({ margin: 0, color: "var(--color-error)" });
+export const form = style({ display: "grid", gap: 16 });

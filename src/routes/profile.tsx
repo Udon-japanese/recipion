@@ -2,6 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { SignOutButton } from "#/features/auth/components/sign-out-button";
 import { AccountDeletionSection } from "#/features/profile/components/account-deletion-section";
 import { ProfileForm } from "#/features/profile/components/profile-form";
+import {
+	ProfilePageLayout,
+	ProfileSignOutArea,
+} from "#/features/profile/components/profile-page-layout";
 import { ProfileRouteError } from "#/features/profile/components/profile-route-error";
 import { getProfileServerFn } from "#/features/profile/server/get-profile";
 import { updateProfileServerFn } from "#/features/profile/server/update-profile";
@@ -19,13 +23,15 @@ function ProfilePage() {
 	const { refetch } = useAppSession();
 
 	return (
-		<>
+		<ProfilePageLayout>
 			<ProfileForm
 				profile={profile}
 				onSave={(input) => updateProfileServerFn({ data: input })}
 				onChanged={() => void refetch()}
 			/>
-			<SignOutButton />
+			<ProfileSignOutArea>
+				<SignOutButton />
+			</ProfileSignOutArea>
 			<AccountDeletionSection
 				handle={profile.handle}
 				onRequestDeletion={async () => {
@@ -37,6 +43,6 @@ function ProfilePage() {
 					return error === null;
 				}}
 			/>
-		</>
+		</ProfilePageLayout>
 	);
 }

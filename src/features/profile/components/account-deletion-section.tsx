@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Button } from "#/components/button/button";
 import { useButtonAction } from "#/components/button/use-button-action";
+import { Field, TextInput } from "#/components/field/field";
+import { Note } from "#/components/note/note";
 import * as styles from "./account-deletion-section.css";
 
 type AccountDeletionSectionProps = {
@@ -55,13 +57,9 @@ export function AccountDeletionSection({
 						アカウントと、保存した情報を削除します。削除は、すぐに行われ、取り消せません。
 					</p>
 					<div className={styles.actions}>
-						<button
-							className={`${styles.button} ${styles.dangerButton}`}
-							type="button"
-							onClick={() => setStep("confirming")}
-						>
+						<Button variant="danger" onClick={() => setStep("confirming")}>
 							アカウントを削除する
-						</button>
+						</Button>
 					</div>
 				</>
 			) : null}
@@ -80,21 +78,17 @@ export function AccountDeletionSection({
 						</li>
 						<li>この端末の買い物メモなどのデータも、削除されます。</li>
 					</ul>
-					<label htmlFor="delete-account-handle">
-						確認のため、ハンドル（{handle}）を入力してください
-					</label>
-					<input
-						className={styles.input}
-						id="delete-account-handle"
-						autoComplete="off"
-						value={typedHandle}
-						onChange={(event) => setTypedHandle(event.target.value)}
-					/>
-					{errorMessage ? (
-						<p className={styles.error} role="alert">
-							{errorMessage}
-						</p>
-					) : null}
+					<Field label={`確認のため、ハンドル（${handle}）を入力してください`}>
+						{(control) => (
+							<TextInput
+								{...control}
+								autoComplete="off"
+								value={typedHandle}
+								onChange={(event) => setTypedHandle(event.target.value)}
+							/>
+						)}
+					</Field>
+					{errorMessage ? <Note tone="error">{errorMessage}</Note> : null}
 					<div className={styles.actions}>
 						<Button
 							variant="danger"
@@ -107,9 +101,9 @@ export function AccountDeletionSection({
 						>
 							確認のメールを送る
 						</Button>
-						<button
-							className={styles.button}
-							type="button"
+						<Button
+							variant="secondary"
+							size="sm"
 							onClick={() => {
 								setStep("closed");
 								setTypedHandle("");
@@ -117,15 +111,15 @@ export function AccountDeletionSection({
 							}}
 						>
 							やめる
-						</button>
+						</Button>
 					</div>
 				</>
 			) : null}
 
 			{step === "sent" ? (
-				<output className={styles.note}>
+				<Note tone="success">
 					確認のメールを送りました。メールのリンクを、このブラウザで開くと、アカウントが削除されます（1時間以内）。メールが届かないときは、しばらく待ってから、もう一度お試しください。リンクを開かなければ、何も削除されません。
-				</output>
+				</Note>
 			) : null}
 		</section>
 	);

@@ -30,11 +30,11 @@ export const searchInput = style({
 	flex: 1,
 	minWidth: 180,
 	minHeight: 44,
-	paddingInline: 12,
+	paddingInline: 16,
 	color: "var(--color-text)",
 	background: "var(--color-surface)",
-	border: "1px solid var(--color-border)",
-	borderRadius: 8,
+	border: "1.5px solid var(--color-control-border)",
+	borderRadius: "var(--radius-control)",
 	font: "inherit",
 });
 
@@ -50,7 +50,7 @@ export const badge = style({
 	paddingInline: 8,
 	color: "var(--color-on-primary)",
 	background: "var(--color-primary)",
-	borderRadius: 6,
+	borderRadius: "var(--radius-control)",
 	fontSize: 13,
 });
 
@@ -66,11 +66,11 @@ export const field = style({
 
 export const textarea = style({
 	minHeight: 72,
-	padding: 8,
+	padding: 12,
 	color: "var(--color-text)",
 	background: "var(--color-surface)",
-	border: "1px solid var(--color-border)",
-	borderRadius: 8,
+	border: "1.5px solid var(--color-control-border)",
+	borderRadius: 16,
 	font: "inherit",
 });
 

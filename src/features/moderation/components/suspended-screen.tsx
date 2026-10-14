@@ -1,6 +1,9 @@
 import { type SubmitEvent, useState } from "react";
 import { Button } from "#/components/button/button";
 import { useButtonAction } from "#/components/button/use-button-action";
+import { Card } from "#/components/card/card";
+import { Field, TextArea } from "#/components/field/field";
+import { Note } from "#/components/note/note";
 import { appealMessageMaxLength } from "../domain/appeal";
 import * as styles from "./suspended-screen.css";
 
@@ -79,39 +82,39 @@ export function SuspendedScreen({
 				ただし、申し立ての内容が、正当なものと認められないときは、このアカウントを永久に停止し、同じメールアドレスでは、登録できなくなることがあります。
 			</p>
 
-			<form onSubmit={handleSubmit} style={{ display: "grid", gap: 8 }}>
-				<label htmlFor="appeal-message">申し立ての内容</label>
-				<textarea
-					className={styles.textarea}
-					id="appeal-message"
-					maxLength={appealMessageMaxLength}
-					value={message}
-					onChange={(event) => setMessage(event.target.value)}
-				/>
-				<p className={styles.count}>
-					{message.length} / {appealMessageMaxLength}
-				</p>
+			<Card padding="md">
+				<form className={styles.form} onSubmit={handleSubmit}>
+					<Field
+						label="申し立ての内容"
+						hint={`${message.length} / ${appealMessageMaxLength}`}
+					>
+						{(control) => (
+							<TextArea
+								{...control}
+								maxLength={appealMessageMaxLength}
+								value={message}
+								onChange={(event) => setMessage(event.target.value)}
+							/>
+						)}
+					</Field>
 
-				{errorMessage ? (
-					<p className={styles.error} role="alert">
-						{errorMessage}
-					</p>
-				) : null}
-				{sentCount > 0 ? (
-					<output className={styles.text}>
-						申し立てを送りました。管理者の確認をお待ちください。
-					</output>
-				) : null}
+					{errorMessage ? <Note tone="error">{errorMessage}</Note> : null}
+					{sentCount > 0 ? (
+						<Note tone="success">
+							申し立てを送りました。管理者の確認をお待ちください。
+						</Note>
+					) : null}
 
-				<Button
-					type="submit"
-					status={action.status}
-					successLabel="送りました"
-					errorLabel="送れませんでした"
-				>
-					申し立てを送る
-				</Button>
-			</form>
+					<Button
+						type="submit"
+						status={action.status}
+						successLabel="送りました"
+						errorLabel="送れませんでした"
+					>
+						申し立てを送る
+					</Button>
+				</form>
+			</Card>
 		</section>
 	);
 }

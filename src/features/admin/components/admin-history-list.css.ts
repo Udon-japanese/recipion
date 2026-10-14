@@ -23,10 +23,10 @@ export const list = style({
 export const item = style({
 	display: "grid",
 	gap: 4,
-	padding: 10,
+	padding: 12,
 	background: "var(--color-surface)",
 	border: "1px solid var(--color-border)",
-	borderRadius: 8,
+	borderRadius: 16,
 });
 
 export const title = style({

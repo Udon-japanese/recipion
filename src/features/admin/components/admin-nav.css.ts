@@ -14,15 +14,16 @@ export const link = style({
 	minHeight: 44,
 	display: "inline-flex",
 	alignItems: "center",
-	paddingInline: 12,
+	paddingInline: 16,
 	color: "var(--color-text)",
 	background: "var(--color-surface)",
-	border: "1px solid var(--color-border)",
-	borderRadius: 8,
+	border: "1.5px solid var(--color-control-border)",
+	borderRadius: "var(--radius-control)",
 	textDecoration: "none",
 });
 
 export const currentLink = style({
-	fontWeight: 700,
-	borderColor: "var(--color-primary)",
+	fontWeight: "var(--font-weight-bold)",
+	background: "var(--color-primary-soft)",
+	borderColor: "var(--color-text)",
 });
