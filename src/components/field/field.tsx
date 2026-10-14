@@ -13,6 +13,8 @@ type FieldProps = {
 	label: string;
 	// 任意の欄の印（「任意」）。
 	optional?: boolean;
+	// ラベルを画面に出さず、読み上げだけにする（入力欄の意味が、まわりから明らかなとき）。
+	hideLabel?: boolean;
 	hint?: ReactNode;
 	// エラーの文。あると、欄が赤くなり、文が読み上げられる。
 	error?: string | null;
@@ -21,7 +23,14 @@ type FieldProps = {
 };
 
 // ラベル・補足・エラーの文と、欄の結びつき（for / aria-describedby / aria-invalid）をまとめる。
-export function Field({ label, optional, hint, error, children }: FieldProps) {
+export function Field({
+	label,
+	optional,
+	hideLabel,
+	hint,
+	error,
+	children,
+}: FieldProps) {
 	const id = useId();
 	const hintId = `${id}-hint`;
 	const errorId = `${id}-error`;
@@ -31,7 +40,10 @@ export function Field({ label, optional, hint, error, children }: FieldProps) {
 
 	return (
 		<div className={styles.field}>
-			<label className={styles.label} htmlFor={id}>
+			<label
+				className={hideLabel ? styles.hiddenLabel : styles.label}
+				htmlFor={id}
+			>
 				{label}
 				{optional ? <span className={styles.optional}>任意</span> : null}
 			</label>

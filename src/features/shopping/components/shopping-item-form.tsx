@@ -1,13 +1,19 @@
-import { type ReactNode, type SubmitEvent, useState } from "react";
-import { IngredientNameInput } from "#/features/ingredients/components/ingredient-name-input";
-import { QuantityInput } from "#/features/quantity/components/quantity-input";
+import {
+	type ReactNode,
+	type SubmitEvent,
+	useEffect,
+	useRef,
+	useState,
+} from "react";
+import { Button } from "#/components/button/button";
+import { Chip } from "#/components/chip/chip";
+import { Icon } from "#/components/icon/icon";
+import { IconButton } from "#/components/icon-button/icon-button";
 import { formatQuantity } from "#/features/quantity/domain/format-quantity";
 import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
-import { PickerSelect } from "../../../components/select/picker-select";
 import {
 	isShoppingCategoryId,
 	type ShoppingCategoryId,
-	shoppingCategories,
 } from "../domain/shopping-category";
 import type {
 	CreateShoppingItemInput,
@@ -19,8 +25,13 @@ import {
 	isShoppingItemPresetSelected,
 } from "../domain/shopping-item-suggestion";
 import type { ShoppingStore } from "../domain/shopping-store";
-import * as styles from "./shopping-list.css";
-import { ShoppingStoreSelect } from "./shopping-store-select";
+import {
+	ShoppingCategoryField,
+	ShoppingNameField,
+	ShoppingQuantityUnitFields,
+	ShoppingStoreField,
+} from "./shopping-item-fields";
+import * as styles from "./shopping-page.css";
 
 type ShoppingItemFormProps = {
 	// 追加する。成功したら true（入力欄を空に戻す）。失敗したときのエラーは、呼び出し側が表示する。
@@ -30,9 +41,9 @@ type ShoppingItemFormProps = {
 	// 食材名に対して、いつも買う店（なければ null）。
 	defaultStoreIdFor: (itemName: string) => string | null;
 	onCreateStore: (name: string) => Promise<ShoppingStore | null>;
-	// 同じ画面に複数置くとき、欄の id が重ならないようにする。
-	idPrefix?: string;
 	submitLabel?: string;
+	// 常に、数量やカテゴリの欄まで開いておく（条件つきのメモの作成など）。
+	alwaysExpanded?: boolean;
 	// 追加ボタンの上に足す欄（条件つきのメモの「どんな時に」など）。
 	children?: ReactNode;
 };
@@ -44,10 +55,13 @@ export function ShoppingItemForm({
 	stores,
 	defaultStoreIdFor,
 	onCreateStore,
-	idPrefix = "shopping-item",
 	submitLabel = "追加",
+	alwaysExpanded = false,
 	children,
 }: ShoppingItemFormProps) {
+	const formRef = useRef<HTMLFormElement>(null);
+	// 名前の欄に触れたら、数量などの欄を開く（空のまま外を押す・Esc で閉じる）。
+	const [isOpened, setIsOpened] = useState(false);
 	const [name, setName] = useState("");
 	const [quantity, setQuantity] = useState("1");
 	const [unitLabel, setUnitLabel] = useState("");
@@ -62,6 +76,28 @@ export function ShoppingItemForm({
 	const [isSubmitting, setIsSubmitting] = useState(false);
 
 	const presets = getShoppingItemPresets(name);
+	const isExpanded = alwaysExpanded || isOpened || name !== "";
+
+	useEffect(() => {
+		if (!isOpened) {
+			return;
+		}
+
+		function handlePointerDown(event: PointerEvent) {
+			const target = event.target as Element;
+
+			if (
+				!formRef.current?.contains(target) &&
+				!target.closest('[role="dialog"], [role="listbox"], [role="menu"]')
+			) {
+				setIsOpened(false);
+			}
+		}
+
+		document.addEventListener("pointerdown", handlePointerDown);
+
+		return () => document.removeEventListener("pointerdown", handlePointerDown);
+	}, [isOpened]);
 
 	function handleNameChange(value: string) {
 		setName(value);
@@ -109,6 +145,10 @@ export function ShoppingItemForm({
 				setCategoryId("");
 				setIsCategoryManuallySelected(false);
 				setInventoryConversion(null);
+				// 続けて入れられるように、名前の欄へ戻る。
+				formRef.current
+					?.querySelector<HTMLInputElement>('input[role="combobox"]')
+					?.focus();
 			}
 		} finally {
 			setIsSubmitting(false);
@@ -117,145 +157,111 @@ export function ShoppingItemForm({
 
 	return (
 		<form
-			className={styles.form}
+			className={styles.addForm}
+			data-expanded={isExpanded}
+			ref={formRef}
 			onSubmit={(event) => void handleSubmit(event)}
+			onFocus={() => setIsOpened(true)}
+			onKeyDown={(event) => {
+				if (event.key === "Escape" && name === "" && !alwaysExpanded) {
+					setIsOpened(false);
+				}
+			}}
 		>
-			<div className={styles.field}>
-				<label className={styles.label} htmlFor={`${idPrefix}-name`}>
-					買うもの
-				</label>
-
-				<IngredientNameInput
-					className={styles.input}
-					id={`${idPrefix}-name`}
-					name="name"
-					value={name}
-					onChange={handleNameChange}
-					placeholder="卵、牛乳など"
-				/>
-			</div>
-
-			<div className={styles.details}>
-				<div className={styles.field}>
-					<label className={styles.fieldLabel} htmlFor={`${idPrefix}-quantity`}>
-						数量
-					</label>
-
-					<QuantityInput
-						className={styles.input}
-						id={`${idPrefix}-quantity`}
-						name="quantity"
-						value={quantity}
-						onChange={setQuantity}
-						unitLabel={unitLabel}
+			<div className={styles.addNameRow}>
+				<div className={styles.grow}>
+					<ShoppingNameField
+						label="買うもの"
+						hideLabel={!isExpanded}
+						name="name"
+						value={name}
+						onChange={handleNameChange}
+						placeholder={isExpanded ? "卵、牛乳など" : "例：牛乳"}
 					/>
 				</div>
 
-				<div className={styles.field}>
-					<label className={styles.fieldLabel} htmlFor={`${idPrefix}-unit`}>
-						単位
-					</label>
+				{isExpanded ? null : (
+					<IconButton
+						icon="plus"
+						label="追加"
+						size="std"
+						tone="on"
+						type="submit"
+						disabled={isSubmitting}
+					/>
+				)}
+			</div>
 
-					<input
-						className={styles.input}
-						id={`${idPrefix}-unit`}
-						name="unitLabel"
-						value={unitLabel}
-						onChange={(event) => {
-							setUnitLabel(event.target.value);
+			{isExpanded ? (
+				<>
+					<ShoppingQuantityUnitFields
+						quantity={quantity}
+						onQuantityChange={setQuantity}
+						unitLabel={unitLabel}
+						onUnitChange={(value) => {
+							setUnitLabel(value);
 							setInventoryConversion(null);
 						}}
-						placeholder="個、袋、gなど"
-						autoComplete="off"
+						quantityName="quantity"
+						unitName="unitLabel"
 					/>
-				</div>
 
-				<div className={styles.field}>
-					<label className={styles.fieldLabel} htmlFor={`${idPrefix}-category`}>
-						カテゴリ
-					</label>
+					{presets.length > 0 ? (
+						<fieldset className={styles.groupLabel}>
+							<legend className={styles.groupLegend}>よく使う数量</legend>
 
-					<PickerSelect
-						className={styles.input}
-						id={`${idPrefix}-category`}
+							<div className={styles.chips}>
+								{presets.map((preset) => (
+									<Chip
+										pressed={isShoppingItemPresetSelected(preset, {
+											quantity,
+											unitLabel,
+											inventoryConversion,
+										})}
+										key={preset.label}
+										onClick={() => {
+											setQuantity(
+												formatQuantity(preset.quantity, { grouping: false }),
+											);
+											setUnitLabel(preset.unitLabel);
+											setInventoryConversion(preset.inventoryConversion);
+										}}
+									>
+										{preset.label}
+									</Chip>
+								))}
+							</div>
+						</fieldset>
+					) : null}
+
+					<ShoppingCategoryField
+						label="カテゴリ"
 						name="categoryId"
 						value={categoryId}
-						onChange={(event) => handleCategoryChange(event.target.value)}
-					>
-						<option value="">未設定</option>
+						onChange={handleCategoryChange}
+					/>
 
-						{shoppingCategories.map((category) => (
-							<option value={category.id} key={category.id}>
-								{category.label}
-							</option>
-						))}
-					</PickerSelect>
-				</div>
-			</div>
+					<ShoppingStoreField
+						stores={stores}
+						value={storeId}
+						onChange={(next) => {
+							setStoreId(next);
+							setIsStoreChosen(true);
+						}}
+						onCreateStore={onCreateStore}
+					/>
 
-			<div className={styles.field}>
-				<label className={styles.fieldLabel} htmlFor={`${idPrefix}-store`}>
-					買う店
-				</label>
+					{children}
 
-				<ShoppingStoreSelect
-					id={`${idPrefix}-store`}
-					stores={stores}
-					value={storeId}
-					onChange={(next) => {
-						setStoreId(next);
-						setIsStoreChosen(true);
-					}}
-					onCreateStore={onCreateStore}
-				/>
-			</div>
-
-			{presets.length > 0 ? (
-				<fieldset className={styles.presets}>
-					<legend className={styles.presetLegend}>よく使う数量</legend>
-
-					<div className={styles.presetList}>
-						{presets.map((preset) => {
-							const isSelected = isShoppingItemPresetSelected(preset, {
-								quantity,
-								unitLabel,
-								inventoryConversion,
-							});
-
-							return (
-								<button
-									className={styles.presetButton}
-									type="button"
-									aria-pressed={isSelected}
-									key={preset.label}
-									onClick={() => {
-										setQuantity(
-											formatQuantity(preset.quantity, { grouping: false }),
-										);
-										setUnitLabel(preset.unitLabel);
-										setInventoryConversion(preset.inventoryConversion);
-									}}
-								>
-									{preset.label}
-								</button>
-							);
-						})}
-					</div>
-				</fieldset>
+					<Button size="lg" fullWidth type="submit" disabled={isSubmitting}>
+						{submitLabel}
+					</Button>
+				</>
 			) : null}
 
-			{children}
-
-			<button
-				className={styles.addButton}
-				type="submit"
-				disabled={isSubmitting}
-			>
-				{submitLabel}
-			</button>
-
 			{errorMessage ? (
-				<p className={styles.error} role="alert">
+				<p className={styles.formError} role="alert">
+					<Icon name="alert-triangle" size={20} />
 					{errorMessage}
 				</p>
 			) : null}

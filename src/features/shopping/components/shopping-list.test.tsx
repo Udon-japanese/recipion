@@ -66,6 +66,7 @@ describe("ShoppingList", () => {
 		render(<ShoppingList repository={createFakeShoppingRepository()} />);
 
 		await screen.findByText("買うものはまだありません。");
+		await user.click(screen.getByLabelText("買うもの"));
 		await user.type(screen.getByLabelText("単位"), "本");
 		await user.click(screen.getByRole("button", { name: "1/3にする" }));
 
@@ -148,11 +149,8 @@ describe("ShoppingList", () => {
 
 		render(<ShoppingList repository={repository} />);
 
-		await user.click(
-			await screen.findByRole("button", {
-				name: "卵を削除",
-			}),
-		);
+		await user.click(await screen.findByRole("button", { name: "卵のその他" }));
+		await user.click(screen.getByRole("menuitem", { name: "削除" }));
 
 		await waitFor(() => {
 			expect(repository.items).toEqual([]);
@@ -293,23 +291,31 @@ describe("ShoppingList", () => {
 
 		render(<ShoppingList repository={repository} />);
 
-		const moveDownButton = await screen.findByRole("button", {
-			name: "卵を下へ",
-		});
+		async function openMenu(name: string) {
+			await user.click(
+				await screen.findByRole("button", { name: `${name}のその他` }),
+			);
 
-		expect(
-			screen.getByRole("button", {
-				name: "卵を上へ",
-			}),
-		).toBeDisabled();
+			return {
+				up: screen.getByRole("menuitem", { name: "上へ" }),
+				down: screen.getByRole("menuitem", { name: "下へ" }),
+			};
+		}
 
-		expect(
-			screen.getByRole("button", {
-				name: "牛乳を下へ",
-			}),
-		).toBeDisabled();
+		// 先頭の「上へ」と、末尾の「下へ」は選べない。
+		const eggMenu = await openMenu("卵");
 
-		await user.click(moveDownButton);
+		expect(eggMenu.up).toHaveAttribute("aria-disabled", "true");
+
+		await user.keyboard("{Escape}");
+
+		const milkMenu = await openMenu("牛乳");
+
+		expect(milkMenu.down).toHaveAttribute("aria-disabled", "true");
+
+		await user.keyboard("{Escape}");
+
+		await user.click((await openMenu("卵")).down);
 
 		await waitFor(() => {
 			expect(repository.items).toEqual([
@@ -368,6 +374,7 @@ describe("ShoppingList", () => {
 
 		await screen.findByText("買うものはまだありません。");
 
+		await user.click(screen.getByLabelText("買うもの"));
 		await user.selectOptions(screen.getByLabelText("カテゴリ"), "pantry");
 		await user.type(screen.getByLabelText("買うもの"), "卵");
 
@@ -393,11 +400,8 @@ describe("ShoppingList", () => {
 
 		render(<ShoppingList repository={repository} />);
 
-		await user.click(
-			await screen.findByRole("button", {
-				name: "売り場順",
-			}),
-		);
+		await user.click(await screen.findByRole("button", { name: "並べ替え" }));
+		await user.click(screen.getByRole("menuitem", { name: "売り場順" }));
 
 		await waitFor(() => {
 			expect(repository.items).toEqual([
@@ -440,11 +444,8 @@ describe("ShoppingList", () => {
 
 		render(<ShoppingList repository={repository} />);
 
-		await user.click(
-			await screen.findByRole("button", {
-				name: "逆回り",
-			}),
-		);
+		await user.click(await screen.findByRole("button", { name: "並べ替え" }));
+		await user.click(screen.getByRole("menuitem", { name: "逆回り" }));
 
 		await waitFor(() => {
 			expect(repository.items).toEqual([
@@ -530,7 +531,7 @@ describe("ShoppingList", () => {
 
 		expect(
 			await screen.findByRole("button", {
-				name: "卵をドラッグして並び替え",
+				name: "卵を並べ替え",
 			}),
 		).toBeInTheDocument();
 	});
@@ -606,7 +607,7 @@ describe("ShoppingList", () => {
 
 		await user.click(
 			await screen.findByRole("button", {
-				name: "チェック済みを購入確定（1件）",
+				name: "購入を確定（1件）",
 			}),
 		);
 
@@ -658,7 +659,7 @@ describe("ShoppingList", () => {
 
 		await user.click(
 			await screen.findByRole("button", {
-				name: "チェック済みを購入確定（1件）",
+				name: "購入を確定（1件）",
 			}),
 		);
 
@@ -718,7 +719,7 @@ describe("ShoppingList", () => {
 
 		await user.click(
 			await screen.findByRole("button", {
-				name: "チェック済みを購入確定（1件）",
+				name: "購入を確定（1件）",
 			}),
 		);
 
@@ -765,7 +766,7 @@ describe("ShoppingList", () => {
 
 		await user.click(
 			await screen.findByRole("button", {
-				name: "チェック済みを購入確定（1件）",
+				name: "購入を確定（1件）",
 			}),
 		);
 
@@ -823,7 +824,7 @@ describe("ShoppingList", () => {
 
 		await user.click(
 			await screen.findByRole("button", {
-				name: "チェック済みを購入確定（1件）",
+				name: "購入を確定（1件）",
 			}),
 		);
 
@@ -882,7 +883,7 @@ describe("ShoppingList", () => {
 
 		await user.click(
 			await screen.findByRole("button", {
-				name: "チェック済みを購入確定（1件）",
+				name: "購入を確定（1件）",
 			}),
 		);
 		await user.selectOptions(
@@ -928,7 +929,7 @@ describe("ShoppingList", () => {
 
 		await user.click(
 			await screen.findByRole("button", {
-				name: "チェック済みを購入確定（1件）",
+				name: "購入を確定（1件）",
 			}),
 		);
 
@@ -963,7 +964,7 @@ describe("ShoppingList", () => {
 
 		await user.click(
 			await screen.findByRole("button", {
-				name: "チェック済みを購入確定（1件）",
+				name: "購入を確定（1件）",
 			}),
 		);
 		await user.click(await screen.findByRole("button", { name: "キャンセル" }));
@@ -1026,7 +1027,7 @@ describe("ShoppingList", () => {
 
 		await user.click(
 			await screen.findByRole("button", {
-				name: "チェック済みを購入確定（1件）",
+				name: "購入を確定（1件）",
 			}),
 		);
 

@@ -1,13 +1,10 @@
 import { type SubmitEvent, useState } from "react";
-import { IngredientNameInput } from "#/features/ingredients/components/ingredient-name-input";
-import { QuantityInput } from "#/features/quantity/components/quantity-input";
+import { Button } from "#/components/button/button";
 import { formatQuantity } from "#/features/quantity/domain/format-quantity";
 import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
-import { PickerSelect } from "../../../components/select/picker-select";
 import {
 	isShoppingCategoryId,
 	type ShoppingCategoryId,
-	shoppingCategories,
 } from "../domain/shopping-category";
 import type {
 	ShoppingItem,
@@ -15,8 +12,13 @@ import type {
 } from "../domain/shopping-item";
 import { inferShoppingCategory } from "../domain/shopping-item-suggestion";
 import type { ShoppingStore } from "../domain/shopping-store";
-import * as styles from "./shopping-list.css";
-import { ShoppingStoreSelect } from "./shopping-store-select";
+import {
+	ShoppingCategoryField,
+	ShoppingNameField,
+	ShoppingQuantityUnitFields,
+	ShoppingStoreField,
+} from "./shopping-item-fields";
+import * as styles from "./shopping-page.css";
 
 type ShoppingItemEditFormProps = {
 	item: ShoppingItem;
@@ -89,106 +91,49 @@ export function ShoppingItemEditForm({
 
 	return (
 		<form
-			className={styles.editForm}
+			className={styles.editCard}
+			aria-label={`${item.name}の編集`}
 			onSubmit={(event) => void handleSubmit(event)}
 		>
-			<div className={styles.field}>
-				<label className={styles.fieldLabel} htmlFor={`edit-name-${item.id}`}>
-					商品名
-				</label>
+			<ShoppingNameField
+				label="商品名"
+				value={name}
+				onChange={handleNameChange}
+			/>
 
-				<IngredientNameInput
-					className={styles.input}
-					id={`edit-name-${item.id}`}
-					value={name}
-					onChange={handleNameChange}
-				/>
-			</div>
+			<ShoppingQuantityUnitFields
+				quantity={quantity}
+				onQuantityChange={setQuantity}
+				unitLabel={unitLabel}
+				onUnitChange={setUnitLabel}
+			/>
 
-			<div className={styles.details}>
-				<div className={styles.field}>
-					<label
-						className={styles.fieldLabel}
-						htmlFor={`edit-quantity-${item.id}`}
-					>
-						数量
-					</label>
+			<ShoppingCategoryField
+				label="編集するカテゴリ"
+				value={categoryId}
+				onChange={handleCategoryChange}
+			/>
 
-					<QuantityInput
-						className={styles.input}
-						id={`edit-quantity-${item.id}`}
-						value={quantity}
-						onChange={setQuantity}
-						unitLabel={unitLabel}
-					/>
-				</div>
+			<ShoppingStoreField
+				stores={stores}
+				value={storeId}
+				onChange={setStoreId}
+				onCreateStore={onCreateStore}
+			/>
 
-				<div className={styles.field}>
-					<label className={styles.fieldLabel} htmlFor={`edit-unit-${item.id}`}>
-						単位
-					</label>
-
-					<input
-						className={styles.input}
-						id={`edit-unit-${item.id}`}
-						value={unitLabel}
-						onChange={(event) => setUnitLabel(event.target.value)}
-						autoComplete="off"
-					/>
-				</div>
-
-				<div className={styles.field}>
-					<label
-						className={styles.fieldLabel}
-						htmlFor={`edit-category-${item.id}`}
-					>
-						編集するカテゴリ
-					</label>
-
-					<PickerSelect
-						className={styles.input}
-						id={`edit-category-${item.id}`}
-						value={categoryId}
-						onChange={(event) => handleCategoryChange(event.target.value)}
-					>
-						<option value="">未設定</option>
-
-						{shoppingCategories.map((category) => (
-							<option value={category.id} key={category.id}>
-								{category.label}
-							</option>
-						))}
-					</PickerSelect>
-				</div>
-			</div>
-
-			<div className={styles.field}>
-				<label className={styles.fieldLabel} htmlFor={`edit-store-${item.id}`}>
-					買う店
-				</label>
-
-				<ShoppingStoreSelect
-					id={`edit-store-${item.id}`}
-					stores={stores}
-					value={storeId}
-					onChange={setStoreId}
-					onCreateStore={onCreateStore}
-				/>
-			</div>
-
-			<div className={styles.editActions}>
-				<button
-					className={styles.cancelButton}
-					type="button"
+			<div className={styles.editButtons}>
+				<Button
+					variant="secondary"
+					fullWidth
 					onClick={onCancel}
 					disabled={isSaving}
 				>
 					キャンセル
-				</button>
+				</Button>
 
-				<button className={styles.saveButton} type="submit" disabled={isSaving}>
+				<Button fullWidth type="submit" disabled={isSaving}>
 					保存
-				</button>
+				</Button>
 			</div>
 		</form>
 	);

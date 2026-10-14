@@ -179,7 +179,7 @@ export function ShoppingBranchSection({
 											<summary>{title}に追加</summary>
 
 											<ShoppingItemForm
-												idPrefix={`branch-${branch.id}-${side}`}
+												alwaysExpanded
 												submitLabel="この側に追加"
 												errorMessage={null}
 												stores={stores}
@@ -255,7 +255,7 @@ export function ShoppingBranchSection({
 					</p>
 
 					<ShoppingItemForm
-						idPrefix="branch-new"
+						alwaysExpanded
 						submitLabel="条件つきのメモを作る"
 						errorMessage={null}
 						stores={stores}

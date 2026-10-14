@@ -18,6 +18,14 @@ export const iconDefinitions = {
 		style: "outline",
 		content: (<path d="M12 3l10 18H2L12 3zM12 10v5M12 18v.5" />) as ReactNode,
 	},
+	"arrow-down": {
+		style: "outline",
+		content: (<path d="M12 5v14M6 13l6 6 6-6" />) as ReactNode,
+	},
+	"arrow-up": {
+		style: "outline",
+		content: (<path d="M12 19V5M6 11l6-6 6 6" />) as ReactNode,
+	},
 	"arrow-up-right": {
 		style: "outline",
 		content: (<path d="M7 17L17 7M9 7h8v8" />) as ReactNode,

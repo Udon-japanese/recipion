@@ -1,3 +1,4 @@
+import { Chip } from "#/components/chip/chip";
 import { parseQuantityInput } from "../domain/parse-quantity-input";
 import {
 	applyQuantityButton,
@@ -61,16 +62,15 @@ export function QuantityInput({
 			{buttons.length > 0 ? (
 				<div className={styles.fractionButtons}>
 					{buttons.map((button) => (
-						<button
-							className={styles.fractionButton}
-							type="button"
+						<Chip
 							key={describeQuantityButton(button)}
+							size="qty"
 							disabled={disabled}
 							aria-label={describeQuantityButtonForAssistiveTech(button)}
 							onClick={() => onChange(applyQuantityButton(value, button))}
 						>
 							{describeQuantityButton(button)}
-						</button>
+						</Chip>
 					))}
 				</div>
 			) : null}

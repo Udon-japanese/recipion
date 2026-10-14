@@ -18,7 +18,13 @@ import {
 	iconDefinitions,
 } from "#/components/icon/icon-definitions";
 import { IconButton } from "#/components/icon-button/icon-button";
+import {
+	ListRow,
+	ListRowMeta,
+	ListRowName,
+} from "#/components/list-row/list-row";
 import { Mascot } from "#/components/mascot/mascot";
+import { Menu } from "#/components/menu/menu";
 import { Note } from "#/components/note/note";
 import { SegmentedControl } from "#/components/segmented-control/segmented-control";
 import { Sheet } from "#/components/sheet/sheet";
@@ -440,6 +446,61 @@ function PartsGallery() {
 					</Chip>
 					<Chip size="qty">1/2</Chip>
 				</ChipGroup>
+			</Section>
+
+			<Section
+				title="部品（第4弾）：行・メニュー"
+				description="行（先頭にチェック、中央に名前と補足、後ろに操作）と、押すと出る短いメニュー（矢印・Esc・外を押すで閉じる）。"
+			>
+				<ul
+					style={{
+						maxWidth: 420,
+						margin: 0,
+						padding: "0 12px 0 8px",
+						listStyle: "none",
+						background: "var(--color-surface)",
+						borderRadius: 20,
+					}}
+				>
+					<ListRow
+						leading={<Checkbox label="トマトをチェック" />}
+						actions={
+							<Menu
+								label="トマトのその他"
+								icon="more-horizontal"
+								items={[
+									{ label: "編集", icon: "edit", onSelect: () => {} },
+									{
+										label: "上へ",
+										icon: "arrow-up",
+										disabled: true,
+										onSelect: () => {},
+									},
+									{
+										label: "削除",
+										icon: "trash",
+										tone: "danger",
+										onSelect: () => {},
+									},
+								]}
+							/>
+						}
+					>
+						<ListRowName>トマト</ListRowName>
+						<ListRowMeta>
+							<Chip>2個</Chip>
+							<Tag icon="store">スーパーA</Tag>
+						</ListRowMeta>
+					</ListRow>
+					<ListRow
+						leading={<Checkbox label="玉ねぎをチェック" defaultChecked />}
+					>
+						<ListRowName done>玉ねぎ</ListRowName>
+						<ListRowMeta>
+							<Chip>3個</Chip>
+						</ListRowMeta>
+					</ListRow>
+				</ul>
 			</Section>
 
 			<Section
