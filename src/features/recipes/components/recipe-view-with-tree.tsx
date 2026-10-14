@@ -14,6 +14,8 @@ type RecipeViewWithTreeProps = {
 	onOpenLink?: (publicId: string, trigger: HTMLElement) => void;
 	titleId?: string;
 	badges?: ReactNode;
+	// 題名を出さない（外側の見出しが、題名を出しているとき）。
+	hideTitle?: boolean;
 };
 
 // 材料のリンク先を取ってきて、材料の下に、その場で開く（取れるまでは、リンクのまま）。
@@ -23,6 +25,7 @@ export function RecipeViewWithTree({
 	onOpenLink,
 	titleId,
 	badges,
+	hideTitle,
 }: RecipeViewWithTreeProps) {
 	const [loaded, setLoaded] = useState<{
 		forPublicId: string;
@@ -61,6 +64,7 @@ export function RecipeViewWithTree({
 			onOpenLink={onOpenLink}
 			titleId={titleId}
 			badges={badges}
+			hideTitle={hideTitle}
 			linkedRecipes={
 				loaded?.forPublicId === recipe.publicId ? loaded.recipes : undefined
 			}

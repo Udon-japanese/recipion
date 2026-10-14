@@ -1,6 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { Button } from "#/components/button/button";
+import { Sheet } from "#/components/sheet/sheet";
+import { useMediaQuery } from "#/components/use-media-query";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import type { InventoryListItem } from "#/features/inventory/application/inventory-query-repository";
 import type { ShoppingRepository } from "#/features/shopping/application/shopping-repository";
@@ -37,6 +39,7 @@ export function RecipeShoppingSection({
 	shoppingRepository = dexieShoppingRepository,
 	registerAvailable,
 }: RecipeShoppingSectionProps) {
+	const isRight = useMediaQuery("(min-width: 1024px)");
 	const [isOpen, setIsOpen] = useState(false);
 	const plan = useRecipeShoppingPlan({
 		ingredients,
@@ -51,52 +54,63 @@ export function RecipeShoppingSection({
 		return null;
 	}
 
-	if (!isOpen) {
-		return (
-			<div className={styles.container}>
-				<Button
-					onClick={() => {
-						setIsOpen(true);
-						void plan.start();
-					}}
-				>
-					買い物メモに入れる
-				</Button>
-			</div>
-		);
-	}
-
 	return (
-		<section className={styles.container} aria-label="買い物メモに入れる">
-			<div className={styles.panel}>
-				<h3 className={styles.heading}>買い物メモに入れる</h3>
+		<div className={styles.container}>
+			<Button
+				variant="secondary"
+				fullWidth
+				onClick={() => {
+					setIsOpen(true);
+					void plan.start();
+				}}
+			>
+				買い物メモに入れる
+			</Button>
 
-				<RecipeShoppingRows
-					plan={plan}
-					ownerScope={ownerScope}
-					registerAvailable={registerAvailable}
-					resultLink={<Link to="/shopping">買い物メモを開く</Link>}
-				/>
+			<Sheet
+				open={isOpen}
+				onOpenChange={(open) => {
+					if (!open && !plan.isApplying) {
+						setIsOpen(false);
+					}
+				}}
+				title="買い物メモに入れる"
+				placement={isRight ? "right" : "bottom"}
+				snapPoints={isRight ? [0.92] : [0.7, 0.92]}
+				footer={
+					<div className={styles.footer}>
+						<Button
+							variant="secondary"
+							size="lg"
+							fullWidth
+							disabled={plan.isApplying}
+							onClick={() => setIsOpen(false)}
+						>
+							閉じる
+						</Button>
 
-				<div className={styles.actions}>
-					<Button
-						variant="secondary"
-						disabled={plan.isApplying}
-						onClick={() => setIsOpen(false)}
-					>
-						閉じる
-					</Button>
-
-					<Button
-						status={plan.isApplying ? "pending" : "idle"}
-						pendingLabel="追加中"
-						disabled={plan.isLoading}
-						onClick={() => void plan.apply()}
-					>
-						{`選んだものを入れる（${plan.selectedCount}件）`}
-					</Button>
-				</div>
-			</div>
-		</section>
+						<Button
+							size="lg"
+							fullWidth
+							status={plan.isApplying ? "pending" : "idle"}
+							pendingLabel="追加中"
+							disabled={plan.isLoading}
+							onClick={() => void plan.apply()}
+						>
+							{`選んだものを入れる（${plan.selectedCount}件）`}
+						</Button>
+					</div>
+				}
+			>
+				<section aria-label="買い物メモに入れる">
+					<RecipeShoppingRows
+						plan={plan}
+						ownerScope={ownerScope}
+						registerAvailable={registerAvailable}
+						resultLink={<Link to="/shopping">買い物メモを開く</Link>}
+					/>
+				</section>
+			</Sheet>
+		</div>
 	);
 }

@@ -124,6 +124,7 @@ type RecipeViewProps = {
 	linkedRecipes?: LinkedRecipes;
 	// 題名の下に並べる印（公開範囲など）。
 	badges?: ReactNode;
+	hideTitle?: boolean;
 };
 
 export function RecipeView({
@@ -132,13 +133,16 @@ export function RecipeView({
 	titleId,
 	linkedRecipes,
 	badges,
+	hideTitle,
 }: RecipeViewProps) {
 	return (
 		<article className={styles.container}>
 			<header className={styles.header}>
-				<h2 id={titleId} className={styles.title}>
-					{recipe.name}
-				</h2>
+				{hideTitle ? null : (
+					<h2 id={titleId} className={styles.title}>
+						{recipe.name}
+					</h2>
+				)}
 				<div className={styles.tags}>
 					<Tag>{recipe.servings}人分</Tag>
 					{badges}

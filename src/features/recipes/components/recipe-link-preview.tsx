@@ -1,11 +1,7 @@
-import {
-	type ReactNode,
-	useCallback,
-	useEffect,
-	useId,
-	useRef,
-	useState,
-} from "react";
+import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { IconButton } from "#/components/icon-button/icon-button";
+import { Sheet } from "#/components/sheet/sheet";
+import { useMediaQuery } from "#/components/use-media-query";
 import type { RecipeDetail } from "../application/recipe-repository";
 import * as styles from "./recipe-link-preview.css";
 import {
@@ -40,27 +36,9 @@ export function RecipeLinkPreview({
 }: RecipeLinkPreviewProps) {
 	const [stack, setStack] = useState<string[]>([initialPublicId]);
 	const [states, setStates] = useState<Record<string, LoadState>>({});
-	const titleId = useId();
-	const closeRef = useRef<HTMLButtonElement>(null);
+	const isRight = useMediaQuery("(min-width: 1024px)");
 	const current = stack.at(-1) ?? initialPublicId;
 	const state: LoadState = states[current] ?? { status: "loading" };
-
-	useEffect(() => {
-		closeRef.current?.focus();
-	}, []);
-
-	// Esc で閉じる。
-	useEffect(() => {
-		function handleKeyDown(event: KeyboardEvent) {
-			if (event.key === "Escape" && !event.isComposing) {
-				onClose();
-			}
-		}
-
-		document.addEventListener("keydown", handleKeyDown);
-
-		return () => document.removeEventListener("keydown", handleKeyDown);
-	}, [onClose]);
 
 	const load = useCallback(
 		(publicId: string) => {
@@ -96,69 +74,57 @@ export function RecipeLinkPreview({
 	}, [current, load]);
 
 	return (
-		<>
-			<button
-				type="button"
-				className={styles.backdrop}
-				aria-label="閉じる"
-				tabIndex={-1}
-				onClick={onClose}
-			/>
-
-			<div
-				className={styles.panel}
-				role="dialog"
-				aria-modal="true"
-				aria-labelledby={state.status === "ready" ? titleId : undefined}
-				aria-label={state.status === "ready" ? undefined : "レシピのプレビュー"}
-			>
-				<div className={styles.header}>
-					{stack.length > 1 ? (
-						<button
-							type="button"
-							onClick={() => setStack((current) => current.slice(0, -1))}
-						>
-							戻る
-						</button>
-					) : (
-						<span />
-					)}
-					<button ref={closeRef} type="button" onClick={onClose}>
-						閉じる
-					</button>
-				</div>
-
-				<div className={styles.body}>
-					{state.status === "loading" ? (
-						<p className={styles.message}>読み込んでいます…</p>
-					) : null}
-					{state.status === "missing" ? (
-						<p className={styles.message}>レシピが見つかりません。</p>
-					) : null}
-					{state.status === "error" ? (
-						<p className={styles.message} role="alert">
-							レシピを読み込めませんでした。
-						</p>
-					) : null}
-					{state.status === "ready" && state.recipe.author ? (
-						<p className={styles.message}>
-							作者：{state.recipe.author.name}（@{state.recipe.author.handle}）
-						</p>
-					) : null}
-					{state.status === "ready" ? (
-						<RecipeViewWithTree
-							loadLinkedRecipes={loadLinkedRecipes}
-							recipe={state.recipe}
-							titleId={titleId}
-							onOpenLink={(publicId) =>
-								setStack((currentStack) => [...currentStack, publicId])
-							}
-						/>
-					) : null}
-				</div>
-
-				<div className={styles.footer}>{renderOpenLink(current)}</div>
-			</div>
-		</>
+		<Sheet
+			open
+			onOpenChange={(open) => {
+				if (!open) {
+					onClose();
+				}
+			}}
+			title={
+				state.status === "ready" ? state.recipe.name : "レシピのプレビュー"
+			}
+			placement={isRight ? "right" : "bottom"}
+			snapPoints={isRight ? [0.92] : [0.7, 0.92]}
+			headerLeading={
+				stack.length > 1 ? (
+					<IconButton
+						icon="chevron-left"
+						label="戻る"
+						size="std"
+						tone="plain"
+						onClick={() => setStack((current) => current.slice(0, -1))}
+					/>
+				) : null
+			}
+			footer={<div className={styles.footer}>{renderOpenLink(current)}</div>}
+		>
+			{state.status === "loading" ? (
+				<p className={styles.message}>読み込んでいます…</p>
+			) : null}
+			{state.status === "missing" ? (
+				<p className={styles.message}>レシピが見つかりません。</p>
+			) : null}
+			{state.status === "error" ? (
+				<p className={styles.message} role="alert">
+					レシピを読み込めませんでした。
+				</p>
+			) : null}
+			{state.status === "ready" && state.recipe.author ? (
+				<p className={styles.message}>
+					作者：{state.recipe.author.name}（@{state.recipe.author.handle}）
+				</p>
+			) : null}
+			{state.status === "ready" ? (
+				<RecipeViewWithTree
+					loadLinkedRecipes={loadLinkedRecipes}
+					recipe={state.recipe}
+					hideTitle
+					onOpenLink={(publicId) =>
+						setStack((currentStack) => [...currentStack, publicId])
+					}
+				/>
+			) : null}
+		</Sheet>
 	);
 }

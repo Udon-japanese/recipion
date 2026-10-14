@@ -60,7 +60,7 @@ function stockItem(
 async function openPanel(user: ReturnType<typeof userEvent.setup>) {
 	await user.click(screen.getByRole("button", { name: "買い物メモに入れる" }));
 
-	return screen.findByRole("region", { name: "買い物メモに入れる" });
+	return screen.findByRole("dialog", { name: "買い物メモに入れる" });
 }
 
 describe("RecipeShoppingSection", () => {
