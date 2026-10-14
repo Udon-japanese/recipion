@@ -16,6 +16,8 @@ type IngredientNameInputProps = {
 	placeholder?: string;
 	className?: string;
 	disabled?: boolean;
+	// 候補の右に出す補足（例：カテゴリ名）。
+	describeEntry?: (entry: IngredientCatalogEntry) => string | undefined;
 };
 
 // 食材名の入力欄。入力に合わせて、食材カタログから候補を出す（在庫の登録と、買い物メモで共通）。
@@ -29,6 +31,7 @@ export function IngredientNameInput({
 	placeholder,
 	className,
 	disabled,
+	describeEntry,
 }: IngredientNameInputProps) {
 	const listboxId = useId();
 	const [isOpen, setIsOpen] = useState(false);
@@ -132,7 +135,17 @@ export function IngredientNameInput({
 							onMouseDown={(event) => event.preventDefault()}
 							onClick={() => select(entry)}
 						>
-							{entry.name}
+							<span className={styles.label}>
+								{entry.name.startsWith(value.trim()) && value.trim() !== "" ? (
+									<>
+										<b>{value.trim()}</b>
+										{entry.name.slice(value.trim().length)}
+									</>
+								) : (
+									entry.name
+								)}
+							</span>
+							<span className={styles.sub}>{describeEntry?.(entry)}</span>
 						</button>
 					))}
 				</div>

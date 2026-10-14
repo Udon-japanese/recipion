@@ -64,7 +64,7 @@ describe("ShoppingList の店", () => {
 			within(heading.closest("section") as HTMLElement).getByText("卵"),
 		).toBeInTheDocument();
 		expect(
-			screen.queryByRole("button", { name: "卵をドラッグして並び替え" }),
+			screen.queryByRole("button", { name: "卵を並べ替え" }),
 		).not.toBeInTheDocument();
 	});
 });

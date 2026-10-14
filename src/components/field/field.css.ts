@@ -12,6 +12,15 @@ export const label = style({
 	lineHeight: 1.35,
 });
 
+export const hiddenLabel = style({
+	position: "absolute",
+	width: 1,
+	height: 1,
+	overflow: "hidden",
+	clip: "rect(0 0 0 0)",
+	whiteSpace: "nowrap",
+});
+
 export const optional = style({
 	marginLeft: 6,
 	color: "var(--color-text-muted)",

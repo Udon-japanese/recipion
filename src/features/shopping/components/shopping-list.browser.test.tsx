@@ -10,7 +10,7 @@ test("ドラッグ操作で買い物項目を並び替える", async () => {
 		createShoppingItem(
 			{
 				name: "卵",
-				categoryId: "eggs",
+				categoryId: "dairy",
 				categoryAssignment: "manual",
 			},
 			new Date("2026-09-22T10:00:00.000Z"),
@@ -28,7 +28,7 @@ test("ドラッグ操作で買い物項目を並び替える", async () => {
 		createShoppingItem(
 			{
 				name: "食パン",
-				categoryId: "bakery",
+				categoryId: "dairy",
 				categoryAssignment: "manual",
 			},
 			new Date("2026-09-22T10:02:00.000Z"),
@@ -42,9 +42,10 @@ test("ドラッグ操作で買い物項目を並び替える", async () => {
 	await render(<ShoppingList repository={repository} />);
 
 	const dragHandle = page.getByRole("button", {
-		name: "卵をドラッグして並び替え",
+		name: "卵を並べ替え",
 	});
 	const lastItem = page.getByRole("listitem").nth(2);
+	// 同じ分類（牛乳・乳製品）の中で動かす。
 
 	await expect.element(dragHandle).toBeVisible();
 	await dragHandle.dropTo(lastItem);

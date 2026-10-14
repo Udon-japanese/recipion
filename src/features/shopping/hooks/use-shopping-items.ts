@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import type { ShoppingRepository } from "../application/shopping-repository";
 import { getShoppingErrorMessage } from "../components/shopping-error-message";
+import type { ShoppingCategoryId } from "../domain/shopping-category";
+import {
+	moveShoppingItemInCategory,
+	moveShoppingItemInCategoryByOne,
+} from "../domain/shopping-category-group";
 import {
 	type CreateShoppingItemInput,
 	createShoppingItem,
@@ -13,11 +18,7 @@ import {
 	type ShoppingAisleDirection,
 	sortShoppingItemsByCategory,
 } from "../domain/shopping-item-category-order";
-import {
-	moveShoppingItem,
-	moveShoppingItemToIndex,
-	type ShoppingItemMoveDirection,
-} from "../domain/shopping-item-order";
+import type { ShoppingItemMoveDirection } from "../domain/shopping-item-order";
 import { upsertById } from "../domain/upsert-by-id";
 
 // 買い物メモの項目の読み込みと、追加・更新・削除・並び替え。
@@ -191,7 +192,9 @@ export function useShoppingItems(repository: ShoppingRepository) {
 	}
 
 	function moveItem(itemId: string, direction: ShoppingItemMoveDirection) {
-		return reorder((current) => moveShoppingItem(current, itemId, direction));
+		return reorder((current) =>
+			moveShoppingItemInCategoryByOne(current, itemId, direction),
+		);
 	}
 
 	function sortByCategory(direction: ShoppingAisleDirection) {
@@ -200,13 +203,18 @@ export function useShoppingItems(repository: ShoppingRepository) {
 		);
 	}
 
-	function dragMove(fromIndex: number, toIndex: number) {
+	// 同じ分類の中での並び替え（位置は、その分類の中のもの）。
+	function dragMove(
+		categoryId: ShoppingCategoryId | null,
+		fromIndex: number,
+		toIndex: number,
+	) {
 		if (fromIndex === toIndex) {
 			return Promise.resolve(true);
 		}
 
 		return reorder((current) =>
-			moveShoppingItemToIndex(current, fromIndex, toIndex),
+			moveShoppingItemInCategory(current, categoryId, fromIndex, toIndex),
 		);
 	}
 

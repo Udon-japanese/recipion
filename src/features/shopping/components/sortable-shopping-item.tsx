@@ -1,23 +1,25 @@
 import { useSortable } from "@dnd-kit/react/sortable";
-import clsx from "clsx";
 import type { ReactNode } from "react";
-import * as styles from "./shopping-list.css";
+
+export type DragHandleRef = ReturnType<typeof useSortable>["handleRef"];
+type RowRef = ReturnType<typeof useSortable>["ref"];
 
 type SortableShoppingItemProps = {
 	id: string;
+	// その分類の中での位置。
 	index: number;
-	className: string;
 	disabled: boolean;
-	children: (
-		handleRef: ReturnType<typeof useSortable>["handleRef"],
-	) => ReactNode;
+	children: (state: {
+		rowRef: RowRef;
+		handleRef: DragHandleRef;
+		isDragging: boolean;
+	}) => ReactNode;
 };
 
-// ドラッグで並び替えられる、一覧の 1 行。
+// ドラッグで並び替えられる、一覧の 1 行（行の要素は、呼び出し側が作る）。
 export function SortableShoppingItem({
 	id,
 	index,
-	className,
 	disabled,
 	children,
 }: SortableShoppingItemProps) {
@@ -27,14 +29,5 @@ export function SortableShoppingItem({
 		disabled,
 	});
 
-	return (
-		<li
-			className={clsx(className, isDragging && styles.draggingItem)}
-			ref={ref}
-		>
-			{children(handleRef)}
-		</li>
-	);
+	return children({ rowRef: ref, handleRef, isDragging });
 }
-
-export type DragHandleRef = ReturnType<typeof useSortable>["handleRef"];

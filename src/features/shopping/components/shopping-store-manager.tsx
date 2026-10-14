@@ -1,6 +1,10 @@
 import { useState } from "react";
+import { Button } from "#/components/button/button";
+import { TextInput } from "#/components/field/field";
+import { Icon } from "#/components/icon/icon";
+import { IconButton } from "#/components/icon-button/icon-button";
 import type { ShoppingStore } from "../domain/shopping-store";
-import * as styles from "./shopping-list.css";
+import * as styles from "./shopping-store-manager.css";
 
 type ShoppingStoreManagerProps = {
 	stores: readonly ShoppingStore[];
@@ -25,92 +29,98 @@ export function ShoppingStoreManager({
 	}
 
 	return (
-		<details className={styles.storeManager}>
-			<summary>店の管理</summary>
+		<details className={styles.manager}>
+			<summary className={styles.summary}>
+				<Icon name="store" size={20} />
+				店の管理
+				<span className={styles.chevron}>
+					<Icon name="chevron-down" size={20} />
+				</span>
+			</summary>
 
-			<ul className={styles.storeManagerList}>
+			<ul className={styles.list}>
 				{stores.map((store) => (
-					<li className={styles.storeManagerRow} key={store.id}>
+					<li className={styles.row} key={store.id}>
 						{editingId === store.id ? (
 							<>
-								<input
-									className={styles.input}
-									aria-label={`${store.name}の新しい名前`}
-									value={editName}
-									onChange={(event) => setEditName(event.target.value)}
-									autoComplete="off"
-								/>
+								<div className={styles.grow}>
+									<TextInput
+										aria-label={`${store.name}の新しい名前`}
+										value={editName}
+										onChange={(event) => setEditName(event.target.value)}
+										autoComplete="off"
+									/>
+								</div>
 
-								<button
-									className={styles.sortButton}
-									type="button"
-									onClick={async () => {
-										if (await onRename(store, editName)) {
-											setEditingId(null);
-										}
-									}}
-								>
-									保存
-								</button>
+								<div className={styles.buttons}>
+									<Button
+										size="sm"
+										onClick={async () => {
+											if (await onRename(store, editName)) {
+												setEditingId(null);
+											}
+										}}
+									>
+										保存
+									</Button>
 
-								<button
-									className={styles.sortButton}
-									type="button"
-									onClick={() => setEditingId(null)}
-								>
-									やめる
-								</button>
+									<Button
+										size="sm"
+										variant="secondary"
+										onClick={() => setEditingId(null)}
+									>
+										やめる
+									</Button>
+								</div>
+							</>
+						) : confirmingRemoveId === store.id ? (
+							<>
+								<span className={styles.confirm}>
+									{store.name}：この店の項目は「どこでも」になります。
+								</span>
+
+								<div className={styles.buttons}>
+									<Button
+										size="sm"
+										variant="danger"
+										onClick={async () => {
+											await onRemove(store);
+											setConfirmingRemoveId(null);
+										}}
+									>
+										削除する
+									</Button>
+
+									<Button
+										size="sm"
+										variant="secondary"
+										onClick={() => setConfirmingRemoveId(null)}
+									>
+										やめる
+									</Button>
+								</div>
 							</>
 						) : (
 							<>
-								<span>{store.name}</span>
+								<span className={styles.name}>{store.name}</span>
 
-								<button
-									className={styles.sortButton}
-									type="button"
-									aria-label={`${store.name}の名前を変更`}
+								<IconButton
+									icon="edit"
+									label={`${store.name}の名前を変更`}
+									tone="plain"
 									onClick={() => {
 										setEditingId(store.id);
 										setEditName(store.name);
 										setConfirmingRemoveId(null);
 									}}
-								>
-									名前を変更
-								</button>
+								/>
 
-								{confirmingRemoveId === store.id ? (
-									<>
-										<span>この店の項目は「どこでも」になります。</span>
-
-										<button
-											className={styles.deleteButton}
-											type="button"
-											onClick={async () => {
-												await onRemove(store);
-												setConfirmingRemoveId(null);
-											}}
-										>
-											削除する
-										</button>
-
-										<button
-											className={styles.sortButton}
-											type="button"
-											onClick={() => setConfirmingRemoveId(null)}
-										>
-											やめる
-										</button>
-									</>
-								) : (
-									<button
-										className={styles.deleteButton}
-										type="button"
-										aria-label={`${store.name}を削除`}
-										onClick={() => setConfirmingRemoveId(store.id)}
-									>
-										削除
-									</button>
-								)}
+								<IconButton
+									icon="trash"
+									label={`${store.name}を削除`}
+									tone="plain"
+									onClick={() => setConfirmingRemoveId(store.id)}
+								/>
 							</>
 						)}
 					</li>

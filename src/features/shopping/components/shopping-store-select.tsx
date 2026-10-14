@@ -1,7 +1,8 @@
 import { type KeyboardEvent, useState } from "react";
-import { PickerSelect } from "../../../components/select/picker-select";
+import { Button } from "#/components/button/button";
+import { SelectBox, TextInput } from "#/components/field/field";
 import type { ShoppingStore } from "../domain/shopping-store";
-import * as styles from "./shopping-list.css";
+import * as styles from "./shopping-page.css";
 
 const newStoreValue = "__new-store__";
 
@@ -56,8 +57,7 @@ export function ShoppingStoreSelect({
 
 	return (
 		<div>
-			<PickerSelect
-				className={styles.input}
+			<SelectBox
 				id={id}
 				value={value ?? ""}
 				onChange={(event) => {
@@ -80,12 +80,11 @@ export function ShoppingStoreSelect({
 				))}
 
 				<option value={newStoreValue}>＋ 新しい店を追加…</option>
-			</PickerSelect>
+			</SelectBox>
 
 			{isCreating ? (
-				<div className={styles.storeInlineForm}>
-					<input
-						className={styles.input}
+				<div className={styles.inlineStore}>
+					<TextInput
 						aria-label="新しい店の名前"
 						value={newName}
 						onChange={(event) => setNewName(event.target.value)}
@@ -94,25 +93,26 @@ export function ShoppingStoreSelect({
 						autoComplete="off"
 					/>
 
-					<button
-						className={styles.sortButton}
-						type="button"
-						disabled={isSaving || newName.trim() === ""}
-						onClick={() => void handleCreate()}
-					>
-						この店を追加
-					</button>
+					<div className={styles.inlineStoreButtons}>
+						<Button
+							size="sm"
+							disabled={isSaving || newName.trim() === ""}
+							onClick={() => void handleCreate()}
+						>
+							この店を追加
+						</Button>
 
-					<button
-						className={styles.sortButton}
-						type="button"
-						onClick={() => {
-							setIsCreating(false);
-							setNewName("");
-						}}
-					>
-						やめる
-					</button>
+						<Button
+							size="sm"
+							variant="secondary"
+							onClick={() => {
+								setIsCreating(false);
+								setNewName("");
+							}}
+						>
+							やめる
+						</Button>
+					</div>
 				</div>
 			) : null}
 		</div>
