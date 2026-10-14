@@ -14,6 +14,7 @@ import { formatQuantityForUnit } from "#/features/quantity/domain/format-quantit
 import type { ShoppingRepository } from "#/features/shopping/application/shopping-repository";
 import type { ShoppingItem } from "#/features/shopping/domain/shopping-item";
 import { dexieShoppingRepository } from "#/features/shopping/infrastructure/dexie-shopping-repository";
+import { PickerSelect } from "../../../components/select/picker-select";
 import {
 	buildShoppingChanges,
 	type ShoppingDestination,
@@ -413,7 +414,7 @@ export function RecipeShoppingSection({
 					<label className={styles.label} htmlFor="recipe-shopping-duplicate">
 						メモに同じものがあるとき
 					</label>
-					<select
+					<PickerSelect
 						className={styles.select}
 						id="recipe-shopping-duplicate"
 						value={duplicateMode}
@@ -428,7 +429,7 @@ export function RecipeShoppingSection({
 								</option>
 							),
 						)}
-					</select>
+					</PickerSelect>
 				</div>
 
 				<ul className={styles.list}>

@@ -1,14 +1,13 @@
 import {
 	createRootRoute,
 	HeadContent,
-	Link,
 	Outlet,
 	Scripts,
 } from "@tanstack/react-router";
 import { APP_DISPLAY_NAME } from "#/config/app";
-import { AuthPanel } from "#/features/auth/components/auth-panel";
 import { SuspensionGate } from "#/features/moderation/components/suspension-gate";
 import { PwaRegister } from "#/features/pwa/components/pwa-register";
+import { AppShell } from "#/features/shell/components/app-shell";
 import { getInitialSessionServerFn } from "#/integrations/better-auth/get-initial-session";
 import appCss from "../styles.css?url";
 
@@ -82,15 +81,11 @@ export const Route = createRootRoute({
 
 function RootLayout() {
 	return (
-		<>
-			<Link to="/">{APP_DISPLAY_NAME}</Link>
-
-			<AuthPanel />
-
-			<SuspensionGate>
+		<SuspensionGate>
+			<AppShell>
 				<Outlet />
-			</SuspensionGate>
-		</>
+			</AppShell>
+		</SuspensionGate>
 	);
 }
 

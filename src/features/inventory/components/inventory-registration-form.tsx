@@ -15,6 +15,7 @@ import {
 import { QuantityInput } from "#/features/quantity/components/quantity-input";
 import { formatQuantity } from "#/features/quantity/domain/format-quantity";
 import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
+import { PickerSelect } from "../../../components/select/picker-select";
 import {
 	parseRegisterInventoryItemInput,
 	type RegisterInventoryItemInput,
@@ -253,7 +254,7 @@ export function InventoryRegistrationForm({
 			<div className={styles.row}>
 				<label className={styles.field}>
 					<span className={styles.label}>在庫の単位</span>
-					<select
+					<PickerSelect
 						className={styles.input}
 						value={
 							unitChoice === customUnitValue
@@ -270,7 +271,7 @@ export function InventoryRegistrationForm({
 						{isInCatalog ? null : (
 							<option value={customUnitValue}>その他（自分で入力）</option>
 						)}
-					</select>
+					</PickerSelect>
 				</label>
 
 				{unitChoice === customUnitValue && !isInCatalog ? (
@@ -287,7 +288,7 @@ export function InventoryRegistrationForm({
 
 				<label className={styles.field}>
 					<span className={styles.label}>管理方法</span>
-					<select
+					<PickerSelect
 						className={styles.input}
 						value={trackingMode}
 						onChange={(event) =>
@@ -299,7 +300,7 @@ export function InventoryRegistrationForm({
 						<option value="estimated">だいたいで管理</option>
 						<option value="exact">正確に管理</option>
 						<option value="presence">有無だけ（量は追わない）</option>
-					</select>
+					</PickerSelect>
 				</label>
 
 				{trackingMode !== "presence" ? (

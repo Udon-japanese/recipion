@@ -2,18 +2,13 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useEffect } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AuthPanel } from "./auth-panel";
+import { LoginForm } from "./login-form";
 
 const mocks = vi.hoisted(() => ({
-	useAppSession: vi.fn(),
 	sendVerificationOtp: vi.fn(),
 	signInEmailOtp: vi.fn(),
 	signOut: vi.fn(),
 	refetch: vi.fn(async () => {}),
-}));
-
-vi.mock("#/integrations/better-auth/use-app-session", () => ({
-	useAppSession: mocks.useAppSession,
 }));
 
 vi.mock("#/integrations/better-auth/auth-client", () => ({
@@ -42,16 +37,7 @@ vi.mock("./turnstile-widget", () => ({
 	},
 }));
 
-function guest() {
-	mocks.useAppSession.mockReturnValue({
-		data: null,
-		isPending: false,
-		refetch: mocks.refetch,
-	});
-}
-
 beforeEach(() => {
-	guest();
 	mocks.sendVerificationOtp.mockResolvedValue({
 		data: { success: true },
 		error: null,
@@ -95,11 +81,11 @@ function digitBoxes(): string[] {
 	);
 }
 
-describe("AuthPanel（メールのワンタイムコード）", () => {
+describe("LoginForm（メールのワンタイムコード）", () => {
 	it("パスワード欄はなく、メールアドレスを入れて、コードを送る", async () => {
 		const user = userEvent.setup();
 
-		render(<AuthPanel />);
+		render(<LoginForm refetchSession={mocks.refetch} />);
 
 		expect(screen.queryByLabelText("パスワード")).toBeNull();
 
@@ -122,7 +108,7 @@ describe("AuthPanel（メールのワンタイムコード）", () => {
 	it("6桁が揃うと、自動でログインを試み、成功したらセッションを取り直す", async () => {
 		const user = userEvent.setup();
 
-		render(<AuthPanel />);
+		render(<LoginForm refetchSession={mocks.refetch} />);
 		await sendCodeFor(user, "user@example.com");
 
 		await user.click(codeInput());
@@ -141,7 +127,7 @@ describe("AuthPanel（メールのワンタイムコード）", () => {
 	it("コードを貼り付けても、自動でログインを試みる", async () => {
 		const user = userEvent.setup();
 
-		render(<AuthPanel />);
+		render(<LoginForm refetchSession={mocks.refetch} />);
 		await sendCodeFor(user, "user@example.com");
 
 		await user.click(codeInput());
@@ -163,7 +149,7 @@ describe("AuthPanel（メールのワンタイムコード）", () => {
 			error: { code: "INVALID_OTP", message: "Invalid OTP", status: 400 },
 		});
 
-		render(<AuthPanel />);
+		render(<LoginForm refetchSession={mocks.refetch} />);
 		await sendCodeFor(user, "user@example.com");
 
 		await user.click(codeInput());
@@ -180,7 +166,7 @@ describe("AuthPanel（メールのワンタイムコード）", () => {
 	it("メールアドレスの形式が正しくなければ、送信しない", async () => {
 		const user = userEvent.setup();
 
-		render(<AuthPanel />);
+		render(<LoginForm refetchSession={mocks.refetch} />);
 
 		await sendCodeFor(user, "not-an-email");
 
@@ -202,7 +188,7 @@ describe("AuthPanel（メールのワンタイムコード）", () => {
 			},
 		});
 
-		render(<AuthPanel />);
+		render(<LoginForm refetchSession={mocks.refetch} />);
 		await sendCodeFor(user, "user@example.com");
 
 		expect((await screen.findByRole("alert")).textContent).toContain(
@@ -217,7 +203,7 @@ describe("AuthPanel（メールのワンタイムコード）", () => {
 	it("コードを送ったあとは、再送の待ち時間を表示し、メールアドレスを変更できる", async () => {
 		const user = userEvent.setup();
 
-		render(<AuthPanel />);
+		render(<LoginForm refetchSession={mocks.refetch} />);
 		await sendCodeFor(user, "user@example.com");
 
 		const resend = screen.getByRole("button", { name: /コードを再送/u });
@@ -237,46 +223,8 @@ describe("AuthPanel（メールのワンタイムコード）", () => {
 		).toBeNull();
 	});
 
-	it("ログイン中は、名前とメールアドレスを表示し、ログアウトできる", async () => {
-		const user = userEvent.setup();
-
-		mocks.useAppSession.mockReturnValue({
-			data: { user: { id: "u1", name: "山田", email: "yamada@example.com" } },
-			isPending: false,
-			refetch: mocks.refetch,
-		});
-
-		render(<AuthPanel />);
-
-		expect(screen.getByText("山田")).toBeTruthy();
-		expect(screen.getByText("yamada@example.com")).toBeTruthy();
-
-		await user.click(screen.getByRole("button", { name: "ログアウト" }));
-
-		await waitFor(() => expect(mocks.signOut).toHaveBeenCalledTimes(1));
-		await waitFor(() => expect(mocks.refetch).toHaveBeenCalled());
-	});
-
-	it("ログイン状態の確認中は、その旨を表示する", () => {
-		mocks.useAppSession.mockReturnValue({
-			data: null,
-			isPending: true,
-			refetch: mocks.refetch,
-		});
-
-		render(<AuthPanel />);
-
-		expect(screen.getByText("ログイン状態を確認しています…")).toBeTruthy();
-	});
-
 	it("メールアドレスの入力の画面に、利用規約へのリンクと、同意のみなしの表示を出す", () => {
-		mocks.useAppSession.mockReturnValue({
-			data: null,
-			isPending: false,
-			refetch: mocks.refetch,
-		});
-
-		render(<AuthPanel />);
+		render(<LoginForm refetchSession={mocks.refetch} />);
 
 		expect(
 			screen.getByText(/ログインすると、.*に同意したものとみなします/u),

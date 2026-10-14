@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AccountDeletedRouteImport } from './routes/account-deleted'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as InventoryRouteImport } from './routes/inventory'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as ShoppingRouteImport } from './routes/shopping'
@@ -47,6 +48,11 @@ const AdminRoute = AdminRouteImport.update({
 const InventoryRoute = InventoryRouteImport.update({
   id: '/inventory',
   path: '/inventory',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrivacyRoute = PrivacyRouteImport.update({
@@ -130,6 +136,7 @@ export interface FileRoutesByFullPath {
   '/account-deleted': typeof AccountDeletedRoute
   '/admin': typeof AdminRouteWithChildren
   '/inventory': typeof InventoryRoute
+  '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/shopping': typeof ShoppingRoute
@@ -150,6 +157,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/account-deleted': typeof AccountDeletedRoute
   '/inventory': typeof InventoryRoute
+  '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/shopping': typeof ShoppingRoute
@@ -172,6 +180,7 @@ export interface FileRoutesById {
   '/account-deleted': typeof AccountDeletedRoute
   '/admin': typeof AdminRouteWithChildren
   '/inventory': typeof InventoryRoute
+  '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/shopping': typeof ShoppingRoute
@@ -195,6 +204,7 @@ export interface FileRouteTypes {
     | '/account-deleted'
     | '/admin'
     | '/inventory'
+    | '/login'
     | '/privacy'
     | '/profile'
     | '/shopping'
@@ -215,6 +225,7 @@ export interface FileRouteTypes {
     | '/'
     | '/account-deleted'
     | '/inventory'
+    | '/login'
     | '/privacy'
     | '/profile'
     | '/shopping'
@@ -236,6 +247,7 @@ export interface FileRouteTypes {
     | '/account-deleted'
     | '/admin'
     | '/inventory'
+    | '/login'
     | '/privacy'
     | '/profile'
     | '/shopping'
@@ -258,6 +270,7 @@ export interface RootRouteChildren {
   AccountDeletedRoute: typeof AccountDeletedRoute
   AdminRoute: typeof AdminRouteWithChildren
   InventoryRoute: typeof InventoryRoute
+  LoginRoute: typeof LoginRoute
   PrivacyRoute: typeof PrivacyRoute
   ProfileRoute: typeof ProfileRoute
   ShoppingRoute: typeof ShoppingRoute
@@ -298,6 +311,13 @@ declare module '@tanstack/react-router' {
       path: '/inventory'
       fullPath: '/inventory'
       preLoaderRoute: typeof InventoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/privacy': {
@@ -431,6 +451,7 @@ const rootRouteChildren: RootRouteChildren = {
   AccountDeletedRoute: AccountDeletedRoute,
   AdminRoute: AdminRouteWithChildren,
   InventoryRoute: InventoryRoute,
+  LoginRoute: LoginRoute,
   PrivacyRoute: PrivacyRoute,
   ProfileRoute: ProfileRoute,
   ShoppingRoute: ShoppingRoute,

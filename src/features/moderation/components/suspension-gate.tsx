@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { SignOutButton } from "#/features/auth/components/sign-out-button";
 import { useAppSession } from "#/integrations/better-auth/use-app-session";
 import { getAccountStatusServerFn } from "../server/account-status";
 import { submitAppealServerFn } from "../server/submit-appeal";
@@ -40,12 +41,15 @@ export function SuspensionGate({ children }: { children: React.ReactNode }) {
 
 	if (status && status.userId === userId) {
 		return (
-			<SuspendedScreen
-				status={status.value}
-				onSubmitAppeal={(message) =>
-					submitAppealServerFn({ data: { message } })
-				}
-			/>
+			<>
+				<SuspendedScreen
+					status={status.value}
+					onSubmitAppeal={(message) =>
+						submitAppealServerFn({ data: { message } })
+					}
+				/>
+				<SignOutButton />
+			</>
 		);
 	}
 

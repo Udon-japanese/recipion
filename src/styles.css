@@ -30,10 +30,15 @@
 	--color-error: #c83b32;
 	--color-error-soft: #fdebe9;
 
-	/* 白地の上で、文字・リンクに使う強調色。
-	   黄色（--color-primary）は白地の文字ではコントラスト不足のため使わない。
-	   値は未決定（仮に本文色）。 */
-	--color-accent-text: var(--color-text);
+	/* 白地の上で、文字・リンクに使う強調色（決定：2026-10-14）。
+	   黄色（--color-primary）は白地の文字ではコントラスト不足のため使わない。 */
+	--color-accent-text: #7a5200;
+
+	/* 押せる部品の枠（非文字のコントラスト 3:1 以上）。--color-border は、区切りの線だけに使う。 */
+	--color-control-border: #8a857a;
+
+	/* 赤い塗りの上の文字（危険のボタン）。 */
+	--color-on-error: #ffffff;
 
 	--color-overlay: rgba(41, 39, 32, 0.4);
 
@@ -93,6 +98,9 @@
 	--duration-slow: 260ms;
 	--ease-standard: cubic-bezier(0.2, 0, 0, 1);
 	--ease-emphasized: cubic-bezier(0.2, 0.8, 0.2, 1);
+	/* シートの開閉・スナップの動き（勢いよく出て、ふわっと止まる）。 */
+	--ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
+	--duration-sheet: 420ms;
 
 	/* 押す対象の最小の高さ */
 	--size-tap: 44px;

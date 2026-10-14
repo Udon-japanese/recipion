@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { SignOutButton } from "#/features/auth/components/sign-out-button";
 import { AccountDeletionSection } from "#/features/profile/components/account-deletion-section";
 import { ProfileForm } from "#/features/profile/components/profile-form";
 import { ProfileRouteError } from "#/features/profile/components/profile-route-error";
@@ -24,6 +25,7 @@ function ProfilePage() {
 				onSave={(input) => updateProfileServerFn({ data: input })}
 				onChanged={() => void refetch()}
 			/>
+			<SignOutButton />
 			<AccountDeletionSection
 				handle={profile.handle}
 				onRequestDeletion={async () => {

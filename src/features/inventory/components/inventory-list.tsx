@@ -11,6 +11,7 @@ import {
 	formatStockAmount,
 } from "#/features/quantity/domain/format-quantity";
 import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
+import { PickerSelect } from "../../../components/select/picker-select";
 import { createManualInventoryAdjustment } from "../application/create-manual-inventory-adjustment";
 import type {
 	InventoryAdjustmentCommand,
@@ -856,7 +857,7 @@ export function InventoryList({
 										<span className={styles.adjustmentLabel}>
 											{item.name}の新しい単位（いまは{item.stockUnitLabel}）
 										</span>
-										<select
+										<PickerSelect
 											className={styles.input}
 											aria-label={`${item.name}の新しい単位`}
 											value={unitChangeOption}
@@ -885,7 +886,7 @@ export function InventoryList({
 														{option.stockUnitLabel}
 													</option>
 												))}
-										</select>
+										</PickerSelect>
 									</label>
 
 									<div className={styles.lotSpecification}>
@@ -1035,7 +1036,7 @@ export function InventoryList({
 
 									<label className={styles.adjustmentField}>
 										<span className={styles.adjustmentLabel}>管理方法</span>
-										<select
+										<PickerSelect
 											className={styles.input}
 											value={trackingChangeMode}
 											onChange={(event) =>
@@ -1048,7 +1049,7 @@ export function InventoryList({
 										>
 											<option value="estimated">だいたいで管理</option>
 											<option value="exact">正確に管理</option>
-										</select>
+										</PickerSelect>
 									</label>
 
 									<div className={styles.adjustmentActions}>

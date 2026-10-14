@@ -27,16 +27,16 @@ export const box = style({
 	minWidth: 0,
 	minHeight: 56,
 	background: "var(--color-surface)",
-	border: "1px solid var(--color-border)",
-	borderRadius: 8,
+	border: "1.5px solid var(--color-control-border)",
+	borderRadius: 16,
 	fontSize: 24,
-	fontWeight: 700,
+	fontWeight: "var(--font-weight-bold)",
 });
 
 // 入力中の桁（次に入る桁）。
 export const boxActive = style({
-	outline: "3px solid var(--color-focus)",
-	borderColor: "var(--color-primary)",
+	borderColor: "var(--color-text)",
+	boxShadow: "0 0 0 1px var(--color-text)",
 });
 
 export const boxInvalid = style({

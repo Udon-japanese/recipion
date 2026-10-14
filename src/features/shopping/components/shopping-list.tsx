@@ -4,6 +4,7 @@ import clsx from "clsx";
 import { useState } from "react";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import { useStorageItem } from "#/local-storage/use-storage-item";
+import { PickerSelect } from "../../../components/select/picker-select";
 import type { ShoppingBranchRepository } from "../application/shopping-branch-repository";
 import type { ShoppingRepository } from "../application/shopping-repository";
 import type { ShoppingStoreRepository } from "../application/shopping-store-repository";
@@ -353,7 +354,7 @@ export function ShoppingList({
 						<div className={styles.storeFilter}>
 							<label htmlFor="shopping-current-store">今いる店</label>
 
-							<select
+							<PickerSelect
 								className={styles.input}
 								id="shopping-current-store"
 								value={currentStoreId ?? ""}
@@ -370,7 +371,7 @@ export function ShoppingList({
 										{store.name}
 									</option>
 								))}
-							</select>
+							</PickerSelect>
 						</div>
 					) : null}
 

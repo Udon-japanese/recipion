@@ -9,6 +9,7 @@ import {
 	inventoryTrackingModeSchema,
 } from "#/features/inventory/domain/inventory-tracking-mode";
 import { formatQuantityForUnit } from "#/features/quantity/domain/format-quantity";
+import { PickerSelect } from "../../../components/select/picker-select";
 
 import type {
 	ShoppingItem,
@@ -193,7 +194,7 @@ export function ShoppingItemInventoryConversionForm({
 				<label className={styles.field}>
 					<span className={styles.label}>在庫管理方法</span>
 
-					<select
+					<PickerSelect
 						className={styles.input}
 						value={trackingMode}
 						onChange={(event) =>
@@ -205,7 +206,7 @@ export function ShoppingItemInventoryConversionForm({
 						<option value="estimated">だいたいで管理</option>
 						<option value="exact">正確に管理</option>
 						<option value="presence">有無だけ（量は追わない）</option>
-					</select>
+					</PickerSelect>
 				</label>
 
 				{trackingMode !== "presence" ? (
@@ -215,7 +216,7 @@ export function ShoppingItemInventoryConversionForm({
 						<label className={styles.field}>
 							<span className={styles.label}>在庫で使う単位</span>
 
-							<select
+							<PickerSelect
 								className={styles.input}
 								value={stockUnitCode}
 								disabled={lockedStockUnitCode !== null}
@@ -228,7 +229,7 @@ export function ShoppingItemInventoryConversionForm({
 								<option value="count">個数・枚数・本数など</option>
 								<option value="g">グラム</option>
 								<option value="ml">ミリリットル</option>
-							</select>
+							</PickerSelect>
 						</label>
 
 						{lockedStockUnitCode !== null ? (

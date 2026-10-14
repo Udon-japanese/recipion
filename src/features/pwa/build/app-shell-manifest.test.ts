@@ -63,7 +63,7 @@ describe("findShellProblems", () => {
 
 	it("ページの内容、ユーザーの情報、null の初期セッションを検出する", () => {
 		expect(
-			findShellProblems(`${shell}<a href="/shopping">買い物メモ</a>`),
+			findShellProblems(`${shell}<div data-page="home"></div>`),
 		).toHaveLength(1);
 		expect(
 			findShellProblems(

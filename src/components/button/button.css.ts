@@ -36,9 +36,9 @@ export const button = style({
 	// 中のラベルより小さく縮めるため（変形のとき）。
 	minWidth: 0,
 	boxSizing: "border-box",
-	minHeight: 44,
-	paddingInline: 20,
-	border: "1px solid transparent",
+	minHeight: 48,
+	paddingInline: 24,
+	border: "1.5px solid transparent",
 	borderRadius: "var(--radius-control)",
 	font: "inherit",
 	fontSize: "var(--font-size-sm)",
@@ -63,6 +63,8 @@ export const button = style({
 	},
 
 	selectors: {
+		// 幅いっぱいのボタン（変形のあいだは、固定した幅が優先される）。
+		[`${wrapper}[data-full-width="true"] > &`]: { width: "100%" },
 		'&[data-tone="error"]': {
 			vars: {
 				[tone]: "var(--color-error)",
@@ -98,18 +100,20 @@ export const button = style({
 		'&[data-variant="secondary"]': {
 			color: "var(--color-text)",
 			background: "var(--color-surface)",
-			borderColor: "var(--color-border-strong)",
+			borderColor: "var(--color-control-border)",
 		},
 		[`&[data-variant="secondary"]${canHover}`]: {
 			background: "var(--color-surface-muted)",
 		},
 		'&[data-variant="danger"]': {
-			color: "var(--color-error)",
-			background: "var(--color-surface)",
+			color: "var(--color-on-error)",
+			background: "var(--color-error)",
 			borderColor: "var(--color-error)",
+			boxShadow: "var(--shadow-sm)",
 		},
 		[`&[data-variant="danger"]${canHover}`]: {
-			background: "var(--color-error-soft)",
+			background: "color-mix(in srgb, var(--color-error) 88%, black)",
+			borderColor: "color-mix(in srgb, var(--color-error) 88%, black)",
 		},
 		'&[data-variant="ghost"]': {
 			color: "var(--color-text)",
@@ -136,6 +140,8 @@ export const button = style({
 		},
 
 		// ---- 処理中・完了・失敗（どの種類でも同じ形） ----
+		// 変形中は、横の余白をなくす（余白が丸の幅より大きいと、正円にならない）。
+		'&:not([data-phase="idle"])': { paddingInline: 0 },
 		'&[data-phase="loading"]': {
 			background: "var(--color-surface)",
 			borderColor: "var(--color-border-strong)",

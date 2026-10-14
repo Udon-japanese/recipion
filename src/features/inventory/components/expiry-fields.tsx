@@ -1,3 +1,4 @@
+import { PickerSelect } from "../../../components/select/picker-select";
 import {
 	type ExpiryFieldsValue,
 	emptyExpiryFields,
@@ -78,7 +79,7 @@ export function ExpiryFields({
 					<label className={styles.label} htmlFor={`${idPrefix}-expiry-kind`}>
 						期限の種類
 					</label>
-					<select
+					<PickerSelect
 						className={styles.input}
 						id={`${idPrefix}-expiry-kind`}
 						value={value.expiryKind}
@@ -97,14 +98,14 @@ export function ExpiryFields({
 							{expiryKindLabels["best-before"]}
 						</option>
 						<option value="none">{expiryKindLabels.none}</option>
-					</select>
+					</PickerSelect>
 				</div>
 
 				<div className={styles.field}>
 					<label className={styles.label} htmlFor={`${idPrefix}-storage`}>
 						保存方法
 					</label>
-					<select
+					<PickerSelect
 						className={styles.input}
 						id={`${idPrefix}-storage`}
 						value={value.storage}
@@ -120,7 +121,7 @@ export function ExpiryFields({
 						<option value="room">{storageLabels.room}</option>
 						<option value="fridge">{storageLabels.fridge}</option>
 						<option value="freezer">{storageLabels.freezer}</option>
-					</select>
+					</PickerSelect>
 				</div>
 			</div>
 

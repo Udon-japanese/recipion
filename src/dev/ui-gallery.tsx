@@ -1,8 +1,29 @@
-import type { CSSProperties } from "react";
+import { type CSSProperties, useState } from "react";
+import { Avatar } from "#/components/avatar/avatar";
 import { Button } from "#/components/button/button";
 import { ButtonLink } from "#/components/button/button-link";
 import { useButtonAction } from "#/components/button/use-button-action";
+import { Card } from "#/components/card/card";
+import { Checkbox } from "#/components/checkbox/checkbox";
+import { Chip, ChipGroup, ChipUnit } from "#/components/chip/chip";
+import {
+	Field,
+	SelectBox,
+	TextArea,
+	TextInput,
+} from "#/components/field/field";
+import { Icon } from "#/components/icon/icon";
+import {
+	type IconName,
+	iconDefinitions,
+} from "#/components/icon/icon-definitions";
+import { IconButton } from "#/components/icon-button/icon-button";
 import { Mascot } from "#/components/mascot/mascot";
+import { Note } from "#/components/note/note";
+import { SegmentedControl } from "#/components/segmented-control/segmented-control";
+import { Sheet } from "#/components/sheet/sheet";
+import { Tag } from "#/components/tag/tag";
+import { Toast } from "#/components/toast/toast";
 
 // 開発中だけの、部品の確認用ページの中身（/dev/ui。本番では、404）。
 // 部品を足したら、ここに並べる。デザインの依頼の、スクリーンショットにも使う。
@@ -297,6 +318,46 @@ export function UiGallery() {
 				</div>
 			</Section>
 
+			<Section
+				title="アイコン"
+				description="デザインの icons.zip（24×24・線 2px・色は文字の色）。16・20・24 の3つの大きさ。"
+			>
+				<div
+					style={{
+						display: "grid",
+						gridTemplateColumns: "repeat(auto-fill, minmax(132px, 1fr))",
+						gap: 12,
+					}}
+				>
+					{(Object.keys(iconDefinitions) as IconName[]).map((name) => (
+						<div
+							key={name}
+							style={{
+								display: "grid",
+								justifyItems: "center",
+								gap: 8,
+								padding: "12px 4px",
+								border: "1px solid var(--color-border)",
+								borderRadius: 16,
+								background: "var(--color-surface)",
+								fontSize: 12,
+							}}
+						>
+							<span style={{ display: "flex", gap: 10, alignItems: "center" }}>
+								<Icon name={name} size={16} />
+								<Icon name={name} size={20} />
+								<Icon name={name} size={24} />
+							</span>
+							<code>{name}</code>
+						</div>
+					))}
+				</div>
+			</Section>
+
+			<PartsGallery />
+
+			<SheetGallery />
+
 			<Section title="れしぽよの大きさ">
 				<div style={row}>
 					<Mascot size={19} />
@@ -307,5 +368,230 @@ export function UiGallery() {
 				<p style={note}>右端は、動かないとき（動きを減らす設定）の姿勢。</p>
 			</Section>
 		</div>
+	);
+}
+
+const snapPointsTwo = [0.62, 0.92];
+const snapPointsOne = [0.92];
+const sampleRows = Array.from({ length: 24 }, (_, index) => index + 1);
+
+function PartsGallery() {
+	const [view, setView] = useState<"list" | "store">("list");
+	const [pressed, setPressed] = useState("1週間");
+	const [checked, setChecked] = useState(false);
+	const [text, setText] = useState("");
+
+	return (
+		<>
+			<Section
+				title="部品（第1弾）：ボタン類"
+				description="アイコンボタン（見た目 36px・押せる範囲 44px）、タグ（枠なし＝押せない）、チップ（枠あり＝押せる）。"
+			>
+				<div style={row}>
+					<IconButton icon="edit" label="編集" />
+					<IconButton icon="more-horizontal" label="その他" />
+					<IconButton icon="trash" label="削除" tone="danger" />
+					<IconButton
+						icon="chevron-left"
+						label="戻る"
+						size="std"
+						tone="plain"
+					/>
+					<IconButton icon="close" label="閉じる" size="std" />
+					<IconButton icon="sync" label="更新" tone="on" />
+					<IconButton icon="plus" label="追加" disabled />
+					<Avatar name="れしぴょなー" />
+				</div>
+				<div style={row}>
+					<Tag>残り 3</Tag>
+					<Tag icon="clock" tone="warn">
+						明日
+					</Tag>
+					<Tag icon="alert-triangle" tone="error">
+						切れ
+					</Tag>
+					<Tag tone="soft">自分だけ</Tag>
+					<Tag icon="check" tone="success">
+						3
+					</Tag>
+					<Tag icon="clock" tone="warn" approximate>
+						3日
+					</Tag>
+				</div>
+				<ChipGroup label="期限">
+					{["3日", "1週間", "2週間", "1か月"].map((label) => (
+						<Chip
+							key={label}
+							pressed={pressed === label}
+							onClick={() => setPressed(label)}
+						>
+							{label}
+						</Chip>
+					))}
+					<Chip icon="calendar">日付</Chip>
+					<Chip disabled>使えない</Chip>
+				</ChipGroup>
+				<ChipGroup label="数量">
+					<Chip size="qty">1</Chip>
+					<Chip size="qty">
+						50<ChipUnit>g</ChipUnit>
+					</Chip>
+					<Chip size="qty">1/2</Chip>
+				</ChipGroup>
+			</Section>
+
+			<Section
+				title="部品（第1弾）：入力"
+				description="丸い入力欄（枠が濃い＝入力できる）。ラベル・補足・エラーの結びつきは、Field が行う。"
+			>
+				<div style={{ display: "grid", gap: 16, maxWidth: 420 }}>
+					<Field label="メールアドレス" hint="ログイン用のコードを送ります">
+						{(control) => (
+							<TextInput
+								{...control}
+								type="email"
+								placeholder="name@example.com"
+								value={text}
+								onChange={(event) => setText(event.target.value)}
+							/>
+						)}
+					</Field>
+					<Field label="食材名" error="食材名を入力してください">
+						{(control) => <TextInput {...control} placeholder="例：塩、醤油" />}
+					</Field>
+					<Field label="在庫の単位" optional>
+						{(control) => (
+							<SelectBox {...control}>
+								<option>g</option>
+								<option>個</option>
+							</SelectBox>
+						)}
+					</Field>
+					<Field label="申し立ての内容">
+						{(control) => <TextArea {...control} placeholder="内容" />}
+					</Field>
+					<TextInput placeholder="使えない欄" disabled />
+					<SegmentedControl
+						label="表示の切り替え"
+						value={view}
+						onChange={setView}
+						options={[
+							{ value: "list", label: "一覧", icon: "list" },
+							{ value: "store", label: "店ごと", icon: "store" },
+						]}
+					/>
+					<span style={row}>
+						<Checkbox
+							label="トマトをチェック"
+							checked={checked}
+							onChange={(event) => setChecked(event.target.checked)}
+						/>
+						<Checkbox label="使えない" disabled />
+						<span>トマト（押せる範囲は 44px）</span>
+					</span>
+				</div>
+			</Section>
+
+			<Section title="部品（第1弾）：お知らせ・カード・トースト">
+				<div style={{ display: "grid", gap: 12, maxWidth: 420 }}>
+					<Note tone="info" spinning>
+						在庫を同期しています…
+					</Note>
+					<Note
+						tone="warn"
+						action={
+							<Button size="sm" variant="secondary">
+								在庫同期を再試行
+							</Button>
+						}
+					>
+						未反映の在庫があります
+					</Note>
+					<Note tone="success">3件の在庫を反映しました</Note>
+					<Note>通信できないため、保存済みの在庫を表示しています。</Note>
+					<Note tone="error">在庫を読み込めませんでした</Note>
+					<Card padding="md">カード（白い面。角丸 20px）</Card>
+					<Toast action={{ label: "元に戻す", onClick: () => undefined }}>
+						在庫から引きました
+					</Toast>
+				</div>
+			</Section>
+		</>
+	);
+}
+
+function SheetGallery() {
+	const [single, setSingle] = useState(false);
+	const [double, setDouble] = useState(false);
+	const [panel, setPanel] = useState(false);
+
+	const longBody = (
+		<div style={{ display: "grid", gap: 12 }}>
+			{sampleRows.map((row) => (
+				<Card key={row} padding="md">
+					行 {row}
+					（本文。先頭までスクロールしてから、下へ引くと、シートが下がります）
+				</Card>
+			))}
+		</div>
+	);
+
+	return (
+		<Section
+			title="シート"
+			description="スマホ幅（またはブラウザの開発者ツールのスマホ表示）で、指で、つかんで・本文から引いて、試す。勢い（はじく）・ゴムの抵抗・止まる位置への吸い付き・Esc・暗幕。"
+		>
+			<div style={row}>
+				<Button variant="secondary" onClick={() => setSingle(true)}>
+					1段（92%）
+				</Button>
+				<Button variant="secondary" onClick={() => setDouble(true)}>
+					2段（62% ⇄ 92%）
+				</Button>
+				<Button variant="secondary" onClick={() => setPanel(true)}>
+					右のパネル（PC）
+				</Button>
+			</div>
+
+			<Sheet
+				open={single}
+				onOpenChange={setSingle}
+				title="在庫に追加"
+				snapPoints={snapPointsOne}
+				footer={
+					<>
+						<Button
+							variant="secondary"
+							size="lg"
+							onClick={() => setSingle(false)}
+						>
+							キャンセル
+						</Button>
+						<Button size="lg">在庫に追加</Button>
+					</>
+				}
+			>
+				{longBody}
+			</Sheet>
+
+			<Sheet
+				open={double}
+				onOpenChange={setDouble}
+				title="鶏むね肉"
+				snapPoints={snapPointsTwo}
+			>
+				{longBody}
+			</Sheet>
+
+			<Sheet
+				open={panel}
+				onOpenChange={setPanel}
+				title="在庫に追加"
+				placement="right"
+				footer={<Button size="lg">在庫に追加</Button>}
+			>
+				{longBody}
+			</Sheet>
+		</Section>
 	);
 }
