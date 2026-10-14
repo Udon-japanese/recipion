@@ -424,6 +424,7 @@ export function createDrizzleRecipeRepository(
 					publicId: recipe.publicId,
 					name: recipe.name,
 					servings: recipe.servings,
+					visibility: recipe.visibility,
 					createdAt: recipe.createdAt,
 				})
 				.from(recipe)
@@ -434,6 +435,7 @@ export function createDrizzleRecipeRepository(
 				publicId: row.publicId,
 				name: row.name,
 				servings: Number(row.servings),
+				visibility: parseRecipeVisibility(row.visibility),
 				createdAt: row.createdAt.toISOString(),
 			}));
 		},

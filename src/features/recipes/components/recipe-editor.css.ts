@@ -3,20 +3,22 @@ import { style } from "@vanilla-extract/css";
 export const container = style({
 	width: "min(100% - 32px, 1120px)",
 	marginInline: "auto",
-	paddingBlock: 24,
+	paddingBlock: 16,
 	color: "var(--color-text)",
 });
 
 export const eyebrow = style({
-	marginBottom: 4,
+	margin: "0 0 4px",
 	color: "var(--color-text-muted)",
-	fontSize: 13,
+	fontSize: "var(--font-size-sm)",
+	fontWeight: "var(--font-weight-semibold)",
 });
 
 export const title = style({
 	margin: 0,
-	fontSize: 24,
-	fontWeight: 700,
+	fontSize: "var(--font-size-2xl)",
+	fontWeight: "var(--font-weight-extrabold)",
+	lineHeight: "var(--line-height-tight)",
 });
 
 const titleBase = {
@@ -26,7 +28,7 @@ const titleBase = {
 	padding: "6px 10px",
 	textAlign: "left",
 	font: "inherit",
-	borderRadius: 8,
+	borderRadius: 12,
 	cursor: "text",
 } as const;
 
@@ -48,9 +50,16 @@ export const titlePlaceholder = style({
 export const titleInput = style({
 	...titleBase,
 	background: "var(--color-surface)",
-	border: "1px solid var(--color-primary)",
-	fontSize: 24,
-	fontWeight: 700,
+	border: "1.5px solid var(--color-control-border)",
+	outline: "none",
+	fontSize: "var(--font-size-2xl)",
+	fontWeight: "var(--font-weight-extrabold)",
+	selectors: {
+		"&:focus-visible": {
+			outline: "3px solid var(--color-focus)",
+			outlineOffset: 2,
+		},
+	},
 });
 
 export const metaRow = style({
@@ -59,41 +68,39 @@ export const metaRow = style({
 	gap: 12,
 });
 
-export const metaField = style({
-	display: "grid",
-	gap: 6,
-	width: 110,
-	fontWeight: 600,
-});
+export const metaField = style({ width: 140 });
 
-export const metaFieldWide = style({
-	display: "grid",
-	flex: 1,
-	gap: 6,
-	minWidth: 220,
-	fontWeight: 600,
-});
+export const metaFieldWide = style({ flex: 1, minWidth: 220 });
 
 const wideScreen = "screen and (min-width: 900px)";
 
 export const tabList = style({
 	display: "flex",
-	gap: 8,
+	gap: 4,
+	padding: 4,
+	background: "var(--color-surface-muted)",
+	borderRadius: "var(--radius-control)",
 	"@media": { [wideScreen]: { display: "none" } },
 });
 
 export const tab = style({
 	flex: 1,
 	minHeight: 44,
+	color: "var(--color-text)",
 	font: "inherit",
-	fontWeight: 600,
-	background: "var(--color-surface-muted)",
-	borderRadius: 8,
+	fontWeight: "var(--font-weight-semibold)",
+	background: "transparent",
+	border: "1.5px solid transparent",
+	borderRadius: "var(--radius-control)",
 	cursor: "pointer",
 	selectors: {
 		'&[aria-selected="true"]': {
-			color: "var(--color-on-primary)",
-			background: "var(--color-primary)",
+			background: "var(--color-primary-soft)",
+			borderColor: "var(--color-text)",
+		},
+		"&:focus-visible": {
+			outline: "3px solid var(--color-focus)",
+			outlineOffset: 2,
 		},
 	},
 });
@@ -124,14 +131,22 @@ export const pane = style({
 });
 
 export const bodyTextarea = style({
+	boxSizing: "border-box",
 	minHeight: 420,
-	padding: 10,
+	padding: 16,
+	color: "var(--color-text)",
 	background: "var(--color-surface)",
-	border: "1px solid var(--color-border)",
-	borderRadius: 8,
+	border: "1.5px solid var(--color-control-border)",
+	borderRadius: "var(--radius-card)",
 	font: "inherit",
-	lineHeight: 1.6,
+	lineHeight: "var(--line-height-relaxed)",
 	resize: "vertical",
+	selectors: {
+		"&:focus-visible": {
+			outline: "3px solid var(--color-focus)",
+			outlineOffset: 2,
+		},
+	},
 });
 
 export const checkRow = style({
@@ -141,19 +156,22 @@ export const checkRow = style({
 });
 
 export const hint = style({
+	margin: 0,
 	color: "var(--color-text-muted)",
-	fontSize: 13,
+	fontSize: "var(--font-size-sm)",
+	lineHeight: "var(--line-height-normal)",
 });
 
 export const editedBadge = style({
 	display: "inline-flex",
 	alignItems: "center",
 	gap: 6,
-	fontSize: 12,
+	fontSize: "var(--font-size-xs)",
 	color: "var(--color-accent-text)",
 });
 
 export const linkButton = style({
+	color: "var(--color-accent-text)",
 	font: "inherit",
 	textDecoration: "underline",
 	cursor: "pointer",
@@ -167,8 +185,8 @@ export const unclassified = style({
 	display: "grid",
 	gap: 6,
 	padding: 12,
-	border: "1px dashed var(--color-border)",
-	borderRadius: 8,
+	border: "1.5px dashed var(--color-control-border)",
+	borderRadius: 12,
 });
 
 export const form = style({
@@ -183,12 +201,22 @@ export const field = style({
 });
 
 export const input = style({
+	boxSizing: "border-box",
+	width: "100%",
 	minHeight: 44,
-	padding: 10,
+	padding: "0 16px",
+	color: "var(--color-text)",
 	background: "var(--color-surface)",
-	border: "1px solid var(--color-border)",
-	borderRadius: 8,
+	border: "1.5px solid var(--color-control-border)",
+	borderRadius: "var(--radius-control)",
 	font: "inherit",
+	selectors: {
+		"&::placeholder": { color: "var(--color-text-muted)" },
+		"&:focus-visible": {
+			outline: "3px solid var(--color-focus)",
+			outlineOffset: 2,
+		},
+	},
 });
 
 export const textarea = style({
@@ -205,8 +233,9 @@ export const preview = style({
 	display: "grid",
 	gap: 8,
 	padding: 16,
-	background: "var(--color-surface-muted)",
-	borderRadius: 8,
+	background: "var(--color-surface)",
+	borderRadius: "var(--radius-card)",
+	boxShadow: "var(--shadow-sm)",
 	selectors: {
 		'&[data-active="false"]': { display: "none" },
 	},
@@ -237,6 +266,7 @@ export const nestedList = style({
 });
 
 export const error = style({
+	margin: 0,
 	color: "var(--color-error)",
 });
 
@@ -244,18 +274,21 @@ export const ingredientRow = style({
 	display: "grid",
 	gridTemplateColumns:
 		"minmax(0, 1fr) minmax(100px, 0.7fr) minmax(110px, 0.7fr) auto",
+	alignItems: "center",
 	gap: 8,
 });
 
 export const addIngredientRow = style({
 	display: "grid",
 	gridTemplateColumns: "minmax(0, 1fr) minmax(100px, 0.7fr) auto",
+	alignItems: "center",
 	gap: 8,
 });
 
 export const addGroupRow = style({
 	display: "grid",
 	gridTemplateColumns: "minmax(0, 1fr) auto",
+	alignItems: "center",
 	gap: 8,
 });
 
@@ -275,8 +308,8 @@ export const completionPopup = style({
 	maxWidth: "min(360px, 90vw)",
 	padding: 6,
 	background: "var(--color-surface)",
-	border: "1px solid var(--color-border)",
-	borderRadius: 8,
+	border: "1px solid var(--color-border-strong)",
+	borderRadius: 12,
 	boxShadow: "var(--shadow-md)",
 });
 
@@ -328,7 +361,7 @@ export const completionBar = style({
 	zIndex: 20,
 	padding: "6px 8px",
 	background: "var(--color-surface)",
-	borderTop: "1px solid var(--color-border)",
+	borderTop: "1px solid var(--color-border-strong)",
 });
 
 export const completionBarList = style({
@@ -361,9 +394,11 @@ export const completionItem = style({
 
 export const insertRecipeLinkButton = style({
 	minHeight: 40,
-	padding: "6px 14px",
+	padding: "6px 16px",
+	color: "var(--color-text)",
 	background: "var(--color-surface)",
-	border: "1px solid var(--color-border)",
-	borderRadius: 8,
+	border: "1.5px solid var(--color-control-border)",
+	borderRadius: "var(--radius-control)",
+	font: "inherit",
 	cursor: "pointer",
 });

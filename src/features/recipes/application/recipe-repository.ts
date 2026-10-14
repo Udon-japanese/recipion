@@ -1,4 +1,5 @@
 import type { RecipeEditorDocument } from "../domain/recipe-editor-document";
+import type { RecipeVisibility } from "../domain/recipe-link-permission";
 import type { RecipeLinkView } from "../domain/recipe-links";
 import type { PreparedRecipeForStorage } from "./prepare-recipe-for-storage";
 
@@ -16,6 +17,7 @@ export type RecipeSummary = {
 	publicId: string;
 	name: string;
 	servings: number;
+	visibility: RecipeVisibility;
 	// 登録した日時（ISO 8601）。
 	createdAt: string;
 };

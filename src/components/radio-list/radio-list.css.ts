@@ -45,6 +45,10 @@ export const option = style({
 	cursor: "pointer",
 	selectors: {
 		"& + &": { borderTop: "1px solid var(--color-border)" },
+		"&:has(input:disabled)": {
+			color: "var(--color-text-disabled)",
+			cursor: "not-allowed",
+		},
 		"&:has(input:checked)": { background: "var(--color-primary-soft)" },
 		"&:has(input:focus-visible)": {
 			outline: "3px solid var(--color-focus)",

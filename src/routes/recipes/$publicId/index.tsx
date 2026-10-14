@@ -33,6 +33,7 @@ import { RecipeRouteError } from "#/features/recipes/components/recipe-route-err
 import { RecipeShoppingSection } from "#/features/recipes/components/recipe-shopping-section";
 import { RecipeUnlockForm } from "#/features/recipes/components/recipe-unlock-form";
 import { RecipeViewWithLinks } from "#/features/recipes/components/recipe-view-with-links";
+import { recipeVisibilityLabels } from "#/features/recipes/domain/recipe-visibility-label";
 import { deleteRecipeServerFn } from "#/features/recipes/server/delete-recipe";
 import { getLinkedRecipesServerFn } from "#/features/recipes/server/get-linked-recipes";
 import { getRecipeServerFn } from "#/features/recipes/server/get-recipe";
@@ -169,12 +170,6 @@ function useRecipeViewSupport(recipe: RecipeDetail) {
 	};
 }
 
-const visibilityLabels = {
-	private: "非公開",
-	unlisted: "限定公開",
-	public: "全体公開",
-} as const;
-
 function OwnRecipePage({ recipe }: { recipe: RecipeDetail }) {
 	const navigate = useNavigate();
 	const {
@@ -203,7 +198,7 @@ function OwnRecipePage({ recipe }: { recipe: RecipeDetail }) {
 								: "default"
 						}
 					>
-						{visibilityLabels[recipe.visibility ?? "private"]}
+						{recipeVisibilityLabels[recipe.visibility ?? "private"]}
 					</Tag>
 				}
 				loadLinkedRecipe={loadLinkedRecipe}
