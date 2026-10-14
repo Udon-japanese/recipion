@@ -1,32 +1,18 @@
 import { style } from "@vanilla-extract/css";
 
-export const fieldset = style({
-	display: "grid",
-	gap: 8,
-	margin: 0,
-	padding: 12,
-	border: "1px solid var(--color-border)",
-	borderRadius: 10,
-});
-
-export const legend = style({ paddingInline: 4, fontSize: 14 });
-
-export const option = style({
-	display: "flex",
-	alignItems: "center",
-	gap: 8,
-});
+export const container = style({ display: "grid", gap: 12 });
 
 export const note = style({
 	margin: 0,
 	color: "var(--color-text-muted)",
-	fontSize: 13,
+	fontSize: "var(--font-size-sm)",
+	lineHeight: "var(--line-height-relaxed)",
 });
 
 export const consent = style({
 	display: "grid",
-	gap: 6,
+	gap: 8,
 	color: "var(--color-text-muted)",
-	fontSize: 13,
-	lineHeight: 1.6,
+	fontSize: "var(--font-size-sm)",
+	lineHeight: "var(--line-height-relaxed)",
 });

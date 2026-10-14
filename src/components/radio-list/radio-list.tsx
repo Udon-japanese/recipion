@@ -5,6 +5,8 @@ type RadioOption<Value extends string> = {
 	label: string;
 	// 名前の下の補足。
 	detail?: string;
+	// 選べない（押せず、薄く出す）。
+	disabled?: boolean;
 };
 
 type RadioListProps<Value extends string> = {
@@ -43,6 +45,7 @@ export function RadioList<Value extends string>({
 							name={name}
 							value={option.value}
 							checked={value === option.value}
+							disabled={option.disabled}
 							onChange={() => onChange(option.value)}
 						/>
 						<span className={styles.mark} aria-hidden="true" />

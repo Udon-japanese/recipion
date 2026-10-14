@@ -4,12 +4,16 @@ import {
 	type SubmitEvent,
 	useEffect,
 	useEffectEvent,
+	useId,
 	useMemo,
 	useRef,
 	useState,
 } from "react";
 import { Button } from "#/components/button/button";
 import { useButtonAction } from "#/components/button/use-button-action";
+import { Checkbox } from "#/components/checkbox/checkbox";
+import { Field, TextInput } from "#/components/field/field";
+import { Note } from "#/components/note/note";
 import type { RecipeDetail } from "../application/recipe-repository";
 import {
 	createIngredientGroup,
@@ -148,6 +152,7 @@ export function RecipeEditor({
 	searchLinkableUsers,
 	loadUserRecipes,
 }: RecipeEditorProps) {
+	const templateCheckboxId = useId();
 	const isEditing = initialDocument !== undefined;
 	const [initialState] = useState(() => createInitialState(initialDocument));
 	const [title, setTitle] = useState(initialDocument?.name ?? "");
@@ -481,9 +486,9 @@ export function RecipeEditor({
 
 	return (
 		<section className={styles.container}>
-			<p className={styles.eyebrow}>
+			<h1 className={styles.eyebrow}>
 				{isEditing ? "レシピを編集" : "レシピを登録"}
-			</p>
+			</h1>
 
 			<form
 				className={styles.form}
@@ -500,35 +505,41 @@ export function RecipeEditor({
 				/>
 
 				<div className={styles.metaRow}>
-					<label className={styles.metaField}>
-						<span>何人分</span>
-						<input
-							className={styles.input}
-							type="number"
-							min="0.001"
-							step="any"
-							value={servings}
-							onChange={(event) => {
-								setServings(event.target.value);
-								setIsServingsTouched(true);
-							}}
-							onKeyDown={preventSubmitOnEnter}
-							required
-						/>
-					</label>
+					<div className={styles.metaField}>
+						<Field label="何人分">
+							{(control) => (
+								<TextInput
+									{...control}
+									type="number"
+									min="0.001"
+									step="any"
+									value={servings}
+									onChange={(event) => {
+										setServings(event.target.value);
+										setIsServingsTouched(true);
+									}}
+									onKeyDown={preventSubmitOnEnter}
+									required
+								/>
+							)}
+						</Field>
+					</div>
 
-					<label className={styles.metaFieldWide}>
-						<span>引用元URL（任意）</span>
-						<input
-							className={styles.input}
-							type="url"
-							inputMode="url"
-							placeholder="https://"
-							value={sourceUrl}
-							onChange={(event) => setSourceUrl(event.target.value)}
-							onKeyDown={preventSubmitOnEnter}
-						/>
-					</label>
+					<div className={styles.metaFieldWide}>
+						<Field label="引用元URL（任意）">
+							{(control) => (
+								<TextInput
+									{...control}
+									type="url"
+									inputMode="url"
+									placeholder="https://"
+									value={sourceUrl}
+									onChange={(event) => setSourceUrl(event.target.value)}
+									onKeyDown={preventSubmitOnEnter}
+								/>
+							)}
+						</Field>
+					</div>
 				</div>
 
 				<div
@@ -586,16 +597,19 @@ export function RecipeEditor({
 						/>
 
 						{isEditing ? null : (
-							<label className={styles.checkRow}>
-								<input
-									type="checkbox"
+							<div className={styles.checkRow}>
+								<Checkbox
+									id={templateCheckboxId}
+									label="新規登録で、見出しを最初から入れる"
 									checked={useTemplate}
 									onChange={(event) =>
 										handleTemplateToggle(event.target.checked)
 									}
 								/>
-								新規登録で、見出しを最初から入れる
-							</label>
+								<label htmlFor={templateCheckboxId} aria-hidden="true">
+									新規登録で、見出しを最初から入れる
+								</label>
+							</div>
 						)}
 
 						<p className={styles.hint}>
@@ -667,13 +681,14 @@ export function RecipeEditor({
 								onChange={(event) => setNewIngredientAmount(event.target.value)}
 								onKeyDown={handleEnterToAdd(addIngredient)}
 							/>
-							<button
-								type="button"
+							<Button
+								variant="secondary"
+								size="sm"
 								disabled={newIngredientName.trim().length === 0}
 								onClick={addIngredient}
 							>
 								材料を追加
-							</button>
+							</Button>
 						</div>
 
 						<div className={styles.addGroupRow}>
@@ -685,13 +700,14 @@ export function RecipeEditor({
 								onChange={(event) => setNewGroupName(event.target.value)}
 								onKeyDown={handleEnterToAdd(addGroup)}
 							/>
-							<button
-								type="button"
+							<Button
+								variant="secondary"
+								size="sm"
 								disabled={newGroupName.trim().length === 0}
 								onClick={addGroup}
 							>
 								グループを追加
-							</button>
+							</Button>
 						</div>
 
 						<h4>下準備</h4>
@@ -772,13 +788,11 @@ export function RecipeEditor({
 					レシピを保存
 				</Button>
 
-				{errorMessage ? (
-					<p role="alert" className={styles.error}>
-						{errorMessage}
-					</p>
-				) : null}
+				{errorMessage ? <Note tone="error">{errorMessage}</Note> : null}
 
-				{savedRecipeId ? <output>レシピを保存しました。</output> : null}
+				{savedRecipeId ? (
+					<Note tone="success">レシピを保存しました。</Note>
+				) : null}
 			</form>
 
 			{openedLinkPublicId !== null && loadLinkedRecipe && renderOpenLink ? (

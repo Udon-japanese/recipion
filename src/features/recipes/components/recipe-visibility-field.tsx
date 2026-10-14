@@ -1,4 +1,6 @@
 import { Link } from "@tanstack/react-router";
+import { Note } from "#/components/note/note";
+import { RadioList } from "#/components/radio-list/radio-list";
 import type { RecipeVisibility } from "../domain/recipe-link-permission";
 import * as styles from "./recipe-visibility-field.css";
 
@@ -16,47 +18,30 @@ export function RecipeVisibilityField({
 	hasSourceUrl,
 }: RecipeVisibilityFieldProps) {
 	return (
-		<fieldset className={styles.fieldset}>
-			<legend className={styles.legend}>公開範囲</legend>
-
-			<label className={styles.option}>
-				<input
-					type="radio"
-					name="recipe-visibility"
-					checked={value === "private"}
-					onChange={() => onChange("private")}
-				/>
-				<span>非公開（自分だけ）</span>
-			</label>
-
-			<label className={styles.option}>
-				<input
-					type="radio"
-					name="recipe-visibility"
-					checked={value === "unlisted"}
-					disabled={hasSourceUrl}
-					onChange={() => onChange("unlisted")}
-				/>
-				<span>
-					限定公開（ログインした人のうち、パスフレーズを知っている人だけ）
-				</span>
-			</label>
-
-			<label className={styles.option}>
-				<input
-					type="radio"
-					name="recipe-visibility"
-					checked={value === "public"}
-					disabled={hasSourceUrl}
-					onChange={() => onChange("public")}
-				/>
-				<span>全体公開（ログインした人なら、誰でも見られる）</span>
-			</label>
+		<div className={styles.container}>
+			<RadioList<RecipeVisibility>
+				legend="公開範囲"
+				name="recipe-visibility"
+				value={value}
+				onChange={onChange}
+				options={[
+					{ value: "private", label: "非公開（自分だけ）" },
+					{
+						value: "unlisted",
+						label:
+							"限定公開（ログインした人のうち、パスフレーズを知っている人だけ）",
+						disabled: hasSourceUrl,
+					},
+					{
+						value: "public",
+						label: "全体公開（ログインした人なら、誰でも見られる）",
+						disabled: hasSourceUrl,
+					},
+				]}
+			/>
 
 			{hasSourceUrl ? (
-				<p className={styles.note}>
-					引用元のURLがあるレシピは、公開できません。
-				</p>
+				<Note tone="warn">引用元のURLがあるレシピは、公開できません。</Note>
 			) : null}
 
 			{value === "unlisted" ? (
@@ -84,6 +69,6 @@ export function RecipeVisibilityField({
 					</p>
 				</div>
 			) : null}
-		</fieldset>
+		</div>
 	);
 }

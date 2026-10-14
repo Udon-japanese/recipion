@@ -1,4 +1,5 @@
 import type { KeyboardEvent } from "react";
+import { Button } from "#/components/button/button";
 import { PickerSelect } from "../../../components/select/picker-select";
 import type { RecipeEditorIngredientNode } from "../domain/recipe-editor-document";
 import { type RecipeLinkView, splitTextByLinks } from "../domain/recipe-links";
@@ -97,13 +98,14 @@ export function IngredientPreviewNode({
 					<EditedBadge label={node.name} onRevert={() => onRevert(node.id)} />
 				) : null}
 				{node.children.length === 0 ? (
-					<button
-						type="button"
+					<Button
+						variant="ghost"
+						size="sm"
 						aria-label={`${node.name}のグループを削除`}
 						onClick={() => onRemoveGroup(node.id)}
 					>
 						グループを削除
-					</button>
+					</Button>
 				) : null}
 				<ul className={styles.nestedList}>
 					{node.children.map((child) => (
@@ -184,13 +186,14 @@ export function IngredientPreviewNode({
 						</option>
 					))}
 				</PickerSelect>
-				<button
-					type="button"
+				<Button
+					variant="ghost"
+					size="sm"
 					aria-label={`${node.name}を削除`}
 					onClick={() => onRemove(node.id)}
 				>
 					削除
-				</button>
+				</Button>
 			</div>
 			{editedIds.has(node.id) ? (
 				<EditedBadge label={node.name} onRevert={() => onRevert(node.id)} />

@@ -3,10 +3,11 @@ import { style } from "@vanilla-extract/css";
 export const picker = style({
 	display: "grid",
 	gap: 8,
-	padding: 10,
+	padding: 12,
 	background: "var(--color-surface)",
-	border: "1px solid var(--color-border)",
-	borderRadius: 8,
+	border: "1px solid var(--color-border-strong)",
+	borderRadius: "var(--radius-card)",
+	boxShadow: "var(--shadow-sm)",
 });
 
 export const header = style({
@@ -18,17 +19,24 @@ export const header = style({
 
 export const title = style({
 	margin: 0,
-	fontSize: 14,
-	fontWeight: 700,
+	fontSize: "var(--font-size-sm)",
+	fontWeight: "var(--font-weight-bold)",
 });
 
 export const search = style({
-	minHeight: 40,
-	padding: "6px 10px",
+	minHeight: 44,
+	padding: "0 16px",
+	color: "var(--color-text)",
 	background: "var(--color-surface)",
-	border: "1px solid var(--color-border)",
-	borderRadius: 8,
+	border: "1.5px solid var(--color-control-border)",
+	borderRadius: "var(--radius-control)",
 	font: "inherit",
+	selectors: {
+		"&:focus-visible": {
+			outline: "3px solid var(--color-focus)",
+			outlineOffset: 2,
+		},
+	},
 });
 
 export const list = style({
@@ -47,10 +55,12 @@ export const item = style({
 	textAlign: "left",
 	background: "transparent",
 	border: "none",
-	borderRadius: 6,
+	color: "var(--color-text)",
+	font: "inherit",
+	borderRadius: 12,
 	cursor: "pointer",
 	selectors: {
-		"&:hover": { background: "var(--color-surface-muted)" },
+		"&:hover": { background: "var(--color-primary-soft)" },
 	},
 });
 
