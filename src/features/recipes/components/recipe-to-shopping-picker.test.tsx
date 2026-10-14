@@ -91,7 +91,7 @@ describe("RecipeToShoppingPicker", () => {
 			expect(panel.getByLabelText("玉ねぎを買い物メモに入れる")).toBeChecked(),
 		);
 		await user.click(
-			panel.getByRole("button", { name: "選んだものを入れる（2件）" }),
+			screen.getByRole("button", { name: "選んだものを入れる（2件）" }),
 		);
 
 		await waitFor(() => expect(repository.items).toHaveLength(2));
@@ -102,6 +102,29 @@ describe("RecipeToShoppingPicker", () => {
 		expect(onApplied).toHaveBeenCalledWith("カレー");
 		// 買い物メモの画面の中なので、「買い物メモを開く」のリンクは出さない。
 		expect(screen.queryByRole("link", { name: "買い物メモを開く" })).toBeNull();
+	});
+
+	it("入れたあとも閉じず、別のレシピを続けて選べる", async () => {
+		const user = userEvent.setup();
+		const { repository, onClose } = setup();
+
+		await user.click(await screen.findByRole("button", { name: "カレー" }));
+		await waitFor(() =>
+			expect(screen.getByLabelText("玉ねぎを買い物メモに入れる")).toBeChecked(),
+		);
+		await user.click(
+			screen.getByRole("button", { name: "選んだものを入れる（2件）" }),
+		);
+		await waitFor(() => expect(repository.items).toHaveLength(2));
+
+		await user.click(screen.getByRole("button", { name: "別のレシピを選ぶ" }));
+		await user.click(await screen.findByRole("button", { name: "サラダ" }));
+		await user.click(
+			await screen.findByRole("button", { name: "選んだものを入れる（1件）" }),
+		);
+
+		await waitFor(() => expect(repository.items).toHaveLength(3));
+		expect(onClose).not.toHaveBeenCalled();
 	});
 
 	it("入れ先が条件つきのメモの側なら、その側の項目として入る", async () => {
@@ -120,7 +143,7 @@ describe("RecipeToShoppingPicker", () => {
 			expect(panel.getByLabelText("玉ねぎを買い物メモに入れる")).toBeChecked(),
 		);
 		await user.click(
-			panel.getByRole("button", { name: "選んだものを入れる（2件）" }),
+			screen.getByRole("button", { name: "選んだものを入れる（2件）" }),
 		);
 
 		await waitFor(() => expect(repository.items).toHaveLength(2));

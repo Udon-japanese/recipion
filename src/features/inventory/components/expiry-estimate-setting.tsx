@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Icon } from "#/components/icon/icon";
+import { RadioList } from "#/components/radio-list/radio-list";
 import { Sheet } from "#/components/sheet/sheet";
 import { useMediaQuery } from "#/components/use-media-query";
 import type { ExpiryEstimateLevel } from "../domain/estimate-lot-expiry";
@@ -27,29 +28,14 @@ export function ExpiryEstimateSetting({
 }: ExpiryEstimateSettingProps) {
 	return (
 		<div className={styles.container}>
-			<fieldset className={styles.options}>
-				<legend className={styles.legend}>期限の目安の自動入力</legend>
-
-				{options.map((option) => (
-					<label className={styles.option} key={option.value}>
-						<input
-							className={styles.radio}
-							type="radio"
-							name="expiry-estimate-level"
-							value={option.value}
-							checked={level === option.value}
-							onChange={() => onChange(option.value)}
-						/>
-						<span className={styles.mark} aria-hidden="true" />
-						<span className={styles.optionText}>
-							{option.label}
-							{option.detail ? (
-								<span className={styles.detail}>{option.detail}</span>
-							) : null}
-						</span>
-					</label>
-				))}
-			</fieldset>
+			<RadioList
+				legend="期限の目安の自動入力"
+				hideLegend
+				name="expiry-estimate-level"
+				options={options}
+				value={level}
+				onChange={onChange}
+			/>
 
 			<p className={styles.note}>
 				目安は、必ず「約」と表示します。パックや袋の日付がある場合は、その日付を優先してください。この設定は、この端末に保存されます。

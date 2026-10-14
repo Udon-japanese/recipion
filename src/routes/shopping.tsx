@@ -76,30 +76,29 @@ function ShoppingPage() {
 	}, []);
 
 	return (
-		<>
-			<PurchaseOutboxSync
-				ownerScope={ownerScope}
-				syncPurchases={syncDexieInventoryPurchaseOutbox}
-			/>
-
-			<ShoppingList
-				ownerScope={ownerScope}
-				syncPurchases={syncDexieInventoryPurchaseOutbox}
-				renderRecipePicker={
-					isLoggedIn
-						? (context: RecipePickerContext) => (
-								<RecipeToShoppingPicker
-									context={context}
-									ownerScope={ownerScope}
-									listRecipes={listRecipes}
-									loadRecipe={loadRecipe}
-									loadInventoryItems={loadInventoryItems}
-									registerAvailable={registerAvailable}
-								/>
-							)
-						: undefined
-				}
-			/>
-		</>
+		<ShoppingList
+			ownerScope={ownerScope}
+			notices={
+				<PurchaseOutboxSync
+					ownerScope={ownerScope}
+					syncPurchases={syncDexieInventoryPurchaseOutbox}
+				/>
+			}
+			syncPurchases={syncDexieInventoryPurchaseOutbox}
+			renderRecipePicker={
+				isLoggedIn
+					? (context: RecipePickerContext) => (
+							<RecipeToShoppingPicker
+								context={context}
+								ownerScope={ownerScope}
+								listRecipes={listRecipes}
+								loadRecipe={loadRecipe}
+								loadInventoryItems={loadInventoryItems}
+								registerAvailable={registerAvailable}
+							/>
+						)
+					: undefined
+			}
+		/>
 	);
 }

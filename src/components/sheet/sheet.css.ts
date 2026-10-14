@@ -35,6 +35,11 @@ export const panel = style({
 	overflow: "hidden",
 
 	selectors: {
+		// 浮いたパネル（後ろの画面が見える）：輪郭をはっきりさせる。
+		'&[data-modal="false"]': {
+			border: "1px solid var(--color-border-strong)",
+			boxShadow: "var(--shadow-md)",
+		},
 		// PC：右から出る 400px のパネル。
 		'&[data-placement="right"]': {
 			left: "auto",

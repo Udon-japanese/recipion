@@ -87,6 +87,27 @@ describe("ShoppingList", () => {
 		expect(screen.queryByRole("button", { name: "1/3にする" })).toBeNull();
 	});
 
+	it("チェックがないときの「購入を確定」は、押すと理由を伝えて、確定しない", async () => {
+		const user = userEvent.setup();
+		const confirmPurchases = vi.fn();
+
+		render(
+			<ShoppingList
+				repository={createFakeShoppingRepository()}
+				confirmPurchases={confirmPurchases}
+			/>,
+		);
+
+		await screen.findByText("買うものはまだありません。");
+		await user.click(screen.getByRole("button", { name: "購入を確定（0件）" }));
+
+		// 見える文と、読み上げの文の 2 か所に出る。
+		expect(
+			await screen.findAllByText("買ったものにチェックを入れてください"),
+		).not.toHaveLength(0);
+		expect(confirmPurchases).not.toHaveBeenCalled();
+	});
+
 	it("名前が空のまま追加を押すと、入力を促して、何も追加しない", async () => {
 		const user = userEvent.setup();
 		const repository = createFakeShoppingRepository();

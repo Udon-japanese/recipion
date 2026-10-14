@@ -1,12 +1,20 @@
 import { useEffect, useState } from "react";
+import { Button } from "#/components/button/button";
+import { Field, TextInput } from "#/components/field/field";
+import { Icon } from "#/components/icon/icon";
+import { IconButton } from "#/components/icon-button/icon-button";
+import { Note } from "#/components/note/note";
+import { Sheet } from "#/components/sheet/sheet";
+import { useMediaQuery } from "#/components/use-media-query";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import type { InventoryListItem } from "#/features/inventory/application/inventory-query-repository";
 import type { RecipePickerContext } from "#/features/shopping/components/recipe-picker-slot";
 import type { RecipeDetail } from "../application/recipe-repository";
 import { filterLinkTargets } from "../domain/filter-link-targets";
 import type { RecipeLinkTarget } from "../domain/recipe-links";
-import { RecipeShoppingSection } from "./recipe-shopping-section";
-import * as styles from "./recipe-shopping-section.css";
+import { RecipeShoppingRows } from "./recipe-shopping-rows";
+import * as styles from "./recipe-to-shopping-picker.css";
+import { useRecipeShoppingPlan } from "./use-recipe-shopping-plan";
 
 type RecipeToShoppingPickerProps = {
 	context: RecipePickerContext;
@@ -23,6 +31,7 @@ const maxListedRecipes = 50;
 
 // 買い物メモの画面で、レシピを選んで、足りない材料を入れる。選べるのは、自分のレシピだけ
 // （他の人のレシピから入れる機能は、今後対応する予定）。
+// 浮いたパネルなので、後ろのメモを見ながら、続けて別のレシピも入れられる。
 export function RecipeToShoppingPicker({
 	context,
 	ownerScope,
@@ -31,11 +40,28 @@ export function RecipeToShoppingPicker({
 	loadInventoryItems,
 	registerAvailable,
 }: RecipeToShoppingPickerProps) {
+	const isRight = useMediaQuery("(min-width: 1024px)");
 	const [recipes, setRecipes] = useState<RecipeLinkTarget[] | null>(null);
 	const [query, setQuery] = useState("");
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [isOpeningRecipe, setIsOpeningRecipe] = useState(false);
 	const [selected, setSelected] = useState<RecipeDetail | null>(null);
+
+	const plan = useRecipeShoppingPlan({
+		ingredients: selected?.ingredients ?? [],
+		linkViews: selected?.linkViews,
+		loadLinkedRecipe: loadRecipe,
+		ownerScope,
+		loadInventoryItems,
+		shoppingRepository: context.repository,
+		destination: context.destination,
+		onApplied: () => {
+			if (selected) {
+				context.onApplied(selected.name);
+			}
+		},
+		autoStartKey: selected?.publicId ?? null,
+	});
 
 	useEffect(() => {
 		let isActive = true;
@@ -77,103 +103,122 @@ export function RecipeToShoppingPicker({
 		}
 	}
 
-	if (selected) {
-		return (
-			<div>
-				<p className={styles.hint}>「{selected.name}」の材料</p>
-				<button
-					className={styles.smallButton}
-					type="button"
-					onClick={() => setSelected(null)}
-				>
-					別のレシピを選ぶ
-				</button>
-				<RecipeShoppingSection
-					ingredients={selected.ingredients}
-					linkViews={selected.linkViews}
-					loadLinkedRecipe={loadRecipe}
-					ownerScope={ownerScope}
-					loadInventoryItems={loadInventoryItems}
-					registerAvailable={registerAvailable}
-					shoppingRepository={context.repository}
-					embedded={{
-						onClose: context.onClose,
-						destination: context.destination,
-						onApplied: () => context.onApplied(selected.name),
-					}}
-				/>
-			</div>
-		);
-	}
-
 	const shown = recipes
 		? filterLinkTargets(recipes, query, maxListedRecipes)
 		: [];
 
 	return (
-		<section className={styles.container} aria-label="レシピから入れる">
-			<div className={styles.panel}>
-				<h3 className={styles.heading}>レシピから入れる</h3>
-				<p className={styles.hint}>
-					自分のレシピから選べます。他の人のレシピから入れる機能は、今後対応する予定です。
-				</p>
-
-				<div className={styles.field}>
-					<label className={styles.label} htmlFor="recipe-picker-query">
-						レシピの名前で絞り込む
-					</label>
-					<input
-						className={styles.select}
-						id="recipe-picker-query"
-						type="search"
-						value={query}
-						onChange={(event) => setQuery(event.target.value)}
+		<Sheet
+			open
+			onOpenChange={(open) => {
+				if (!open && !plan.isApplying) {
+					context.onClose();
+				}
+			}}
+			title={selected ? `${selected.name}の材料` : "レシピから入れる"}
+			placement={isRight ? "right" : "bottom"}
+			// 浮いたパネル：後ろのメモを見ながら、続けて入れられる。
+			modal={false}
+			snapPoints={isRight ? [0.92] : [0.1, 0.7, 0.92]}
+			defaultSnapIndex={isRight ? 0 : 1}
+			headerLeading={
+				selected ? (
+					<IconButton
+						icon="chevron-left"
+						label="別のレシピを選ぶ"
+						size="std"
+						tone="plain"
+						disabled={plan.isApplying}
+						onClick={() => setSelected(null)}
 					/>
-				</div>
+				) : null
+			}
+			footer={
+				selected ? (
+					<div className={styles.footer}>
+						<Button
+							variant="secondary"
+							size="lg"
+							fullWidth
+							disabled={plan.isApplying}
+							onClick={context.onClose}
+						>
+							閉じる
+						</Button>
 
-				{recipes === null && !errorMessage ? (
-					<p className={styles.hint}>読み込んでいます…</p>
-				) : null}
-
-				{recipes && recipes.length === 0 ? (
-					<p className={styles.hint}>登録したレシピがまだありません。</p>
-				) : null}
-
-				{recipes && recipes.length > 0 && shown.length === 0 ? (
-					<p className={styles.hint}>合うレシピがありません。</p>
-				) : null}
-
-				<ul className={styles.list}>
-					{shown.map((recipe) => (
-						<li className={styles.row} key={recipe.publicId}>
-							<button
-								className={styles.smallButton}
-								type="button"
-								disabled={isOpeningRecipe}
-								onClick={() => void handleSelect(recipe.publicId)}
-							>
-								{recipe.name}
-							</button>
-						</li>
-					))}
-				</ul>
-
-				{errorMessage ? (
-					<p className={styles.error} role="alert">
-						{errorMessage}
+						<Button
+							size="lg"
+							fullWidth
+							status={plan.isApplying ? "pending" : "idle"}
+							pendingLabel="追加中"
+							disabled={plan.isLoading}
+							onClick={() => void plan.apply()}
+						>
+							{`選んだものを入れる（${plan.selectedCount}件）`}
+						</Button>
+					</div>
+				) : undefined
+			}
+		>
+			{selected ? (
+				<section aria-label="買い物メモに入れる">
+					<RecipeShoppingRows
+						plan={plan}
+						ownerScope={ownerScope}
+						registerAvailable={registerAvailable}
+					/>
+				</section>
+			) : (
+				<section className={styles.list} aria-label="レシピから入れる">
+					<p className={styles.hint}>
+						自分のレシピから選べます。他の人のレシピから入れる機能は、今後対応する予定です。
 					</p>
-				) : null}
 
-				<div className={styles.actions}>
-					<button
-						className={styles.cancelButton}
-						type="button"
-						onClick={context.onClose}
-					>
-						閉じる
-					</button>
-				</div>
-			</div>
-		</section>
+					<Field label="レシピの名前で絞り込む" hideLabel>
+						{(control) => (
+							<TextInput
+								{...control}
+								type="search"
+								value={query}
+								placeholder="レシピの名前で絞り込む"
+								onChange={(event) => setQuery(event.target.value)}
+							/>
+						)}
+					</Field>
+
+					{recipes === null && !errorMessage ? (
+						<p className={styles.hint}>読み込んでいます…</p>
+					) : null}
+
+					{recipes && recipes.length === 0 ? (
+						<p className={styles.hint}>登録したレシピがまだありません。</p>
+					) : null}
+
+					{recipes && recipes.length > 0 && shown.length === 0 ? (
+						<p className={styles.hint}>合うレシピがありません。</p>
+					) : null}
+
+					{shown.length > 0 ? (
+						<ul className={styles.recipeList}>
+							{shown.map((recipe) => (
+								<li key={recipe.publicId}>
+									<button
+										className={styles.recipeRow}
+										type="button"
+										disabled={isOpeningRecipe}
+										onClick={() => void handleSelect(recipe.publicId)}
+									>
+										<span className={styles.recipeName}>{recipe.name}</span>
+										<Icon name="chevron-right" size={20} />
+									</button>
+								</li>
+							))}
+						</ul>
+					) : null}
+
+					{errorMessage ? <Note tone="error">{errorMessage}</Note> : null}
+				</section>
+			)}
+		</Sheet>
 	);
 }

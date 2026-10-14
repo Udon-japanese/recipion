@@ -44,6 +44,9 @@ type ShoppingItemFormProps = {
 	submitLabel?: string;
 	// 常に、数量やカテゴリの欄まで開いておく（条件つきのメモの作成など）。
 	alwaysExpanded?: boolean;
+	// フォームの id と、送信ボタンを出さない指定（シートの下のバーに、送信ボタンを置くとき）。
+	formId?: string;
+	hideSubmitButton?: boolean;
 	// 追加ボタンの上に足す欄（条件つきのメモの「どんな時に」など）。
 	children?: ReactNode;
 };
@@ -57,6 +60,8 @@ export function ShoppingItemForm({
 	onCreateStore,
 	submitLabel = "追加",
 	alwaysExpanded = false,
+	formId,
+	hideSubmitButton = false,
 	children,
 }: ShoppingItemFormProps) {
 	const formRef = useRef<HTMLFormElement>(null);
@@ -172,8 +177,10 @@ export function ShoppingItemForm({
 
 	return (
 		<form
+			id={formId}
 			className={styles.addForm}
 			data-expanded={isExpanded}
+			data-bare={hideSubmitButton || undefined}
 			ref={formRef}
 			onSubmit={(event) => void handleSubmit(event)}
 			onFocus={() => setIsOpened(true)}
@@ -269,7 +276,7 @@ export function ShoppingItemForm({
 
 					{children}
 
-					{alwaysExpanded ? (
+					{alwaysExpanded && !hideSubmitButton ? (
 						<Button size="lg" fullWidth type="submit" disabled={isSubmitting}>
 							{submitLabel}
 						</Button>

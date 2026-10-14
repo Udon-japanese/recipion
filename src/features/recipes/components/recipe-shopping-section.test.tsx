@@ -131,26 +131,17 @@ describe("RecipeShoppingSection", () => {
 		).toBeInTheDocument();
 
 		// 合算：1 + 3 = 4個
-		await user.selectOptions(
-			panel.getByLabelText("メモに同じものがあるとき"),
-			"sum",
-		);
+		await user.click(panel.getByLabelText("合算する"));
 		expect(
 			panel.getByText(/メモに「玉ねぎ 1個」あり → 4個に更新/u),
 		).toBeInTheDocument();
 
 		// 追加しない
-		await user.selectOptions(
-			panel.getByLabelText("メモに同じものがあるとき"),
-			"skip",
-		);
+		await user.click(panel.getByLabelText("追加しない"));
 		expect(panel.getByLabelText("玉ねぎを買い物メモに入れる")).toBeDisabled();
 
 		// 多い方に戻して、更新する
-		await user.selectOptions(
-			panel.getByLabelText("メモに同じものがあるとき"),
-			"max",
-		);
+		await user.click(panel.getByLabelText("多い方に合わせる"));
 		await user.click(
 			panel.getByRole("button", { name: "選んだものを入れる（1件）" }),
 		);
@@ -187,10 +178,7 @@ describe("RecipeShoppingSection", () => {
 		).toBeInTheDocument();
 		expect(panel.getByLabelText("キャベツを買い物メモに入れる")).toBeDisabled();
 
-		await user.selectOptions(
-			panel.getByLabelText("メモに同じものがあるとき"),
-			"skip",
-		);
+		await user.click(panel.getByLabelText("追加しない"));
 
 		expect(
 			panel.getByText(/「追加しない」の設定のため、そのまま/u),

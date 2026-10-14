@@ -21,7 +21,9 @@ function sortBySortOrder(items: readonly ShoppingItem[]): ShoppingItem[] {
 	return [...items].sort((left, right) => left.sortOrder - right.sortOrder);
 }
 
-function labelOf(categoryId: ShoppingCategoryId | null): string {
+export function getShoppingCategoryLabel(
+	categoryId: ShoppingCategoryId | null,
+): string {
 	return (
 		shoppingCategories.find((category) => category.id === categoryId)?.label ??
 		uncategorizedLabel
@@ -37,7 +39,7 @@ export function groupShoppingItemsByCategory(
 	for (const item of sortBySortOrder(items)) {
 		const group = groups.get(item.categoryId) ?? {
 			categoryId: item.categoryId,
-			label: labelOf(item.categoryId),
+			label: getShoppingCategoryLabel(item.categoryId),
 			items: [],
 			remaining: 0,
 		};
