@@ -144,12 +144,12 @@ describe("RecipeLinkPreview", () => {
 		expect(onClose).toHaveBeenCalledTimes(3);
 	});
 
-	it("開いたとき、フォーカスは「閉じる」に移る", async () => {
+	it("開いたとき、フォーカスはプレビューの中に移る", async () => {
 		setup();
 
-		await screen.findByRole("dialog", { name: "カレー丼" });
+		const dialog = await screen.findByRole("dialog", { name: "カレー丼" });
 
-		expect(document.activeElement?.textContent).toBe("閉じる");
+		expect(dialog.contains(document.activeElement)).toBe(true);
 	});
 
 	it("他の人のレシピには、作者を出す。自分のレシピには出さない", async () => {

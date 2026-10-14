@@ -1,5 +1,8 @@
 import { useMemo, useState } from "react";
 import { Button } from "#/components/button/button";
+import { Note } from "#/components/note/note";
+import { Sheet } from "#/components/sheet/sheet";
+import { useMediaQuery } from "#/components/use-media-query";
 import type { UndoRecipeConsumptionResult } from "#/features/inventory/application/inventory-adjustment-repository";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import type { InventoryListItem } from "#/features/inventory/application/inventory-query-repository";
@@ -86,6 +89,7 @@ export function RecipeConsumeSection({
 	consume,
 	undo,
 }: RecipeConsumeSectionProps) {
+	const isRight = useMediaQuery("(min-width: 1024px)");
 	const [isWorking, setIsWorking] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [outcome, setOutcome] = useState<Outcome | null>(null);
@@ -232,99 +236,106 @@ export function RecipeConsumeSection({
 
 	return (
 		<section className={styles.container} aria-label="作った">
-			{outcome ? (
-				<div className={styles.panel}>
-					<h3 className={styles.heading}>
-						{outcome.isUndone
-							? "元に戻しました"
-							: `在庫から${consumedCount}件を引きました`}
-					</h3>
+			<Button
+				fullWidth
+				status={isWorking && !outcome ? "pending" : "idle"}
+				pendingLabel="在庫から引いています"
+				onClick={() => void handleMade()}
+			>
+				作った（在庫から引く）
+			</Button>
+			<p className={styles.hint}>
+				使った分を、在庫からすぐに引きます。間違えたときは、あとから「元に戻す」で戻せます。
+			</p>
+			{errorMessage && !outcome ? (
+				<Note tone="error">{errorMessage}</Note>
+			) : null}
 
-					{outcome.isUndone ? (
-						<p className={styles.hint}>在庫を、引く前の状態に戻しました。</p>
-					) : (
-						<ul className={styles.list}>
-							{outcome.rows.map((row) => (
-								<li className={styles.row} key={row.need.id}>
-									<span className={styles.status}>
-										{describeRow(row, outcome.failedNeedIds.has(row.need.id))}
-									</span>
-									{!outcome.isUndone
-										? row.alternatives.map((alternative) => (
-												<button
-													className={styles.smallButton}
-													type="button"
-													key={alternative.inventoryItemId}
-													disabled={isWorking}
-													onClick={() =>
-														void handleUseAlternative(row, alternative)
-													}
-												>
-													{`${alternative.name}を引く（${formatStockAmount(alternative.deduct, alternative.stockUnitCode)}${alternative.stockUnitLabel}）`}
-												</button>
-											))
-										: null}
-								</li>
-							))}
-						</ul>
-					)}
-
-					{errorMessage ? (
-						<p className={styles.error} role="alert">
-							{errorMessage}
-						</p>
-					) : null}
-
-					<div className={styles.actions}>
-						{!outcome.isUndone && outcome.failedNeedIds.size > 0 ? (
-							<button
-								className={styles.cancelButton}
-								type="button"
-								disabled={isWorking}
-								onClick={() => void handleRetry()}
-							>
-								引けなかった分をやり直す
-							</button>
-						) : null}
-						{!outcome.isUndone && consumedCount > 0 ? (
+			<Sheet
+				open={outcome !== null}
+				onOpenChange={(open) => {
+					if (!open && !isWorking) {
+						setOutcome(null);
+					}
+				}}
+				title={
+					outcome?.isUndone
+						? "元に戻しました"
+						: `在庫から${consumedCount}件を引きました`
+				}
+				placement={isRight ? "right" : "bottom"}
+				snapPoints={isRight ? [0.92] : [0.7, 0.92]}
+				footer={
+					outcome ? (
+						<div className={styles.footer}>
+							{!outcome.isUndone && outcome.failedNeedIds.size > 0 ? (
+								<Button
+									variant="secondary"
+									size="lg"
+									fullWidth
+									disabled={isWorking}
+									onClick={() => void handleRetry()}
+								>
+									引けなかった分をやり直す
+								</Button>
+							) : null}
+							{!outcome.isUndone && consumedCount > 0 ? (
+								<Button
+									variant="secondary"
+									size="lg"
+									fullWidth
+									status={isWorking ? "pending" : "idle"}
+									pendingLabel="戻しています"
+									onClick={() => void handleUndo()}
+								>
+									元に戻す
+								</Button>
+							) : null}
 							<Button
-								size="sm"
-								status={isWorking ? "pending" : "idle"}
-								pendingLabel="戻しています"
-								onClick={() => void handleUndo()}
+								size="lg"
+								fullWidth
+								disabled={isWorking}
+								onClick={() => setOutcome(null)}
 							>
-								元に戻す
+								閉じる
 							</Button>
-						) : null}
-						<button
-							className={styles.cancelButton}
-							type="button"
-							disabled={isWorking}
-							onClick={() => setOutcome(null)}
-						>
-							閉じる
-						</button>
+						</div>
+					) : undefined
+				}
+			>
+				{outcome ? (
+					<div className={styles.sheetBody}>
+						{outcome.isUndone ? (
+							<p className={styles.hint}>在庫を、引く前の状態に戻しました。</p>
+						) : (
+							<ul className={styles.list}>
+								{outcome.rows.map((row) => (
+									<li className={styles.row} key={row.need.id}>
+										<span className={styles.status}>
+											{describeRow(row, outcome.failedNeedIds.has(row.need.id))}
+										</span>
+										{row.alternatives.map((alternative) => (
+											<Button
+												variant="secondary"
+												size="sm"
+												key={alternative.inventoryItemId}
+												disabled={isWorking}
+												onClick={() =>
+													void handleUseAlternative(row, alternative)
+												}
+											>
+												{`${alternative.name}を引く（${formatStockAmount(alternative.deduct, alternative.stockUnitCode)}${alternative.stockUnitLabel}）`}
+											</Button>
+										))}
+									</li>
+								))}
+							</ul>
+						)}
+
+						{errorMessage ? <Note tone="error">{errorMessage}</Note> : null}
 					</div>
-				</div>
-			) : (
-				<>
-					<Button
-						status={isWorking ? "pending" : "idle"}
-						pendingLabel="在庫から引いています"
-						onClick={() => void handleMade()}
-					>
-						作った（在庫から引く）
-					</Button>
-					<p className={styles.hint}>
-						使った分を、在庫からすぐに引きます。間違えたときは、あとから「元に戻す」で戻せます。
-					</p>
-					{errorMessage ? (
-						<p className={styles.error} role="alert">
-							{errorMessage}
-						</p>
-					) : null}
-				</>
-			)}
+				) : null}
+			</Sheet>
 		</section>
 	);
 }
