@@ -26,6 +26,7 @@ import {
 import { Mascot } from "#/components/mascot/mascot";
 import { Menu } from "#/components/menu/menu";
 import { Note } from "#/components/note/note";
+import { RadioList } from "#/components/radio-list/radio-list";
 import { SegmentedControl } from "#/components/segmented-control/segmented-control";
 import { Sheet } from "#/components/sheet/sheet";
 import { Tag } from "#/components/tag/tag";
@@ -587,6 +588,8 @@ function SheetGallery() {
 	const [single, setSingle] = useState(false);
 	const [double, setDouble] = useState(false);
 	const [panel, setPanel] = useState(false);
+	const [floating, setFloating] = useState(false);
+	const [radio, setRadio] = useState<"max" | "sum" | "skip">("max");
 
 	const longBody = (
 		<div style={{ display: "grid", gap: 12 }}>
@@ -614,7 +617,34 @@ function SheetGallery() {
 				<Button variant="secondary" onClick={() => setPanel(true)}>
 					右のパネル（PC）
 				</Button>
+				<Button variant="secondary" onClick={() => setFloating(true)}>
+					浮いたパネル（暗幕なし）
+				</Button>
 			</div>
+
+			<RadioList
+				legend="メモに同じものがあるとき"
+				name="gallery-radio"
+				value={radio}
+				onChange={setRadio}
+				options={[
+					{ value: "max", label: "多い方に合わせる" },
+					{ value: "sum", label: "合算する" },
+					{ value: "skip", label: "追加しない" },
+				]}
+			/>
+
+			<Sheet
+				open={floating}
+				onOpenChange={setFloating}
+				title="在庫に追加（浮いたパネル）"
+				modal={false}
+				snapPoints={[0.1, 0.6, 0.92]}
+				defaultSnapIndex={1}
+				footer={<Button size="lg">追加</Button>}
+			>
+				{longBody}
+			</Sheet>
 
 			<Sheet
 				open={single}

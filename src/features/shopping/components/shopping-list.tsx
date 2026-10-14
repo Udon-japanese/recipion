@@ -1,6 +1,6 @@
 import { DragDropProvider } from "@dnd-kit/react";
 import { isSortable } from "@dnd-kit/react/sortable";
-import { type Ref, useState } from "react";
+import { type ReactNode, type Ref, useState } from "react";
 import { Button } from "#/components/button/button";
 import { Field, SelectBox } from "#/components/field/field";
 import { Icon } from "#/components/icon/icon";
@@ -14,7 +14,16 @@ import { useStorageItem } from "#/local-storage/use-storage-item";
 import type { ShoppingBranchRepository } from "../application/shopping-branch-repository";
 import type { ShoppingRepository } from "../application/shopping-repository";
 import type { ShoppingStoreRepository } from "../application/shopping-store-repository";
-import { groupShoppingItemsByCategory } from "../domain/shopping-category-group";
+import {
+	getShoppingBranchConditionItem,
+	type ShoppingBranch,
+} from "../domain/shopping-branch";
+import type { ShoppingCategoryId } from "../domain/shopping-category";
+import {
+	getShoppingCategoryLabel,
+	groupShoppingItemsByCategory,
+	type ShoppingCategoryGroup,
+} from "../domain/shopping-category-group";
 import { type ShoppingItem, toggleShoppingItem } from "../domain/shopping-item";
 import { groupShoppingItemsByStore } from "../domain/shopping-store";
 import { useShoppingBranches } from "../hooks/use-shopping-branches";
@@ -32,7 +41,11 @@ import { dexieShoppingStoreRepository } from "../infrastructure/dexie-shopping-s
 import { shoppingViewStorage } from "../infrastructure/shopping-view-storage";
 import { PurchaseExpiryReview } from "./purchase-expiry-review";
 import type { RenderRecipePicker } from "./recipe-picker-slot";
-import { ShoppingBranchSection } from "./shopping-branch-section";
+import {
+	ShoppingBranchCards,
+	type ShoppingBranchCardsContext,
+} from "./shopping-branch-cards";
+import { ShoppingBranchCreate } from "./shopping-branch-create";
 import { ShoppingItemEditForm } from "./shopping-item-edit-form";
 import { ShoppingItemForm } from "./shopping-item-form";
 import { ShoppingItemInventoryConversionForm } from "./shopping-item-inventory-conversion-form";
@@ -63,6 +76,8 @@ type ShoppingListProps = {
 	ownerScope?: InventoryPurchaseOwnerScope | null;
 	// 「レシピから入れる」の部品。渡されたとき（ログイン中）だけ、ボタンを出す。
 	renderRecipePicker?: RenderRecipePicker;
+	// 見出しの下に出すお知らせ（在庫への同期・ゲスト購入の引き継ぎなど）。
+	notices?: ReactNode;
 };
 
 export function ShoppingList({
@@ -73,6 +88,7 @@ export function ShoppingList({
 	syncPurchases,
 	ownerScope = "guest",
 	renderRecipePicker,
+	notices,
 }: ShoppingListProps) {
 	const shopping = useShoppingItems(repository);
 	const { items, isLoading, isReordering, errorMessage, setErrorMessage } =
@@ -195,6 +211,70 @@ export function ShoppingList({
 		);
 	}
 
+	const branchContext: ShoppingBranchCardsContext = {
+		items: shopping.allItems,
+		stores,
+		defaultStoreIdFor: storeState.defaultStoreIdFor,
+		onCreateStore: storeState.addStore,
+		onRemoveBranch: branchState.removeBranch,
+		onDecide: branchState.decideBranch,
+		onAddItem: async (branch, side, input) => {
+			const added = await shopping.addItem({
+				...input,
+				branchId: branch.id,
+				branchSide: side,
+			});
+
+			if (added) {
+				await storeState.rememberStore(input.name, input.storeId ?? null);
+			}
+
+			return added;
+		},
+		onRemoveItem: shopping.removeItem,
+		repository,
+		renderRecipePicker,
+		onRecipeApplied: (branch, side, recipeName) => {
+			void branchState.labelSideIfEmpty(branch.id, side, recipeName);
+			void reloadItems();
+		},
+	};
+	const branches = branchState.branches;
+	// 条件つきのメモは、条件の材料の分類の見出しの下に置く（分類に項目がなくても、見出しを出す）。
+	const categoryGroups = groupShoppingItemsByCategory(items);
+	const branchesByCategory = new Map<
+		ShoppingCategoryId | null,
+		ShoppingBranch[]
+	>();
+
+	for (const branch of branches) {
+		const categoryId =
+			getShoppingBranchConditionItem(shopping.allItems, branch.id)
+				?.categoryId ?? null;
+
+		branchesByCategory.set(categoryId, [
+			...(branchesByCategory.get(categoryId) ?? []),
+			branch,
+		]);
+	}
+
+	const aisleSections = [
+		...categoryGroups,
+		...[...branchesByCategory.keys()]
+			.filter(
+				(categoryId) =>
+					!categoryGroups.some((group) => group.categoryId === categoryId),
+			)
+			.map(
+				(categoryId): ShoppingCategoryGroup => ({
+					categoryId,
+					label: getShoppingCategoryLabel(categoryId),
+					items: [],
+					remaining: 0,
+				}),
+			),
+	];
+
 	const storeGroups = groupShoppingItemsByStore(
 		currentStoreId
 			? items.filter((item) => !item.storeId || item.storeId === currentStoreId)
@@ -249,6 +329,8 @@ export function ShoppingList({
 				</div>
 			</div>
 
+			{notices ? <div className={styles.notices}>{notices}</div> : null}
+
 			<ShoppingItemForm
 				onAdd={async (input) => {
 					const added = await shopping.addItem(input);
@@ -266,13 +348,7 @@ export function ShoppingList({
 			/>
 
 			{renderRecipePicker ? (
-				isPickingRecipe ? (
-					renderRecipePicker({
-						repository,
-						onClose: () => setIsPickingRecipe(false),
-						onApplied: () => void reloadItems(),
-					})
-				) : (
+				<>
 					<Button
 						variant="secondary"
 						size="sm"
@@ -282,7 +358,15 @@ export function ShoppingList({
 					>
 						レシピから入れる
 					</Button>
-				)
+
+					{isPickingRecipe
+						? renderRecipePicker({
+								repository,
+								onClose: () => setIsPickingRecipe(false),
+								onApplied: () => void reloadItems(),
+							})
+						: null}
+				</>
 			) : null}
 
 			{purchase.conversionItem ? (
@@ -320,37 +404,6 @@ export function ShoppingList({
 				/>
 			) : null}
 
-			<ShoppingBranchSection
-				branches={branchState.branches}
-				items={shopping.allItems}
-				stores={stores}
-				defaultStoreIdFor={storeState.defaultStoreIdFor}
-				onCreateStore={storeState.addStore}
-				onAddBranch={branchState.addBranch}
-				onRemoveBranch={branchState.removeBranch}
-				onDecide={branchState.decideBranch}
-				onAddItem={async (branch, side, input) => {
-					const added = await shopping.addItem({
-						...input,
-						branchId: branch.id,
-						branchSide: side,
-					});
-
-					if (added) {
-						await storeState.rememberStore(input.name, input.storeId ?? null);
-					}
-
-					return added;
-				}}
-				onRemoveItem={shopping.removeItem}
-				repository={repository}
-				renderRecipePicker={renderRecipePicker}
-				onRecipeApplied={(branch, side, recipeName) => {
-					void branchState.labelSideIfEmpty(branch.id, side, recipeName);
-					void reloadItems();
-				}}
-			/>
-
 			{isLoading ? (
 				<div className={styles.center}>
 					<Mascot size={56} />
@@ -358,7 +411,7 @@ export function ShoppingList({
 				</div>
 			) : null}
 
-			{!isLoading && items.length === 0 ? (
+			{!isLoading && items.length === 0 && branches.length === 0 ? (
 				<div className={styles.center}>
 					<Mascot size={64} motion="still" />
 					<p className={styles.centerText}>買うものはまだありません。</p>
@@ -398,111 +451,137 @@ export function ShoppingList({
 							</Field>
 						</div>
 					) : null}
-
-					<div className={styles.groups}>
-						{storeGroups.map((group) => (
-							<section key={group.store?.id ?? "anywhere"}>
-								<div className={styles.groupHeader}>
-									<h2 className={styles.groupTitle}>
-										{group.store?.name ?? "どこでも"}
-									</h2>
-
-									<Tag>
-										残り{" "}
-										{
-											group.items.filter((item) => item.status === "pending")
-												.length
-										}
-									</Tag>
-								</div>
-
-								<ul className={styles.listCard}>
-									{group.items.map((item) => renderItem(item))}
-								</ul>
-							</section>
-						))}
-					</div>
 				</>
 			) : null}
 
-			{!isLoading && items.length > 0 && view === "aisle" ? (
-				<div className={styles.groups}>
-					{groupShoppingItemsByCategory(items).map((group) => (
-						<section key={group.categoryId ?? "uncategorized"}>
-							<div className={styles.groupHeader}>
-								<h2 className={styles.groupTitle}>{group.label}</h2>
+			{!isLoading && view === "store" && branches.length > 0 ? (
+				<div className={styles.categoryCard}>
+					<ShoppingBranchCards branches={branches} context={branchContext} />
+				</div>
+			) : null}
 
-								<Tag>残り {group.remaining}</Tag>
+			{!isLoading && items.length > 0 && view === "store" ? (
+				<div className={styles.groups}>
+					{storeGroups.map((group) => (
+						<section key={group.store?.id ?? "anywhere"}>
+							<div className={styles.groupHeader}>
+								<h2 className={styles.groupTitle}>
+									{group.store?.name ?? "どこでも"}
+								</h2>
+
+								<Tag>
+									残り{" "}
+									{
+										group.items.filter((item) => item.status === "pending")
+											.length
+									}
+								</Tag>
 							</div>
 
-							<DragDropProvider
-								onDragEnd={(event) => {
-									if (event.canceled) {
-										return;
-									}
-
-									const { source } = event.operation;
-
-									if (!isSortable(source)) {
-										return;
-									}
-
-									void shopping.dragMove(
-										group.categoryId,
-										source.initialIndex,
-										source.index,
-									);
-								}}
-							>
-								<ul className={styles.listCard}>
-									{group.items.map((item, index) => (
-										<SortableShoppingItem
-											id={item.id}
-											index={index}
-											disabled={isReordering || editingItemId === item.id}
-											key={item.id}
-										>
-											{({ rowRef, handleRef, isDragging }) =>
-												renderItem(item, {
-													rowRef,
-													dragHandleRef: handleRef,
-													isDragging,
-													isFirst: index === 0,
-													isLast: index === group.items.length - 1,
-												})
-											}
-										</SortableShoppingItem>
-									))}
-								</ul>
-							</DragDropProvider>
+							<ul className={styles.listCard}>
+								{group.items.map((item) => renderItem(item))}
+							</ul>
 						</section>
 					))}
 				</div>
 			) : null}
 
+			{!isLoading && view === "aisle" ? (
+				<div className={styles.groups}>
+					{aisleSections.map((group) => (
+						<section key={group.categoryId ?? "uncategorized"}>
+							<div className={styles.groupHeader}>
+								<h2 className={styles.groupTitle}>{group.label}</h2>
+
+								{group.items.length > 0 ? (
+									<Tag>残り {group.remaining}</Tag>
+								) : null}
+							</div>
+
+							<div className={styles.categoryCard}>
+								<ShoppingBranchCards
+									branches={branchesByCategory.get(group.categoryId) ?? []}
+									context={branchContext}
+								/>
+
+								{group.items.length > 0 ? (
+									<DragDropProvider
+										onDragEnd={(event) => {
+											if (event.canceled) {
+												return;
+											}
+
+											const { source } = event.operation;
+
+											if (!isSortable(source)) {
+												return;
+											}
+
+											void shopping.dragMove(
+												group.categoryId,
+												source.initialIndex,
+												source.index,
+											);
+										}}
+									>
+										<ul className={styles.rowList}>
+											{group.items.map((item, index) => (
+												<SortableShoppingItem
+													id={item.id}
+													index={index}
+													disabled={isReordering || editingItemId === item.id}
+													key={item.id}
+												>
+													{({ rowRef, handleRef, isDragging }) =>
+														renderItem(item, {
+															rowRef,
+															dragHandleRef: handleRef,
+															isDragging,
+															isFirst: index === 0,
+															isLast: index === group.items.length - 1,
+														})
+													}
+												</SortableShoppingItem>
+											))}
+										</ul>
+									</DragDropProvider>
+								) : null}
+							</div>
+						</section>
+					))}
+				</div>
+			) : null}
+
+			{isLoading ? null : (
+				<ShoppingBranchCreate
+					stores={stores}
+					defaultStoreIdFor={storeState.defaultStoreIdFor}
+					onCreateStore={storeState.addStore}
+					onAddBranch={branchState.addBranch}
+				/>
+			)}
+
 			<div className={styles.purchaseBar}>
 				<Button
 					size="lg"
 					fullWidth
+					status={purchase.isConfirmingPurchase ? "pending" : "idle"}
+					pendingLabel="購入確定中"
 					aria-label={`購入を確定（${purchase.checkedItemCount}件）`}
 					disabled={
-						purchase.checkedItemCount === 0 ||
-						purchase.isConfirmingPurchase ||
-						isLoading ||
-						ownerScope === null
+						purchase.checkedItemCount === 0 || isLoading || ownerScope === null
+					}
+					disabledReason={
+						purchase.checkedItemCount === 0
+							? "買ったものにチェックを入れてください"
+							: undefined
 					}
 					onClick={purchase.requestPurchase}
 				>
-					{purchase.isConfirmingPurchase ? (
-						"購入確定中…"
-					) : (
-						<>
-							購入を確定
-							<span className={styles.purchaseCount}>
-								{purchase.checkedItemCount}
-							</span>
-						</>
-					)}
+					購入を確定
+					<span className={styles.purchaseCount}>
+						{purchase.checkedItemCount}
+					</span>
 				</Button>
 			</div>
 

@@ -6,9 +6,11 @@ import { Sheet } from "./sheet";
 
 function Harness({
 	dismissible = true,
+	modal = true,
 	onChange,
 }: {
 	dismissible?: boolean;
+	modal?: boolean;
 	onChange?: (open: boolean) => void;
 }) {
 	const [open, setOpen] = useState(false);
@@ -26,6 +28,7 @@ function Harness({
 				}}
 				title="在庫に追加"
 				dismissible={dismissible}
+				modal={modal}
 				footer={<button type="button">追加</button>}
 			>
 				<input aria-label="食材名" />
@@ -172,5 +175,38 @@ describe("Sheet", () => {
 		await user.click(screen.getByRole("button", { name: "開く" }));
 
 		expect(screen.getByRole("button", { name: "追加" })).toBeInTheDocument();
+	});
+
+	it("浮いたパネル（modal=false）は、後ろの画面を操作でき、スクロールも固定せず、Esc はパネルの中でだけ閉じる", async () => {
+		const user = userEvent.setup();
+		const onChange = vi.fn();
+
+		render(
+			<>
+				<button type="button">後ろのボタン</button>
+				<Harness modal={false} onChange={onChange} />
+			</>,
+		);
+		await user.click(screen.getByRole("button", { name: "開く" }));
+
+		const dialog = screen.getByRole("dialog", { name: "在庫に追加" });
+
+		expect(dialog).toHaveAttribute("aria-modal", "false");
+		expect(
+			screen.getByRole("button", { name: "後ろのボタン" }),
+		).not.toHaveAttribute("inert");
+		expect(document.body.style.overflow).not.toBe("hidden");
+
+		// 後ろの画面にフォーカスがあるときの Esc では、閉じない。
+		screen.getByRole("button", { name: "後ろのボタン" }).focus();
+		await user.keyboard("{Escape}");
+
+		expect(onChange).not.toHaveBeenCalledWith(false);
+
+		// パネルの中にフォーカスがあれば、Esc で閉じる。
+		screen.getByLabelText("食材名").focus();
+		await user.keyboard("{Escape}");
+
+		expect(onChange).toHaveBeenCalledWith(false);
 	});
 });

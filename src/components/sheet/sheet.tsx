@@ -53,6 +53,9 @@ type SheetProps = {
 	placement?: "bottom" | "right";
 	// 本文の余白（既定は、あり）。
 	padded?: boolean;
+	// false にすると、暗幕を出さず、後ろの画面を操作できる「浮いたパネル」になる（続けて入力する場面向け）。
+	// 閉じるのは、閉じるボタン・つかんで下げる・パネルの中での Esc。
+	modal?: boolean;
 };
 
 function prefersReducedMotion() {
@@ -84,6 +87,7 @@ export function Sheet({
 	dismissible = true,
 	placement = "bottom",
 	padded = true,
+	modal = true,
 }: SheetProps) {
 	const isBottom = placement === "bottom";
 	const [mounted, setMounted] = useState(open);
@@ -125,8 +129,8 @@ export function Sheet({
 		isBottom,
 	};
 
-	useBodyScrollLock(mounted);
-	useModalFocus(mounted, panelRef, portalRef);
+	useBodyScrollLock(mounted && modal);
+	useModalFocus(mounted && modal, panelRef, portalRef);
 
 	// 見える高さ visible へ、シートと暗幕を動かす。
 	const place = useCallback((visible: number, animate: boolean) => {
@@ -138,7 +142,7 @@ export function Sheet({
 			isBottom: bottom,
 		} = latest.current;
 
-		if (!panel || !scrim) {
+		if (!panel) {
 			return;
 		}
 
@@ -166,10 +170,12 @@ export function Sheet({
 			panel.style.opacity = reduced && visible <= 0 ? "0" : "1";
 		}
 
-		scrim.style.transition = animate ? `opacity ${transition}` : "none";
-		scrim.style.opacity = String(
-			bottom ? backdropProgress(visible, lowestSnap) : visible <= 0 ? 0 : 1,
-		);
+		if (scrim) {
+			scrim.style.transition = animate ? `opacity ${transition}` : "none";
+			scrim.style.opacity = String(
+				bottom ? backdropProgress(visible, lowestSnap) : visible <= 0 ? 0 : 1,
+			);
+		}
 	}, []);
 
 	// 開く・閉じる。
@@ -219,13 +225,40 @@ export function Sheet({
 		}
 	}, [open, defaultSnapIndex, lastIndex]);
 
-	// Esc で閉じる。
+	// 浮いたパネルは、開いたときに、パネルへフォーカスを移す（閉じたら、元の場所へ戻す）。
+	useEffect(() => {
+		if (!open || modal || !mounted) {
+			return;
+		}
+
+		const opener =
+			document.activeElement instanceof HTMLElement
+				? document.activeElement
+				: null;
+		const panel = panelRef.current;
+
+		if (panel && !panel.contains(document.activeElement)) {
+			panel.focus({ preventScroll: true });
+		}
+
+		return () => {
+			if (opener?.isConnected) {
+				opener.focus({ preventScroll: true });
+			}
+		};
+	}, [open, modal, mounted]);
+
+	// Esc で閉じる（浮いたパネルは、パネルの中にフォーカスがあるときだけ）。
 	useEffect(() => {
 		if (!open) {
 			return;
 		}
 
 		function handleKeyDown(event: KeyboardEvent) {
+			if (!modal && !panelRef.current?.contains(document.activeElement)) {
+				return;
+			}
+
 			if (event.key === "Escape" && latest.current.dismissible) {
 				event.stopPropagation();
 				onOpenChange(false);
@@ -235,7 +268,7 @@ export function Sheet({
 		document.addEventListener("keydown", handleKeyDown);
 
 		return () => document.removeEventListener("keydown", handleKeyDown);
-	}, [open, onOpenChange]);
+	}, [open, modal, onOpenChange]);
 
 	// ---- ドラッグ ----
 	const drag = useRef<{
@@ -503,24 +536,27 @@ export function Sheet({
 
 	return createPortal(
 		<div className={styles.root} ref={portalRef}>
-			<div
-				className={styles.scrim}
-				ref={scrimRef}
-				aria-hidden="true"
-				onClick={() => {
-					if (dismissible) {
-						onOpenChange(false);
-					}
-				}}
-			/>
+			{modal ? (
+				<div
+					className={styles.scrim}
+					ref={scrimRef}
+					aria-hidden="true"
+					onClick={() => {
+						if (dismissible) {
+							onOpenChange(false);
+						}
+					}}
+				/>
+			) : null}
 			<section
 				className={styles.panel}
 				ref={panelRef}
 				role="dialog"
-				aria-modal="true"
+				aria-modal={modal}
 				aria-label={title}
 				tabIndex={-1}
 				data-placement={placement}
+				data-modal={modal}
 				data-dragging={isDragging}
 				data-state={open ? "open" : "closed"}
 				style={{

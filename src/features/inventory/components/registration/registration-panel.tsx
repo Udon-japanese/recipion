@@ -242,7 +242,6 @@ function RegistrationFormBody({ registration, onOpenSettings }: FormBodyProps) {
 				{isExpiryOpen ? (
 					<div className={styles.expiryBody} id="inventory-registration-expiry">
 						<ExpiryFields
-							idPrefix="inventory-registration"
 							value={expiry}
 							onChange={registration.changeExpiry}
 							today={registration.today}
@@ -314,7 +313,7 @@ type InventoryRegistrationPanelProps = {
 	onOpenSettings: () => void;
 };
 
-// 在庫に追加するパネル（スマホ＝下からのシート、1024px〜＝右のパネル）。
+// 在庫に追加するパネル（スマホ＝下に浮くパネル、1024px〜＝右のパネル。どちらも後ろの画面を操作できる）。
 // 連続して登録できるよう、登録しても閉じない。入力は、閉じても残る（状態は、開く側が持つ）。
 export function InventoryRegistrationPanel({
 	open,
@@ -330,7 +329,10 @@ export function InventoryRegistrationPanel({
 			onOpenChange={onOpenChange}
 			title="在庫に追加"
 			placement={isRight ? "right" : "bottom"}
-			snapPoints={[0.92]}
+			// 浮いたパネル：後ろの在庫を見ながら、続けて登録できる。スマホは、見出しだけの低い位置（0.1）・半分・ほぼ全面に止まる。
+			modal={false}
+			snapPoints={isRight ? [0.92] : [0.1, 0.6, 0.92]}
+			defaultSnapIndex={isRight ? 0 : 1}
 			headerTrailing={
 				registration.addedCount > 0 ? (
 					<Tag tone="success" icon="check">

@@ -1,4 +1,7 @@
-import { ExpiryEstimateSetting } from "#/features/inventory/components/expiry-estimate-setting";
+import { Button } from "#/components/button/button";
+import { Sheet } from "#/components/sheet/sheet";
+import { useMediaQuery } from "#/components/use-media-query";
+import { ExpiryEstimateSettingRow } from "#/features/inventory/components/expiry-estimate-setting";
 import {
 	ExpiryFields,
 	type ExpiryFieldsValue,
@@ -33,54 +36,67 @@ export function PurchaseExpiryReview({
 	onConfirm,
 	onCancel,
 }: PurchaseExpiryReviewProps) {
+	const isRight = useMediaQuery("(min-width: 1024px)");
+
 	return (
-		<section className={styles.container} aria-label="購入する食材の期限">
-			<h3 className={styles.heading}>期限を確認</h3>
+		<Sheet
+			open
+			onOpenChange={(open) => {
+				if (!open && !isConfirming) {
+					onCancel();
+				}
+			}}
+			title="期限を確認"
+			placement={isRight ? "right" : "bottom"}
+			dismissible={!isConfirming}
+			footer={
+				<div className={styles.actions}>
+					<Button
+						variant="secondary"
+						size="lg"
+						fullWidth
+						disabled={isConfirming}
+						onClick={onCancel}
+					>
+						キャンセル
+					</Button>
 
-			<p className={styles.hint}>
-				入力は、任意です。入れなくても、そのまま購入確定できます（あとから、在庫の画面で入れられます）。
-			</p>
+					<Button
+						size="lg"
+						fullWidth
+						disabled={isConfirming}
+						onClick={onConfirm}
+					>
+						{isConfirming ? "購入確定中…" : "購入確定"}
+					</Button>
+				</div>
+			}
+		>
+			<div className={styles.container}>
+				<p className={styles.hint}>
+					入力は、任意です。入れなくても、そのまま購入確定できます（あとから、在庫の画面で入れられます）。
+				</p>
 
-			<ExpiryEstimateSetting
-				level={estimateLevel}
-				onChange={onChangeEstimateLevel}
-			/>
+				<ExpiryEstimateSettingRow
+					level={estimateLevel}
+					onChange={onChangeEstimateLevel}
+				/>
 
-			<ul className={styles.list}>
-				{items.map((item) => (
-					<li className={styles.item} key={item.id}>
-						<span className={styles.itemName}>{item.name}</span>
+				<ul className={styles.list}>
+					{items.map((item) => (
+						<li className={styles.item} key={item.id}>
+							<h3 className={styles.itemName}>{item.name}</h3>
 
-						<ExpiryFields
-							idPrefix={`purchase-${item.id}`}
-							value={values[item.id] ?? emptyExpiryFields}
-							onChange={(value) => onChangeValue(item.id, value)}
-							today={today}
-							disabled={isConfirming}
-						/>
-					</li>
-				))}
-			</ul>
-
-			<div className={styles.actions}>
-				<button
-					className={styles.cancelButton}
-					type="button"
-					disabled={isConfirming}
-					onClick={onCancel}
-				>
-					キャンセル
-				</button>
-
-				<button
-					className={styles.confirmButton}
-					type="button"
-					disabled={isConfirming}
-					onClick={onConfirm}
-				>
-					{isConfirming ? "購入確定中…" : "購入確定"}
-				</button>
+							<ExpiryFields
+								value={values[item.id] ?? emptyExpiryFields}
+								onChange={(value) => onChangeValue(item.id, value)}
+								today={today}
+								disabled={isConfirming}
+							/>
+						</li>
+					))}
+				</ul>
 			</div>
-		</section>
+		</Sheet>
 	);
 }

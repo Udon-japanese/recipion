@@ -41,6 +41,7 @@ export const option = style({
 		'&[aria-pressed="false"]:hover:not(:disabled)': {
 			color: "var(--color-text)",
 		},
+		"&:disabled": { cursor: "not-allowed", opacity: 0.6 },
 		"&:focus-visible": {
 			outline: "3px solid var(--color-focus)",
 			outlineOffset: 2,

@@ -6,6 +6,10 @@ import {
 	toDateString,
 } from "#/features/inventory/domain/inventory-lot";
 import { buildShoppingItem } from "#/test/builders/build-shopping-item";
+import {
+	chooseExpiryKind,
+	chooseExpiryStorage,
+} from "#/test/expiry-fields-helpers";
 import { createFakeShoppingRepository } from "#/test/fakes/fake-shopping-repository";
 import type { ShoppingItem } from "../domain/shopping-item";
 import { ShoppingList } from "./shopping-list";
@@ -81,6 +85,46 @@ describe("ShoppingList", () => {
 
 		expect(screen.getByLabelText("数量")).toHaveValue("150");
 		expect(screen.queryByRole("button", { name: "1/3にする" })).toBeNull();
+	});
+
+	it("チェックがないときの「購入を確定」は、押すと理由を伝えて、確定しない", async () => {
+		const user = userEvent.setup();
+		const confirmPurchases = vi.fn();
+
+		render(
+			<ShoppingList
+				repository={createFakeShoppingRepository()}
+				confirmPurchases={confirmPurchases}
+			/>,
+		);
+
+		await screen.findByText("買うものはまだありません。");
+		await user.click(screen.getByRole("button", { name: "購入を確定（0件）" }));
+
+		// 見える文と、読み上げの文の 2 か所に出る。
+		expect(
+			await screen.findAllByText("買ったものにチェックを入れてください"),
+		).not.toHaveLength(0);
+		expect(confirmPurchases).not.toHaveBeenCalled();
+	});
+
+	it("名前が空のまま追加を押すと、入力を促して、何も追加しない", async () => {
+		const user = userEvent.setup();
+		const repository = createFakeShoppingRepository();
+
+		render(<ShoppingList repository={repository} />);
+
+		await screen.findByText("買うものはまだありません。");
+		await user.click(screen.getByRole("button", { name: "追加" }));
+
+		expect(await screen.findByRole("alert")).toHaveTextContent(
+			"買うものを入力してください",
+		);
+		expect(repository.items).toHaveLength(0);
+
+		await user.type(screen.getByLabelText("買うもの"), "卵");
+
+		expect(screen.queryByRole("alert")).toBeNull();
 	});
 
 	it("買い物項目を追加する", async () => {
@@ -774,8 +818,8 @@ describe("ShoppingList", () => {
 		await user.click(
 			await screen.findByRole("button", { name: "期限を明日にする" }),
 		);
-		await user.selectOptions(screen.getByLabelText("期限の種類"), "use-by");
-		await user.selectOptions(screen.getByLabelText("保存方法"), "fridge");
+		await chooseExpiryKind(user, "消費期限");
+		await chooseExpiryStorage(user, "冷蔵");
 		await user.click(screen.getByRole("button", { name: "購入確定" }));
 
 		await waitFor(() =>
@@ -886,10 +930,10 @@ describe("ShoppingList", () => {
 				name: "購入を確定（1件）",
 			}),
 		);
-		await user.selectOptions(
-			await screen.findByLabelText("期限の目安の自動入力"),
-			"off",
+		await user.click(
+			await screen.findByRole("button", { name: /期限の目安の自動入力/u }),
 		);
+		await user.click(screen.getByLabelText("オフ（自動で入れない）"));
 
 		expect(screen.getByLabelText("期限")).toHaveValue("");
 

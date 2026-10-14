@@ -1,4 +1,8 @@
-import { PickerSelect } from "../../../components/select/picker-select";
+import { Chip, ChipGroup } from "#/components/chip/chip";
+import { Field, TextInput } from "#/components/field/field";
+import { Icon } from "#/components/icon/icon";
+import type { IconName } from "#/components/icon/icon-definitions";
+import { SegmentedControl } from "#/components/segmented-control/segmented-control";
 import {
 	type ExpiryFieldsValue,
 	emptyExpiryFields,
@@ -19,14 +23,33 @@ import * as styles from "./expiry-fields.css";
 export { emptyExpiryFields, type ExpiryFieldsValue };
 
 type ExpiryFieldsProps = {
-	// 項目の ID の接頭辞（同じ画面に複数あるときに、重ならないようにする）。
-	idPrefix: string;
 	value: ExpiryFieldsValue;
 	onChange: (value: ExpiryFieldsValue) => void;
 	// 「今日」を基準にするクイック入力のための、今日の日付（YYYY-MM-DD）。
 	today: string;
 	disabled?: boolean;
 };
+
+const storageOptions: readonly {
+	value: ExpiryFieldsValue["storage"];
+	label: string;
+	icon?: IconName;
+}[] = [
+	{ value: "", label: "指定しない" },
+	{ value: "room", label: storageLabels.room, icon: "zone-table" },
+	{ value: "fridge", label: storageLabels.fridge, icon: "zone-fridge" },
+	{ value: "freezer", label: storageLabels.freezer, icon: "zone-freezer" },
+];
+
+const kindOptions: readonly {
+	value: ExpiryFieldsValue["expiryKind"];
+	label: string;
+}[] = [
+	{ value: "", label: "指定しない" },
+	{ value: "use-by", label: expiryKindLabels["use-by"] },
+	{ value: "best-before", label: expiryKindLabels["best-before"] },
+	{ value: "none", label: expiryKindLabels.none },
+];
 
 const quickOptions = [
 	{ label: "今日", days: 0 },
@@ -38,7 +61,6 @@ const quickOptions = [
 // 期限（日付・消費/賞味）と、保存方法の入力欄。すべて任意。
 // 日付をユーザーが入れる（クイック入力を含む）と、出所は「入力」になる。自動の目安は、「約」と示す。
 export function ExpiryFields({
-	idPrefix,
 	value,
 	onChange,
 	today,
@@ -54,108 +76,76 @@ export function ExpiryFields({
 
 	return (
 		<div className={styles.container}>
-			<div className={styles.row}>
-				<div className={styles.field}>
-					{/* 期限を入れるときに、今日が何日か、見えるようにする（小さく表示）。 */}
-					<div className={styles.labelRow}>
-						<label className={styles.label} htmlFor={`${idPrefix}-expires-on`}>
-							期限
-						</label>
-						<span className={styles.todayNote}>
-							今日 {formatDateWithWeekday(today)}
-						</span>
-					</div>
-					<input
-						className={styles.input}
-						id={`${idPrefix}-expires-on`}
+			<div className={styles.group}>
+				<span className={styles.groupLabel} aria-hidden="true">
+					保存方法
+				</span>
+
+				<ChipGroup label="保存方法">
+					{storageOptions.map((option) => (
+						<Chip
+							key={option.value}
+							pressed={value.storage === option.value}
+							icon={option.icon}
+							disabled={disabled}
+							onClick={() => onChange({ ...value, storage: option.value })}
+						>
+							{option.label}
+						</Chip>
+					))}
+				</ChipGroup>
+			</div>
+
+			<div className={styles.group}>
+				<span className={styles.groupLabel} aria-hidden="true">
+					期限の種類
+				</span>
+
+				<SegmentedControl
+					label="期限の種類"
+					value={value.expiryKind}
+					onChange={(expiryKind) => onChange({ ...value, expiryKind })}
+					options={kindOptions}
+				/>
+			</div>
+
+			<Field label="期限" hint={`今日 ${formatDateWithWeekday(today)}`}>
+				{(control) => (
+					<TextInput
+						{...control}
 						type="date"
 						value={value.expiresOn}
 						disabled={disabled}
 						onChange={(event) => setDate(event.target.value)}
 					/>
-				</div>
+				)}
+			</Field>
 
-				<div className={styles.field}>
-					<label className={styles.label} htmlFor={`${idPrefix}-expiry-kind`}>
-						期限の種類
-					</label>
-					<PickerSelect
-						className={styles.input}
-						id={`${idPrefix}-expiry-kind`}
-						value={value.expiryKind}
-						disabled={disabled}
-						onChange={(event) =>
-							onChange({
-								...value,
-								expiryKind: event.target
-									.value as ExpiryFieldsValue["expiryKind"],
-							})
-						}
-					>
-						<option value="">指定しない</option>
-						<option value="use-by">{expiryKindLabels["use-by"]}</option>
-						<option value="best-before">
-							{expiryKindLabels["best-before"]}
-						</option>
-						<option value="none">{expiryKindLabels.none}</option>
-					</PickerSelect>
-				</div>
-
-				<div className={styles.field}>
-					<label className={styles.label} htmlFor={`${idPrefix}-storage`}>
-						保存方法
-					</label>
-					<PickerSelect
-						className={styles.input}
-						id={`${idPrefix}-storage`}
-						value={value.storage}
-						disabled={disabled}
-						onChange={(event) =>
-							onChange({
-								...value,
-								storage: event.target.value as ExpiryFieldsValue["storage"],
-							})
-						}
-					>
-						<option value="">指定しない</option>
-						<option value="room">{storageLabels.room}</option>
-						<option value="fridge">{storageLabels.fridge}</option>
-						<option value="freezer">{storageLabels.freezer}</option>
-					</PickerSelect>
-				</div>
-			</div>
-
-			{value.expirySource === "estimated" && value.expiresOn !== "" ? (
-				<p className={styles.estimateNote}>
-					目安の日付（約）です。パックや袋の表示がある場合は、その日付を入れてください。
-				</p>
-			) : null}
-
-			<div className={styles.quickButtons}>
+			<ChipGroup label="期限のクイック入力">
 				{quickOptions.map((option) => (
-					<button
-						className={styles.quickButton}
-						type="button"
+					<Chip
 						key={option.label}
 						disabled={disabled}
 						aria-label={`期限を${option.label}にする`}
 						onClick={() => setDate(addDays(today, option.days))}
 					>
 						{option.label}
-					</button>
+					</Chip>
 				))}
 
 				{value.expiresOn !== "" ? (
-					<button
-						className={styles.quickButton}
-						type="button"
-						disabled={disabled}
-						onClick={() => setDate("")}
-					>
+					<Chip icon="close" disabled={disabled} onClick={() => setDate("")}>
 						期限を消す
-					</button>
+					</Chip>
 				) : null}
-			</div>
+			</ChipGroup>
+
+			{value.expirySource === "estimated" && value.expiresOn !== "" ? (
+				<p className={styles.estimateNote}>
+					<Icon name="info-circle" size={16} />
+					目安の日付（約）です。パックや袋の表示がある場合は、その日付を入れてください。
+				</p>
+			) : null}
 		</div>
 	);
 }
