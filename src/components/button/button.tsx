@@ -209,7 +209,7 @@ export function Button({
 				<span className={styles.mascotLayer} aria-hidden="true">
 					<Mascot
 						size={box ? (19 * box.height) / 52 : 19}
-						active={phase === "loading"}
+						motion={phase === "loading" ? "loop" : "still"}
 					/>
 				</span>
 

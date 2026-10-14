@@ -130,7 +130,7 @@ function LoadingCircle({
 				"--mascot-outline-width": outlineWidth,
 			}}
 		>
-			<Mascot size={19 * (44 / 52)} />
+			<Mascot size={19 * (44 / 52)} motion="loop" />
 		</span>
 	);
 }
@@ -197,7 +197,7 @@ export function UiGallery() {
 						<div
 							style={{ background: "var(--color-surface)", borderRadius: 16 }}
 						>
-							<Mascot size={60} />
+							<Mascot size={60} motion="loop" />
 						</div>
 					</ColorOption>
 					<ColorOption name="B" detail="濃い縁">
@@ -209,7 +209,7 @@ export function UiGallery() {
 								"--mascot-outline-width": "3px",
 							}}
 						>
-							<Mascot size={60} />
+							<Mascot size={60} motion="loop" />
 						</div>
 					</ColorOption>
 					<ColorOption name="C" detail="体を濃く">
@@ -220,7 +220,7 @@ export function UiGallery() {
 								"--color-mascot": "var(--color-primary-hover)",
 							}}
 						>
-							<Mascot size={60} />
+							<Mascot size={60} motion="loop" />
 						</div>
 					</ColorOption>
 					<ColorOption name="D" detail="薄い黄色の地">
@@ -230,7 +230,7 @@ export function UiGallery() {
 								borderRadius: 16,
 							}}
 						>
-							<Mascot size={60} />
+							<Mascot size={60} motion="loop" />
 						</div>
 					</ColorOption>
 				</div>
@@ -362,10 +362,12 @@ export function UiGallery() {
 				<div style={row}>
 					<Mascot size={19} />
 					<Mascot size={40} />
-					<Mascot size={80} />
-					<Mascot size={120} active={false} />
+					<Mascot size={80} motion="loop" />
+					<Mascot size={120} motion="still" />
 				</div>
-				<p style={note}>右端は、動かないとき（動きを減らす設定）の姿勢。</p>
+				<p style={note}>
+					左の2つは、押すと1回だけ跳ねる（ふだんの使い方）。3つ目は、跳ね続ける（読み込み中）。右端は、止まったままの姿勢（動きを減らす設定も、これ）。
+				</p>
 			</Section>
 		</div>
 	);

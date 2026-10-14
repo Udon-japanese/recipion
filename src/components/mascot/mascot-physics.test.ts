@@ -3,6 +3,8 @@ import {
 	createMascotPhysics,
 	getMascotPose,
 	getRestingMascotPose,
+	isMascotAtRest,
+	startMascotHop,
 	stepMascotPhysics,
 } from "./mascot-physics";
 
@@ -61,5 +63,52 @@ describe("マスコットの物理", () => {
 
 	it("止まっているときの姿勢は、動かない", () => {
 		expect(getRestingMascotPose()).toEqual(getRestingMascotPose());
+	});
+});
+
+describe("1回だけ跳ねる（押したとき）", () => {
+	it("自分では跳ねず、止まったまま", () => {
+		const random = seeded(1);
+		const physics = createMascotPhysics(random, false);
+
+		for (let t = 0; t < 5000; t += 16) {
+			stepMascotPhysics(physics, 16, random);
+		}
+
+		expect(physics.phase).toBe("idle");
+		expect(physics.x).toBe(0);
+	});
+
+	it("押すと、1回だけ跳ねて、その場に戻り、揺れが収まる", () => {
+		const random = seeded(2);
+		const physics = createMascotPhysics(random, false);
+		let maxLift = 0;
+		let airFrames = 0;
+
+		expect(startMascotHop(physics)).toBe(true);
+		// 跳ねている最中は、受け付けない。
+		expect(startMascotHop(physics)).toBe(false);
+
+		let settledAt = -1;
+
+		for (let t = 0; t < 4000; t += 16) {
+			stepMascotPhysics(physics, 16, random);
+			maxLift = Math.max(maxLift, physics.lift);
+			if (physics.phase === "air") {
+				airFrames += 1;
+			}
+			if (settledAt < 0 && isMascotAtRest(physics)) {
+				settledAt = t;
+			}
+		}
+
+		expect(maxLift).toBeGreaterThan(2);
+		expect(airFrames).toBeGreaterThan(10);
+		expect(settledAt).toBeGreaterThan(0);
+		expect(settledAt).toBeLessThan(2000);
+		expect(physics.x).toBe(0);
+		// 収まったあとは、また跳ねない。
+		expect(physics.phase).toBe("idle");
+		expect(startMascotHop(physics)).toBe(true);
 	});
 });

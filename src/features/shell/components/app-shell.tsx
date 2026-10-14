@@ -56,7 +56,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
 			<header className={styles.header}>
 				<Link to="/" className={styles.logo}>
-					<Mascot size={22} active={false} />
+					<Mascot size={22} />
 					{APP_DISPLAY_NAME}
 				</Link>
 				<HeaderAccount />
@@ -118,7 +118,7 @@ function SideNav() {
 	return (
 		<aside className={styles.side}>
 			<Link to="/" className={styles.brand}>
-				<Mascot size={26} active={false} />
+				<Mascot size={26} />
 				{APP_DISPLAY_NAME}
 			</Link>
 

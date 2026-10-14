@@ -20,6 +20,8 @@ type Target = Point & { dist: number };
 type Phase = "idle" | "anticipate" | "air";
 
 export type MascotPhysics = {
+	// true：自分で次々に跳ねる。false：startMascotHop で、1回だけ跳ねる。
+	loop: boolean;
 	x: number;
 	y: number;
 	lift: number;
@@ -85,8 +87,12 @@ function pickTarget(from: Point, random: Random): Target {
 	return { x: 0, y: AREA_CY, dist: Math.hypot(from.x, AREA_CY - from.y) || 1 };
 }
 
-export function createMascotPhysics(random: Random): MascotPhysics {
+export function createMascotPhysics(
+	random: Random,
+	loop = true,
+): MascotPhysics {
 	return {
+		loop,
 		x: 0,
 		y: AREA_CY,
 		lift: 0,
@@ -135,7 +141,7 @@ export function stepMascotPhysics(
 			Math.abs(s.sk.x) < 1.5 &&
 			Math.abs(s.sk.v) < 10;
 
-		if (s.t >= s.wait && (settled || s.t > 700)) {
+		if (s.loop && s.t >= s.wait && (settled || s.t > 700)) {
 			s.phase = "anticipate";
 			s.t = 0;
 			s.antic = 140;
@@ -207,6 +213,32 @@ export function stepMascotPhysics(
 			s.blinkIn = range(random, 1800, 4200);
 		}
 	}
+}
+
+// その場で、1回だけ跳ねる。跳ねている最中は、受け付けない（false を返す）。
+export function startMascotHop(s: MascotPhysics): boolean {
+	if (s.phase !== "idle") {
+		return false;
+	}
+
+	s.phase = "anticipate";
+	s.t = 0;
+	s.antic = 140;
+	s.to = { x: s.x, y: s.y, dist: 1 };
+
+	return true;
+}
+
+// 跳ねたあとの揺れが収まって、止まっているか（動きの計算を止めてよいか）。
+export function isMascotAtRest(s: MascotPhysics): boolean {
+	return (
+		s.phase === "idle" &&
+		Math.abs(s.d.x) < 0.04 &&
+		Math.abs(s.d.v) < 0.8 &&
+		Math.abs(s.sk.x) < 1.5 &&
+		Math.abs(s.sk.v) < 10 &&
+		Math.abs(s.lean.x) < 0.5
+	);
 }
 
 export function getMascotPose(s: MascotPhysics): MascotPose {
