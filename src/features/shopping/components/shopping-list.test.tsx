@@ -83,6 +83,25 @@ describe("ShoppingList", () => {
 		expect(screen.queryByRole("button", { name: "1/3にする" })).toBeNull();
 	});
 
+	it("名前が空のまま追加を押すと、入力を促して、何も追加しない", async () => {
+		const user = userEvent.setup();
+		const repository = createFakeShoppingRepository();
+
+		render(<ShoppingList repository={repository} />);
+
+		await screen.findByText("買うものはまだありません。");
+		await user.click(screen.getByRole("button", { name: "追加" }));
+
+		expect(await screen.findByRole("alert")).toHaveTextContent(
+			"買うものを入力してください",
+		);
+		expect(repository.items).toHaveLength(0);
+
+		await user.type(screen.getByLabelText("買うもの"), "卵");
+
+		expect(screen.queryByRole("alert")).toBeNull();
+	});
+
 	it("買い物項目を追加する", async () => {
 		const user = userEvent.setup();
 		const repository = createFakeShoppingRepository();

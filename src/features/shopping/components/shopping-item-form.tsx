@@ -74,6 +74,8 @@ export function ShoppingItemForm({
 	// 店を自分で選んだら、名前の入力で「いつも買う店」を入れ直さない。
 	const [isStoreChosen, setIsStoreChosen] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	// 名前が空のまま「追加」を押したときの案内。
+	const [isNameMissing, setIsNameMissing] = useState(false);
 
 	const presets = getShoppingItemPresets(name);
 	const isExpanded = alwaysExpanded || isOpened || name !== "";
@@ -101,6 +103,7 @@ export function ShoppingItemForm({
 
 	function handleNameChange(value: string) {
 		setName(value);
+		setIsNameMissing(false);
 		setInventoryConversion(null);
 
 		if (!isCategoryManuallySelected) {
@@ -117,8 +120,22 @@ export function ShoppingItemForm({
 		setIsCategoryManuallySelected(true);
 	}
 
+	function focusNameField() {
+		formRef.current
+			?.querySelector<HTMLInputElement>('input[role="combobox"]')
+			?.focus();
+	}
+
 	async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
 		event.preventDefault();
+
+		// 追加ボタンは常に見えているので、名前が空なら、押した理由を伝えて入力へ戻す。
+		if (!alwaysExpanded && name.trim() === "") {
+			setIsNameMissing(true);
+			focusNameField();
+			return;
+		}
+
 		setIsSubmitting(true);
 
 		try {
@@ -146,9 +163,7 @@ export function ShoppingItemForm({
 				setIsCategoryManuallySelected(false);
 				setInventoryConversion(null);
 				// 続けて入れられるように、名前の欄へ戻る。
-				formRef.current
-					?.querySelector<HTMLInputElement>('input[role="combobox"]')
-					?.focus();
+				focusNameField();
 			}
 		} finally {
 			setIsSubmitting(false);
@@ -172,15 +187,15 @@ export function ShoppingItemForm({
 				<div className={styles.grow}>
 					<ShoppingNameField
 						label="買うもの"
-						hideLabel={!isExpanded}
+						hideLabel={!alwaysExpanded}
 						name="name"
 						value={name}
 						onChange={handleNameChange}
-						placeholder={isExpanded ? "卵、牛乳など" : "例：牛乳"}
+						placeholder={alwaysExpanded ? "卵、牛乳など" : "例：牛乳"}
 					/>
 				</div>
 
-				{isExpanded ? null : (
+				{alwaysExpanded ? null : (
 					<IconButton
 						icon="plus"
 						label="追加"
@@ -188,6 +203,7 @@ export function ShoppingItemForm({
 						tone="on"
 						type="submit"
 						disabled={isSubmitting}
+						aria-disabled={name.trim() === "" || undefined}
 					/>
 				)}
 			</div>
@@ -253,10 +269,19 @@ export function ShoppingItemForm({
 
 					{children}
 
-					<Button size="lg" fullWidth type="submit" disabled={isSubmitting}>
-						{submitLabel}
-					</Button>
+					{alwaysExpanded ? (
+						<Button size="lg" fullWidth type="submit" disabled={isSubmitting}>
+							{submitLabel}
+						</Button>
+					) : null}
 				</>
+			) : null}
+
+			{isNameMissing ? (
+				<p className={styles.formError} role="alert">
+					<Icon name="alert-triangle" size={20} />
+					買うものを入力してください
+				</p>
 			) : null}
 
 			{errorMessage ? (
