@@ -1,6 +1,7 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { expectExpiryKind } from "#/test/expiry-fields-helpers";
 import { formatDateWithWeekday } from "../../domain/expiry-labels";
 import { addDays, toDateString } from "../../domain/inventory-lot";
 import { InventoryRegistrationPanel } from "./registration-panel";
@@ -319,7 +320,7 @@ describe("InventoryRegistrationPanel", () => {
 
 			// 冷凍野菜：90日（短め）
 			expect(screen.getByLabelText("期限")).toHaveValue(addDays(today, 90));
-			expect(screen.getByLabelText("期限の種類")).toHaveValue("best-before");
+			expectExpiryKind("賞味期限");
 			expect(screen.getByText(/目安の日付（約）です/u)).toBeInTheDocument();
 
 			await user.click(screen.getByRole("button", { name: "在庫に追加" }));
@@ -389,7 +390,7 @@ describe("InventoryRegistrationPanel", () => {
 			await user.type(screen.getByLabelText("食材名"), "冷凍ブロッコリー");
 
 			expect(screen.getByLabelText("期限")).toHaveValue("");
-			expect(screen.getByLabelText("期限の種類")).toHaveValue("best-before");
+			expectExpiryKind("賞味期限");
 		});
 
 		it("傷みやすい食材は、「確実なものだけ」では日付を入れない。入力した日数は、次回の目安に使う", async () => {
@@ -409,7 +410,7 @@ describe("InventoryRegistrationPanel", () => {
 			await user.type(screen.getByLabelText("食材名"), "鶏もも肉");
 
 			expect(screen.getByLabelText("期限")).toHaveValue("");
-			expect(screen.getByLabelText("期限の種類")).toHaveValue("use-by");
+			expectExpiryKind("消費期限");
 
 			// 買ってから3日後の期限を入力して、登録する
 			await user.click(
@@ -466,7 +467,7 @@ describe("InventoryRegistrationPanel", () => {
 
 			await user.type(screen.getByLabelText("食材名"), "鶏もも肉");
 
-			expect(screen.getByLabelText("期限の種類")).toHaveValue("best-before");
+			expectExpiryKind("賞味期限");
 		});
 	});
 });

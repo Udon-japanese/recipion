@@ -6,6 +6,10 @@ import {
 	toDateString,
 } from "#/features/inventory/domain/inventory-lot";
 import { buildShoppingItem } from "#/test/builders/build-shopping-item";
+import {
+	chooseExpiryKind,
+	chooseExpiryStorage,
+} from "#/test/expiry-fields-helpers";
 import { createFakeShoppingRepository } from "#/test/fakes/fake-shopping-repository";
 import type { ShoppingItem } from "../domain/shopping-item";
 import { ShoppingList } from "./shopping-list";
@@ -793,8 +797,8 @@ describe("ShoppingList", () => {
 		await user.click(
 			await screen.findByRole("button", { name: "期限を明日にする" }),
 		);
-		await user.selectOptions(screen.getByLabelText("期限の種類"), "use-by");
-		await user.selectOptions(screen.getByLabelText("保存方法"), "fridge");
+		await chooseExpiryKind(user, "消費期限");
+		await chooseExpiryStorage(user, "冷蔵");
 		await user.click(screen.getByRole("button", { name: "購入確定" }));
 
 		await waitFor(() =>
@@ -905,10 +909,10 @@ describe("ShoppingList", () => {
 				name: "購入を確定（1件）",
 			}),
 		);
-		await user.selectOptions(
-			await screen.findByLabelText("期限の目安の自動入力"),
-			"off",
+		await user.click(
+			await screen.findByRole("button", { name: /期限の目安の自動入力/u }),
 		);
+		await user.click(screen.getByLabelText("オフ（自動で入れない）"));
 
 		expect(screen.getByLabelText("期限")).toHaveValue("");
 

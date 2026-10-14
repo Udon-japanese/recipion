@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -63,9 +63,11 @@ describe("ShoppingItemInventoryConversionForm", () => {
 			/>,
 		);
 
-		await user.selectOptions(
-			screen.getByRole("combobox", { name: "在庫管理方法" }),
-			"presence",
+		await user.click(
+			within(screen.getByRole("group", { name: "在庫管理方法" })).getByRole(
+				"button",
+				{ name: "有無だけ" },
+			),
 		);
 
 		expect(screen.queryByText(/あたりの数量/u)).toBeNull();
@@ -94,7 +96,12 @@ describe("ShoppingItemInventoryConversionForm", () => {
 			/>,
 		);
 
-		await user.selectOptions(screen.getByLabelText("在庫で使う単位"), "g");
+		await user.click(
+			within(screen.getByRole("group", { name: "在庫で使う単位" })).getByRole(
+				"button",
+				{ name: "グラム" },
+			),
+		);
 
 		await user.clear(screen.getByLabelText("1袋あたりの数量"));
 
@@ -128,10 +135,12 @@ describe("ShoppingItemInventoryConversionForm", () => {
 			/>,
 		);
 
-		const select = screen.getByRole("combobox", { name: "在庫で使う単位" });
+		const gram = within(
+			screen.getByRole("group", { name: "在庫で使う単位" }),
+		).getByRole("button", { name: "グラム" });
 
-		expect(select).toHaveValue("g");
-		expect(select).toBeDisabled();
+		expect(gram).toHaveAttribute("aria-pressed", "true");
+		expect(gram).toBeDisabled();
 	});
 
 	it("カタログにない商品は、在庫の単位を選べる", () => {
@@ -144,7 +153,10 @@ describe("ShoppingItemInventoryConversionForm", () => {
 		);
 
 		expect(
-			screen.getByRole("combobox", { name: "在庫で使う単位" }),
+			within(screen.getByRole("group", { name: "在庫で使う単位" })).getByRole(
+				"button",
+				{ name: "グラム" },
+			),
 		).toBeEnabled();
 	});
 });

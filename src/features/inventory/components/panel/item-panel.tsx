@@ -278,7 +278,6 @@ export function ItemPanel({
 		body = (
 			<div className={styles.formStack}>
 				<ExpiryFields
-					idPrefix={`lot-${view.lotId}`}
 					value={panel.lotExpiryForm.value}
 					onChange={panel.lotExpiryForm.setValue}
 					today={panel.today}

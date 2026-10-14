@@ -242,7 +242,6 @@ function RegistrationFormBody({ registration, onOpenSettings }: FormBodyProps) {
 				{isExpiryOpen ? (
 					<div className={styles.expiryBody} id="inventory-registration-expiry">
 						<ExpiryFields
-							idPrefix="inventory-registration"
 							value={expiry}
 							onChange={registration.changeExpiry}
 							today={registration.today}

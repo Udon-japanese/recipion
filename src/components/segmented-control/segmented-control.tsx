@@ -14,6 +14,8 @@ type SegmentedControlProps<Value extends string> = {
 	options: readonly SegmentedOption<Value>[];
 	value: Value;
 	onChange: (value: Value) => void;
+	// 変えられないとき（選ばれているものは、そのまま見える）。
+	disabled?: boolean;
 };
 
 // 2〜3つの選択（表示の切り替え・管理方法など）。選ばれているものは、白い地＋濃い枠。
@@ -22,6 +24,7 @@ export function SegmentedControl<Value extends string>({
 	options,
 	value,
 	onChange,
+	disabled,
 }: SegmentedControlProps<Value>) {
 	return (
 		<fieldset className={styles.root} aria-label={label}>
@@ -30,6 +33,7 @@ export function SegmentedControl<Value extends string>({
 					className={styles.option}
 					type="button"
 					key={option.value}
+					disabled={disabled}
 					aria-pressed={option.value === value}
 					onClick={() => onChange(option.value)}
 				>

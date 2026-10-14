@@ -3,121 +3,51 @@ import { style } from "@vanilla-extract/css";
 export const container = style({
 	display: "grid",
 	gap: 16,
-	marginBottom: 24,
-	padding: 16,
-	background: "var(--color-surface-muted)",
-	border: "1px solid var(--color-border)",
-	borderRadius: 10,
+});
+
+export const intro = style({
+	display: "grid",
+	gap: 4,
 });
 
 export const title = style({
 	margin: 0,
-	color: "var(--color-text)",
-	fontSize: 18,
+	fontSize: "var(--font-size-md)",
+	fontWeight: "var(--font-weight-bold)",
 });
 
 export const description = style({
 	margin: 0,
 	color: "var(--color-text-muted)",
-	fontSize: 14,
+	fontSize: "var(--font-size-sm)",
+	lineHeight: "var(--line-height-normal)",
 });
 
-export const presets = style({
+export const group = style({
 	display: "grid",
 	gap: 8,
-	margin: 0,
-	padding: 0,
-	border: 0,
 });
 
-export const legend = style({
-	marginBottom: 8,
-	padding: 0,
-	color: "var(--color-text)",
-	fontWeight: 600,
-});
-
-export const presetList = style({
-	display: "flex",
-	flexWrap: "wrap",
-	gap: 8,
-});
-
-export const presetButton = style({
-	minHeight: 40,
-	paddingInline: 14,
-	color: "var(--color-accent-text)",
-	background: "var(--color-surface)",
-	border: "1px solid var(--color-border)",
-	borderRadius: 999,
-	font: "inherit",
-	cursor: "pointer",
+export const groupLabel = style({
+	fontSize: "var(--font-size-sm)",
+	fontWeight: "var(--font-weight-semibold)",
+	lineHeight: "var(--line-height-tight)",
 });
 
 export const form = style({
 	display: "grid",
-	gap: 12,
+	gap: 16,
 });
 
-export const formula = style({
-	margin: 0,
-	color: "var(--color-text)",
-	fontWeight: 600,
-});
-
-export const field = style({
+export const two = style({
 	display: "grid",
-	gap: 6,
-});
-
-export const label = style({
-	color: "var(--color-text-muted)",
-	fontSize: 14,
-	fontWeight: 600,
-});
-
-export const input = style({
-	minWidth: 0,
-	minHeight: 44,
-	paddingInline: 12,
-	color: "var(--color-text)",
-	background: "var(--color-surface)",
-	border: "1px solid var(--color-border)",
-	borderRadius: 8,
-	font: "inherit",
+	gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+	gap: 12,
+	alignItems: "start",
 });
 
 export const actions = style({
 	display: "flex",
-	justifyContent: "flex-end",
 	gap: 8,
-});
-
-export const cancelButton = style({
-	minHeight: 40,
-	paddingInline: 14,
-	color: "var(--color-text)",
-	background: "var(--color-surface)",
-	border: "1px solid var(--color-border)",
-	borderRadius: 8,
-	font: "inherit",
-	cursor: "pointer",
-});
-
-export const saveButton = style({
-	minHeight: 40,
-	paddingInline: 14,
-	color: "var(--color-on-primary)",
-	background: "var(--color-primary)",
-	border: 0,
-	borderRadius: 8,
-	font: "inherit",
-	fontWeight: 700,
-	cursor: "pointer",
-});
-
-export const error = style({
-	margin: 0,
-	color: "var(--color-error)",
-	fontSize: 14,
+	width: "100%",
 });

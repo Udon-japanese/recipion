@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { buildInventoryListItem } from "#/test/builders/build-inventory-list-item";
+import { chooseExpiryKind } from "#/test/expiry-fields-helpers";
 import type { InventoryListItem } from "../application/inventory-query-repository";
 import {
 	addDays,
@@ -480,7 +481,7 @@ describe("InventoryList", () => {
 			await user.click(
 				screen.getByRole("button", { name: "期限を明日にする" }),
 			);
-			await user.selectOptions(screen.getByLabelText("期限の種類"), "use-by");
+			await chooseExpiryKind(user, "消費期限");
 			await user.click(screen.getByLabelText(/この食材の初期値にする/u));
 			await user.click(screen.getByRole("button", { name: "保存" }));
 

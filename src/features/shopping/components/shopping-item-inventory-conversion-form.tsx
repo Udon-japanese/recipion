@@ -1,5 +1,12 @@
-import { type SubmitEvent, useState } from "react";
+import { type SubmitEvent, useId, useState } from "react";
 import * as v from "valibot";
+import { Button } from "#/components/button/button";
+import { Chip, ChipGroup } from "#/components/chip/chip";
+import { Field, TextInput } from "#/components/field/field";
+import { Note } from "#/components/note/note";
+import { SegmentedControl } from "#/components/segmented-control/segmented-control";
+import { Sheet } from "#/components/sheet/sheet";
+import { useMediaQuery } from "#/components/use-media-query";
 import {
 	findIngredientCatalogEntry,
 	getDefaultStockUnitLabel,
@@ -9,7 +16,6 @@ import {
 	inventoryTrackingModeSchema,
 } from "#/features/inventory/domain/inventory-tracking-mode";
 import { formatQuantityForUnit } from "#/features/quantity/domain/format-quantity";
-import { PickerSelect } from "../../../components/select/picker-select";
 
 import type {
 	ShoppingItem,
@@ -48,6 +54,24 @@ const genericConversionSchema = v.object({
 	trackingMode: inventoryTrackingModeSchema,
 });
 
+const trackingModeOptions: readonly {
+	value: InventoryTrackingMode;
+	label: string;
+}[] = [
+	{ value: "estimated", label: "だいたい" },
+	{ value: "exact", label: "正確" },
+	{ value: "presence", label: "有無だけ" },
+];
+
+const stockUnitOptions: readonly {
+	value: "count" | "g" | "ml";
+	label: string;
+}[] = [
+	{ value: "count", label: "個数・枚数" },
+	{ value: "g", label: "グラム" },
+	{ value: "ml", label: "ミリリットル" },
+];
+
 function getErrorMessage(error: unknown): string {
 	if (v.isValiError(error)) {
 		return error.issues[0]?.message ?? "入力内容を確認してください";
@@ -63,6 +87,8 @@ export function ShoppingItemInventoryConversionForm({
 	onCancel,
 }: ShoppingItemInventoryConversionFormProps) {
 	const presets = getShoppingItemPresets(item.name);
+	const formId = useId();
+	const isRight = useMediaQuery("(min-width: 1024px)");
 
 	// 数量プリセットのある食材は、在庫の単位が決まっている（在庫の登録がカタログの単位に固定するため、
 	// ここで別の単位を選ぶと、数量が狂う）。
@@ -155,147 +181,154 @@ export function ShoppingItemInventoryConversionForm({
 	}
 
 	return (
-		<section className={styles.container}>
-			<h2 className={styles.title}>{item.name}を在庫へ追加する方法</h2>
-
-			<p className={styles.description}>
-				購入した{formatQuantityForUnit(item.quantity, item.unitLabel)}
-				{item.unitLabel ?? "単位"}
-				を、在庫ではどの数量として管理するか設定します。
-			</p>
-
-			{presets.length > 0 ? (
-				<fieldset className={styles.presets}>
-					<legend className={styles.legend}>候補から選ぶ</legend>
-
-					<div className={styles.presetList}>
-						{presets.map((preset) => (
-							<button
-								className={styles.presetButton}
-								type="button"
-								disabled={isSaving}
-								key={preset.label}
-								onClick={() =>
-									void onSave({
-										quantity: preset.quantity,
-										unitLabel: preset.unitLabel,
-										inventoryConversion: preset.inventoryConversion,
-									})
-								}
-							>
-								{preset.label}
-							</button>
-						))}
-					</div>
-				</fieldset>
-			) : null}
-
-			<form className={styles.form} onSubmit={handleSubmit}>
-				<label className={styles.field}>
-					<span className={styles.label}>在庫管理方法</span>
-
-					<PickerSelect
-						className={styles.input}
-						value={trackingMode}
-						onChange={(event) =>
-							setTrackingMode(
-								v.parse(inventoryTrackingModeSchema, event.target.value),
-							)
-						}
-					>
-						<option value="estimated">だいたいで管理</option>
-						<option value="exact">正確に管理</option>
-						<option value="presence">有無だけ（量は追わない）</option>
-					</PickerSelect>
-				</label>
-
-				{trackingMode !== "presence" ? (
-					<>
-						<p className={styles.formula}>1{item.unitLabel ?? "単位"}あたり</p>
-
-						<label className={styles.field}>
-							<span className={styles.label}>在庫で使う単位</span>
-
-							<PickerSelect
-								className={styles.input}
-								value={stockUnitCode}
-								disabled={lockedStockUnitCode !== null}
-								onChange={(event) =>
-									handleStockUnitChange(
-										event.target.value as "count" | "g" | "ml",
-									)
-								}
-							>
-								<option value="count">個数・枚数・本数など</option>
-								<option value="g">グラム</option>
-								<option value="ml">ミリリットル</option>
-							</PickerSelect>
-						</label>
-
-						{lockedStockUnitCode !== null ? (
-							<p className={styles.formula}>
-								{item.name}の在庫の単位は、決まっています（変更できません）。
-							</p>
-						) : null}
-
-						<label className={styles.field}>
-							<span className={styles.label}>
-								1{item.unitLabel ?? "単位"}あたりの数量
-							</span>
-
-							<input
-								className={styles.input}
-								type="number"
-								inputMode="decimal"
-								min="0"
-								step="any"
-								value={stockQuantityPerInputUnit}
-								onChange={(event) =>
-									setStockQuantityPerInputUnit(event.target.value)
-								}
-							/>
-						</label>
-
-						{stockUnitCode === "count" ? (
-							<label className={styles.field}>
-								<span className={styles.label}>表示単位</span>
-
-								<input
-									className={styles.input}
-									value={stockUnitLabel}
-									placeholder="個、枚、本など"
-									onChange={(event) => setStockUnitLabel(event.target.value)}
-								/>
-							</label>
-						) : null}
-					</>
-				) : null}
-
+		<Sheet
+			open
+			onOpenChange={(open) => {
+				if (!open && !isSaving) {
+					onCancel();
+				}
+			}}
+			title={`${item.name}の設定`}
+			placement={isRight ? "right" : "bottom"}
+			dismissible={!isSaving}
+			footer={
 				<div className={styles.actions}>
-					<button
-						className={styles.cancelButton}
-						type="button"
+					<Button
+						variant="secondary"
+						size="lg"
+						fullWidth
 						disabled={isSaving}
 						onClick={onCancel}
 					>
 						キャンセル
-					</button>
+					</Button>
 
-					<button
-						className={styles.saveButton}
+					<Button
+						size="lg"
+						fullWidth
 						type="submit"
+						form={formId}
 						disabled={isSaving}
 					>
 						設定を保存
-					</button>
+					</Button>
+				</div>
+			}
+		>
+			<div className={styles.container}>
+				<Note tone="warn">{item.name}の在庫換算を設定してください</Note>
+
+				<div className={styles.intro}>
+					<h3 className={styles.title}>{item.name}を在庫へ追加する方法</h3>
+
+					<p className={styles.description}>
+						購入した{formatQuantityForUnit(item.quantity, item.unitLabel)}
+						{item.unitLabel ?? "単位"}
+						を、在庫ではどの数量として管理するか設定します。
+					</p>
 				</div>
 
-				{errorMessage ? (
-					<p className={styles.error} role="alert">
-						{errorMessage}
-					</p>
+				{presets.length > 0 ? (
+					<div className={styles.group}>
+						<span className={styles.groupLabel} aria-hidden="true">
+							候補から選ぶ
+						</span>
+
+						<ChipGroup label="候補から選ぶ">
+							{presets.map((preset) => (
+								<Chip
+									disabled={isSaving}
+									key={preset.label}
+									onClick={() =>
+										void onSave({
+											quantity: preset.quantity,
+											unitLabel: preset.unitLabel,
+											inventoryConversion: preset.inventoryConversion,
+										})
+									}
+								>
+									{preset.label}
+								</Chip>
+							))}
+						</ChipGroup>
+					</div>
 				) : null}
-			</form>
-		</section>
+
+				<form className={styles.form} id={formId} onSubmit={handleSubmit}>
+					<div className={styles.group}>
+						<span className={styles.groupLabel} aria-hidden="true">
+							在庫管理方法
+						</span>
+
+						<SegmentedControl
+							label="在庫管理方法"
+							value={trackingMode}
+							onChange={setTrackingMode}
+							options={trackingModeOptions}
+						/>
+					</div>
+
+					{trackingMode !== "presence" ? (
+						<>
+							<div className={styles.group}>
+								<span className={styles.groupLabel} aria-hidden="true">
+									在庫で使う単位
+								</span>
+
+								<SegmentedControl
+									label="在庫で使う単位"
+									value={stockUnitCode}
+									onChange={handleStockUnitChange}
+									disabled={lockedStockUnitCode !== null}
+									options={stockUnitOptions}
+								/>
+
+								{lockedStockUnitCode !== null ? (
+									<p className={styles.description}>
+										{item.name}
+										の在庫の単位は、決まっています（変更できません）。
+									</p>
+								) : null}
+							</div>
+
+							<div className={styles.two}>
+								<Field label={`1${item.unitLabel ?? "単位"}あたりの数量`}>
+									{(control) => (
+										<TextInput
+											{...control}
+											type="number"
+											inputMode="decimal"
+											min="0"
+											step="any"
+											value={stockQuantityPerInputUnit}
+											onChange={(event) =>
+												setStockQuantityPerInputUnit(event.target.value)
+											}
+										/>
+									)}
+								</Field>
+
+								{stockUnitCode === "count" ? (
+									<Field label="表示単位">
+										{(control) => (
+											<TextInput
+												{...control}
+												value={stockUnitLabel}
+												placeholder="個、枚、本など"
+												onChange={(event) =>
+													setStockUnitLabel(event.target.value)
+												}
+											/>
+										)}
+									</Field>
+								) : null}
+							</div>
+						</>
+					) : null}
+
+					{errorMessage ? <Note tone="error">{errorMessage}</Note> : null}
+				</form>
+			</div>
+		</Sheet>
 	);
 }
