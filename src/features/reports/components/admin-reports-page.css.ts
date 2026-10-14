@@ -9,7 +9,9 @@ export const container = style({
 
 export const title = style({
 	margin: "0 0 16px",
-	fontSize: 22,
+	fontSize: "var(--font-size-xl)",
+	fontWeight: "var(--font-weight-extrabold)",
+	lineHeight: "var(--line-height-tight)",
 });
 
 export const list = style({
@@ -23,10 +25,10 @@ export const list = style({
 export const item = style({
 	display: "grid",
 	gap: 8,
-	padding: 12,
+	padding: 16,
 	background: "var(--color-surface)",
 	border: "1px solid var(--color-border)",
-	borderRadius: 10,
+	borderRadius: "var(--radius-card)",
 });
 
 export const recipeName = style({
@@ -53,13 +55,14 @@ export const actions = style({
 });
 
 export const button = style({
-	minHeight: 36,
-	paddingInline: 12,
+	minHeight: 40,
+	paddingInline: 16,
 	color: "var(--color-text)",
 	background: "var(--color-surface)",
-	border: "1px solid var(--color-border)",
-	borderRadius: 8,
+	border: "1.5px solid var(--color-control-border)",
+	borderRadius: "var(--radius-control)",
 	font: "inherit",
+	fontWeight: "var(--font-weight-bold)",
 	cursor: "pointer",
 
 	selectors: {
@@ -69,6 +72,7 @@ export const button = style({
 
 export const dangerButton = style({
 	color: "var(--color-error)",
+	borderColor: "var(--color-error)",
 });
 
 export const error = style({

@@ -10,7 +10,9 @@ export const container = style({
 
 export const title = style({
 	margin: 0,
-	fontSize: 24,
+	fontSize: "var(--font-size-xl)",
+	fontWeight: "var(--font-weight-extrabold)",
+	lineHeight: "var(--line-height-tight)",
 });
 
 export const meta = style({
@@ -20,8 +22,11 @@ export const meta = style({
 });
 
 export const articleTitle = style({
-	margin: "24px 0 8px",
-	fontSize: 17,
+	margin: "32px 0 8px",
+	paddingBottom: 6,
+	borderBottom: "1px solid var(--color-border)",
+	fontSize: "var(--font-size-lg)",
+	fontWeight: "var(--font-weight-bold)",
 });
 
 export const list = style({

@@ -1,6 +1,9 @@
 import { type SubmitEvent, useState } from "react";
 import { Button } from "#/components/button/button";
 import { useButtonAction } from "#/components/button/use-button-action";
+import { Card } from "#/components/card/card";
+import { Field, TextInput } from "#/components/field/field";
+import { Note } from "#/components/note/note";
 import type { Profile } from "../application/profile-repository";
 import type { UpdateProfileResult } from "../application/update-profile";
 import {
@@ -63,79 +66,66 @@ export function ProfileForm({ profile, onSave, onChanged }: ProfileFormProps) {
 
 	return (
 		<section className={styles.container}>
-			<h2 className={styles.title}>プロフィール</h2>
+			<h1 className={styles.title}>プロフィール</h1>
 			<p className={styles.lead}>
 				公開されるのは、表示名とハンドルだけです。メールアドレスは、公開されません。
 			</p>
 
-			<form
-				className={styles.form}
-				onSubmit={(event) => void handleSubmit(event)}
-			>
-				<div className={styles.field}>
-					<label htmlFor="profile-name">表示名</label>
-					<input
-						id="profile-name"
-						className={styles.input}
-						value={name}
-						onChange={(event) => setName(event.target.value)}
-						aria-invalid={errors.name !== undefined}
-						aria-describedby="profile-name-hint"
-					/>
-					<span id="profile-name-hint" className={styles.hint}>
-						{displayNameMaxLength}文字まで。@ は使えません。
-					</span>
-					{errors.name ? (
-						<p className={styles.error} role="alert">
-							{errors.name}
-						</p>
-					) : null}
-				</div>
-
-				<div className={styles.field}>
-					<label htmlFor="profile-handle">ハンドル</label>
-					<span className={styles.handleRow}>
-						<span aria-hidden="true">@</span>
-						<input
-							id="profile-handle"
-							className={styles.handleInput}
-							value={handle}
-							onChange={(event) => setHandle(event.target.value)}
-							autoCapitalize="none"
-							autoCorrect="off"
-							spellCheck={false}
-							aria-invalid={errors.handle !== undefined}
-							aria-describedby="profile-handle-hint"
-						/>
-					</span>
-					<span id="profile-handle-hint" className={styles.hint}>
-						半角の英小文字・数字・_・- の{handleMinLength}〜{handleMaxLength}
-						文字。ほかの人と重ならない名前にしてください。あとから変えられます。
-					</span>
-					{errors.handle ? (
-						<p className={styles.error} role="alert">
-							{errors.handle}
-						</p>
-					) : null}
-				</div>
-
-				{errors.form ? (
-					<p className={styles.error} role="alert">
-						{errors.form}
-					</p>
-				) : null}
-
-				<div className={styles.actions}>
-					<Button
-						type="submit"
-						status={action.status}
-						successLabel="保存しました"
+			<Card padding="md">
+				<form
+					className={styles.form}
+					onSubmit={(event) => void handleSubmit(event)}
+				>
+					<Field
+						label="表示名"
+						hint={`${displayNameMaxLength}文字まで。@ は使えません。`}
+						error={errors.name}
 					>
-						保存する
-					</Button>
-					{message ? <output>{message}</output> : null}
-				</div>
-			</form>
+						{(control) => (
+							<TextInput
+								{...control}
+								value={name}
+								onChange={(event) => setName(event.target.value)}
+							/>
+						)}
+					</Field>
+
+					<Field
+						label="ハンドル"
+						hint={`半角の英小文字・数字・_・- の${handleMinLength}〜${handleMaxLength}文字。ほかの人と重ならない名前にしてください。あとから変えられます。`}
+						error={errors.handle}
+					>
+						{(control) => (
+							<span className={styles.handleRow}>
+								<span className={styles.at} aria-hidden="true">
+									@
+								</span>
+								<TextInput
+									{...control}
+									value={handle}
+									onChange={(event) => setHandle(event.target.value)}
+									autoCapitalize="none"
+									autoCorrect="off"
+									spellCheck={false}
+								/>
+							</span>
+						)}
+					</Field>
+
+					{errors.form ? <Note tone="error">{errors.form}</Note> : null}
+
+					<div className={styles.actions}>
+						<Button
+							type="submit"
+							status={action.status}
+							successLabel="保存しました"
+						>
+							保存する
+						</Button>
+						{message ? <output>{message}</output> : null}
+					</div>
+				</form>
+			</Card>
 		</section>
 	);
 }
