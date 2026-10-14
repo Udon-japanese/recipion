@@ -1,4 +1,4 @@
-import { type ComponentProps, forwardRef, type ReactNode, useId } from "react";
+import { type ComponentProps, type ReactNode, useId } from "react";
 import { Icon } from "../icon/icon";
 import { PickerSelect } from "../select/picker-select";
 import * as styles from "./field.css";
@@ -70,38 +70,24 @@ export function Field({
 type TextInputProps = Omit<ComponentProps<"input">, "className" | "style">;
 
 // 1行の入力欄（丸い形。枠が濃い＝入力できると分かる）。
-export const TextInput = forwardRef<HTMLInputElement, TextInputProps>(
-	function TextInput(props, ref) {
-		return <input {...props} ref={ref} className={styles.input} />;
-	},
-);
+export function TextInput(props: TextInputProps) {
+	return <input {...props} className={styles.input} />;
+}
 
 type TextAreaProps = Omit<ComponentProps<"textarea">, "className" | "style">;
 
 // 複数行の入力欄。
-export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
-	function TextArea(props, ref) {
-		return (
-			<textarea
-				{...props}
-				ref={ref}
-				className={`${styles.input} ${styles.textarea}`}
-			/>
-		);
-	},
-);
+export function TextArea(props: TextAreaProps) {
+	return (
+		<textarea {...props} className={`${styles.input} ${styles.textarea}`} />
+	);
+}
 
 type SelectBoxProps = Omit<ComponentProps<"select">, "className" | "style">;
 
 // 選択（本物の select を残し、開くときだけ、PC は一覧・スマホはボトムシート）。
-export const SelectBox = forwardRef<HTMLSelectElement, SelectBoxProps>(
-	function SelectBox(props, ref) {
-		return (
-			<PickerSelect
-				{...props}
-				ref={ref}
-				className={`${styles.input} ${styles.select}`}
-			/>
-		);
-	},
-);
+export function SelectBox(props: SelectBoxProps) {
+	return (
+		<PickerSelect {...props} className={`${styles.input} ${styles.select}`} />
+	);
+}

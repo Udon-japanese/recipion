@@ -1,6 +1,5 @@
 import {
 	type ComponentProps,
-	forwardRef,
 	type KeyboardEvent as ReactKeyboardEvent,
 	type MouseEvent as ReactMouseEvent,
 	type Ref,
@@ -59,153 +58,151 @@ function setRef<T>(ref: Ref<T> | undefined, value: T | null) {
 	}
 }
 
-type PickerSelectProps = Omit<ComponentProps<"select">, "ref">;
+type PickerSelectProps = ComponentProps<"select">;
 
 // 本物の <select> はそのまま残し（ラベル・フォーム・読み上げ・テストは、これまでどおり）、
 // 開くときだけ、標準の一覧の代わりに、PC は一覧（ドロップダウン）、スマホはボトムシートを出す。
 // 選ぶと、<select> の値を書き換えて change を送るので、呼び出し側は onChange のまま使える。
-export const PickerSelect = forwardRef<HTMLSelectElement, PickerSelectProps>(
-	function PickerSelect(props, forwardedRef) {
-		const { onClick, onMouseDown, onKeyDown, ...rest } = props;
-		const selectRef = useRef<HTMLSelectElement | null>(null);
-		const [opened, setOpened] = useState<Opened | null>(null);
-		const [choices, setChoices] = useState<Choice[]>([]);
-		const [title, setTitle] = useState("");
-		const [selectedValue, setSelectedValue] = useState("");
+export function PickerSelect(props: PickerSelectProps) {
+	const { onClick, onMouseDown, onKeyDown, ref: forwardedRef, ...rest } = props;
+	const selectRef = useRef<HTMLSelectElement | null>(null);
+	const [opened, setOpened] = useState<Opened | null>(null);
+	const [choices, setChoices] = useState<Choice[]>([]);
+	const [title, setTitle] = useState("");
+	const [selectedValue, setSelectedValue] = useState("");
 
-		const close = useCallback((restoreFocus: boolean) => {
-			setOpened(null);
-			if (restoreFocus) {
-				selectRef.current?.focus();
-			}
-		}, []);
-
-		const open = useCallback(() => {
-			const select = selectRef.current;
-			if (!select || select.disabled) {
-				return;
-			}
-			const list = readChoices(select);
-			setChoices(list);
-			setTitle(labelOf(select));
-			setSelectedValue(select.value);
-
-			if (isCompact()) {
-				const wanted = (list.length * OPTION_HEIGHT + 120) / window.innerHeight;
-				setOpened({
-					kind: "sheet",
-					snap: Math.min(0.92, Math.max(0.3, wanted)),
-				});
-			} else {
-				setOpened({ kind: "popover", rect: select.getBoundingClientRect() });
-			}
-		}, []);
-
-		// 外から値が変わったら（別の操作・テスト）、一覧を閉じる。
-		useEffect(() => {
-			const select = selectRef.current;
-			if (!opened || !select) {
-				return;
-			}
-			const handleChange = () => setOpened(null);
-			select.addEventListener("change", handleChange);
-			return () => select.removeEventListener("change", handleChange);
-		}, [opened]);
-
-		function choose(value: string) {
-			const select = selectRef.current;
-			setOpened(null);
-			if (!select) {
-				return;
-			}
-			select.focus();
-			if (value !== select.value) {
-				select.value = value;
-				select.dispatchEvent(new Event("change", { bubbles: true }));
-			}
+	const close = useCallback((restoreFocus: boolean) => {
+		setOpened(null);
+		if (restoreFocus) {
+			selectRef.current?.focus();
 		}
+	}, []);
 
-		function handleMouseDown(event: ReactMouseEvent<HTMLSelectElement>) {
-			onMouseDown?.(event);
-			if (event.defaultPrevented || event.currentTarget.disabled) {
-				return;
-			}
-			// 標準の一覧を出さない。フォーカスは自分で移す。
-			event.preventDefault();
-			event.currentTarget.focus();
+	const open = useCallback(() => {
+		const select = selectRef.current;
+		if (!select || select.disabled) {
+			return;
 		}
+		const list = readChoices(select);
+		setChoices(list);
+		setTitle(labelOf(select));
+		setSelectedValue(select.value);
 
-		function handleClick(event: ReactMouseEvent<HTMLSelectElement>) {
-			onClick?.(event);
-			if (event.defaultPrevented || event.currentTarget.disabled) {
-				return;
-			}
+		if (isCompact()) {
+			const wanted = (list.length * OPTION_HEIGHT + 120) / window.innerHeight;
+			setOpened({
+				kind: "sheet",
+				snap: Math.min(0.92, Math.max(0.3, wanted)),
+			});
+		} else {
+			setOpened({ kind: "popover", rect: select.getBoundingClientRect() });
+		}
+	}, []);
+
+	// 外から値が変わったら（別の操作・テスト）、一覧を閉じる。
+	useEffect(() => {
+		const select = selectRef.current;
+		if (!opened || !select) {
+			return;
+		}
+		const handleChange = () => setOpened(null);
+		select.addEventListener("change", handleChange);
+		return () => select.removeEventListener("change", handleChange);
+	}, [opened]);
+
+	function choose(value: string) {
+		const select = selectRef.current;
+		setOpened(null);
+		if (!select) {
+			return;
+		}
+		select.focus();
+		if (value !== select.value) {
+			select.value = value;
+			select.dispatchEvent(new Event("change", { bubbles: true }));
+		}
+	}
+
+	function handleMouseDown(event: ReactMouseEvent<HTMLSelectElement>) {
+		onMouseDown?.(event);
+		if (event.defaultPrevented || event.currentTarget.disabled) {
+			return;
+		}
+		// 標準の一覧を出さない。フォーカスは自分で移す。
+		event.preventDefault();
+		event.currentTarget.focus();
+	}
+
+	function handleClick(event: ReactMouseEvent<HTMLSelectElement>) {
+		onClick?.(event);
+		if (event.defaultPrevented || event.currentTarget.disabled) {
+			return;
+		}
+		event.preventDefault();
+		open();
+	}
+
+	function handleKeyDown(event: ReactKeyboardEvent<HTMLSelectElement>) {
+		onKeyDown?.(event);
+		if (event.defaultPrevented) {
+			return;
+		}
+		const opensWithAlt =
+			event.altKey && (event.key === "ArrowDown" || event.key === "ArrowUp");
+		if (
+			event.key === "Enter" ||
+			event.key === " " ||
+			event.key === "F4" ||
+			opensWithAlt
+		) {
 			event.preventDefault();
 			open();
 		}
+	}
 
-		function handleKeyDown(event: ReactKeyboardEvent<HTMLSelectElement>) {
-			onKeyDown?.(event);
-			if (event.defaultPrevented) {
-				return;
-			}
-			const opensWithAlt =
-				event.altKey && (event.key === "ArrowDown" || event.key === "ArrowUp");
-			if (
-				event.key === "Enter" ||
-				event.key === " " ||
-				event.key === "F4" ||
-				opensWithAlt
-			) {
-				event.preventDefault();
-				open();
-			}
-		}
-
-		return (
-			<>
-				<select
-					{...rest}
-					ref={(element) => {
-						selectRef.current = element;
-						setRef(forwardedRef, element);
-					}}
-					onMouseDown={handleMouseDown}
-					onClick={handleClick}
-					onKeyDown={handleKeyDown}
+	return (
+		<>
+			<select
+				{...rest}
+				ref={(element) => {
+					selectRef.current = element;
+					setRef(forwardedRef, element);
+				}}
+				onMouseDown={handleMouseDown}
+				onClick={handleClick}
+				onKeyDown={handleKeyDown}
+			/>
+			{opened?.kind === "popover" ? (
+				<Popover
+					rect={opened.rect}
+					choices={choices}
+					selectedValue={selectedValue}
+					onChoose={choose}
+					onClose={close}
+					anchor={selectRef}
 				/>
-				{opened?.kind === "popover" ? (
-					<Popover
-						rect={opened.rect}
+			) : null}
+			{opened?.kind === "sheet" ? (
+				<Sheet
+					open
+					onOpenChange={(next) => {
+						if (!next) {
+							close(true);
+						}
+					}}
+					title={title}
+					snapPoints={[opened.snap]}
+				>
+					<OptionList
 						choices={choices}
 						selectedValue={selectedValue}
 						onChoose={choose}
-						onClose={close}
-						anchor={selectRef}
 					/>
-				) : null}
-				{opened?.kind === "sheet" ? (
-					<Sheet
-						open
-						onOpenChange={(next) => {
-							if (!next) {
-								close(true);
-							}
-						}}
-						title={title}
-						snapPoints={[opened.snap]}
-					>
-						<OptionList
-							choices={choices}
-							selectedValue={selectedValue}
-							onChoose={choose}
-						/>
-					</Sheet>
-				) : null}
-			</>
-		);
-	},
-);
+				</Sheet>
+			) : null}
+		</>
+	);
+}
 
 type OptionListProps = {
 	choices: Choice[];
