@@ -3,6 +3,7 @@ import { IngredientNameInput } from "#/features/ingredients/components/ingredien
 import { QuantityInput } from "#/features/quantity/components/quantity-input";
 import { formatQuantity } from "#/features/quantity/domain/format-quantity";
 import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
+import { PickerSelect } from "../../../components/select/picker-select";
 import {
 	isShoppingCategoryId,
 	type ShoppingCategoryId,
@@ -144,7 +145,7 @@ export function ShoppingItemEditForm({
 						編集するカテゴリ
 					</label>
 
-					<select
+					<PickerSelect
 						className={styles.input}
 						id={`edit-category-${item.id}`}
 						value={categoryId}
@@ -157,7 +158,7 @@ export function ShoppingItemEditForm({
 								{category.label}
 							</option>
 						))}
-					</select>
+					</PickerSelect>
 				</div>
 			</div>
 

@@ -1,4 +1,5 @@
 import type { KeyboardEvent } from "react";
+import { PickerSelect } from "../../../components/select/picker-select";
 import type { RecipeEditorIngredientNode } from "../domain/recipe-editor-document";
 import { type RecipeLinkView, splitTextByLinks } from "../domain/recipe-links";
 import * as styles from "./recipe-editor.css";
@@ -164,7 +165,7 @@ export function IngredientPreviewNode({
 					onKeyDown={preventSubmitOnEnter}
 					placeholder="分量なし"
 				/>
-				<select
+				<PickerSelect
 					className={styles.input}
 					aria-label={`${node.name}のグループ`}
 					value={parentGroupId ?? ""}
@@ -182,7 +183,7 @@ export function IngredientPreviewNode({
 							{group.name}
 						</option>
 					))}
-				</select>
+				</PickerSelect>
 				<button
 					type="button"
 					aria-label={`${node.name}を削除`}

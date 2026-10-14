@@ -8,6 +8,8 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { Button } from "#/components/button/button";
+import { useButtonAction } from "#/components/button/use-button-action";
 import type { RecipeDetail } from "../application/recipe-repository";
 import {
 	createIngredientGroup,
@@ -163,7 +165,7 @@ export function RecipeEditor({
 	const [sync, setSync] = useState(initialState.sync);
 	const [useTemplate, setUseTemplate] = useState(true);
 	const [activeTab, setActiveTab] = useState<ActiveTab>("input");
-	const [isSaving, setIsSaving] = useState(false);
+	const saveAction = useButtonAction();
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [savedRecipeId, setSavedRecipeId] = useState<string | null>(null);
 	const [newIngredientName, setNewIngredientName] = useState("");
@@ -414,7 +416,7 @@ export function RecipeEditor({
 		};
 	}
 
-	async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
+	function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
 		event.preventDefault();
 		setErrorMessage(null);
 		setSavedRecipeId(null);
@@ -432,8 +434,10 @@ export function RecipeEditor({
 			return;
 		}
 
-		setIsSaving(true);
+		void saveAction.run(save);
+	}
 
+	async function save() {
 		try {
 			const document = {
 				...createRecipeEditorDocument({
@@ -458,18 +462,20 @@ export function RecipeEditor({
 			if (limitViolation) {
 				setErrorMessage(limitViolation);
 
-				return;
+				return false;
 			}
 
 			const result = await onSave(document);
 			setSavedRecipeId(result.publicId);
 			onSaved?.(result);
+
+			return true;
 		} catch (error) {
 			setErrorMessage(
 				error instanceof Error ? error.message : "レシピを保存できませんでした",
 			);
-		} finally {
-			setIsSaving(false);
+
+			return false;
 		}
 	}
 
@@ -754,9 +760,17 @@ export function RecipeEditor({
 					hasSourceUrl={sourceUrl.trim() !== ""}
 				/>
 
-				<button className={styles.saveButton} type="submit" disabled={isSaving}>
-					{isSaving ? "保存しています…" : "レシピを保存"}
-				</button>
+				<Button
+					type="submit"
+					size="lg"
+					align="end"
+					status={saveAction.status}
+					pendingLabel="保存しています"
+					successLabel="保存しました"
+					errorLabel="保存できません"
+				>
+					レシピを保存
+				</Button>
 
 				{errorMessage ? (
 					<p role="alert" className={styles.error}>

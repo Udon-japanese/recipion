@@ -68,12 +68,12 @@ export const button = style({
 });
 
 export const dangerButton = style({
-	color: "#a23030",
+	color: "var(--color-error)",
 });
 
 export const error = style({
 	margin: 0,
-	color: "#a23030",
+	color: "var(--color-error)",
 });
 
 export const preview = style({

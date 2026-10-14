@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AccountDeletedRouteImport } from './routes/account-deleted'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as InventoryRouteImport } from './routes/inventory'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as ShoppingRouteImport } from './routes/shopping'
@@ -22,6 +23,8 @@ import { Route as AdminAppealsRouteImport } from './routes/admin/appeals'
 import { Route as AdminReportsRouteImport } from './routes/admin/reports'
 import { Route as AdminUserReportsRouteImport } from './routes/admin/user-reports'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
+import { Route as DevInventoryRouteImport } from './routes/dev.inventory'
+import { Route as DevUiRouteImport } from './routes/dev.ui'
 import { Route as RecipesIndexRouteImport } from './routes/recipes/index'
 import { Route as RecipesNewRouteImport } from './routes/recipes/new'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
@@ -46,6 +49,11 @@ const AdminRoute = AdminRouteImport.update({
 const InventoryRoute = InventoryRouteImport.update({
   id: '/inventory',
   path: '/inventory',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrivacyRoute = PrivacyRouteImport.update({
@@ -93,6 +101,16 @@ const AdminUsersRoute = AdminUsersRouteImport.update({
   path: '/users',
   getParentRoute: () => AdminRoute,
 } as any)
+const DevInventoryRoute = DevInventoryRouteImport.update({
+  id: '/dev/inventory',
+  path: '/dev/inventory',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DevUiRoute = DevUiRouteImport.update({
+  id: '/dev/ui',
+  path: '/dev/ui',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RecipesIndexRoute = RecipesIndexRouteImport.update({
   id: '/recipes/',
   path: '/recipes/',
@@ -124,6 +142,7 @@ export interface FileRoutesByFullPath {
   '/account-deleted': typeof AccountDeletedRoute
   '/admin': typeof AdminRouteWithChildren
   '/inventory': typeof InventoryRoute
+  '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/shopping': typeof ShoppingRoute
@@ -132,6 +151,8 @@ export interface FileRoutesByFullPath {
   '/admin/reports': typeof AdminReportsRoute
   '/admin/user-reports': typeof AdminUserReportsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/dev/inventory': typeof DevInventoryRoute
+  '/dev/ui': typeof DevUiRoute
   '/recipes/new': typeof RecipesNewRoute
   '/admin/': typeof AdminIndexRoute
   '/recipes/': typeof RecipesIndexRoute
@@ -143,6 +164,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/account-deleted': typeof AccountDeletedRoute
   '/inventory': typeof InventoryRoute
+  '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/shopping': typeof ShoppingRoute
@@ -151,6 +173,8 @@ export interface FileRoutesByTo {
   '/admin/reports': typeof AdminReportsRoute
   '/admin/user-reports': typeof AdminUserReportsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/dev/inventory': typeof DevInventoryRoute
+  '/dev/ui': typeof DevUiRoute
   '/recipes/new': typeof RecipesNewRoute
   '/admin': typeof AdminIndexRoute
   '/recipes': typeof RecipesIndexRoute
@@ -164,6 +188,7 @@ export interface FileRoutesById {
   '/account-deleted': typeof AccountDeletedRoute
   '/admin': typeof AdminRouteWithChildren
   '/inventory': typeof InventoryRoute
+  '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/shopping': typeof ShoppingRoute
@@ -172,6 +197,8 @@ export interface FileRoutesById {
   '/admin/reports': typeof AdminReportsRoute
   '/admin/user-reports': typeof AdminUserReportsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/dev/inventory': typeof DevInventoryRoute
+  '/dev/ui': typeof DevUiRoute
   '/recipes/new': typeof RecipesNewRoute
   '/admin/': typeof AdminIndexRoute
   '/recipes/': typeof RecipesIndexRoute
@@ -186,6 +213,7 @@ export interface FileRouteTypes {
     | '/account-deleted'
     | '/admin'
     | '/inventory'
+    | '/login'
     | '/privacy'
     | '/profile'
     | '/shopping'
@@ -194,6 +222,8 @@ export interface FileRouteTypes {
     | '/admin/reports'
     | '/admin/user-reports'
     | '/admin/users'
+    | '/dev/inventory'
+    | '/dev/ui'
     | '/recipes/new'
     | '/admin/'
     | '/recipes/'
@@ -205,6 +235,7 @@ export interface FileRouteTypes {
     | '/'
     | '/account-deleted'
     | '/inventory'
+    | '/login'
     | '/privacy'
     | '/profile'
     | '/shopping'
@@ -213,6 +244,8 @@ export interface FileRouteTypes {
     | '/admin/reports'
     | '/admin/user-reports'
     | '/admin/users'
+    | '/dev/inventory'
+    | '/dev/ui'
     | '/recipes/new'
     | '/admin'
     | '/recipes'
@@ -225,6 +258,7 @@ export interface FileRouteTypes {
     | '/account-deleted'
     | '/admin'
     | '/inventory'
+    | '/login'
     | '/privacy'
     | '/profile'
     | '/shopping'
@@ -233,6 +267,8 @@ export interface FileRouteTypes {
     | '/admin/reports'
     | '/admin/user-reports'
     | '/admin/users'
+    | '/dev/inventory'
+    | '/dev/ui'
     | '/recipes/new'
     | '/admin/'
     | '/recipes/'
@@ -246,10 +282,13 @@ export interface RootRouteChildren {
   AccountDeletedRoute: typeof AccountDeletedRoute
   AdminRoute: typeof AdminRouteWithChildren
   InventoryRoute: typeof InventoryRoute
+  LoginRoute: typeof LoginRoute
   PrivacyRoute: typeof PrivacyRoute
   ProfileRoute: typeof ProfileRoute
   ShoppingRoute: typeof ShoppingRoute
   TermsRoute: typeof TermsRoute
+  DevInventoryRoute: typeof DevInventoryRoute
+  DevUiRoute: typeof DevUiRoute
   RecipesNewRoute: typeof RecipesNewRoute
   RecipesIndexRoute: typeof RecipesIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
@@ -285,6 +324,13 @@ declare module '@tanstack/react-router' {
       path: '/inventory'
       fullPath: '/inventory'
       preLoaderRoute: typeof InventoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/privacy': {
@@ -350,6 +396,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsersRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/dev/inventory': {
+      id: '/dev/inventory'
+      path: '/dev/inventory'
+      fullPath: '/dev/inventory'
+      preLoaderRoute: typeof DevInventoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dev/ui': {
+      id: '/dev/ui'
+      path: '/dev/ui'
+      fullPath: '/dev/ui'
+      preLoaderRoute: typeof DevUiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/recipes/': {
       id: '/recipes/'
       path: '/recipes'
@@ -411,10 +471,13 @@ const rootRouteChildren: RootRouteChildren = {
   AccountDeletedRoute: AccountDeletedRoute,
   AdminRoute: AdminRouteWithChildren,
   InventoryRoute: InventoryRoute,
+  LoginRoute: LoginRoute,
   PrivacyRoute: PrivacyRoute,
   ProfileRoute: ProfileRoute,
   ShoppingRoute: ShoppingRoute,
   TermsRoute: TermsRoute,
+  DevInventoryRoute: DevInventoryRoute,
+  DevUiRoute: DevUiRoute,
   RecipesNewRoute: RecipesNewRoute,
   RecipesIndexRoute: RecipesIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,

@@ -29,20 +29,4 @@ export const input = style({
 	font: "inherit",
 });
 
-export const message = style({ margin: 0, color: "#a23030" });
-
-export const button = style({
-	minHeight: 40,
-	paddingInline: 16,
-	justifySelf: "start",
-	color: "var(--color-text)",
-	background: "var(--color-surface)",
-	border: "1px solid var(--color-border)",
-	borderRadius: 8,
-	font: "inherit",
-	cursor: "pointer",
-
-	selectors: {
-		"&:disabled": { cursor: "not-allowed", opacity: 0.5 },
-	},
-});
+export const message = style({ margin: 0, color: "var(--color-error)" });

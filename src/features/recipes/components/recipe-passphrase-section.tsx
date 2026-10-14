@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { Button } from "#/components/button/button";
+import { useButtonAction } from "#/components/button/use-button-action";
 import * as styles from "./recipe-passphrase-section.css";
 
 type RecipePassphraseSectionProps = {
@@ -13,7 +15,7 @@ export function RecipePassphraseSection({
 }: RecipePassphraseSectionProps) {
 	const [passphrase, setPassphrase] = useState<string | null>(null);
 	const [isConfirming, setIsConfirming] = useState(false);
-	const [isBusy, setIsBusy] = useState(false);
+	const action = useButtonAction();
 	const [message, setMessage] = useState<string | null>(null);
 
 	useEffect(() => {
@@ -32,18 +34,19 @@ export function RecipePassphraseSection({
 		};
 	}, [loadPassphrase]);
 
-	async function handleRegenerate() {
-		setIsBusy(true);
+	async function regenerate() {
 		setMessage(null);
 
 		try {
 			setPassphrase(await regeneratePassphrase());
 			setIsConfirming(false);
 			setMessage("パスフレーズを作り直しました。");
+
+			return true;
 		} catch {
 			setMessage("作り直せませんでした。もう一度お試しください");
-		} finally {
-			setIsBusy(false);
+
+			return false;
 		}
 	}
 
@@ -81,14 +84,16 @@ export function RecipePassphraseSection({
 
 				{isConfirming ? (
 					<>
-						<button
-							className={`${styles.button} ${styles.dangerButton}`}
-							type="button"
-							disabled={isBusy}
-							onClick={() => void handleRegenerate()}
+						<Button
+							variant="danger"
+							size="sm"
+							status={action.status}
+							successLabel="作り直しました"
+							errorLabel="できませんでした"
+							onClick={() => void action.run(regenerate)}
 						>
 							本当に作り直す
-						</button>
+						</Button>
 						<button
 							className={styles.button}
 							type="button"
@@ -101,7 +106,7 @@ export function RecipePassphraseSection({
 					<button
 						className={styles.button}
 						type="button"
-						disabled={isBusy}
+						disabled={action.isPending}
 						onClick={() => setIsConfirming(true)}
 					>
 						作り直す

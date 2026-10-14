@@ -52,6 +52,6 @@ export const button = style({
 	},
 });
 
-export const dangerButton = style({ color: "#a23030" });
+export const dangerButton = style({ color: "var(--color-error)" });
 
-export const error = style({ margin: 0, color: "#a23030" });
+export const error = style({ margin: 0, color: "var(--color-error)" });

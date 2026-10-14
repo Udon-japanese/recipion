@@ -42,7 +42,8 @@ export function renderBuildScript(id: string, urls: readonly string[]): string {
 }
 
 // 静的シェルが「ルートだけの骨組み」であることの確認。
-// ページの内容（ホームのリンクなど）や、ユーザーごとの情報が入っていたら、キャッシュしてはいけない。
+// ページの内容（ホームなど。ホームは data-page="home" の印を持つ）や、ユーザーごとの情報が入っていたら、キャッシュしてはいけない。
+// 枠（ヘッダー・ナビ）は、ページの内容ではないので、入っていてよい。
 export function findShellProblems(html: string): string[] {
 	const problems: string[] = [];
 
@@ -50,7 +51,7 @@ export function findShellProblems(html: string): string[] {
 		problems.push("HTML ではありません");
 	}
 
-	if (html.includes('href="/shopping"')) {
+	if (html.includes('data-page="home"')) {
 		problems.push(
 			"ページの内容が含まれています（シェルとして描画されていません）",
 		);

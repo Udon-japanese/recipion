@@ -1,4 +1,6 @@
 import { type SubmitEvent, useState } from "react";
+import { Button } from "#/components/button/button";
+import { useButtonAction } from "#/components/button/use-button-action";
 import type { Profile } from "../application/profile-repository";
 import type { UpdateProfileResult } from "../application/update-profile";
 import {
@@ -26,12 +28,15 @@ export function ProfileForm({ profile, onSave, onChanged }: ProfileFormProps) {
 	const [handle, setHandle] = useState(profile.handle);
 	const [errors, setErrors] = useState<FieldErrors>({});
 	const [message, setMessage] = useState<string | null>(null);
-	const [isBusy, setIsBusy] = useState(false);
+	const action = useButtonAction();
 
-	async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
+	function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
 		event.preventDefault();
+		void action.run(save);
+	}
+
+	async function save() {
 		setMessage(null);
-		setIsBusy(true);
 
 		try {
 			const result = await onSave({ name, handle });
@@ -40,15 +45,19 @@ export function ProfileForm({ profile, onSave, onChanged }: ProfileFormProps) {
 				setErrors({});
 				setMessage("保存しました。");
 				onChanged?.();
-			} else {
-				setErrors(result.errors);
+
+				return true;
 			}
+
+			setErrors(result.errors);
+
+			return false;
 		} catch {
 			setErrors({
 				form: "保存できませんでした。時間をおいて、もう一度お試しください。",
 			});
-		} finally {
-			setIsBusy(false);
+
+			return false;
 		}
 	}
 
@@ -117,13 +126,13 @@ export function ProfileForm({ profile, onSave, onChanged }: ProfileFormProps) {
 				) : null}
 
 				<div className={styles.actions}>
-					<button
-						className={styles.primaryButton}
+					<Button
 						type="submit"
-						disabled={isBusy}
+						status={action.status}
+						successLabel="保存しました"
 					>
 						保存する
-					</button>
+					</Button>
 					{message ? <output>{message}</output> : null}
 				</div>
 			</form>

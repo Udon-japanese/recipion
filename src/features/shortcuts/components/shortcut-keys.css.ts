@@ -9,7 +9,7 @@ export const group = style({
 
 export const key = style({
 	padding: "0 5px",
-	background: "var(--color-surface-subtle)",
+	background: "var(--color-surface-muted)",
 	border: "1px solid var(--color-border)",
 	borderRadius: 4,
 	font: "inherit",

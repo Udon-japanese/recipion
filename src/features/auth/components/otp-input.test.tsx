@@ -7,7 +7,13 @@ import { createEmptyDigits } from "./otp-input-logic";
 
 afterEach(cleanup);
 
-function Harness({ onComplete }: { onComplete?: (code: string) => void }) {
+function Harness({
+	onComplete,
+	compositionCommit = "blur",
+}: {
+	onComplete?: (code: string) => void;
+	compositionCommit?: "blur" | "immediate";
+}) {
 	const [digits, setDigits] = useState(createEmptyDigits(6));
 
 	return (
@@ -17,6 +23,7 @@ function Harness({ onComplete }: { onComplete?: (code: string) => void }) {
 				onChange={setDigits}
 				onComplete={onComplete}
 				label="ログイン用コード（6桁）"
+				compositionCommit={compositionCommit}
 			/>
 			<button type="button" onClick={() => setDigits(createEmptyDigits(6))}>
 				リセット
@@ -122,20 +129,59 @@ describe("OtpInput", () => {
 
 		fireEvent.change(field, { target: { value: "１２３４５６" } });
 
-		// 6 桁になった時点で、変換中のままでも、完成を知らせる。
+		// 6 桁になっても、変換が確定するまでは、完成を知らせない
+		// （確定前に検証して失敗すると、確定前の文字が、ブラウザに残るため）。
 		expect(boxes()).toBe("1|2|3|4|5|6");
-		expect(onComplete).toHaveBeenCalledTimes(1);
-		expect(onComplete).toHaveBeenCalledWith("123456");
+		expect(onComplete).not.toHaveBeenCalled();
 		expect(field.value).toBe("１２３４５６");
 
-		// 変換が確定したら、中身を、数字だけに直す。同じコードで、重ねて知らせない。
+		// 変換が確定したら、中身を数字だけに直して、完成を1度だけ知らせる。
+		fireEvent.compositionEnd(field);
+
+		expect(field.value).toBe("123456");
+		expect(onComplete).toHaveBeenCalledTimes(1);
+		expect(onComplete).toHaveBeenCalledWith("123456");
+	});
+
+	it("日本語入力の変換中に桁がそろうと、入力欄の focus を外して、変換を確定させる", async () => {
+		const user = userEvent.setup();
+
+		render(<Harness onComplete={vi.fn()} />);
+
+		const field = input();
+
+		await user.click(field);
+		fireEvent.compositionStart(field);
+		fireEvent.change(field, { target: { value: "１２３４５" } });
+		expect(field).toHaveFocus();
+
+		fireEvent.change(field, { target: { value: "１２３４５６" } });
+		expect(field).not.toHaveFocus();
+	});
+
+	it("Safari の方式：変換中に桁がそろったら、focus を外さず、すぐ完成を知らせる。確定しても、重ねて知らせない", () => {
+		const onComplete = vi.fn();
+
+		render(<Harness onComplete={onComplete} compositionCommit="immediate" />);
+
+		const field = input();
+
+		field.focus();
+		fireEvent.compositionStart(field);
+		fireEvent.change(field, { target: { value: "１２３４５６" } });
+
+		expect(field).toHaveFocus();
+		expect(onComplete).toHaveBeenCalledTimes(1);
+		expect(onComplete).toHaveBeenCalledWith("123456");
+
+		// 確定しても、重ねて知らせない。
 		fireEvent.compositionEnd(field);
 
 		expect(field.value).toBe("123456");
 		expect(onComplete).toHaveBeenCalledTimes(1);
 	});
 
-	it("変換中に Backspace で打ち間違いを直すと、枠も追従する（完成の知らせは、直したコードで、もう一度）", () => {
+	it("変換中に Backspace で打ち間違いを直すと、枠も追従する（完成の知らせは、確定したコードで1度だけ）", () => {
 		const onComplete = vi.fn();
 
 		render(<Harness onComplete={onComplete} />);
@@ -148,10 +194,11 @@ describe("OtpInput", () => {
 		fireEvent.change(field, { target: { value: "１２３４５６" } });
 
 		expect(boxes()).toBe("1|2|3|4|5|6");
-		expect(onComplete.mock.calls.map(([code]) => code)).toEqual([
-			"123455",
-			"123456",
-		]);
+		expect(onComplete).not.toHaveBeenCalled();
+
+		fireEvent.compositionEnd(field);
+
+		expect(onComplete.mock.calls.map(([code]) => code)).toEqual(["123456"]);
 	});
 
 	it("親が値をリセットすると、変換中でも、入力欄の中身も空になり、次に打つ数字が足されない", async () => {

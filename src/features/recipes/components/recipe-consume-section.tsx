@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Button } from "#/components/button/button";
 import type { UndoRecipeConsumptionResult } from "#/features/inventory/application/inventory-adjustment-repository";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import type { InventoryListItem } from "#/features/inventory/application/inventory-query-repository";
@@ -286,14 +287,14 @@ export function RecipeConsumeSection({
 							</button>
 						) : null}
 						{!outcome.isUndone && consumedCount > 0 ? (
-							<button
-								className={styles.applyButton}
-								type="button"
-								disabled={isWorking}
+							<Button
+								size="sm"
+								status={isWorking ? "pending" : "idle"}
+								pendingLabel="戻しています"
 								onClick={() => void handleUndo()}
 							>
 								元に戻す
-							</button>
+							</Button>
 						) : null}
 						<button
 							className={styles.cancelButton}
@@ -307,14 +308,13 @@ export function RecipeConsumeSection({
 				</div>
 			) : (
 				<>
-					<button
-						className={styles.openButton}
-						type="button"
-						disabled={isWorking}
+					<Button
+						status={isWorking ? "pending" : "idle"}
+						pendingLabel="在庫から引いています"
 						onClick={() => void handleMade()}
 					>
 						作った（在庫から引く）
-					</button>
+					</Button>
 					<p className={styles.hint}>
 						使った分を、在庫からすぐに引きます。間違えたときは、あとから「元に戻す」で戻せます。
 					</p>

@@ -1,194 +1,78 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { convertToStockQuantity } from "#/features/ingredients/domain/convert-to-stock-quantity";
-import { findIngredientCatalogEntry } from "#/features/ingredients/domain/ingredient-catalog";
-import {
-	listStockUnitOptions,
-	type StockUnitOption,
-} from "#/features/ingredients/domain/list-stock-unit-options";
-import { QuantityInput } from "#/features/quantity/components/quantity-input";
-import {
-	formatQuantity,
-	formatStockAmount,
-} from "#/features/quantity/domain/format-quantity";
-import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
-import { createManualInventoryAdjustment } from "../application/create-manual-inventory-adjustment";
-import type {
-	InventoryAdjustmentCommand,
-	InventoryAdjustmentRepositoryResult,
-} from "../application/inventory-adjustment-repository";
-import type {
-	ChangeStockUnitCommand,
-	ChangeStockUnitResult,
-	RenameInventoryItemCommand,
-	RenameInventoryItemResult,
-} from "../application/inventory-item-management-repository";
-import { maxInventoryDisplayNameLength } from "../application/inventory-item-management-repository";
-import type {
-	SetLotQuantityCommand,
-	SetLotQuantityResult,
-	UpdateInventoryLotCommand,
-	UpdateInventoryLotResult,
-} from "../application/inventory-lot-repository";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { IconButton } from "#/components/icon-button/icon-button";
+import { Mascot } from "#/components/mascot/mascot";
+import { Note } from "#/components/note/note";
+import { useMediaQuery } from "#/components/use-media-query";
 import type { InventoryPurchaseOwnerScope } from "../application/inventory-purchase-outbox";
 import type { InventoryListItem } from "../application/inventory-query-repository";
-import type {
-	ChangeInventoryTrackingModeCommand,
-	ChangeInventoryTrackingModeResult,
-} from "../application/inventory-tracking-mode-repository";
 import type { LoadInventoryItemsResult } from "../application/load-inventory-items-with-cache";
-import type { InventoryOperation } from "../domain/apply-inventory-adjustment";
 import {
-	expiryKindLabels,
-	formatShortDate,
-	storageLabels,
-} from "../domain/expiry-labels";
-import { type InventoryLot, toDateString } from "../domain/inventory-lot";
-import type { QuantityTrackingMode } from "../domain/inventory-tracking-mode";
-import type { InventoryUnitCode } from "../domain/inventory-unit";
-import { recordExpiryHint } from "../infrastructure/expiry-hints-storage";
-import {
-	ExpiryFields,
-	type ExpiryFieldsValue,
-	emptyExpiryFields,
-} from "./expiry-fields";
+	buildInventoryFridge,
+	compareTiles,
+	type InventoryFridgeZone,
+	type InventoryTile as InventoryTileModel,
+	type InventoryZoneId,
+} from "../domain/inventory-fridge";
+import { toDateString } from "../domain/inventory-lot";
+import * as fridgeStyles from "./fridge/fridge.css";
+import { FridgeView } from "./fridge/fridge-view";
 import * as styles from "./inventory-list.css";
+import type { InventoryActions } from "./panel/inventory-actions";
+import { ItemPanel, type ItemPanelMode } from "./panel/item-panel";
 
 type LoadInventoryItems = () => Promise<LoadInventoryItemsResult>;
 
-type AdjustInventoryItem = (
-	command: InventoryAdjustmentCommand,
-) => Promise<InventoryAdjustmentRepositoryResult>;
-
-type UpdateInventoryLot = (
-	command: UpdateInventoryLotCommand,
-) => Promise<UpdateInventoryLotResult>;
-
-type DeleteInventoryItem = (inventoryItemId: string) => Promise<boolean>;
-
-type RenameInventoryItem = (
-	command: RenameInventoryItemCommand,
-) => Promise<RenameInventoryItemResult>;
-
-type SetLotQuantity = (
-	command: SetLotQuantityCommand,
-) => Promise<SetLotQuantityResult>;
-
-type ChangeStockUnit = (
-	command: ChangeStockUnitCommand,
-) => Promise<ChangeStockUnitResult>;
-
-type ChangeTrackingMode = (
-	command: ChangeInventoryTrackingModeCommand,
-) => Promise<ChangeInventoryTrackingModeResult>;
-
-type InventoryListProps = {
+type InventoryListProps = InventoryActions & {
 	ownerScope: InventoryPurchaseOwnerScope | null;
 	loadInventoryItems: LoadInventoryItems;
-	adjustInventoryItem?: AdjustInventoryItem;
-	// ロットの期限・保存方法を更新する（渡さないと、編集のボタンは出ない）。
-	updateInventoryLot?: UpdateInventoryLot;
-	// 管理方法（有無だけ／だいたい／正確）を変える（渡さないと、切り替えのボタンは出ない）。
-	changeTrackingMode?: ChangeTrackingMode;
-	// ロットの数量を直接直す（渡さないと、「数量を直す」のボタンは出ない）。
-	setLotQuantity?: SetLotQuantity;
-	// 在庫の単位の変更（渡さないと、「単位を変える」のボタンは出ない）。
-	changeStockUnit?: ChangeStockUnit;
-	// 在庫の食材の削除（渡さないと、削除のボタンは出ない）。
-	deleteInventoryItem?: DeleteInventoryItem;
-	// 在庫の一覧に出す呼び名の変更（渡さないと、名前の変更のボタンは出ない）。
-	renameInventoryItem?: RenameInventoryItem;
 	refreshKey?: number;
 };
 
-function toOptionValue(option: StockUnitOption): string {
-	return `${option.stockUnitCode}:${option.stockUnitLabel}`;
+type Selection = {
+	inventoryItemId: string;
+	zone: InventoryZoneId;
+	tileKey: string;
+};
+
+// 期限の並びが変わったかを見る鍵（期限を直したときだけ、並べ直す）。
+function expiryFingerprint(item: InventoryListItem | undefined): string {
+	return (item?.lots ?? [])
+		.map((lot) => `${lot.id}:${lot.expiresOn ?? ""}`)
+		.join("|");
 }
 
-function isCurrentUnit(item: InventoryListItem, option: StockUnitOption) {
-	return (
-		option.stockUnitCode === item.stockUnitCode &&
-		option.stockUnitLabel === item.stockUnitLabel
-	);
-}
-
-// 個数・枚数・本数は、1/2 のような分数で表示する。g と ml は、小数のまま。
-function formatStockQuantity(value: number, stockUnitCode: InventoryUnitCode) {
-	return formatStockAmount(value, stockUnitCode);
-}
-
-// ロットの期限の表示（「消費期限 10/10」。目安は「約」を付ける）。
-function formatLotExpiry(lot: InventoryLot): string | null {
-	if (!lot.expiresOn) {
-		return lot.expiryKind === "none" ? "期限なし" : null;
-	}
-
-	const kind =
-		lot.expiryKind && lot.expiryKind !== "none"
-			? expiryKindLabels[lot.expiryKind]
-			: "期限";
-	const approximate = lot.expirySource === "estimated" ? "約 " : "";
-
-	return `${kind} ${approximate}${formatShortDate(lot.expiresOn)}`;
-}
-
+// 在庫の画面：冷蔵庫の中を、上から見た断面として描く。食材（タイル）を押すと、パネルが開く。
 export function InventoryList({
 	ownerScope,
 	loadInventoryItems,
-	adjustInventoryItem,
-	updateInventoryLot,
-	changeTrackingMode,
-	deleteInventoryItem,
-	renameInventoryItem,
-	changeStockUnit,
-	setLotQuantity,
 	refreshKey = 0,
+	...actions
 }: InventoryListProps) {
-	// 在庫の単位を変えている食材と、選んだ単位（"count:本" の形）、入力中のいまの量。
-	const [unitChangeItemId, setUnitChangeItemId] = useState<string | null>(null);
-	const [unitChangeOption, setUnitChangeOption] = useState("");
-	// ロットごとの、新しい単位での数量（入力中の文字）。
-	const [unitChangeLotQuantities, setUnitChangeLotQuantities] = useState<
-		Record<string, string>
-	>({});
-	// 数量を直しているロットと、入力中の数量。
-	const [quantityEditLotId, setQuantityEditLotId] = useState<string | null>(
-		null,
-	);
-	const [quantityEditValue, setQuantityEditValue] = useState("");
-	// 削除の確認中の食材。
-	const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
-	// 呼び名を変えている食材と、入力中の呼び名。
-	const [renamingItemId, setRenamingItemId] = useState<string | null>(null);
-	const [renameValue, setRenameValue] = useState("");
 	const [items, setItems] = useState<InventoryListItem[]>([]);
 	const [isLoading, setIsLoading] = useState(false);
+	const [hasLoaded, setHasLoaded] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
-	const [adjustingItemId, setAdjustingItemId] = useState<string | null>(null);
-	const [adjustmentQuantity, setAdjustmentQuantity] = useState("1");
-	// 減らすとき、ロットごとに数量を指定するか（複数のロットがあるときだけ選べる）。
-	const [isLotSpecified, setIsLotSpecified] = useState(false);
-	const [lotQuantities, setLotQuantities] = useState<Record<string, string>>(
-		{},
-	);
-	const [isAdjusting, setIsAdjusting] = useState(false);
-	// 有無だけ → 数量を追う管理に変えるときの入力（いまの量と、管理方法）。
-	const [trackingChangeItemId, setTrackingChangeItemId] = useState<
-		string | null
-	>(null);
-	const [trackingChangeQuantity, setTrackingChangeQuantity] = useState("");
-	const [trackingChangeMode, setTrackingChangeMode] =
-		useState<QuantityTrackingMode>("estimated");
-	// ロットの期限・保存方法の編集。
-	const [editingLotId, setEditingLotId] = useState<string | null>(null);
-	const [lotExpiry, setLotExpiry] =
-		useState<ExpiryFieldsValue>(emptyExpiryFields);
-	const [saveAsDefault, setSaveAsDefault] = useState(false);
-	const [isSavingLot, setIsSavingLot] = useState(false);
-	const today = useMemo(() => toDateString(new Date()), []);
 	const [itemsSource, setItemsSource] = useState<"network" | "cache">(
 		"network",
 	);
 	const [cachedAt, setCachedAt] = useState<string | null>(null);
+	const [selection, setSelection] = useState<Selection | null>(null);
+	// タイルの並び：画面を開いたとき・更新したとき・期限を直したときだけ決め直す
+	// （量を調整しても、押した場所が動かないように）。
+	const [orderEpoch, setOrderEpoch] = useState(0);
+	const rankRef = useRef(new Map<string, number>());
+	const rankedEpochRef = useRef(-1);
+	const today = useMemo(() => toDateString(new Date()), []);
+
+	const isWide = useMediaQuery("(min-width: 1280px)");
+	const isRightSheet = useMediaQuery("(min-width: 1024px)");
+	const panelMode: ItemPanelMode = isWide
+		? "fixed"
+		: isRightSheet
+			? "sheet-right"
+			: "sheet-bottom";
+
+	const isMember = ownerScope !== null && ownerScope !== "guest";
 
 	const loadItems = useCallback(async () => {
 		if (!ownerScope || ownerScope === "guest") {
@@ -196,6 +80,7 @@ export function InventoryList({
 			setItemsSource("network");
 			setCachedAt(null);
 			setErrorMessage(null);
+
 			return;
 		}
 
@@ -208,6 +93,8 @@ export function InventoryList({
 			setItems(result.items);
 			setItemsSource(result.source);
 			setCachedAt(result.cachedAt);
+			setHasLoaded(true);
+			setOrderEpoch((epoch) => epoch + 1);
 		} catch {
 			setErrorMessage("在庫を読み込めませんでした");
 		} finally {
@@ -215,497 +102,156 @@ export function InventoryList({
 		}
 	}, [ownerScope, loadInventoryItems]);
 
-	function handleStartAdjustment(item: InventoryListItem) {
-		setErrorMessage(null);
-		setAdjustingItemId(item.inventoryItemId);
-		setAdjustmentQuantity("1");
-	}
-
-	function handleStartEditingLot(item: InventoryListItem, lot: InventoryLot) {
-		setErrorMessage(null);
-		setEditingLotId(lot.id);
-		// 空の項目は、食材の初期値（ユーザーが決めたもの）を入れる。
-		setLotExpiry({
-			expiresOn: lot.expiresOn ?? "",
-			expiryKind: lot.expiryKind ?? item.defaultExpiryKind ?? "",
-			storage: lot.storage ?? item.defaultStorage ?? "",
-			// 自動の目安だった日付は、そのまま保存しても、目安のまま（直したときに、入力になる）。
-			expirySource: lot.expirySource ?? "",
-		});
-		setSaveAsDefault(false);
-	}
-
-	function handleCancelEditingLot() {
-		setEditingLotId(null);
-		setLotExpiry(emptyExpiryFields);
-		setSaveAsDefault(false);
-	}
-
-	async function handleSaveLot(item: InventoryListItem, lot: InventoryLot) {
-		if (!updateInventoryLot) {
-			return;
-		}
-
-		setErrorMessage(null);
-		setIsSavingLot(true);
-
-		try {
-			const result = await updateInventoryLot({
-				lotId: lot.id,
-				expiresOn: lotExpiry.expiresOn === "" ? null : lotExpiry.expiresOn,
-				expirySource:
-					lotExpiry.expirySource === "" ? null : lotExpiry.expirySource,
-				expiryKind: lotExpiry.expiryKind === "" ? null : lotExpiry.expiryKind,
-				storage: lotExpiry.storage === "" ? null : lotExpiry.storage,
-				saveAsIngredientDefault: saveAsDefault,
-			});
-
-			setItems((currentItems) =>
-				currentItems.map((currentItem) =>
-					currentItem.inventoryItemId === item.inventoryItemId
-						? {
-								...currentItem,
-								quantity: result.quantity,
-								lots: result.lots,
-								defaultExpiryKind: result.defaultExpiryKind,
-								defaultStorage: result.defaultStorage,
-							}
-						: currentItem,
-				),
-			);
-
-			// 入力した期限（目安ではないもの）は、次の目安のために、覚える。
-			if (lotExpiry.expirySource === "entered" && lotExpiry.expiresOn !== "") {
-				recordExpiryHint({
-					ingredientName: item.name,
-					acquiredOn: lot.acquiredOn,
-					expiresOn: lotExpiry.expiresOn,
-					storage: lotExpiry.storage === "" ? null : lotExpiry.storage,
-				});
-			}
-
-			handleCancelEditingLot();
-		} catch (error) {
-			setErrorMessage(
-				error instanceof Error ? error.message : "ロットを更新できませんでした",
-			);
-		} finally {
-			setIsSavingLot(false);
-		}
-	}
-
-	function applyItemUpdate(
-		inventoryItemId: string,
-		update: Partial<InventoryListItem>,
-	) {
-		setItems((currentItems) =>
-			currentItems.map((currentItem) =>
-				currentItem.inventoryItemId === inventoryItemId
-					? { ...currentItem, ...update }
-					: currentItem,
-			),
-		);
-	}
-
-	// 有無だけの食材の「ある」「なくなった」。数量は扱わない。
-	async function handlePresenceToggle(
-		item: InventoryListItem,
-		operation: InventoryOperation,
-	) {
-		if (!adjustInventoryItem) {
-			return;
-		}
-
-		setErrorMessage(null);
-		setIsAdjusting(true);
-
-		try {
-			const result = await adjustInventoryItem(
-				createManualInventoryAdjustment({
-					inventoryItemId: item.inventoryItemId,
-					quantity: 1,
-					stockUnitCode: item.stockUnitCode,
-					operation,
-				}),
-			);
-
-			applyItemUpdate(item.inventoryItemId, {
-				quantity: result.quantity,
-				lots: result.lots,
-			});
-		} catch (error) {
-			setErrorMessage(
-				error instanceof Error ? error.message : "在庫を変更できませんでした",
-			);
-		} finally {
-			setIsAdjusting(false);
-		}
-	}
-
-	// 選んだ単位に換算した、ロットごとの量の目安（換算できなければ、空）。
-	function estimateLotQuantities(
-		item: InventoryListItem,
-		option: StockUnitOption,
-	): Record<string, string> {
-		return Object.fromEntries(
-			item.lots.map((lot) => [
-				lot.id,
-				estimateQuantityInUnit(item, lot.quantity, option),
-			]),
-		);
-	}
-
-	function estimateQuantityInUnit(
-		item: InventoryListItem,
-		quantity: number,
-		option: StockUnitOption,
-	): string {
-		const converted = convertToStockQuantity(
-			{
-				quantity,
-				unitLabel:
-					item.stockUnitCode === "count"
-						? item.stockUnitLabel
-						: item.stockUnitCode,
-				stockUnitCode: option.stockUnitCode,
-				stockUnitLabel: option.stockUnitLabel,
-			},
-			findIngredientCatalogEntry(item.name),
-		);
-
-		if (converted === null) {
-			return "";
-		}
-
-		// g・ml は丸める（個数は、分数のまま。入力欄で編集できるように、桁区切りは付けない）。
-		const rounded =
-			option.stockUnitCode === "count"
-				? converted
-				: converted >= 10
-					? Math.round(converted)
-					: Math.round(converted * 10) / 10;
-
-		return formatQuantity(rounded, {
-			grouping: false,
-			allowFractions: option.stockUnitCode === "count",
-		});
-	}
-
-	function handleStartUnitChange(item: InventoryListItem) {
-		const [first] = listStockUnitOptions(item.name).filter(
-			(option) => !isCurrentUnit(item, option),
-		);
-
-		setErrorMessage(null);
-		setUnitChangeItemId(item.inventoryItemId);
-
-		if (first) {
-			setUnitChangeOption(toOptionValue(first));
-			setUnitChangeLotQuantities(estimateLotQuantities(item, first));
-		}
-	}
-
-	async function handleChangeUnit(item: InventoryListItem) {
-		if (!changeStockUnit) {
-			return;
-		}
-
-		const option = listStockUnitOptions(item.name).find(
-			(candidate) => toOptionValue(candidate) === unitChangeOption,
-		);
-
-		if (!option) {
-			return;
-		}
-
-		// ロットごとの数量（空のロットは、サーバーが換算する）。
-		const lotQuantities: { lotId: string; quantity: number }[] = [];
-
-		for (const lot of item.lots) {
-			const text = unitChangeLotQuantities[lot.id] ?? "";
-
-			if (text.trim() === "") {
-				continue;
-			}
-
-			const quantity = parseQuantityInput(text);
-
-			if (quantity === null) {
-				setErrorMessage("数量を確認してください（例：2、0.5、1/2）");
-
-				return;
-			}
-
-			lotQuantities.push({ lotId: lot.id, quantity });
-		}
-
-		setErrorMessage(null);
-		setIsAdjusting(true);
-
-		try {
-			const result = await changeStockUnit({
-				inventoryItemId: item.inventoryItemId,
-				stockUnitCode: option.stockUnitCode,
-				stockUnitLabel: option.stockUnitLabel,
-				lotQuantities,
-			});
-
-			applyItemUpdate(item.inventoryItemId, {
-				stockUnitCode: result.stockUnitCode,
-				stockUnitLabel: result.stockUnitLabel,
-				quantity: result.quantity,
-				lots: result.lots,
-			});
-			setUnitChangeItemId(null);
-		} catch (error) {
-			setErrorMessage(
-				error instanceof Error ? error.message : "単位を変更できませんでした",
-			);
-		} finally {
-			setIsAdjusting(false);
-		}
-	}
-
-	async function handleSaveLotQuantity(
-		item: InventoryListItem,
-		lot: InventoryLot,
-	) {
-		if (!setLotQuantity) {
-			return;
-		}
-
-		const quantity = parseQuantityInput(quantityEditValue);
-
-		if (quantity === null) {
-			setErrorMessage("数量を確認してください（例：2、0.5、1/2）");
-
-			return;
-		}
-
-		setErrorMessage(null);
-		setIsAdjusting(true);
-
-		try {
-			const result = await setLotQuantity({ lotId: lot.id, quantity });
-
-			applyItemUpdate(item.inventoryItemId, {
-				quantity: result.quantity,
-				lots: result.lots,
-			});
-			setQuantityEditLotId(null);
-		} catch (error) {
-			setErrorMessage(
-				error instanceof Error ? error.message : "数量を直せませんでした",
-			);
-		} finally {
-			setIsAdjusting(false);
-		}
-	}
-
-	async function handleDelete(item: InventoryListItem) {
-		if (!deleteInventoryItem) {
-			return;
-		}
-
-		setErrorMessage(null);
-		setIsAdjusting(true);
-
-		try {
-			await deleteInventoryItem(item.inventoryItemId);
-			// すでに消えていた（見つからない）ときも、一覧からは消す。
-			setItems((currentItems) =>
-				currentItems.filter(
-					(currentItem) => currentItem.inventoryItemId !== item.inventoryItemId,
-				),
-			);
-			setDeletingItemId(null);
-		} catch (error) {
-			setErrorMessage(
-				error instanceof Error ? error.message : "在庫を削除できませんでした",
-			);
-		} finally {
-			setIsAdjusting(false);
-		}
-	}
-
-	async function handleRename(item: InventoryListItem) {
-		if (!renameInventoryItem) {
-			return;
-		}
-
-		setErrorMessage(null);
-		setIsAdjusting(true);
-
-		try {
-			const result = await renameInventoryItem({
-				inventoryItemId: item.inventoryItemId,
-				displayName: renameValue.trim() === "" ? null : renameValue,
-			});
-
-			applyItemUpdate(item.inventoryItemId, {
-				displayName: result.displayName,
-			});
-			setRenamingItemId(null);
-		} catch (error) {
-			setErrorMessage(
-				error instanceof Error ? error.message : "名前を変更できませんでした",
-			);
-		} finally {
-			setIsAdjusting(false);
-		}
-	}
-
-	async function handleChangeTrackingMode(
-		item: InventoryListItem,
-		command: Omit<ChangeInventoryTrackingModeCommand, "inventoryItemId">,
-	) {
-		if (!changeTrackingMode) {
-			return;
-		}
-
-		setErrorMessage(null);
-		setIsAdjusting(true);
-
-		try {
-			const result = await changeTrackingMode({
-				inventoryItemId: item.inventoryItemId,
-				...command,
-			});
-
-			applyItemUpdate(item.inventoryItemId, {
-				trackingMode: result.trackingMode,
-				quantity: result.quantity,
-				lots: result.lots,
-			});
-			setTrackingChangeItemId(null);
-		} catch (error) {
-			setErrorMessage(
-				error instanceof Error
-					? error.message
-					: "管理方法を変更できませんでした",
-			);
-		} finally {
-			setIsAdjusting(false);
-		}
-	}
-
-	function handleCancelAdjustment() {
-		setAdjustingItemId(null);
-		setAdjustmentQuantity("1");
-		setIsLotSpecified(false);
-		setLotQuantities({});
-	}
-
-	async function handleAdjustment(
-		item: InventoryListItem,
-		operation: InventoryOperation,
-	) {
-		if (!adjustInventoryItem) {
-			return;
-		}
-
-		setErrorMessage(null);
-		setIsAdjusting(true);
-
-		try {
-			// ロットを指定して減らすときは、数量が入っているロットだけを、そのまま送る。
-			const allocations =
-				operation === "decrease" && isLotSpecified
-					? item.lots.flatMap((lot) => {
-							const quantity =
-								parseQuantityInput(lotQuantities[lot.id] ?? "") ?? 0;
-
-							return quantity > 0 ? [{ lotId: lot.id, quantity }] : [];
-						})
-					: undefined;
-
-			if (allocations && allocations.length === 0) {
-				setErrorMessage("減らすロットの数量を入力してください");
-
-				return;
-			}
-
-			const command = createManualInventoryAdjustment({
-				inventoryItemId: item.inventoryItemId,
-				quantity: allocations
-					? allocations.reduce(
-							(sum, allocation) => sum + allocation.quantity,
-							0,
-						)
-					: (parseQuantityInput(adjustmentQuantity) ?? Number.NaN),
-				stockUnitCode: item.stockUnitCode,
-				operation,
-				allocations,
-			});
-
-			const result = await adjustInventoryItem(command);
-
-			setItems((currentItems) =>
-				currentItems.map((currentItem) =>
-					currentItem.inventoryItemId === item.inventoryItemId
-						? {
-								...currentItem,
-								quantity: result.quantity,
-								lots: result.lots,
-							}
-						: currentItem,
-				),
-			);
-
-			handleCancelAdjustment();
-		} catch (error) {
-			setErrorMessage(
-				error instanceof Error
-					? error.message
-					: "在庫数量を変更できませんでした",
-			);
-		} finally {
-			setIsAdjusting(false);
-		}
-	}
-
 	// biome-ignore lint: refreshKeyが変化したら再取得
 	useEffect(() => {
 		void loadItems();
 	}, [loadItems, refreshKey]);
 
+	const baseZones = useMemo(
+		() => buildInventoryFridge(items, today),
+		[items, today],
+	);
+
+	// 並びを決め直したとき（orderEpoch が変わったとき）だけ、いまのタイルの順位を控える。
+	if (rankedEpochRef.current !== orderEpoch) {
+		const ranks = new Map<string, number>();
+
+		for (const zone of baseZones) {
+			zone.tiles.forEach((tile, index) => {
+				ranks.set(tile.key, index);
+			});
+		}
+
+		rankRef.current = ranks;
+		rankedEpochRef.current = orderEpoch;
+	}
+
+	const zones: InventoryFridgeZone[] = useMemo(() => {
+		const ranks = rankRef.current;
+
+		return baseZones.map((zone) => ({
+			...zone,
+			tiles: [...zone.tiles].sort((a, b) => {
+				const aRank = ranks.get(a.key);
+				const bRank = ranks.get(b.key);
+
+				if (aRank !== undefined && bRank !== undefined) {
+					return aRank - bRank;
+				}
+
+				// 新しく現れたタイルは、後ろ（同士は、通常の並び）。
+				return aRank !== undefined
+					? -1
+					: bRank !== undefined
+						? 1
+						: compareTiles(a, b);
+			}),
+		}));
+	}, [baseZones]);
+
+	const selectedItem = selection
+		? items.find((item) => item.inventoryItemId === selection.inventoryItemId)
+		: undefined;
+
+	const handleUpdate = useCallback(
+		(inventoryItemId: string, update: Partial<InventoryListItem>) => {
+			const before = items.find(
+				(item) => item.inventoryItemId === inventoryItemId,
+			);
+
+			setItems((current) =>
+				current.map((item) =>
+					item.inventoryItemId === inventoryItemId
+						? { ...item, ...update }
+						: item,
+				),
+			);
+
+			// 期限を直したときは、並べ直す。
+			if (
+				update.lots &&
+				expiryFingerprint(before) !==
+					expiryFingerprint({ ...before, ...update } as InventoryListItem)
+			) {
+				setOrderEpoch((epoch) => epoch + 1);
+			}
+		},
+		[items],
+	);
+
+	const handleDeleted = useCallback((inventoryItemId: string) => {
+		setItems((current) =>
+			current.filter((item) => item.inventoryItemId !== inventoryItemId),
+		);
+		setSelection(null);
+	}, []);
+
+	function handleOpen(tile: InventoryTileModel) {
+		setSelection({
+			inventoryItemId: tile.inventoryItemId,
+			zone: tile.zone,
+			tileKey: tile.key,
+		});
+	}
+
+	function handleClose() {
+		const tileKey = selection?.tileKey;
+
+		setSelection(null);
+
+		// PC の固定のパネルは、閉じたら、押したタイルへフォーカスを戻す。
+		if (tileKey) {
+			window.setTimeout(() => {
+				document
+					.querySelector<HTMLElement>(
+						`[data-tile-key="${CSS.escape(tileKey)}"]`,
+					)
+					?.focus({ preventScroll: true });
+			}, 0);
+		}
+	}
+
+	const isOffline = itemsSource === "cache";
+	const hasItems = items.length > 0;
+	const showFridge = isMember && hasItems;
+	const showEmpty =
+		isMember && hasLoaded && !isLoading && !errorMessage && !hasItems;
+	const showSkeleton = isMember && isLoading && !hasItems;
+
 	return (
 		<section className={styles.container}>
 			<div className={styles.header}>
-				<h2 className={styles.title}>在庫</h2>
+				<h1 className={styles.title}>在庫</h1>
 
-				{ownerScope && ownerScope !== "guest" ? (
-					<button
-						className={styles.reloadButton}
-						type="button"
+				{isMember ? (
+					<IconButton
+						icon="refresh"
+						label="更新"
+						size="std"
 						disabled={isLoading}
 						onClick={() => void loadItems()}
-					>
-						更新
-					</button>
+					/>
 				) : null}
 			</div>
 
 			{ownerScope === null ? (
-				<p className={styles.message}>ログイン状態を確認しています…</p>
+				<div className={styles.center}>
+					<Mascot size={64} />
+					<p>ログイン状態を確認しています…</p>
+				</div>
 			) : null}
 
 			{ownerScope === "guest" ? (
-				<p className={styles.message}>ログインすると在庫を確認できます。</p>
+				<div className={styles.center}>
+					<Mascot size={64} />
+					<p>ログインすると在庫を確認できます。</p>
+				</div>
 			) : null}
 
-			{isLoading ? (
-				<p className={styles.message}>在庫を読み込んでいます…</p>
-			) : null}
+			{errorMessage ? <Note tone="error">{errorMessage}</Note> : null}
 
-			{errorMessage ? (
-				<p className={styles.error} role="alert">
-					{errorMessage}
-				</p>
-			) : null}
-
-			{itemsSource === "cache" && items.length > 0 ? (
-				<output className={styles.message}>
+			{isOffline && hasItems ? (
+				<Note tone="neutral" icon="wifi-off">
 					通信できないため、保存済みの在庫を表示しています。
 					{cachedAt ? (
 						<>
@@ -716,632 +262,73 @@ export function InventoryList({
 							</time>
 						</>
 					) : null}
-				</output>
+				</Note>
 			) : null}
 
-			{ownerScope !== null &&
-			ownerScope !== "guest" &&
-			!isLoading &&
-			!errorMessage &&
-			items.length === 0 ? (
-				<p className={styles.message}>在庫はまだありません。</p>
+			{showSkeleton ? (
+				<div>
+					<div className={styles.loadingBody} aria-hidden>
+						{Array.from({ length: 6 }, (_, index) => (
+							<div
+								className={fridgeStyles.skeleton}
+								// biome-ignore lint/suspicious/noArrayIndexKey: 同じ形の板が並ぶだけ
+								key={index}
+							/>
+						))}
+					</div>
+					<p className={styles.loadingText}>在庫を読み込んでいます…</p>
+				</div>
 			) : null}
 
-			{items.length > 0 ? (
-				<ul className={styles.list}>
-					{items.map((item) => (
-						<li className={styles.item} key={item.inventoryItemId}>
-							<div className={styles.itemSummary}>
-								<span className={styles.itemName}>
-									{item.displayName ?? item.name}
-									{item.displayName ? (
-										<span className={styles.originalName}>（{item.name}）</span>
-									) : null}
-								</span>
+			{showEmpty ? (
+				<div className={styles.emptyFridge}>
+					<Mascot size={72} />
+					<p className={styles.srOnly}>在庫はまだありません。</p>
+				</div>
+			) : null}
 
-								{item.trackingMode === "presence" ? (
-									<span className={styles.quantity}>
-										{item.quantity > 0 ? "あり" : "なし"}
-									</span>
-								) : (
-									<span className={styles.quantity}>
-										{item.trackingMode === "estimated" ? "約 " : ""}
-										{formatStockQuantity(item.quantity, item.stockUnitCode)}
-										{item.stockUnitLabel}
-									</span>
-								)}
+			{showFridge ? (
+				<div className={styles.layout}>
+					<FridgeView
+						zones={zones}
+						selectedItemId={selection?.inventoryItemId ?? null}
+						onOpen={handleOpen}
+					/>
 
-								{item.trackingMode === "presence" && adjustInventoryItem ? (
-									<button
-										className={styles.adjustButton}
-										type="button"
-										disabled={isAdjusting || itemsSource === "cache"}
-										onClick={() =>
-											void handlePresenceToggle(
-												item,
-												item.quantity > 0 ? "decrease" : "increase",
-											)
-										}
-									>
-										{item.quantity > 0 ? "なくなった" : "ある"}
-									</button>
-								) : null}
-
-								{item.trackingMode !== "presence" && adjustInventoryItem ? (
-									<button
-										className={styles.adjustButton}
-										type="button"
-										disabled={isAdjusting || itemsSource === "cache"}
-										onClick={() => handleStartAdjustment(item)}
-									>
-										調整
-									</button>
-								) : null}
-
-								{changeTrackingMode && itemsSource !== "cache" ? (
-									item.trackingMode === "presence" ? (
-										<button
-											className={styles.adjustButton}
-											type="button"
-											disabled={isAdjusting}
-											onClick={() => {
-												setTrackingChangeItemId(item.inventoryItemId);
-												setTrackingChangeQuantity("");
-												setTrackingChangeMode("estimated");
-											}}
-										>
-											量を追う管理にする
-										</button>
-									) : (
-										<button
-											className={styles.adjustButton}
-											type="button"
-											disabled={isAdjusting}
-											onClick={() =>
-												void handleChangeTrackingMode(item, {
-													trackingMode: "presence",
-												})
-											}
-										>
-											有無だけにする
-										</button>
-									)
-								) : null}
-
-								{changeStockUnit &&
-								item.trackingMode !== "presence" &&
-								itemsSource !== "cache" ? (
-									<button
-										className={styles.adjustButton}
-										type="button"
-										disabled={isAdjusting}
-										aria-label={`${item.displayName ?? item.name}の単位を変える`}
-										onClick={() => handleStartUnitChange(item)}
-									>
-										単位を変える
-									</button>
-								) : null}
-
-								{renameInventoryItem && itemsSource !== "cache" ? (
-									<button
-										className={styles.adjustButton}
-										type="button"
-										disabled={isAdjusting}
-										aria-label={`${item.displayName ?? item.name}の名前を変更`}
-										onClick={() => {
-											setRenamingItemId(item.inventoryItemId);
-											setRenameValue(item.displayName ?? "");
-										}}
-									>
-										名前を変更
-									</button>
-								) : null}
-
-								{deleteInventoryItem && itemsSource !== "cache" ? (
-									<button
-										className={styles.adjustButton}
-										type="button"
-										disabled={isAdjusting}
-										aria-label={`${item.displayName ?? item.name}を在庫から削除`}
-										onClick={() => setDeletingItemId(item.inventoryItemId)}
-									>
-										削除
-									</button>
-								) : null}
+					<div className={styles.panelColumn}>
+						{selection && selectedItem && isWide ? (
+							<ItemPanel
+								key={selectedItem.inventoryItemId}
+								item={selectedItem}
+								zone={selection.zone}
+								mode="fixed"
+								actions={actions}
+								readOnly={isOffline}
+								onClose={handleClose}
+								onUpdate={handleUpdate}
+								onDeleted={handleDeleted}
+							/>
+						) : (
+							<div className={styles.placeholder}>
+								<Mascot size={64} motion="still" />
 							</div>
+						)}
+					</div>
+				</div>
+			) : null}
 
-							{unitChangeItemId === item.inventoryItemId ? (
-								<div className={styles.adjustmentForm}>
-									<label className={styles.adjustmentField}>
-										<span className={styles.adjustmentLabel}>
-											{item.name}の新しい単位（いまは{item.stockUnitLabel}）
-										</span>
-										<select
-											className={styles.input}
-											aria-label={`${item.name}の新しい単位`}
-											value={unitChangeOption}
-											onChange={(event) => {
-												const option = listStockUnitOptions(item.name).find(
-													(candidate) =>
-														toOptionValue(candidate) === event.target.value,
-												);
-
-												setUnitChangeOption(event.target.value);
-
-												if (option) {
-													setUnitChangeLotQuantities(
-														estimateLotQuantities(item, option),
-													);
-												}
-											}}
-										>
-											{listStockUnitOptions(item.name)
-												.filter((option) => !isCurrentUnit(item, option))
-												.map((option) => (
-													<option
-														value={toOptionValue(option)}
-														key={toOptionValue(option)}
-													>
-														{option.stockUnitLabel}
-													</option>
-												))}
-										</select>
-									</label>
-
-									<div className={styles.lotSpecification}>
-										<span className={styles.adjustmentLabel}>
-											ロットごとの量（換算した目安が入っています。違えば直してください）
-										</span>
-
-										{item.lots.map((lot) => (
-											<div className={styles.adjustmentField} key={lot.id}>
-												<span className={styles.adjustmentLabel}>
-													{formatShortDate(lot.acquiredOn)}に追加
-													{formatLotExpiry(lot)
-														? `（${formatLotExpiry(lot)}）`
-														: ""}
-												</span>
-												<QuantityInput
-													className={styles.input}
-													aria-label={`${formatShortDate(lot.acquiredOn)}に追加のロットの新しい単位での量`}
-													unitLabel={
-														listStockUnitOptions(item.name).find(
-															(candidate) =>
-																toOptionValue(candidate) === unitChangeOption,
-														)?.stockUnitLabel
-													}
-													value={unitChangeLotQuantities[lot.id] ?? ""}
-													onChange={(value) =>
-														setUnitChangeLotQuantities((current) => ({
-															...current,
-															[lot.id]: value,
-														}))
-													}
-												/>
-											</div>
-										))}
-									</div>
-
-									<div className={styles.adjustmentActions}>
-										<button
-											className={styles.cancelButton}
-											type="button"
-											disabled={isAdjusting}
-											onClick={() => setUnitChangeItemId(null)}
-										>
-											キャンセル
-										</button>
-
-										<button
-											className={styles.increaseButton}
-											type="button"
-											disabled={isAdjusting || unitChangeOption === ""}
-											onClick={() => void handleChangeUnit(item)}
-										>
-											この単位にする
-										</button>
-									</div>
-								</div>
-							) : null}
-
-							{renamingItemId === item.inventoryItemId ? (
-								<div className={styles.adjustmentForm}>
-									<label className={styles.adjustmentField}>
-										<span className={styles.adjustmentLabel}>
-											在庫の一覧に出す名前（{item.name}
-											のまま、レシピとの照合に使います）
-										</span>
-										<input
-											className={styles.input}
-											aria-label={`${item.name}の呼び名`}
-											value={renameValue}
-											maxLength={maxInventoryDisplayNameLength}
-											placeholder={item.name}
-											onChange={(event) => setRenameValue(event.target.value)}
-										/>
-									</label>
-
-									<div className={styles.adjustmentActions}>
-										<button
-											className={styles.cancelButton}
-											type="button"
-											disabled={isAdjusting}
-											onClick={() => setRenamingItemId(null)}
-										>
-											キャンセル
-										</button>
-
-										<button
-											className={styles.increaseButton}
-											type="button"
-											disabled={isAdjusting}
-											onClick={() => void handleRename(item)}
-										>
-											{renameValue.trim() === ""
-												? "元の名前に戻す"
-												: "この名前にする"}
-										</button>
-									</div>
-								</div>
-							) : null}
-
-							{deletingItemId === item.inventoryItemId ? (
-								<div className={styles.adjustmentForm}>
-									<p className={styles.message}>
-										「{item.displayName ?? item.name}
-										」を在庫から削除します。ロットと履歴も消えます。よろしいですか。
-									</p>
-
-									<div className={styles.adjustmentActions}>
-										<button
-											className={styles.cancelButton}
-											type="button"
-											disabled={isAdjusting}
-											onClick={() => setDeletingItemId(null)}
-										>
-											やめる
-										</button>
-
-										<button
-											className={styles.decreaseButton}
-											type="button"
-											disabled={isAdjusting}
-											onClick={() => void handleDelete(item)}
-										>
-											削除する
-										</button>
-									</div>
-								</div>
-							) : null}
-
-							{trackingChangeItemId === item.inventoryItemId ? (
-								<div className={styles.adjustmentForm}>
-									<div className={styles.adjustmentField}>
-										<span className={styles.adjustmentLabel}>
-											{item.name}のいまの量
-										</span>
-
-										<span className={styles.quantityInput}>
-											<QuantityInput
-												className={styles.input}
-												aria-label={`${item.name}のいまの量`}
-												value={trackingChangeQuantity}
-												onChange={setTrackingChangeQuantity}
-												unitLabel={item.stockUnitLabel}
-											/>
-											<span>{item.stockUnitLabel}</span>
-										</span>
-									</div>
-
-									<label className={styles.adjustmentField}>
-										<span className={styles.adjustmentLabel}>管理方法</span>
-										<select
-											className={styles.input}
-											value={trackingChangeMode}
-											onChange={(event) =>
-												setTrackingChangeMode(
-													event.target.value === "exact"
-														? "exact"
-														: "estimated",
-												)
-											}
-										>
-											<option value="estimated">だいたいで管理</option>
-											<option value="exact">正確に管理</option>
-										</select>
-									</label>
-
-									<div className={styles.adjustmentActions}>
-										<button
-											className={styles.cancelButton}
-											type="button"
-											disabled={isAdjusting}
-											onClick={() => setTrackingChangeItemId(null)}
-										>
-											キャンセル
-										</button>
-
-										<button
-											className={styles.increaseButton}
-											type="button"
-											disabled={isAdjusting}
-											onClick={() => {
-												const quantity =
-													trackingChangeQuantity.trim() === ""
-														? 0
-														: parseQuantityInput(trackingChangeQuantity);
-
-												if (quantity === null) {
-													setErrorMessage(
-														"数量を確認してください（例：2、0.5、1/2）",
-													);
-
-													return;
-												}
-
-												void handleChangeTrackingMode(item, {
-													trackingMode: trackingChangeMode,
-													currentQuantity: quantity,
-												});
-											}}
-										>
-											この量で管理する
-										</button>
-									</div>
-								</div>
-							) : null}
-
-							{item.lots.length > 0 ? (
-								<ul
-									className={styles.lotList}
-									aria-label={`${item.name}のロット`}
-								>
-									{item.lots.map((lot) => {
-										const expiryText = formatLotExpiry(lot);
-
-										return (
-											<li className={styles.lotItem} key={lot.id}>
-												<div className={styles.lot}>
-													<span className={styles.lotInfo}>
-														<span>{formatShortDate(lot.acquiredOn)}に追加</span>
-														{lot.storage ? (
-															<span className={styles.lotBadge}>
-																{storageLabels[lot.storage]}
-															</span>
-														) : null}
-														{expiryText ? <span>{expiryText}</span> : null}
-													</span>
-
-													{item.trackingMode === "presence" ? null : (
-														<span>
-															{item.trackingMode === "estimated" ? "約 " : ""}
-															{formatStockQuantity(
-																lot.quantity,
-																item.stockUnitCode,
-															)}
-															{item.stockUnitLabel}
-														</span>
-													)}
-
-													{setLotQuantity &&
-													item.trackingMode !== "presence" &&
-													itemsSource !== "cache" ? (
-														<button
-															className={styles.lotEditButton}
-															type="button"
-															disabled={isAdjusting}
-															aria-label={`${formatShortDate(lot.acquiredOn)}に追加のロットの数量を直す`}
-															onClick={() => {
-																setQuantityEditLotId(lot.id);
-																setQuantityEditValue(
-																	formatQuantity(lot.quantity, {
-																		grouping: false,
-																		allowFractions:
-																			item.stockUnitCode === "count",
-																	}),
-																);
-															}}
-														>
-															数量
-														</button>
-													) : null}
-
-													{updateInventoryLot && itemsSource !== "cache" ? (
-														<button
-															className={styles.lotEditButton}
-															type="button"
-															disabled={isSavingLot}
-															aria-label={`${formatShortDate(lot.acquiredOn)}に追加のロットの期限を編集`}
-															onClick={() => handleStartEditingLot(item, lot)}
-														>
-															期限
-														</button>
-													) : null}
-												</div>
-
-												{quantityEditLotId === lot.id ? (
-													<div className={styles.lotEditForm}>
-														<span className={styles.quantityInput}>
-															<QuantityInput
-																className={styles.input}
-																aria-label={`${formatShortDate(lot.acquiredOn)}に追加のロットの数量`}
-																value={quantityEditValue}
-																onChange={setQuantityEditValue}
-																unitLabel={item.stockUnitLabel}
-															/>
-															<span>{item.stockUnitLabel}</span>
-														</span>
-
-														<div className={styles.adjustmentActions}>
-															<button
-																className={styles.cancelButton}
-																type="button"
-																disabled={isAdjusting}
-																onClick={() => setQuantityEditLotId(null)}
-															>
-																キャンセル
-															</button>
-															<button
-																className={styles.increaseButton}
-																type="button"
-																disabled={isAdjusting}
-																onClick={() =>
-																	void handleSaveLotQuantity(item, lot)
-																}
-															>
-																この数量にする
-															</button>
-														</div>
-													</div>
-												) : null}
-
-												{editingLotId === lot.id ? (
-													<div className={styles.lotEditForm}>
-														<ExpiryFields
-															idPrefix={`lot-${lot.id}`}
-															value={lotExpiry}
-															onChange={setLotExpiry}
-															today={today}
-															disabled={isSavingLot}
-														/>
-
-														<label className={styles.lotSpecificationToggle}>
-															<input
-																type="checkbox"
-																checked={saveAsDefault}
-																onChange={(event) =>
-																	setSaveAsDefault(event.target.checked)
-																}
-															/>
-															この食材の初期値にする（期限の種類・保存方法）
-														</label>
-
-														<div className={styles.adjustmentActions}>
-															<button
-																className={styles.cancelButton}
-																type="button"
-																disabled={isSavingLot}
-																onClick={handleCancelEditingLot}
-															>
-																キャンセル
-															</button>
-															<button
-																className={styles.increaseButton}
-																type="button"
-																disabled={isSavingLot}
-																onClick={() => void handleSaveLot(item, lot)}
-															>
-																保存
-															</button>
-														</div>
-													</div>
-												) : null}
-											</li>
-										);
-									})}
-								</ul>
-							) : null}
-
-							{adjustingItemId === item.inventoryItemId ? (
-								<div className={styles.adjustmentForm}>
-									<div className={styles.adjustmentField}>
-										<span className={styles.adjustmentLabel}>
-											{item.name}の調整数量
-										</span>
-
-										<span className={styles.quantityInput}>
-											<QuantityInput
-												className={styles.input}
-												aria-label={`${item.name}の調整数量`}
-												value={adjustmentQuantity}
-												onChange={setAdjustmentQuantity}
-												unitLabel={item.stockUnitLabel}
-											/>
-											<span>{item.stockUnitLabel}</span>
-										</span>
-									</div>
-
-									{item.lots.length > 1 ? (
-										<div className={styles.lotSpecification}>
-											<label className={styles.lotSpecificationToggle}>
-												<input
-													type="checkbox"
-													checked={isLotSpecified}
-													onChange={(event) =>
-														setIsLotSpecified(event.target.checked)
-													}
-												/>
-												ロットを指定して減らす
-											</label>
-
-											{isLotSpecified
-												? item.lots.map((lot) => (
-														<label
-															className={styles.adjustmentField}
-															key={lot.id}
-														>
-															<span className={styles.adjustmentLabel}>
-																{formatShortDate(lot.acquiredOn)}に追加（
-																{formatStockQuantity(
-																	lot.quantity,
-																	item.stockUnitCode,
-																)}
-																{item.stockUnitLabel}）
-															</span>
-															<input
-																className={styles.input}
-																aria-label={`${formatShortDate(lot.acquiredOn)}に追加のロットから減らす数量`}
-																type="number"
-																inputMode="decimal"
-																min="0"
-																step="any"
-																value={lotQuantities[lot.id] ?? ""}
-																onChange={(event) =>
-																	setLotQuantities((current) => ({
-																		...current,
-																		[lot.id]: event.target.value,
-																	}))
-																}
-															/>
-														</label>
-													))
-												: null}
-										</div>
-									) : null}
-
-									<div className={styles.adjustmentActions}>
-										<button
-											className={styles.cancelButton}
-											type="button"
-											disabled={isAdjusting}
-											onClick={handleCancelAdjustment}
-										>
-											キャンセル
-										</button>
-
-										<button
-											className={styles.decreaseButton}
-											type="button"
-											disabled={isAdjusting || item.quantity === 0}
-											onClick={() => void handleAdjustment(item, "decrease")}
-										>
-											減らす
-										</button>
-
-										<button
-											className={styles.increaseButton}
-											type="button"
-											disabled={isAdjusting}
-											onClick={() => void handleAdjustment(item, "increase")}
-										>
-											増やす
-										</button>
-									</div>
-								</div>
-							) : null}
-						</li>
-					))}
-				</ul>
+			{selection && selectedItem && !isWide ? (
+				<ItemPanel
+					key={selectedItem.inventoryItemId}
+					item={selectedItem}
+					zone={selection.zone}
+					mode={panelMode}
+					actions={actions}
+					readOnly={isOffline}
+					onClose={handleClose}
+					onUpdate={handleUpdate}
+					onDeleted={handleDeleted}
+				/>
 			) : null}
 		</section>
 	);

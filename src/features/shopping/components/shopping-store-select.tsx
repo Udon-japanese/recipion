@@ -1,4 +1,5 @@
 import { type KeyboardEvent, useState } from "react";
+import { PickerSelect } from "../../../components/select/picker-select";
 import type { ShoppingStore } from "../domain/shopping-store";
 import * as styles from "./shopping-list.css";
 
@@ -55,7 +56,7 @@ export function ShoppingStoreSelect({
 
 	return (
 		<div>
-			<select
+			<PickerSelect
 				className={styles.input}
 				id={id}
 				value={value ?? ""}
@@ -79,7 +80,7 @@ export function ShoppingStoreSelect({
 				))}
 
 				<option value={newStoreValue}>＋ 新しい店を追加…</option>
-			</select>
+			</PickerSelect>
 
 			{isCreating ? (
 				<div className={styles.storeInlineForm}>

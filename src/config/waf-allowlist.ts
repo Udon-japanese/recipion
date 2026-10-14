@@ -38,6 +38,11 @@ export function buildWafAllowlist(input: {
 	const prefixes = new Set<string>(internalPrefixes);
 
 	for (const routePath of input.routePaths) {
+		// /dev 以下は、開発中だけの確認用の画面。本番では、遮断する。
+		if (routePath === "/dev" || routePath.startsWith("/dev/")) {
+			continue;
+		}
+
 		const dynamicIndex = routePath.indexOf("$");
 
 		if (dynamicIndex === -1) {

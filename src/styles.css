@@ -1,18 +1,141 @@
+/* れしぴょん — デザイントークン v0.1（たまごイエロー / ライト）
+   値の追加・変更はここだけで行う。外部 Web フォントは使わない。
+   文字サイズ・余白・角丸は「目安の段階」であり、使用を強制しない
+   （必要なら px / rem の直接指定もよい）。色は、必ずトークンを使う。 */
 :root {
-	--color-text: #1c1917;
-	--color-text-muted: #6b6560;
+	/* ---------- 色 ---------- */
+	--color-primary: #e9a900;
+	--color-primary-hover: #d99600;
+	--color-primary-pressed: #c78a00;
+	--color-primary-soft: #fff3c4;
+	--color-primary-soft-hover: #ffe9a0;
+	--color-on-primary: #292720;
 
+	--color-background: #fffdf7;
 	--color-surface: #ffffff;
-	--color-surface-subtle: #f5f3f1;
-	--color-border: #d6d1cc;
+	--color-surface-muted: #f7f4ec;
 
-	--color-primary: #2563eb;
-	--color-primary-hover: #1d4ed8;
-	--color-primary-text: #ffffff;
-	--color-primary-soft: #bfdbfe;
+	--color-text: #292720;
+	--color-text-muted: #716d63;
+	--color-text-disabled: #aaa59b;
+
+	--color-border: #e6e1d6;
+	--color-border-strong: #cec7b8;
+	--color-focus: #292720;
+
+	--color-success: #2f7d4a;
+	--color-success-soft: #eaf5ee;
+	--color-warning: #b66a00;
+	--color-warning-soft: #fff1d8;
+	--color-error: #c83b32;
+	--color-error-soft: #fdebe9;
+
+	/* 白地の上で、文字・リンクに使う強調色（決定：2026-10-14）。
+	   黄色（--color-primary）は白地の文字ではコントラスト不足のため使わない。 */
+	--color-accent-text: #7a5200;
+
+	/* 押せる部品の枠（非文字のコントラスト 3:1 以上）。--color-border は、区切りの線だけに使う。 */
+	--color-control-border: #8a857a;
+
+	/* 赤い塗りの上の文字（危険のボタン）。 */
+	--color-on-error: #ffffff;
+
+	--color-overlay: rgba(41, 39, 32, 0.4);
+
+	/* マスコット（れしぽよ）の体の色。 */
+	--color-mascot: #e9a900;
+
+	/* ---------- 文字 ---------- */
+	--font-sans:
+		-apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN",
+		"Hiragino Sans", "Yu Gothic UI", "Yu Gothic", "Meiryo", "Noto Sans JP",
+		sans-serif;
+
+	/* 目安の段階（強制しない） */
+	--font-size-xs: 0.75rem;
+	--font-size-sm: 0.875rem;
+	--font-size-md: 1rem;
+	--font-size-lg: 1.125rem;
+	--font-size-xl: 1.375rem;
+	--font-size-2xl: 1.75rem;
+
+	--font-weight-regular: 400;
+	--font-weight-medium: 500;
+	--font-weight-semibold: 600;
+	--font-weight-bold: 700;
+	--font-weight-extrabold: 800;
+
+	--line-height-tight: 1.35;
+	--line-height-normal: 1.55;
+	--line-height-relaxed: 1.7;
+
+	/* ---------- 余白（目安） ---------- */
+	--space-1: 0.25rem;
+	--space-2: 0.5rem;
+	--space-3: 0.75rem;
+	--space-4: 1rem;
+	--space-5: 1.25rem;
+	--space-6: 1.5rem;
+	--space-8: 2rem;
+	--space-10: 2.5rem;
+	--space-12: 3rem;
+
+	/* ---------- 角丸 ---------- */
+	--radius-control: 9999px;
+	--radius-card: 20px;
+	--radius-sheet: 24px;
+	--radius-dialog: 20px;
+	--radius-image: 16px;
+
+	/* ---------- 影 ---------- */
+	--shadow-sm: 0 1px 3px rgba(41, 39, 32, 0.06), 0 1px 2px rgba(41, 39, 32, 0.04);
+	--shadow-md: 0 8px 24px rgba(41, 39, 32, 0.08), 0 2px 6px rgba(41, 39, 32, 0.05);
+	--shadow-sheet: 0 -8px 32px rgba(41, 39, 32, 0.12);
+
+	/* ---------- 動き ---------- */
+	--duration-fast: 120ms;
+	--duration-normal: 180ms;
+	--duration-slow: 260ms;
+	--ease-standard: cubic-bezier(0.2, 0, 0, 1);
+	--ease-emphasized: cubic-bezier(0.2, 0.8, 0.2, 1);
+	/* シートの開閉・スナップの動き（勢いよく出て、ふわっと止まる）。 */
+	--ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
+	--duration-sheet: 420ms;
+
+	/* 押す対象の最小の高さ */
+	--size-tap: 44px;
+}
+
+html {
+	background: var(--color-background);
 }
 
 body {
+	margin: 0;
 	color: var(--color-text);
-	background: var(--color-surface);
+	background: var(--color-background);
+	font-family: var(--font-sans);
+	font-size: var(--font-size-md);
+	font-weight: var(--font-weight-regular);
+	line-height: var(--line-height-normal);
+	-webkit-font-smoothing: antialiased;
+	text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+textarea,
+select {
+	font: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		scroll-behavior: auto !important;
+		transition-duration: 0.01ms !important;
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+	}
 }

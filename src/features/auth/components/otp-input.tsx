@@ -5,6 +5,8 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { chooseCompositionStrategy } from "#/features/recipes/domain/choose-composition-strategy";
+import { readBrowserEnvironment } from "#/features/recipes/infrastructure/read-browser-environment";
 import * as styles from "./otp-input.css";
 import {
 	digitsFromRaw,
@@ -12,6 +14,19 @@ import {
 	isComplete,
 	joinDigits,
 } from "./otp-input-logic";
+
+// 変換中に桁がそろったときの扱い。
+// - blur：focus を外して、変換を確定させ、確定してから完成を知らせる（Mac・Windows の Chrome・Edge。実機で確認）。
+// - immediate：変換中のまま、すぐ完成を知らせる。検証に失敗して、親が中身を空にすると、ブラウザが変換を取り消す
+//   （Mac の Safari。実機で確認：focus を外すと、変換は確定せず、IME に文字が残って、次に打つ数字と一緒に入ってくる）。
+type CompositionCommit = "blur" | "immediate";
+
+function detectCompositionCommit(): CompositionCommit {
+	return chooseCompositionStrategy(readBrowserEnvironment()) ===
+		"end-then-replace"
+		? "blur"
+		: "immediate";
+}
 
 type OtpInputProps = {
 	// 桁ごとの値（空の桁は ""）。長さが、桁数になる。
@@ -25,11 +40,14 @@ type OtpInputProps = {
 	autoFocus?: boolean;
 	// 値を変えると、入力欄にフォーカスする（コードを間違えたあとの、入力のやり直しなど）。
 	focusRequestKey?: number;
+	// 変換中に桁がそろったときの扱い（なければ、ブラウザから判定する）。テストで指定する。
+	compositionCommit?: CompositionCommit;
 };
 
 // ワンタイムコードの入力欄。
 // 本物の入力欄は 1 つで、透明にして、見た目の桁ごとの枠の上に重ねる（欄を移さない）。
-// - 日本語入力がオンのままでも、全角の数字を、半角の数字として扱う。変換中は、入力欄の中身を書き換えない
+// - 日本語入力がオンのままでも、全角の数字を、半角の数字として扱う。変換中は、入力欄の中身を書き換えない。
+//   桁がそろったときの扱いは、ブラウザで違う（CompositionCommit を参照）
 //   （書き換えると、IME と衝突して、桁が崩れる。実機の実験で確認：Mac の Chrome・Safari、Windows の Edge）。
 //   中身から数字だけを取り出して、枠に表示する。変換が確定したら、中身を数字だけに直す。
 // - 貼り付けや、ブラウザ・OS の自動入力（SMS やメールのコードの候補）は、1 つの欄に入るだけなので、そのまま動く。
@@ -42,6 +60,7 @@ export function OtpInput({
 	invalid = false,
 	autoFocus = false,
 	focusRequestKey = 0,
+	compositionCommit,
 }: OtpInputProps) {
 	const inputRef = useRef<HTMLInputElement>(null);
 	// IME の変換中か。
@@ -82,7 +101,8 @@ export function OtpInput({
 		inputRef.current?.focus();
 	}, [focusRequestKey]);
 
-	function update(raw: string) {
+	// notify が false のときは、完成しても知らせない（変換の確定を待つため）。
+	function update(raw: string, notify = true) {
 		const next = digitsFromRaw(raw, length);
 		const nextJoined = joinDigits(next);
 
@@ -91,7 +111,7 @@ export function OtpInput({
 		}
 
 		if (isComplete(next)) {
-			if (lastCompletedRef.current !== nextJoined) {
+			if (notify && lastCompletedRef.current !== nextJoined) {
 				lastCompletedRef.current = nextJoined;
 				onComplete?.(nextJoined);
 			}
@@ -104,13 +124,24 @@ export function OtpInput({
 
 	function handleChange(event: ChangeEvent<HTMLInputElement>) {
 		const input = event.target;
-		const nextJoined = update(input.value);
+		// イベント自身の isComposing を優先する（Safari は、確定しても compositionend が届かない）。
 		const isComposing =
-			composingRef.current ||
-			(event.nativeEvent as InputEvent).isComposing === true;
+			(event.nativeEvent as InputEvent).isComposing ?? composingRef.current;
+		const commit = compositionCommit ?? detectCompositionCommit();
+		// blur で確定させる環境では、変換中に完成を知らせない（確定してから、compositionend で知らせる）。
+		const notifyNow = !isComposing || commit === "immediate";
+		const nextJoined = update(input.value, notifyNow);
 
-		// 変換中でなければ、中身を数字だけに直す（変換中は、書き換えない）。
-		if (!isComposing && input.value !== nextJoined) {
+		if (isComposing) {
+			if (!notifyNow && nextJoined.length === length) {
+				input.blur();
+			}
+
+			return;
+		}
+
+		// 変換中でなければ、中身を数字だけに直す。
+		if (input.value !== nextJoined) {
 			input.value = nextJoined;
 		}
 	}

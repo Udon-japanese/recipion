@@ -42,7 +42,7 @@ export const quickButtons = style({
 export const quickButton = style({
 	minHeight: 32,
 	paddingInline: 10,
-	color: "var(--color-primary)",
+	color: "var(--color-accent-text)",
 	background: "var(--color-surface)",
 	border: "1px solid var(--color-border)",
 	borderRadius: 16,

@@ -63,7 +63,7 @@ export const note = style({
 // 本文の中の、他のレシピへのリンク（押すと、プレビュー）。
 export const linkButton = style({
 	padding: 0,
-	color: "var(--color-primary)",
+	color: "var(--color-accent-text)",
 	background: "none",
 	border: "none",
 	font: "inherit",

@@ -1,26 +1,6 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
+import { HomePage } from "#/features/home/components/home-page";
 
 export const Route = createFileRoute("/")({
 	component: HomePage,
 });
-
-function HomePage() {
-	return (
-		<nav aria-label="機能">
-			<ul>
-				<li>
-					<Link to="/shopping">買い物メモ</Link>
-				</li>
-				<li>
-					<Link to="/inventory">在庫</Link>
-				</li>
-				<li>
-					<Link to="/recipes">レシピ</Link>
-				</li>
-				<li>
-					<Link to="/profile">プロフィール</Link>
-				</li>
-			</ul>
-		</nav>
-	);
-}

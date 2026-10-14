@@ -9,7 +9,7 @@ export const container = style({
 	margin: "16px auto 0",
 	padding: 12,
 	color: "var(--color-text)",
-	background: "var(--color-surface-subtle)",
+	background: "var(--color-surface-muted)",
 	border: "1px solid var(--color-border)",
 	borderRadius: 8,
 });
@@ -23,7 +23,7 @@ export const message = style({
 export const retryButton = style({
 	minHeight: 40,
 	paddingInline: 14,
-	color: "var(--color-primary)",
+	color: "var(--color-accent-text)",
 	background: "var(--color-surface)",
 	border: "1px solid var(--color-border)",
 	borderRadius: 8,
@@ -32,12 +32,12 @@ export const retryButton = style({
 	cursor: "pointer",
 
 	selectors: {
-		"&:hover": {
+		"&:hover:not(:disabled)": {
 			borderColor: "var(--color-primary)",
 		},
 
 		"&:focus-visible": {
-			outline: "3px solid var(--color-primary-soft)",
+			outline: "3px solid var(--color-focus)",
 			outlineOffset: 2,
 		},
 	},
