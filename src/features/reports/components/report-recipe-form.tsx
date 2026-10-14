@@ -1,6 +1,9 @@
 import { type SubmitEvent, useState } from "react";
 import { Button } from "#/components/button/button";
 import { useButtonAction } from "#/components/button/use-button-action";
+import { Field, TextArea } from "#/components/field/field";
+import { Note } from "#/components/note/note";
+import { RadioList } from "#/components/radio-list/radio-list";
 import type { CreateReportResult } from "../application/report-repository";
 import {
 	type ReportReason,
@@ -62,49 +65,39 @@ export function ReportRecipeForm({ onReport }: ReportRecipeFormProps) {
 	if (!isOpen) {
 		return (
 			<div className={styles.container}>
-				<button
-					className={styles.button}
-					type="button"
-					onClick={() => setIsOpen(true)}
-				>
+				<Button variant="ghost" size="sm" onClick={() => setIsOpen(true)}>
 					このレシピを通報する
-				</button>
-				{message ? <output className={styles.note}>{message}</output> : null}
+				</Button>
+				{message ? <Note>{message}</Note> : null}
 			</div>
 		);
 	}
 
 	return (
 		<form className={styles.container} onSubmit={handleSubmit}>
-			<fieldset className={styles.fieldset}>
-				<legend>通報の理由</legend>
-				{userReportReasons.map((option) => (
-					<label className={styles.option} key={option}>
-						<input
-							type="radio"
-							name="report-reason"
-							checked={reason === option}
-							onChange={() => setReason(option)}
-						/>
-						<span>{reportReasonLabels[option]}</span>
-					</label>
-				))}
-			</fieldset>
-
-			<label htmlFor="report-detail">詳しい内容（任意）</label>
-			<textarea
-				className={styles.textarea}
-				id="report-detail"
-				maxLength={reportDetailMaxLength}
-				value={detail}
-				onChange={(event) => setDetail(event.target.value)}
+			<RadioList
+				legend="通報の理由"
+				name="report-reason"
+				value={reason}
+				onChange={setReason}
+				options={userReportReasons.map((option) => ({
+					value: option,
+					label: reportReasonLabels[option],
+				}))}
 			/>
 
-			{message ? (
-				<p className={styles.note} role="alert">
-					{message}
-				</p>
-			) : null}
+			<Field label="詳しい内容" optional>
+				{(control) => (
+					<TextArea
+						{...control}
+						maxLength={reportDetailMaxLength}
+						value={detail}
+						onChange={(event) => setDetail(event.target.value)}
+					/>
+				)}
+			</Field>
+
+			{message ? <Note tone="error">{message}</Note> : null}
 
 			<div className={styles.actions}>
 				<Button
@@ -116,13 +109,9 @@ export function ReportRecipeForm({ onReport }: ReportRecipeFormProps) {
 				>
 					通報する
 				</Button>
-				<button
-					className={styles.button}
-					type="button"
-					onClick={() => setIsOpen(false)}
-				>
+				<Button variant="secondary" size="sm" onClick={() => setIsOpen(false)}>
 					やめる
-				</button>
+				</Button>
 			</div>
 		</form>
 	);

@@ -1,17 +1,25 @@
 import { useState } from "react";
+import { ConfirmDialog } from "#/components/dialog/confirm-dialog";
 
 type RecipeDeleteButtonProps = {
+	// 確認のダイアログを開く（メニューの「削除」から）。
+	open: boolean;
+	onClose: () => void;
 	onDelete: () => Promise<void>;
 };
 
-// 誤って消さないよう、「削除」を押したあとに、もう一度確認する（ブラウザの確認ダイアログは使わない）。
-export function RecipeDeleteButton({ onDelete }: RecipeDeleteButtonProps) {
-	const [step, setStep] = useState<"idle" | "confirming" | "deleting">("idle");
+// 誤って消さないよう、確認のダイアログを出す。失敗したら理由を出して、やり直せる。
+export function RecipeDeleteButton({
+	open,
+	onClose,
+	onDelete,
+}: RecipeDeleteButtonProps) {
+	const [isDeleting, setIsDeleting] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
 	async function handleDelete() {
 		setErrorMessage(null);
-		setStep("deleting");
+		setIsDeleting(true);
 
 		try {
 			await onDelete();
@@ -19,37 +27,32 @@ export function RecipeDeleteButton({ onDelete }: RecipeDeleteButtonProps) {
 			setErrorMessage(
 				error instanceof Error ? error.message : "レシピを削除できませんでした",
 			);
-			setStep("confirming");
+		} finally {
+			setIsDeleting(false);
 		}
 	}
 
-	if (step === "idle") {
-		return (
-			<button type="button" onClick={() => setStep("confirming")}>
-				削除
-			</button>
-		);
-	}
-
 	return (
-		<div>
-			<p>このレシピを削除します。元に戻せません。</p>
-			<button
-				type="button"
-				disabled={step === "deleting"}
-				onClick={() => void handleDelete()}
-			>
-				{step === "deleting" ? "削除しています…" : "削除する"}
-			</button>
-			<button
-				type="button"
-				disabled={step === "deleting"}
-				onClick={() => setStep("idle")}
-			>
-				キャンセル
-			</button>
-
-			{errorMessage ? <p role="alert">{errorMessage}</p> : null}
-		</div>
+		<ConfirmDialog
+			open={open}
+			title="このレシピを削除しますか？"
+			cancelLabel="キャンセル"
+			confirmLabel="削除する"
+			danger
+			pending={isDeleting}
+			onCancel={() => {
+				setErrorMessage(null);
+				onClose();
+			}}
+			onConfirm={() => void handleDelete()}
+		>
+			削除すると、元に戻せません。
+			{errorMessage ? (
+				<>
+					<br />
+					<span role="alert">{errorMessage}</span>
+				</>
+			) : null}
+		</ConfirmDialog>
 	);
 }

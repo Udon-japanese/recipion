@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import type { RecipeDetail } from "../application/recipe-repository";
 import { collectIngredientLinkTargetIds } from "../domain/ingredient-link-target";
 import { RecipeView } from "./recipe-view";
@@ -13,6 +13,7 @@ type RecipeViewWithTreeProps = {
 	loadLinkedRecipes?: LoadLinkedRecipes;
 	onOpenLink?: (publicId: string, trigger: HTMLElement) => void;
 	titleId?: string;
+	badges?: ReactNode;
 };
 
 // 材料のリンク先を取ってきて、材料の下に、その場で開く（取れるまでは、リンクのまま）。
@@ -21,6 +22,7 @@ export function RecipeViewWithTree({
 	loadLinkedRecipes,
 	onOpenLink,
 	titleId,
+	badges,
 }: RecipeViewWithTreeProps) {
 	const [loaded, setLoaded] = useState<{
 		forPublicId: string;
@@ -58,6 +60,7 @@ export function RecipeViewWithTree({
 			recipe={recipe}
 			onOpenLink={onOpenLink}
 			titleId={titleId}
+			badges={badges}
 			linkedRecipes={
 				loaded?.forPublicId === recipe.publicId ? loaded.recipes : undefined
 			}

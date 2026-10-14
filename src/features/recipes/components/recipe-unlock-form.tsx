@@ -1,6 +1,7 @@
 import { type SubmitEvent, useState } from "react";
 import { Button } from "#/components/button/button";
 import { useButtonAction } from "#/components/button/use-button-action";
+import { Field, TextInput } from "#/components/field/field";
 import * as styles from "./recipe-unlock-form.css";
 
 type RecipeUnlockFormProps = {
@@ -63,20 +64,17 @@ export function RecipeUnlockForm({
 			</p>
 
 			<form className={styles.form} onSubmit={handleSubmit}>
-				<label htmlFor="recipe-passphrase">パスフレーズ</label>
-				<input
-					className={styles.input}
-					id="recipe-passphrase"
-					type="text"
-					autoComplete="off"
-					value={passphrase}
-					onChange={(event) => setPassphrase(event.target.value)}
-				/>
-				{message ? (
-					<p className={styles.message} role="alert">
-						{message}
-					</p>
-				) : null}
+				<Field label="パスフレーズ" error={message}>
+					{(control) => (
+						<TextInput
+							{...control}
+							type="text"
+							autoComplete="off"
+							value={passphrase}
+							onChange={(event) => setPassphrase(event.target.value)}
+						/>
+					)}
+				</Field>
 				<Button
 					type="submit"
 					status={action.status}
