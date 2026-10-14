@@ -154,6 +154,10 @@ export const tile = style({
 			outline: "3px solid var(--color-focus)",
 			outlineOffset: 2,
 		},
+		// 追加した直後：2px の輪を、短く出す（動きを減らす設定では、出しっぱなし）。
+		"&[data-added]": {
+			boxShadow: "0 0 0 2px var(--color-primary)",
+		},
 		// 開いている食材。
 		'&[aria-expanded="true"], &[data-selected="true"]': {
 			border: "2px solid var(--color-text)",
@@ -384,4 +388,39 @@ export const srOnly = style({
 	overflow: "hidden",
 	clip: "rect(0 0 0 0)",
 	whiteSpace: "nowrap",
+});
+
+// 食材のパネルの量の絵（56px。タイルと同じ水位・粒）。
+export const picture = style({
+	boxSizing: "border-box",
+	position: "relative",
+	display: "flex",
+	flexWrap: "wrap",
+	alignContent: "center",
+	justifyContent: "center",
+	gap: 2,
+	flex: "none",
+	width: 56,
+	height: 56,
+	padding: 4,
+	overflow: "hidden",
+	background: "var(--color-surface)",
+	border: "2px solid var(--color-border-strong)",
+	borderRadius: 12,
+});
+
+export const pictureGrain = style({
+	boxSizing: "border-box",
+	width: 9,
+	height: 8,
+	background: "var(--color-primary)",
+	border: "1px solid var(--color-accent-text)",
+	borderRadius: "50% 50% 50% 50% / 60% 60% 40% 40%",
+	selectors: {
+		'&[data-approximate="true"]': { borderStyle: "dashed" },
+		"&[data-partial]": {
+			background:
+				"linear-gradient(to right, var(--color-primary) var(--partial), var(--color-surface) var(--partial))",
+		},
+	},
 });

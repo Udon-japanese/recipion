@@ -1,5 +1,7 @@
+import { useState } from "react";
 import type { InventoryListItem } from "#/features/inventory/application/inventory-query-repository";
 import { InventoryList } from "#/features/inventory/components/inventory-list";
+import type { ExpiryEstimateLevel } from "#/features/inventory/domain/estimate-lot-expiry";
 import {
 	addDays,
 	type InventoryLot,
@@ -42,6 +44,8 @@ function item(
 		name,
 		displayName: null,
 		quantity: lots.reduce((sum, current) => sum + current.quantity, 0),
+		// 満タンの量：指定がなければ、いまの量（満タン）。
+		capacity: lots.reduce((sum, current) => sum + current.quantity, 0),
 		lots,
 		stockUnitCode: "count",
 		stockUnitLabel: "個",
@@ -68,7 +72,7 @@ function buildSample(): InventoryListItem[] {
 					expiryKind: "use-by",
 				}),
 			],
-			grams,
+			{ ...grams, capacity: 500 },
 		),
 		item(
 			"牛乳",
@@ -84,7 +88,7 @@ function buildSample(): InventoryListItem[] {
 					expiryKind: "use-by",
 				}),
 			],
-			{ ...ml, trackingMode: "estimated" },
+			{ ...ml, trackingMode: "estimated", capacity: 1000 },
 		),
 		item(
 			"豆腐",
@@ -108,11 +112,17 @@ function buildSample(): InventoryListItem[] {
 		item("冷凍ご飯", [lot({ quantity: 6, storage: "freezer" })], {
 			stockUnitLabel: "食分",
 		}),
-		item("冷凍ほうれん草", [lot({ quantity: 400, storage: "freezer" })], grams),
+		item("冷凍ほうれん草", [lot({ quantity: 400, storage: "freezer" })], {
+			...grams,
+			capacity: 500,
+		}),
 		item("醤油", [lot({ quantity: 1 })], { trackingMode: "presence" }),
 		item("みりん", [lot({ quantity: 1 })], { trackingMode: "presence" }),
 		item("砂糖", [lot({ quantity: 0 })], { trackingMode: "presence" }),
-		item("薄力粉", [lot({ quantity: 600, storage: "room" })], grams),
+		item("薄力粉", [lot({ quantity: 600, storage: "room" })], {
+			...grams,
+			capacity: 1000,
+		}),
 		item("じゃがいも", [], { stockUnitLabel: "個" }),
 	];
 }
@@ -120,6 +130,9 @@ function buildSample(): InventoryListItem[] {
 const sample = buildSample();
 
 export function InventoryPreview() {
+	const [expiryEstimateLevel, setExpiryEstimateLevel] =
+		useState<ExpiryEstimateLevel>("reliable");
+
 	return (
 		<div style={{ maxWidth: 1384, margin: "0 auto", padding: 16 }}>
 			<InventoryList
@@ -166,6 +179,12 @@ export function InventoryPreview() {
 					displayName: command.displayName,
 				})}
 				deleteInventoryItem={async () => true}
+				registration={{
+					// 見本のため、送らない（登録したことにして、食材のIDも返さない）。
+					registerInventoryItem: async () => ({}),
+					expiryEstimateLevel,
+					onExpiryEstimateLevelChange: setExpiryEstimateLevel,
+				}}
 			/>
 		</div>
 	);

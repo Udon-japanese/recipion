@@ -56,10 +56,19 @@ export const center = style({
 	textAlign: "center",
 });
 
+// 見出しの右の主ボタン（広い画面だけ。スマホは右下の＋）。
+export const addButton = style({
+	display: "none",
+	"@media": {
+		"(min-width: 768px)": { display: "block" },
+	},
+});
+
 export const emptyFridge = style({
 	boxSizing: "border-box",
 	display: "grid",
 	justifyItems: "center",
+	gap: 16,
 	padding: "40px 16px",
 	border: "2px solid var(--color-border-strong)",
 	borderRadius: 24,

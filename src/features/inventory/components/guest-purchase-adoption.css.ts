@@ -2,59 +2,23 @@ import { style } from "@vanilla-extract/css";
 
 export const container = style({
 	display: "grid",
-	gap: 12,
-	width: "min(100% - 32px, 640px)",
-	margin: "16px auto 0",
-	padding: 16,
-	color: "var(--color-text)",
-	background: "var(--color-surface-muted)",
-	border: "1px solid var(--color-border)",
-	borderRadius: 10,
+	gap: 16,
 });
 
 export const title = style({
 	margin: 0,
-	fontWeight: 700,
+	fontWeight: "var(--font-weight-bold)",
 });
 
 export const message = style({
-	margin: 0,
+	margin: "4px 0 0",
 	color: "var(--color-text-muted)",
-	fontSize: 14,
+	fontSize: "var(--font-size-sm)",
 });
 
+// 2つのボタンは、48px で並べる（狭い画面では、2つが同じ幅）。
 export const actions = style({
-	display: "flex",
-	flexWrap: "wrap",
-	justifyContent: "flex-end",
-	gap: 8,
-});
-
-export const primaryButton = style({
-	minHeight: 40,
-	paddingInline: 14,
-	color: "var(--color-on-primary)",
-	background: "var(--color-primary)",
-	border: 0,
-	borderRadius: 8,
-	font: "inherit",
-	fontWeight: 700,
-	cursor: "pointer",
-});
-
-export const secondaryButton = style({
-	minHeight: 40,
-	paddingInline: 14,
-	color: "var(--color-text)",
-	background: "var(--color-surface)",
-	border: "1px solid var(--color-border)",
-	borderRadius: 8,
-	font: "inherit",
-	cursor: "pointer",
-});
-
-export const error = style({
-	margin: 0,
-	color: "var(--color-error)",
-	fontSize: 14,
+	display: "grid",
+	gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+	gap: 12,
 });

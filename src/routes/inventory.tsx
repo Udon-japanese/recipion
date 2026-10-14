@@ -24,9 +24,7 @@ import {
 	setLotQuantityWithCache,
 	updateInventoryLotWithCache,
 } from "#/features/inventory/application/update-inventory-lot-with-cache";
-import { ExpiryEstimateSetting } from "#/features/inventory/components/expiry-estimate-setting";
 import { InventoryList } from "#/features/inventory/components/inventory-list";
-import { InventoryRegistrationForm } from "#/features/inventory/components/inventory-registration-form";
 import { PurchaseOutboxSync } from "#/features/inventory/components/purchase-outbox-sync";
 import { useExpiryEstimateLevel } from "#/features/inventory/hooks/use-expiry-estimate-level";
 import { useIngredientExpiryDefaults } from "#/features/inventory/hooks/use-ingredient-expiry-defaults";
@@ -208,42 +206,29 @@ function InventoryPage() {
 	);
 
 	return (
-		<>
-			<PurchaseOutboxSync
-				ownerScope={ownerScope}
-				syncPurchases={syncPurchases}
-			/>
-
-			{ownerScope !== null && ownerScope !== "guest" ? (
-				<ExpiryEstimateSetting
-					level={expiryEstimateLevel}
-					onChange={setExpiryEstimateLevel}
+		<InventoryList
+			ownerScope={ownerScope}
+			loadInventoryItems={loadInventoryItems}
+			adjustInventoryItem={adjustInventoryItem}
+			updateInventoryLot={updateInventoryLot}
+			changeTrackingMode={changeTrackingMode}
+			deleteInventoryItem={deleteInventoryItem}
+			renameInventoryItem={renameInventoryItem}
+			changeStockUnit={changeStockUnit}
+			setLotQuantity={setLotQuantity}
+			refreshKey={inventoryRefreshKey}
+			registration={{
+				registerInventoryItem,
+				expiryEstimateLevel,
+				onExpiryEstimateLevelChange: setExpiryEstimateLevel,
+				lookupIngredientDefaults,
+			}}
+			notices={
+				<PurchaseOutboxSync
+					ownerScope={ownerScope}
+					syncPurchases={syncPurchases}
 				/>
-			) : null}
-
-			{ownerScope !== null && ownerScope !== "guest" ? (
-				<InventoryRegistrationForm
-					expiryEstimateLevel={expiryEstimateLevel}
-					lookupIngredientDefaults={lookupIngredientDefaults}
-					registerInventoryItem={registerInventoryItem}
-					onRegistered={() =>
-						setInventoryRefreshKey((currentKey) => currentKey + 1)
-					}
-				/>
-			) : null}
-
-			<InventoryList
-				ownerScope={ownerScope}
-				loadInventoryItems={loadInventoryItems}
-				adjustInventoryItem={adjustInventoryItem}
-				updateInventoryLot={updateInventoryLot}
-				changeTrackingMode={changeTrackingMode}
-				deleteInventoryItem={deleteInventoryItem}
-				renameInventoryItem={renameInventoryItem}
-				changeStockUnit={changeStockUnit}
-				setLotQuantity={setLotQuantity}
-				refreshKey={inventoryRefreshKey}
-			/>
-		</>
+			}
+		/>
 	);
 }

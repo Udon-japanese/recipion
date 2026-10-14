@@ -1,23 +1,40 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { formatDateWithWeekday } from "../domain/expiry-labels";
-import { addDays, toDateString } from "../domain/inventory-lot";
-import { InventoryRegistrationForm } from "./inventory-registration-form";
+import { formatDateWithWeekday } from "../../domain/expiry-labels";
+import { addDays, toDateString } from "../../domain/inventory-lot";
+import { InventoryRegistrationPanel } from "./registration-panel";
+import { useInventoryRegistration } from "./use-inventory-registration";
+
+type HarnessProps = Parameters<typeof useInventoryRegistration>[0];
+
+// 登録のパネルを、開いた状態で出す（状態は、開く側が持つ）。
+function Harness(props: HarnessProps) {
+	const registration = useInventoryRegistration(props);
+
+	return (
+		<InventoryRegistrationPanel
+			open
+			onOpenChange={() => {}}
+			registration={registration}
+			onOpenSettings={() => {}}
+		/>
+	);
+}
 
 afterEach(() => {
 	// 覚えた期限（過去の入力）が、テストの間で残らないようにする。
 	localStorage.clear();
 });
 
-describe("InventoryRegistrationForm", () => {
+describe("InventoryRegistrationPanel", () => {
 	it("カタログにある食材は、単位と管理方法を自動で入れ、数量つきで登録する", async () => {
 		const user = userEvent.setup();
 		const registerInventoryItem = vi.fn().mockResolvedValue({});
 		const onRegistered = vi.fn();
 
 		render(
-			<InventoryRegistrationForm
+			<Harness
 				registerInventoryItem={registerInventoryItem}
 				onRegistered={onRegistered}
 			/>,
@@ -29,9 +46,9 @@ describe("InventoryRegistrationForm", () => {
 		expect(screen.getByRole("combobox", { name: "在庫の単位" })).toHaveValue(
 			"count:個",
 		);
-		expect(screen.getByRole("combobox", { name: "管理方法" })).toHaveValue(
-			"exact",
-		);
+		expect(
+			screen.getByRole("button", { name: "正確", pressed: true }),
+		).toBeInTheDocument();
 
 		await user.type(screen.getByLabelText(/^数量/u), "6");
 		await user.click(screen.getByRole("button", { name: "在庫に追加" }));
@@ -60,7 +77,7 @@ describe("InventoryRegistrationForm", () => {
 		const registerInventoryItem = vi.fn().mockResolvedValue({});
 
 		render(
-			<InventoryRegistrationForm
+			<Harness
 				registerInventoryItem={registerInventoryItem}
 				onRegistered={() => {}}
 			/>,
@@ -85,7 +102,7 @@ describe("InventoryRegistrationForm", () => {
 		const registerInventoryItem = vi.fn();
 
 		render(
-			<InventoryRegistrationForm
+			<Harness
 				registerInventoryItem={registerInventoryItem}
 				onRegistered={() => {}}
 			/>,
@@ -106,7 +123,7 @@ describe("InventoryRegistrationForm", () => {
 		const onRegistered = vi.fn();
 
 		render(
-			<InventoryRegistrationForm
+			<Harness
 				registerInventoryItem={vi.fn().mockRejectedValue(new Error("network"))}
 				onRegistered={onRegistered}
 			/>,
@@ -128,7 +145,7 @@ describe("InventoryRegistrationForm", () => {
 		const onRegistered = vi.fn();
 
 		render(
-			<InventoryRegistrationForm
+			<Harness
 				registerInventoryItem={registerInventoryItem}
 				onRegistered={onRegistered}
 			/>,
@@ -157,26 +174,21 @@ describe("InventoryRegistrationForm", () => {
 	it("調味料は、最初から「有無だけ」になり、数量の欄がない。小麦粉は、量を追う", async () => {
 		const user = userEvent.setup();
 
-		render(
-			<InventoryRegistrationForm
-				registerInventoryItem={vi.fn()}
-				onRegistered={() => {}}
-			/>,
-		);
+		render(<Harness registerInventoryItem={vi.fn()} onRegistered={() => {}} />);
 
 		await user.type(screen.getByLabelText("食材名"), "塩");
 
-		expect(screen.getByRole("combobox", { name: "管理方法" })).toHaveValue(
-			"presence",
-		);
+		expect(
+			screen.getByRole("button", { name: "有無だけ", pressed: true }),
+		).toBeInTheDocument();
 		expect(screen.queryByLabelText(/^数量/u)).toBeNull();
 
 		await user.clear(screen.getByLabelText("食材名"));
 		await user.type(screen.getByLabelText("食材名"), "薄力粉");
 
-		expect(screen.getByRole("combobox", { name: "管理方法" })).toHaveValue(
-			"estimated",
-		);
+		expect(
+			screen.getByRole("button", { name: "だいたい", pressed: true }),
+		).toBeInTheDocument();
 		expect(screen.getByLabelText(/^数量/u)).toBeInTheDocument();
 	});
 
@@ -185,17 +197,14 @@ describe("InventoryRegistrationForm", () => {
 		const registerInventoryItem = vi.fn().mockResolvedValue({});
 
 		render(
-			<InventoryRegistrationForm
+			<Harness
 				registerInventoryItem={registerInventoryItem}
 				onRegistered={() => {}}
 			/>,
 		);
 
 		await user.type(screen.getByLabelText("食材名"), "オリーブオイル");
-		await user.selectOptions(
-			screen.getByRole("combobox", { name: "管理方法" }),
-			"presence",
-		);
+		await user.click(screen.getByRole("button", { name: "有無だけ" }));
 
 		expect(screen.queryByLabelText(/^数量/u)).toBeNull();
 
@@ -216,12 +225,7 @@ describe("InventoryRegistrationForm", () => {
 	it("在庫の単位は、マスタにある単位だけが選べる（鶏もも肉は g と枚。ml や個は出ない）", async () => {
 		const user = userEvent.setup();
 
-		render(
-			<InventoryRegistrationForm
-				registerInventoryItem={vi.fn()}
-				onRegistered={() => {}}
-			/>,
-		);
+		render(<Harness registerInventoryItem={vi.fn()} onRegistered={() => {}} />);
 
 		await user.type(screen.getByLabelText("食材名"), "鶏もも肉");
 
@@ -240,7 +244,7 @@ describe("InventoryRegistrationForm", () => {
 		const registerInventoryItem = vi.fn().mockResolvedValue({});
 
 		render(
-			<InventoryRegistrationForm
+			<Harness
 				registerInventoryItem={registerInventoryItem}
 				onRegistered={() => {}}
 			/>,
@@ -270,12 +274,7 @@ describe("InventoryRegistrationForm", () => {
 	it("食材名の候補から選ぶと、単位が入る", async () => {
 		const user = userEvent.setup();
 
-		render(
-			<InventoryRegistrationForm
-				registerInventoryItem={vi.fn()}
-				onRegistered={() => {}}
-			/>,
-		);
+		render(<Harness registerInventoryItem={vi.fn()} onRegistered={() => {}} />);
 
 		await user.type(screen.getByLabelText("食材名"), "しょう");
 		await user.click(await screen.findByRole("option", { name: "醤油" }));
@@ -289,13 +288,13 @@ describe("InventoryRegistrationForm", () => {
 	describe("期限の目安", () => {
 		const today = toDateString(new Date());
 
-		it("期限の欄の横に、今日の日付（曜日つき）を、小さく表示する", () => {
+		it("期限の欄の横に、今日の日付（曜日つき）を、小さく表示する", async () => {
 			render(
-				<InventoryRegistrationForm
-					registerInventoryItem={vi.fn()}
-					onRegistered={() => {}}
-				/>,
+				<Harness registerInventoryItem={vi.fn()} onRegistered={() => {}} />,
 			);
+			await userEvent
+				.setup()
+				.click(screen.getByRole("button", { name: /期限・保存方法/u }));
 
 			expect(
 				screen.getByText(`今日 ${formatDateWithWeekday(today)}`),
@@ -307,11 +306,14 @@ describe("InventoryRegistrationForm", () => {
 			const registerInventoryItem = vi.fn().mockResolvedValue({});
 
 			render(
-				<InventoryRegistrationForm
+				<Harness
 					registerInventoryItem={registerInventoryItem}
 					onRegistered={() => {}}
 				/>,
 			);
+			await userEvent
+				.setup()
+				.click(screen.getByRole("button", { name: /期限・保存方法/u }));
 
 			await user.type(screen.getByLabelText("食材名"), "冷凍ブロッコリー");
 
@@ -340,11 +342,14 @@ describe("InventoryRegistrationForm", () => {
 			const registerInventoryItem = vi.fn().mockResolvedValue({});
 
 			render(
-				<InventoryRegistrationForm
+				<Harness
 					registerInventoryItem={registerInventoryItem}
 					onRegistered={() => {}}
 				/>,
 			);
+			await userEvent
+				.setup()
+				.click(screen.getByRole("button", { name: /期限・保存方法/u }));
 
 			await user.type(screen.getByLabelText("食材名"), "冷凍ブロッコリー");
 			await user.click(
@@ -371,12 +376,15 @@ describe("InventoryRegistrationForm", () => {
 			const user = userEvent.setup();
 
 			render(
-				<InventoryRegistrationForm
+				<Harness
 					registerInventoryItem={vi.fn()}
 					onRegistered={() => {}}
 					expiryEstimateLevel="off"
 				/>,
 			);
+			await userEvent
+				.setup()
+				.click(screen.getByRole("button", { name: /期限・保存方法/u }));
 
 			await user.type(screen.getByLabelText("食材名"), "冷凍ブロッコリー");
 
@@ -389,11 +397,14 @@ describe("InventoryRegistrationForm", () => {
 			const registerInventoryItem = vi.fn().mockResolvedValue({});
 
 			render(
-				<InventoryRegistrationForm
+				<Harness
 					registerInventoryItem={registerInventoryItem}
 					onRegistered={() => {}}
 				/>,
 			);
+			await userEvent
+				.setup()
+				.click(screen.getByRole("button", { name: /期限・保存方法/u }));
 
 			await user.type(screen.getByLabelText("食材名"), "鶏もも肉");
 
@@ -420,11 +431,11 @@ describe("InventoryRegistrationForm", () => {
 			const user = userEvent.setup();
 
 			render(
-				<InventoryRegistrationForm
-					registerInventoryItem={vi.fn()}
-					onRegistered={() => {}}
-				/>,
+				<Harness registerInventoryItem={vi.fn()} onRegistered={() => {}} />,
 			);
+			await userEvent
+				.setup()
+				.click(screen.getByRole("button", { name: /期限・保存方法/u }));
 
 			await user.type(screen.getByLabelText("食材名"), "冷凍ブロッコリー");
 			await user.click(
@@ -440,7 +451,7 @@ describe("InventoryRegistrationForm", () => {
 			const user = userEvent.setup();
 
 			render(
-				<InventoryRegistrationForm
+				<Harness
 					registerInventoryItem={vi.fn()}
 					onRegistered={() => {}}
 					lookupIngredientDefaults={() => ({
@@ -449,6 +460,9 @@ describe("InventoryRegistrationForm", () => {
 					})}
 				/>,
 			);
+			await userEvent
+				.setup()
+				.click(screen.getByRole("button", { name: /期限・保存方法/u }));
 
 			await user.type(screen.getByLabelText("食材名"), "鶏もも肉");
 

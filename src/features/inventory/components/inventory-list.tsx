@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+	type ReactNode,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
+import { Button } from "#/components/button/button";
+import { Icon } from "#/components/icon/icon";
 import { IconButton } from "#/components/icon-button/icon-button";
 import { Mascot } from "#/components/mascot/mascot";
 import { Note } from "#/components/note/note";
@@ -19,6 +28,11 @@ import { FridgeView } from "./fridge/fridge-view";
 import * as styles from "./inventory-list.css";
 import type { InventoryActions } from "./panel/inventory-actions";
 import { ItemPanel, type ItemPanelMode } from "./panel/item-panel";
+import {
+	type InventoryRegistrationConfig,
+	InventoryRegistrationController,
+} from "./registration/registration-controller";
+import type { RegisteredInfo } from "./registration/use-inventory-registration";
 
 type LoadInventoryItems = () => Promise<LoadInventoryItemsResult>;
 
@@ -26,6 +40,10 @@ type InventoryListProps = InventoryActions & {
 	ownerScope: InventoryPurchaseOwnerScope | null;
 	loadInventoryItems: LoadInventoryItems;
 	refreshKey?: number;
+	// 在庫に追加するパネルと、期限の目安の設定（省略すると、追加の入口を出さない）。
+	registration?: InventoryRegistrationConfig;
+	// 見出しの下に出すお知らせ（同期の状態・ゲスト購入の引き継ぎ）。
+	notices?: ReactNode;
 };
 
 type Selection = {
@@ -33,6 +51,26 @@ type Selection = {
 	zone: InventoryZoneId;
 	tileKey: string;
 };
+
+// 満タンの量：単位が変わったときは、量の変わった割合で直す。いまの量が超えたら、引き上げる（サーバーと同じ）。
+function nextCapacity(
+	item: InventoryListItem,
+	update: Partial<InventoryListItem>,
+): number {
+	const quantity = update.quantity ?? item.quantity;
+	const isUnitChanged =
+		(update.stockUnitCode !== undefined &&
+			update.stockUnitCode !== item.stockUnitCode) ||
+		(update.stockUnitLabel !== undefined &&
+			update.stockUnitLabel !== item.stockUnitLabel);
+	const base = isUnitChanged
+		? item.quantity > 0
+			? (item.capacity * quantity) / item.quantity
+			: 0
+		: (update.capacity ?? item.capacity);
+
+	return Math.max(base, quantity);
+}
 
 // 期限の並びが変わったかを見る鍵（期限を直したときだけ、並べ直す）。
 function expiryFingerprint(item: InventoryListItem | undefined): string {
@@ -46,6 +84,8 @@ export function InventoryList({
 	ownerScope,
 	loadInventoryItems,
 	refreshKey = 0,
+	registration,
+	notices,
 	...actions
 }: InventoryListProps) {
 	const [items, setItems] = useState<InventoryListItem[]>([]);
@@ -57,6 +97,13 @@ export function InventoryList({
 	);
 	const [cachedAt, setCachedAt] = useState<string | null>(null);
 	const [selection, setSelection] = useState<Selection | null>(null);
+	const [isRegistrationOpen, setIsRegistrationOpen] = useState(false);
+	const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+	// 登録のパネルを開いている間に追加した食材。閉じたあと、タイルに輪を出す。
+	const addedItemIdsRef = useRef(new Set<string>());
+	const [highlightedIds, setHighlightedIds] = useState<ReadonlySet<string>>(
+		new Set(),
+	);
 	// タイルの並び：画面を開いたとき・更新したとき・期限を直したときだけ決め直す
 	// （量を調整しても、押した場所が動かないように）。
 	const [orderEpoch, setOrderEpoch] = useState(0);
@@ -108,7 +155,13 @@ export function InventoryList({
 	}, [loadItems, refreshKey]);
 
 	const baseZones = useMemo(
-		() => buildInventoryFridge(items, today),
+		() =>
+			buildInventoryFridge(
+				items,
+				today,
+				undefined,
+				new Map(items.map((item) => [item.inventoryItemId, item.capacity])),
+			),
 		[items, today],
 	);
 
@@ -162,7 +215,11 @@ export function InventoryList({
 			setItems((current) =>
 				current.map((item) =>
 					item.inventoryItemId === inventoryItemId
-						? { ...item, ...update }
+						? {
+								...item,
+								...update,
+								capacity: nextCapacity(item, update),
+							}
 						: item,
 				),
 			);
@@ -179,12 +236,71 @@ export function InventoryList({
 		[items],
 	);
 
-	const handleDeleted = useCallback((inventoryItemId: string) => {
-		setItems((current) =>
-			current.filter((item) => item.inventoryItemId !== inventoryItemId),
+	const selectionTileKey = selection?.tileKey;
+
+	const handleDeleted = useCallback(
+		(inventoryItemId: string) => {
+			// 消した食材のタイルの、次（なければ前）のタイルへ、フォーカスを移す。
+			const deleted = selectionTileKey
+				? document.querySelector<HTMLElement>(
+						`[data-tile-key="${CSS.escape(selectionTileKey)}"]`,
+					)
+				: null;
+			const tiles = deleted
+				? Array.from(
+						deleted.closest("ul")?.querySelectorAll<HTMLElement>("button") ??
+							[],
+					)
+				: [];
+			const index = deleted ? tiles.indexOf(deleted) : -1;
+			const nextKey =
+				tiles[index + 1]?.dataset.tileKey ?? tiles[index - 1]?.dataset.tileKey;
+
+			setItems((current) =>
+				current.filter((item) => item.inventoryItemId !== inventoryItemId),
+			);
+			setSelection(null);
+
+			if (nextKey) {
+				window.setTimeout(() => {
+					document
+						.querySelector<HTMLElement>(
+							`[data-tile-key="${CSS.escape(nextKey)}"]`,
+						)
+						?.focus({ preventScroll: true });
+				}, 0);
+			}
+		},
+		[selectionTileKey],
+	);
+
+	function handleRegistered(info: RegisteredInfo) {
+		if (info.inventoryItemId) {
+			addedItemIdsRef.current.add(info.inventoryItemId);
+		}
+
+		void loadItems();
+	}
+
+	function handleRegistrationOpenChange(open: boolean) {
+		setIsRegistrationOpen(open);
+
+		if (open || addedItemIdsRef.current.size === 0) {
+			return;
+		}
+
+		// 閉じたら、追加した食材のタイルに、2px の輪を出す（動きを減らす設定では、長めに出しっぱなし）。
+		const reduced =
+			typeof window.matchMedia === "function" &&
+			window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+		setHighlightedIds(new Set(addedItemIdsRef.current));
+		addedItemIdsRef.current = new Set();
+		window.setTimeout(
+			() => setHighlightedIds(new Set()),
+			reduced ? 2000 : 1200,
 		);
-		setSelection(null);
-	}, []);
+	}
 
 	function handleOpen(tile: InventoryTileModel) {
 		setSelection({
@@ -223,6 +339,15 @@ export function InventoryList({
 			<div className={styles.header}>
 				<h1 className={styles.title}>在庫</h1>
 
+				{isMember && registration ? (
+					<IconButton
+						icon="sliders"
+						label="期限の目安の設定"
+						size="std"
+						onClick={() => setIsSettingsOpen(true)}
+					/>
+				) : null}
+
 				{isMember ? (
 					<IconButton
 						icon="refresh"
@@ -232,7 +357,21 @@ export function InventoryList({
 						onClick={() => void loadItems()}
 					/>
 				) : null}
+
+				{isMember && registration && hasItems ? (
+					<span className={styles.addButton}>
+						<Button
+							leadingIcon={<Icon name="plus" size={20} />}
+							aria-haspopup="dialog"
+							onClick={() => setIsRegistrationOpen(true)}
+						>
+							在庫に追加
+						</Button>
+					</span>
+				) : null}
 			</div>
+
+			{notices}
 
 			{ownerScope === null ? (
 				<div className={styles.center}>
@@ -284,6 +423,15 @@ export function InventoryList({
 				<div className={styles.emptyFridge}>
 					<Mascot size={72} />
 					<p className={styles.srOnly}>在庫はまだありません。</p>
+					{registration ? (
+						<Button
+							leadingIcon={<Icon name="plus" size={20} />}
+							aria-haspopup="dialog"
+							onClick={() => setIsRegistrationOpen(true)}
+						>
+							在庫に追加
+						</Button>
+					) : null}
 				</div>
 			) : null}
 
@@ -292,6 +440,7 @@ export function InventoryList({
 					<FridgeView
 						zones={zones}
 						selectedItemId={selection?.inventoryItemId ?? null}
+						highlightedItemIds={highlightedIds}
 						onOpen={handleOpen}
 					/>
 
@@ -328,6 +477,18 @@ export function InventoryList({
 					onClose={handleClose}
 					onUpdate={handleUpdate}
 					onDeleted={handleDeleted}
+				/>
+			) : null}
+
+			{isMember && registration ? (
+				<InventoryRegistrationController
+					config={registration}
+					isOpen={isRegistrationOpen}
+					onOpenChange={handleRegistrationOpenChange}
+					isSettingsOpen={isSettingsOpen}
+					onSettingsOpenChange={setIsSettingsOpen}
+					onRegistered={handleRegistered}
+					showFab={hasItems}
 				/>
 			) : null}
 		</section>

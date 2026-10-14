@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Button } from "#/components/button/button";
+import { Note } from "#/components/note/note";
 import type { InventoryPurchaseOwnerScope } from "../application/inventory-purchase-outbox";
 import type { SyncInventoryPurchaseOutboxResult } from "../application/sync-inventory-purchase-outbox";
-import * as styles from "./inventory-purchase-sync.css";
 
 type SyncPurchases = (
 	ownerScope: InventoryPurchaseOwnerScope,
@@ -66,29 +67,30 @@ export function InventoryPurchaseSync({
 		return null;
 	}
 
-	return (
-		<section className={styles.container} aria-live="polite">
-			{status === "syncing" ? (
-				<p className={styles.message}>在庫を同期しています…</p>
-			) : null}
+	if (status === "syncing") {
+		return (
+			<Note tone="info" spinning>
+				在庫を同期しています…
+			</Note>
+		);
+	}
 
-			{status === "waiting" ? (
-				<>
-					<p className={styles.message}>未反映の在庫があります</p>
-
-					<button
-						className={styles.retryButton}
-						type="button"
-						onClick={() => void runSync()}
-					>
+	if (status === "waiting") {
+		return (
+			<Note
+				tone="warn"
+				action={
+					<Button variant="secondary" size="sm" onClick={() => void runSync()}>
 						在庫同期を再試行
-					</button>
-				</>
-			) : null}
+					</Button>
+				}
+			>
+				未反映の在庫があります
+			</Note>
+		);
+	}
 
-			{status === "synced" && syncedCount > 0 ? (
-				<p className={styles.message}>{syncedCount}件の在庫を反映しました</p>
-			) : null}
-		</section>
-	);
+	return syncedCount > 0 ? (
+		<Note tone="success">{syncedCount}件の在庫を反映しました</Note>
+	) : null;
 }

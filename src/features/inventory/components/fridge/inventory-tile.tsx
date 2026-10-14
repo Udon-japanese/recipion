@@ -10,6 +10,8 @@ type InventoryTileProps = {
 	tile: InventoryTileModel;
 	// 開いている食材。
 	selected: boolean;
+	// 追加した直後（輪を出す）。
+	highlighted?: boolean;
 	// ゾーンの中の移動（ロービング）。フォーカスを受けるタイルだけ 0。
 	tabIndex: 0 | -1;
 	onOpen: (tile: InventoryTileModel) => void;
@@ -51,6 +53,7 @@ function Grains({ tile }: { tile: InventoryTileModel }) {
 export function InventoryTile({
 	tile,
 	selected,
+	highlighted = false,
 	tabIndex,
 	onOpen,
 	onFocus,
@@ -69,6 +72,7 @@ export function InventoryTile({
 				aria-expanded={selected}
 				data-tile-key={tile.key}
 				data-selected={selected}
+				data-added={highlighted || undefined}
 				data-expiry={expiry?.level}
 				data-lots={tile.lotCount >= 2 ? 2 : undefined}
 				data-empty={tile.isEmpty || undefined}

@@ -164,7 +164,7 @@ export function getLotZone(
 
 const grainLimit = 10;
 
-function toGrains(quantity: number): InventoryTileGrains | null {
+export function toGrains(quantity: number): InventoryTileGrains | null {
 	if (quantity <= 0 || quantity > grainLimit) {
 		return null;
 	}
@@ -179,7 +179,7 @@ const minWaterLevel = 0.06;
 
 // 水位＝いまの量 ÷ 満タンの量。0 より多いのに空に見えないよう、最小 6%、最大 100%。0 のときは水位なし。
 // 個数は、粒で表せる（10個まで）ときは水位にしない。
-function toWaterLevel(
+export function toWaterLevel(
 	quantity: number,
 	capacity: number | undefined,
 	stockUnitCode: InventoryListItem["stockUnitCode"],

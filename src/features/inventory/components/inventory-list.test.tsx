@@ -700,6 +700,34 @@ describe("InventoryList", () => {
 			expect(deleteInventoryItem).toHaveBeenCalledWith(chickenId);
 		});
 
+		it("削除したあと、フォーカスは次のタイルへ移る", async () => {
+			const user = userEvent.setup();
+
+			renderList(
+				[
+					chicken({ name: "鶏もも肉" }),
+					chicken({
+						inventoryItemId: "6b1d4f0e-0a0e-4c85-9a3f-333333333333",
+						name: "鶏むね肉",
+					}),
+				],
+				{ deleteInventoryItem: vi.fn().mockResolvedValue(true) },
+			);
+
+			const dialog = await openPanel(user, "鶏もも肉");
+
+			await user.click(
+				within(dialog).getByRole("button", { name: "鶏もも肉を在庫から削除" }),
+			);
+			await user.click(screen.getByRole("button", { name: "削除する" }));
+
+			await waitFor(() =>
+				expect(
+					screen.getByRole("button", { name: /^鶏むね肉、/u }),
+				).toHaveFocus(),
+			);
+		});
+
 		it("削除に失敗したら、エラーを出し、一覧に残す", async () => {
 			const user = userEvent.setup();
 

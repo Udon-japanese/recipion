@@ -20,12 +20,15 @@ const zoneIcons: Record<InventoryZoneId, IconName> = {
 type FridgeViewProps = {
 	zones: readonly InventoryFridgeZone[];
 	selectedItemId: string | null;
+	// 追加した直後の食材（タイルに輪を出す）。
+	highlightedItemIds?: ReadonlySet<string>;
 	onOpen: (tile: InventoryTileModel) => void;
 };
 
 type ZoneSectionProps = {
 	zone: InventoryFridgeZone;
 	selectedItemId: string | null;
+	highlightedItemIds: ReadonlySet<string>;
 	onOpen: (tile: InventoryTileModel) => void;
 };
 
@@ -75,7 +78,12 @@ function moveFocus(event: KeyboardEvent<HTMLUListElement>) {
 	return buttons[next] ?? null;
 }
 
-function ZoneSection({ zone, selectedItemId, onOpen }: ZoneSectionProps) {
+function ZoneSection({
+	zone,
+	selectedItemId,
+	highlightedItemIds,
+	onOpen,
+}: ZoneSectionProps) {
 	const headingId = useId();
 	const [activeKey, setActiveKey] = useState<string | null>(null);
 	const listRef = useRef<HTMLUListElement>(null);
@@ -121,6 +129,7 @@ function ZoneSection({ zone, selectedItemId, onOpen }: ZoneSectionProps) {
 							key={tile.key}
 							tile={tile}
 							selected={tile.inventoryItemId === selectedItemId}
+							highlighted={highlightedItemIds.has(tile.inventoryItemId)}
 							tabIndex={tile.key === stopKey ? 0 : -1}
 							onOpen={onOpen}
 							onFocus={(focused) => setActiveKey(focused.key)}
@@ -137,7 +146,14 @@ function ZoneSection({ zone, selectedItemId, onOpen }: ZoneSectionProps) {
 }
 
 // 冷蔵庫の中を、上から見た断面として描く。庫内の4ゾーンを箱で囲み、その外に机の上を置く。
-export function FridgeView({ zones, selectedItemId, onOpen }: FridgeViewProps) {
+const noHighlight: ReadonlySet<string> = new Set();
+
+export function FridgeView({
+	zones,
+	selectedItemId,
+	highlightedItemIds = noHighlight,
+	onOpen,
+}: FridgeViewProps) {
 	const inside = zones.filter((zone) => zone.inside);
 	const outside = zones.filter((zone) => !zone.inside);
 
@@ -149,6 +165,7 @@ export function FridgeView({ zones, selectedItemId, onOpen }: FridgeViewProps) {
 						key={zone.id}
 						zone={zone}
 						selectedItemId={selectedItemId}
+						highlightedItemIds={highlightedItemIds}
 						onOpen={onOpen}
 					/>
 				))}
@@ -159,6 +176,7 @@ export function FridgeView({ zones, selectedItemId, onOpen }: FridgeViewProps) {
 					key={zone.id}
 					zone={zone}
 					selectedItemId={selectedItemId}
+					highlightedItemIds={highlightedItemIds}
 					onOpen={onOpen}
 				/>
 			))}

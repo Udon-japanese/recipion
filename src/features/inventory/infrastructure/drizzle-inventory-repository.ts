@@ -148,6 +148,25 @@ async function loadLots(
 	return rows.map(toInventoryLot);
 }
 
+// 満タンの量（これまでの合計の最大値）を、いまのロットの合計まで引き上げる。数量を変えた操作の最後に呼ぶ。
+async function raiseCapacity(
+	executor: Pick<DB, "update">,
+	userId: string,
+	inventoryItemId: string,
+) {
+	await executor
+		.update(inventoryItem)
+		.set({
+			capacity: sql`greatest(${inventoryItem.capacity}, coalesce((select sum(${inventoryLot.quantity}) from ${inventoryLot} where ${inventoryLot.inventoryItemId} = ${inventoryItem.id}), 0))`,
+		})
+		.where(
+			and(
+				eq(inventoryItem.id, inventoryItemId),
+				eq(inventoryItem.userId, userId),
+			),
+		);
+}
+
 function toStockedLots(lots: readonly InventoryLot[]): InventoryLot[] {
 	return sortLotsForConsumption(lots.filter((lot) => lot.quantity > 0));
 }
@@ -179,6 +198,7 @@ export function createDrizzleInventoryRepository(
 					defaultExpiryKind: ingredient.defaultExpiryKind,
 					defaultStorage: ingredient.defaultStorage,
 					trackingMode: inventoryItem.trackingMode,
+					capacity: inventoryItem.capacity,
 					updatedAt: inventoryItem.updatedAt,
 				})
 				.from(inventoryItem)
@@ -241,6 +261,7 @@ export function createDrizzleInventoryRepository(
 					name: row.name,
 					displayName: row.displayName,
 					quantity: sumLotQuantities(lots),
+					capacity: Number(row.capacity),
 					lots,
 					stockUnitCode: parseInventoryUnitCode(row.stockUnitCode),
 					stockUnitLabel: row.stockUnitLabel,
@@ -706,6 +727,8 @@ export function createDrizzleInventoryRepository(
 					}
 				}
 
+				await raiseCapacity(transaction, userId, command.inventoryItemId);
+
 				const lots = toStockedLots(
 					await loadLots(transaction, userId, command.inventoryItemId),
 				);
@@ -870,6 +893,10 @@ export function createDrizzleInventoryRepository(
 					});
 				}
 
+				for (const itemId of itemIds) {
+					await raiseCapacity(transaction, userId, itemId);
+				}
+
 				return { status: "undone" as const, items: await loadItems() };
 			});
 		},
@@ -899,6 +926,7 @@ export function createDrizzleInventoryRepository(
 						name: ingredient.name,
 						stockUnitCode: ingredient.stockUnitCode,
 						stockUnitLabel: ingredient.stockUnitLabel,
+						capacity: inventoryItem.capacity,
 					})
 					.from(inventoryItem)
 					.innerJoin(
@@ -995,7 +1023,30 @@ export function createDrizzleInventoryRepository(
 								eq(ingredient.userId, userId),
 							),
 						);
+
+					// 満タンの量も、合計の変わった割合で、新しい単位に直す（合計が 0 だった場合は、作り直す）。
+					const oldTotal = sumLotQuantities(allLots);
+					const newTotal = plan.reduce((sum, entry) => sum + entry.quantity, 0);
+					const oldCapacity = Number(storedItem.capacity);
+
+					await transaction
+						.update(inventoryItem)
+						.set({
+							capacity: toNumeric(
+								oldTotal > 0 && oldCapacity > 0
+									? (oldCapacity * newTotal) / oldTotal
+									: 0,
+							),
+						})
+						.where(
+							and(
+								eq(inventoryItem.id, command.inventoryItemId),
+								eq(inventoryItem.userId, userId),
+							),
+						);
 				}
+
+				await raiseCapacity(transaction, userId, command.inventoryItemId);
 
 				const lots = toStockedLots(
 					await loadLots(transaction, userId, command.inventoryItemId),
@@ -1149,6 +1200,8 @@ export function createDrizzleInventoryRepository(
 						);
 				}
 
+				await raiseCapacity(transaction, userId, command.inventoryItemId);
+
 				const lots = toStockedLots(
 					await loadLots(transaction, userId, command.inventoryItemId),
 				);
@@ -1233,6 +1286,8 @@ export function createDrizzleInventoryRepository(
 						occurredAt: new Date(),
 					});
 				}
+
+				await raiseCapacity(transaction, userId, storedLot.inventoryItemId);
 
 				const lots = toStockedLots(
 					await loadLots(transaction, userId, storedLot.inventoryItemId),

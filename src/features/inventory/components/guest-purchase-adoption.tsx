@@ -1,4 +1,7 @@
 import { useEffect, useState } from "react";
+import { Button } from "#/components/button/button";
+import { Card } from "#/components/card/card";
+import { Note } from "#/components/note/note";
 
 import type { AdoptGuestInventoryPurchasesResult } from "../application/adopt-guest-inventory-purchases";
 import type { InventoryPurchaseOwnerScope } from "../application/inventory-purchase-outbox";
@@ -101,59 +104,53 @@ export function GuestPurchaseAdoption({
 		return null;
 	}
 
+	if (status === "adopting") {
+		return (
+			<Note tone="info" spinning>
+				ゲスト購入を引き継いでいます…
+			</Note>
+		);
+	}
+
+	if (status === "adopted") {
+		return <Note tone="success">ゲスト購入を引き継ぎ、在庫へ反映しました</Note>;
+	}
+
+	if (status === "waiting") {
+		return (
+			<Note tone="neutral">
+				ゲスト購入を引き継ぎました。在庫への反映は通信復旧後に再試行します
+			</Note>
+		);
+	}
+
+	if (status === "error") {
+		return (
+			<Note tone="error">ゲスト購入の確認または引き継ぎに失敗しました</Note>
+		);
+	}
+
 	return (
-		<section className={styles.container} aria-live="polite">
-			{status === "idle" && guestPurchaseCount > 0 ? (
-				<>
-					<div>
-						<p className={styles.title}>ゲスト購入を引き継ぎますか？</p>
-						<p className={styles.message}>
-							未反映の購入が
-							{guestPurchaseCount}件あります。
-						</p>
-					</div>
+		<Card padding="md">
+			<div className={styles.container}>
+				<div>
+					<p className={styles.title}>ゲスト購入を引き継ぎますか？</p>
+					<p className={styles.message}>
+						未反映の購入が
+						{guestPurchaseCount}件あります。
+					</p>
+				</div>
 
-					<div className={styles.actions}>
-						<button
-							className={styles.secondaryButton}
-							type="button"
-							onClick={() => setIsDismissed(true)}
-						>
-							今回は引き継がない
-						</button>
+				<div className={styles.actions}>
+					<Button variant="secondary" onClick={() => setIsDismissed(true)}>
+						今回は引き継がない
+					</Button>
 
-						<button
-							className={styles.primaryButton}
-							type="button"
-							onClick={() => void handleAdopt()}
-						>
-							このアカウントへ引き継ぐ
-						</button>
-					</div>
-				</>
-			) : null}
-
-			{status === "adopting" ? (
-				<p className={styles.message}>ゲスト購入を引き継いでいます…</p>
-			) : null}
-
-			{status === "adopted" ? (
-				<p className={styles.message}>
-					ゲスト購入を引き継ぎ、在庫へ反映しました
-				</p>
-			) : null}
-
-			{status === "waiting" ? (
-				<p className={styles.message}>
-					ゲスト購入を引き継ぎました。在庫への反映は通信復旧後に再試行します
-				</p>
-			) : null}
-
-			{status === "error" ? (
-				<p className={styles.error} role="alert">
-					ゲスト購入の確認または引き継ぎに失敗しました
-				</p>
-			) : null}
-		</section>
+					<Button onClick={() => void handleAdopt()}>
+						このアカウントへ引き継ぐ
+					</Button>
+				</div>
+			</div>
+		</Card>
 	);
 }
