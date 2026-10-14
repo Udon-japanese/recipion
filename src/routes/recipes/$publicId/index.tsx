@@ -5,6 +5,7 @@ import {
 	useRouter,
 } from "@tanstack/react-router";
 import { useCallback } from "react";
+import { Tag } from "#/components/tag/tag";
 import {
 	findIngredientCatalogEntry,
 	getDefaultStockUnitLabel,
@@ -26,7 +27,7 @@ import {
 } from "#/features/recipes/application/consume-recipe-ingredients";
 import type { RecipeDetail } from "#/features/recipes/application/recipe-repository";
 import { RecipeConsumeSection } from "#/features/recipes/components/recipe-consume-section";
-import { RecipeDeleteButton } from "#/features/recipes/components/recipe-delete-button";
+import { RecipeOwnerActions } from "#/features/recipes/components/recipe-owner-actions";
 import { RecipePassphraseSection } from "#/features/recipes/components/recipe-passphrase-section";
 import { RecipeRouteError } from "#/features/recipes/components/recipe-route-error";
 import { RecipeShoppingSection } from "#/features/recipes/components/recipe-shopping-section";
@@ -168,6 +169,12 @@ function useRecipeViewSupport(recipe: RecipeDetail) {
 	};
 }
 
+const visibilityLabels = {
+	private: "非公開",
+	unlisted: "限定公開",
+	public: "全体公開",
+} as const;
+
 function OwnRecipePage({ recipe }: { recipe: RecipeDetail }) {
 	const navigate = useNavigate();
 	const {
@@ -188,6 +195,17 @@ function OwnRecipePage({ recipe }: { recipe: RecipeDetail }) {
 			<RecipeViewWithLinks
 				key={recipe.publicId}
 				recipe={recipe}
+				badges={
+					<Tag
+						tone={
+							recipe.visibility === "public" || recipe.visibility === "unlisted"
+								? "soft"
+								: "default"
+						}
+					>
+						{visibilityLabels[recipe.visibility ?? "private"]}
+					</Tag>
+				}
 				loadLinkedRecipe={loadLinkedRecipe}
 				loadLinkedRecipes={loadLinkedRecipes}
 				renderOpenLink={(publicId) => (
@@ -220,23 +238,13 @@ function OwnRecipePage({ recipe }: { recipe: RecipeDetail }) {
 				consume={consume}
 				undo={undoConsumption}
 			/>
-			<p>
-				<Link
-					to="/recipes/$publicId/edit"
-					params={{ publicId: recipe.publicId }}
-				>
-					編集
-				</Link>
-			</p>
-			<RecipeDeleteButton
+			<RecipeOwnerActions
+				publicId={recipe.publicId}
 				onDelete={async () => {
 					await deleteRecipeServerFn({ data: { publicId: recipe.publicId } });
 					await navigate({ to: "/recipes" });
 				}}
 			/>
-			<p>
-				<Link to="/recipes">レシピ一覧へ</Link>
-			</p>
 		</>
 	);
 }
@@ -260,12 +268,14 @@ function SharedRecipePage({
 
 	return (
 		<>
-			<p>
-				作者：{author.name}（@{author.handle}）
-			</p>
 			<RecipeViewWithLinks
 				key={recipe.publicId}
 				recipe={recipe}
+				badges={
+					<Tag>
+						作者：{author.name}（@{author.handle}）
+					</Tag>
+				}
 				loadLinkedRecipe={loadLinkedRecipe}
 				loadLinkedRecipes={loadLinkedRecipes}
 				renderOpenLink={(publicId) => (
@@ -306,9 +316,6 @@ function SharedRecipePage({
 					})
 				}
 			/>
-			<p>
-				<Link to="/recipes">レシピ一覧へ</Link>
-			</p>
 		</>
 	);
 }

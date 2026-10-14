@@ -12,6 +12,8 @@ type RecipeViewWithLinksProps = {
 	renderOpenLink: (publicId: string) => ReactNode;
 	// 材料のリンク先を、まとめて取ってくる（材料の下に、その場で開く）。
 	loadLinkedRecipes?: LoadLinkedRecipes;
+	// 題名の下に並べる印（公開範囲・作者など）。
+	badges?: ReactNode;
 };
 
 // 参照画面。本文のリンクを押すと、プレビューを開く（閉じると、押したリンクに、フォーカスが戻る）。
@@ -20,6 +22,7 @@ export function RecipeViewWithLinks({
 	loadLinkedRecipe,
 	renderOpenLink,
 	loadLinkedRecipes,
+	badges,
 }: RecipeViewWithLinksProps) {
 	const [openedPublicId, setOpenedPublicId] = useState<string | null>(null);
 	const triggerRef = useRef<HTMLElement | null>(null);
@@ -29,6 +32,7 @@ export function RecipeViewWithLinks({
 			<RecipeViewWithTree
 				recipe={recipe}
 				loadLinkedRecipes={loadLinkedRecipes}
+				badges={badges}
 				onOpenLink={(publicId, trigger) => {
 					triggerRef.current = trigger;
 					setOpenedPublicId(publicId);

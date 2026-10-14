@@ -1,32 +1,36 @@
 import { style } from "@vanilla-extract/css";
 
 export const container = style({
+	display: "grid",
+	gap: 16,
 	width: "min(100% - 32px, 640px)",
 	marginInline: "auto",
 	paddingBlock: 24,
 	color: "var(--color-text)",
+	lineHeight: "var(--line-height-relaxed)",
 });
+
+export const header = style({ display: "grid", gap: 8 });
 
 export const title = style({
-	marginBottom: 8,
-	fontSize: 24,
-	fontWeight: 700,
+	margin: 0,
+	fontSize: "var(--font-size-2xl)",
+	fontWeight: "var(--font-weight-extrabold)",
+	lineHeight: "var(--line-height-tight)",
+	overflowWrap: "anywhere",
 });
 
-export const servings = style({
-	marginBottom: 20,
-	color: "var(--color-text-muted, inherit)",
-});
+export const tags = style({ display: "flex", flexWrap: "wrap", gap: 8 });
 
 export const section = style({
 	display: "grid",
 	gap: 8,
-	marginBottom: 20,
 });
 
 export const sectionTitle = style({
-	fontSize: 18,
-	fontWeight: 700,
+	margin: 0,
+	fontSize: "var(--font-size-lg)",
+	fontWeight: "var(--font-weight-bold)",
 });
 
 export const list = style({
@@ -57,6 +61,7 @@ export const sourceUrl = style({
 });
 
 export const note = style({
+	margin: 0,
 	whiteSpace: "pre-wrap",
 });
 
@@ -81,7 +86,7 @@ export const linkedRecipe = style({
 	gap: 4,
 	marginTop: 4,
 	paddingLeft: 12,
-	borderLeft: "2px solid var(--color-border)",
+	borderLeft: "2px solid var(--color-border-strong)",
 });
 
 export const linkedToggle = style({
