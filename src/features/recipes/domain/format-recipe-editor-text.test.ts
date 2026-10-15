@@ -69,15 +69,15 @@ describe("formatRecipeEditorText", () => {
 	} as const;
 
 	it("見出しつきの1つの文章にする", () => {
-		expect(formatRecipeEditorText(document)).toBe(`＜材料＞
+		expect(formatRecipeEditorText(document)).toBe(`＜下準備＞
+- 玉ねぎを切る
+
+＜材料＞
 卵 1個
 ☆ソース
 ケチャップ 大さじ2
 ☆トッピング
 海苔 適量
-
-＜下準備＞
-- 玉ねぎを切る
 
 ＜作り方＞
 1. 混ぜる
@@ -105,7 +105,7 @@ describe("formatRecipeEditorText", () => {
 
 	it("新規登録の雛形は、見出しだけになる", () => {
 		expect(formatRecipeTemplateText()).toBe(
-			"＜材料＞\n\n＜下準備＞\n\n＜作り方＞\n\n＜メモ＞\n",
+			"＜下準備＞\n\n＜材料＞\n\n＜作り方＞\n\n＜メモ＞\n",
 		);
 	});
 });

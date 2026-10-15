@@ -83,7 +83,7 @@ export function formatHeading(kind: keyof typeof recipeHeadingLabels): string {
 
 // 見出しだけの、新規登録の雛形。
 export function formatRecipeTemplateText(): string {
-	return (["ingredients", "preparations", "instructions", "note"] as const)
+	return (["preparations", "ingredients", "instructions", "note"] as const)
 		.map((kind) => `${formatHeading(kind)}\n`)
 		.join("\n");
 }
@@ -91,8 +91,8 @@ export function formatRecipeTemplateText(): string {
 // 保存済みのレシピを、編集用の1つの文章にする（空の部分も見出しは残し、続きを書けるようにする）。
 export function formatRecipeEditorText(input: RecipeEditorTextInput): string {
 	const sections: [keyof typeof recipeHeadingLabels, string][] = [
-		["ingredients", formatIngredientText(input.ingredients)],
 		["preparations", formatPreparationText(input.preparations)],
+		["ingredients", formatIngredientText(input.ingredients)],
 		["instructions", formatInstructionText(input.instructions)],
 		["note", input.note],
 	];

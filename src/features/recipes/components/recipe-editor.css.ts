@@ -1,7 +1,7 @@
 import { style } from "@vanilla-extract/css";
 
 export const container = style({
-	width: "min(100% - 32px, 1120px)",
+	width: "min(100% - 32px, 1280px)",
 	marginInline: "auto",
 	paddingBlock: 16,
 	color: "var(--color-text)",
@@ -138,7 +138,7 @@ export const panes = style({
 	gap: 16,
 	"@media": {
 		[wideScreen]: {
-			gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+			gridTemplateColumns: "minmax(0, 5fr) minmax(0, 6fr)",
 			alignItems: "start",
 		},
 	},

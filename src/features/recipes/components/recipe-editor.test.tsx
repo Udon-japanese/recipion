@@ -698,7 +698,7 @@ describe("RecipeEditor", () => {
 				screen.getByRole("textbox", { name: "レシピの本文" }),
 			).toHaveProperty(
 				"value",
-				"＜材料＞\n\n＜下準備＞\n\n＜作り方＞\n\n＜メモ＞\n",
+				"＜下準備＞\n\n＜材料＞\n\n＜作り方＞\n\n＜メモ＞\n",
 			);
 		});
 

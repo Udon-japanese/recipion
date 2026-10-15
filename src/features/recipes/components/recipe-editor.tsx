@@ -617,7 +617,7 @@ export function RecipeEditor({
 						)}
 
 						<p className={styles.hint}>
-							＜材料＞＜下準備＞＜作り方＞＜メモ＞の見出しで区切ります。見出しがなければ、空行で区切った文章の内容から、材料と作り方を判別します。
+							＜下準備＞＜材料＞＜作り方＞＜メモ＞の見出しで区切ります。見出しがなければ、空行で区切った文章の内容から、材料と作り方を判別します。
 						</p>
 					</div>
 
@@ -629,6 +629,24 @@ export function RecipeEditor({
 						data-active={activeTab === "preview"}
 					>
 						<h3>保存前の確認</h3>
+
+						{preparations.length === 0 ? null : (
+							<>
+								<h4>下準備</h4>
+								<ul className={styles.list}>
+									{preparations.map((preparation, index) => (
+										// biome-ignore lint/suspicious/noArrayIndexKey: 文章から作る表示用の一覧で、並びは入力順のまま。
+										<li key={index}>
+											<RecipeText
+												text={preparation}
+												linkViews={linkViews}
+												onOpenLink={handleOpenLink}
+											/>
+										</li>
+									))}
+								</ul>
+							</>
+						)}
 
 						<h4>材料</h4>
 						{ingredients.length === 0 ? <p>材料はまだありません。</p> : null}
@@ -675,20 +693,6 @@ export function RecipeEditor({
 							/>
 							<AddGroupRow onAdd={addGroup} />
 						</div>
-
-						<h4>下準備</h4>
-						<ul className={styles.list}>
-							{preparations.map((preparation, index) => (
-								// biome-ignore lint/suspicious/noArrayIndexKey: 文章から作る表示用の一覧で、並びは入力順のまま。
-								<li key={index}>
-									<RecipeText
-										text={preparation}
-										linkViews={linkViews}
-										onOpenLink={handleOpenLink}
-									/>
-								</li>
-							))}
-						</ul>
 
 						<h4>作り方</h4>
 						<ol className={styles.list}>
