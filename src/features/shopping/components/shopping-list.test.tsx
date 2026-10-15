@@ -294,7 +294,7 @@ describe("ShoppingList", () => {
 
 		await user.click(
 			screen.getByRole("button", {
-				name: "200g袋",
+				name: "200g袋 ×3",
 			}),
 		);
 
@@ -310,8 +310,8 @@ describe("ShoppingList", () => {
 			}),
 		).toBeInTheDocument();
 
-		expect(screen.getByText("1袋")).toBeInTheDocument();
-		expect(screen.getByText("（200g）")).toBeInTheDocument();
+		expect(screen.getByText("3袋")).toBeInTheDocument();
+		expect(screen.getByText("（600g）")).toBeInTheDocument();
 	});
 
 	it("買い物項目を上下に並び替えられる", async () => {
@@ -590,7 +590,7 @@ describe("ShoppingList", () => {
 		await user.type(screen.getByLabelText("買うもの"), "HM");
 		await user.click(
 			screen.getByRole("button", {
-				name: "200g袋",
+				name: "200g袋 ×3",
 			}),
 		);
 		await user.click(
@@ -603,7 +603,7 @@ describe("ShoppingList", () => {
 			expect(repository.items).toContainEqual(
 				expect.objectContaining({
 					name: "HM",
-					quantity: 1,
+					quantity: 3,
 					unitLabel: "袋",
 					inventoryConversion: expect.objectContaining({
 						stockUnitCode: "g",
