@@ -294,7 +294,7 @@ describe("ShoppingList", () => {
 
 		await user.click(
 			screen.getByRole("button", {
-				name: "200g袋",
+				name: "200g袋 ×3",
 			}),
 		);
 
@@ -310,8 +310,8 @@ describe("ShoppingList", () => {
 			}),
 		).toBeInTheDocument();
 
-		expect(screen.getByText("1袋")).toBeInTheDocument();
-		expect(screen.getByText("（200g）")).toBeInTheDocument();
+		expect(screen.getByText("3袋")).toBeInTheDocument();
+		expect(screen.getByText("（600g）")).toBeInTheDocument();
 	});
 
 	it("買い物項目を上下に並び替えられる", async () => {
@@ -590,7 +590,7 @@ describe("ShoppingList", () => {
 		await user.type(screen.getByLabelText("買うもの"), "HM");
 		await user.click(
 			screen.getByRole("button", {
-				name: "200g袋",
+				name: "200g袋 ×3",
 			}),
 		);
 		await user.click(
@@ -603,7 +603,7 @@ describe("ShoppingList", () => {
 			expect(repository.items).toContainEqual(
 				expect.objectContaining({
 					name: "HM",
-					quantity: 1,
+					quantity: 3,
 					unitLabel: "袋",
 					inventoryConversion: expect.objectContaining({
 						stockUnitCode: "g",
@@ -662,6 +662,11 @@ describe("ShoppingList", () => {
 			lotsByItemId: {},
 		});
 
+		// 購入済みは、閉じたセクションにまとまる。開くと、そこにある。
+		expect(screen.queryByRole("checkbox", { name: "卵をチェック" })).toBeNull();
+
+		await user.click(screen.getByRole("button", { name: "購入済み1" }));
+
 		expect(
 			screen.getByRole("checkbox", {
 				name: "卵をチェック",
@@ -673,8 +678,53 @@ describe("ShoppingList", () => {
 				name: "卵をチェック",
 			}),
 		).toBeDisabled();
+	});
 
-		expect(screen.getByText("購入済み")).toBeInTheDocument();
+	describe("購入済みのまとめ", () => {
+		const purchased = (name: string): ShoppingItem => ({
+			...storedItem,
+			id: `purchased-${name}`,
+			name,
+			status: "purchased",
+		});
+
+		it("閉じたままでも、一括で削除できる（確認あり）", async () => {
+			const user = userEvent.setup();
+			const repository = createFakeShoppingRepository([
+				purchased("卵"),
+				purchased("牛乳"),
+			]);
+
+			render(<ShoppingList repository={repository} />);
+
+			await user.click(
+				await screen.findByRole("button", { name: "購入済み2件をすべて削除" }),
+			);
+			await user.click(screen.getByRole("button", { name: "すべて削除する" }));
+
+			await waitFor(() => expect(repository.items).toHaveLength(0));
+			expect(screen.queryByRole("button", { name: "購入済み2" })).toBeNull();
+		});
+
+		it("開くと、1つずつ削除できる", async () => {
+			const user = userEvent.setup();
+			const repository = createFakeShoppingRepository([
+				purchased("卵"),
+				purchased("牛乳"),
+			]);
+
+			render(<ShoppingList repository={repository} />);
+
+			await user.click(
+				await screen.findByRole("button", { name: "購入済み2" }),
+			);
+			await user.click(screen.getByRole("button", { name: "卵のその他" }));
+			await user.click(screen.getByRole("menuitem", { name: "削除" }));
+
+			await waitFor(() =>
+				expect(repository.items.map((item) => item.name)).toEqual(["牛乳"]),
+			);
+		});
 	});
 
 	it("在庫換算がない商品は購入確定せず案内する", async () => {

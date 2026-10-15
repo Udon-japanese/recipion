@@ -42,7 +42,8 @@ type IngredientPreviewNodeProps = {
 	onMove: (id: string, targetGroupId: string | null) => void;
 	onRemove: (id: string) => void;
 	onRenameGroup: (id: string, name: string) => void;
-	onRemoveGroup: (id: string) => void;
+	// keep：グループだけ消して、中の材料は残す。all：グループと中の材料を消す。
+	onRemoveGroup: (id: string, mode: "keep" | "all") => void;
 	onRevert: (id: string) => void;
 	// グループの中に、材料を足す（groupId が null なら、グループ外）。
 	onAdd: (groupId: string | null, name: string, amountText: string) => void;
@@ -112,14 +113,34 @@ export function IngredientPreviewNode({
 							onRevert={() => onRevert(node.id)}
 						/>
 					) : null}
-					{node.children.length === 0 ? (
-						<IconButton
-							icon="trash"
-							label={`${node.name}のグループを削除`}
-							tone="plain"
-							onClick={() => onRemoveGroup(node.id)}
-						/>
-					) : null}
+					<Menu
+						label={`${node.name}のグループのその他`}
+						icon="more-horizontal"
+						items={
+							node.children.length === 0
+								? [
+										{
+											label: "グループを削除",
+											icon: "trash",
+											tone: "danger",
+											onSelect: () => onRemoveGroup(node.id, "all"),
+										},
+									]
+								: [
+										{
+											label: "グループを削除（材料は残す）",
+											icon: "trash",
+											onSelect: () => onRemoveGroup(node.id, "keep"),
+										},
+										{
+											label: "グループと材料を削除",
+											icon: "trash",
+											tone: "danger",
+											onSelect: () => onRemoveGroup(node.id, "all"),
+										},
+									]
+						}
+					/>
 				</div>
 				<ul className={styles.groupChildren}>
 					{node.children.map((child) => (

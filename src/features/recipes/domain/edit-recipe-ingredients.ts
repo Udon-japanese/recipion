@@ -110,6 +110,64 @@ export function removeEmptyIngredientGroup(
 	});
 }
 
+// グループの ID と、その中のすべての材料・グループの ID。
+export function collectIngredientIds(
+	node: RecipeEditorIngredientNode,
+): string[] {
+	return node.type === "group"
+		? [node.id, ...node.children.flatMap(collectIngredientIds)]
+		: [node.id];
+}
+
+export function findIngredientGroup(
+	nodes: readonly RecipeEditorIngredientNode[],
+	groupId: string,
+): RecipeEditorIngredientGroup | null {
+	for (const node of nodes) {
+		if (node.type !== "group") continue;
+
+		if (node.id === groupId) return node;
+
+		const found = findIngredientGroup(node.children, groupId);
+
+		if (found) return found;
+	}
+
+	return null;
+}
+
+// グループだけを消す。中の材料は、そのグループがあった位置に残る（グループ外へ出る）。
+export function dissolveIngredientGroup(
+	nodes: readonly RecipeEditorIngredientNode[],
+	groupId: string,
+): RecipeEditorIngredientNode[] {
+	return nodes.flatMap<RecipeEditorIngredientNode>((node) => {
+		if (node.type !== "group") return [node];
+
+		if (node.id === groupId) return node.children;
+
+		return [
+			{ ...node, children: dissolveIngredientGroup(node.children, groupId) },
+		];
+	});
+}
+
+// グループと、中の材料を、すべて消す。
+export function removeIngredientGroup(
+	nodes: readonly RecipeEditorIngredientNode[],
+	groupId: string,
+): RecipeEditorIngredientNode[] {
+	return nodes.flatMap<RecipeEditorIngredientNode>((node) => {
+		if (node.type !== "group") return [node];
+
+		if (node.id === groupId) return [];
+
+		return [
+			{ ...node, children: removeIngredientGroup(node.children, groupId) },
+		];
+	});
+}
+
 export function hasEmptyIngredientGroup(
 	nodes: readonly RecipeEditorIngredientNode[],
 ): boolean {

@@ -22,7 +22,9 @@ function Harness({
 	onLinkSelected,
 	searchLinkableUsers,
 	loadUserRecipes,
+	initialValue = "",
 }: {
+	initialValue?: string;
 	compositionStrategy?: CompositionStrategy;
 	completionLayout?: "caret" | "keyboard-bar";
 	linkTargets?: RecipeLinkTarget[];
@@ -30,7 +32,7 @@ function Harness({
 	searchLinkableUsers?: (query: string) => Promise<LinkableUser[]>;
 	loadUserRecipes?: (handle: string) => Promise<OtherRecipeTarget[]>;
 }) {
-	const [value, setValue] = useState("");
+	const [value, setValue] = useState(initialValue);
 
 	return (
 		<RecipeBodyTextarea
@@ -393,7 +395,7 @@ test("変換中は、Alt+↑↓ で候補を選び、Tab で決められる（�
 	await focusTextarea();
 	startComposition();
 	await userEvent.keyboard("＜");
-	await expect.poll(() => candidateButton().textContent).toBe("＜材料＞");
+	await expect.poll(() => candidateButton().textContent).toBe("＜下準備＞");
 
 	// 素の矢印と Shift+矢印は、IME に任せる。
 	expect(
@@ -412,26 +414,26 @@ test("変換中は、Alt+↑↓ で候補を選び、Tab で決められる（�
 	).toBe(false);
 	expect(selectedCandidate()).toBeUndefined();
 
-	// Alt+↓ を2回で、2つ目（＜下準備＞）。
+	// Alt+↓ を2回で、2つ目（＜材料＞）。
 	expect(
 		compositionKey({ key: "ArrowDown", code: "ArrowDown", altKey: true })
 			.defaultPrevented,
 	).toBe(true);
 	compositionKey({ key: "ArrowDown", code: "ArrowDown", altKey: true });
-	await expect.poll(selectedCandidate).toBe("＜下準備＞");
+	await expect.poll(selectedCandidate).toBe("＜材料＞");
 
 	// Alt+↑ で戻る。
 	compositionKey({ key: "ArrowUp", code: "ArrowUp", altKey: true });
-	await expect.poll(selectedCandidate).toBe("＜材料＞");
+	await expect.poll(selectedCandidate).toBe("＜下準備＞");
 
 	// 選んだあとの Tab で、選んだ候補に決まる。
 	compositionKey({ key: "ArrowDown", code: "ArrowDown", altKey: true });
-	await expect.poll(selectedCandidate).toBe("＜下準備＞");
+	await expect.poll(selectedCandidate).toBe("＜材料＞");
 
 	const tab = compositionKey({ key: "Process", code: "Tab" });
 
 	expect(tab.defaultPrevented).toBe(true);
-	await expect.poll(textareaValue).toBe("＜下準備＞\n");
+	await expect.poll(textareaValue).toBe("＜材料＞\n");
 });
 
 // Enter は、IME が変換中の文字を確定する操作。Mac の IME は、止めても、確定の入力をあとから送ってきて、置き換えた本文の先頭に入ってしまう。補完には使わない。
@@ -440,11 +442,11 @@ test("変換中の Enter は、候補を選んでいても、IME に任せる", 
 	await focusTextarea();
 	startComposition();
 	await userEvent.keyboard("＜");
-	await expect.poll(() => candidateButton().textContent).toBe("＜材料＞");
+	await expect.poll(() => candidateButton().textContent).toBe("＜下準備＞");
 	// 入力のあとの、カーソルの位置の通知（選択をリセットする）が、落ち着くのを待つ。
 	await new Promise((resolve) => setTimeout(resolve, 100));
 	compositionKey({ key: "ArrowDown", code: "ArrowDown", altKey: true });
-	await expect.poll(selectedCandidate).toBe("＜材料＞");
+	await expect.poll(selectedCandidate).toBe("＜下準備＞");
 
 	expect(
 		compositionKey({ key: "Process", code: "Enter" }).defaultPrevented,
@@ -462,7 +464,7 @@ test("候補の下のヒントは、ショートカットを、キーごとに�
 	await render(<Harness completionLayout="caret" />);
 	await focusTextarea();
 	await userEvent.keyboard("＜");
-	await expect.poll(() => candidateButton().textContent).toBe("＜材料＞");
+	await expect.poll(() => candidateButton().textContent).toBe("＜下準備＞");
 
 	expect(hintKeys()).toEqual(["↑↓", "Tab", "Esc"]);
 });
@@ -472,7 +474,7 @@ test("変換中のヒントは、Alt（Apple 系は Option）+↑↓ を示す",
 	await focusTextarea();
 	startComposition();
 	await userEvent.keyboard("＜");
-	await expect.poll(() => candidateButton().textContent).toBe("＜材料＞");
+	await expect.poll(() => candidateButton().textContent).toBe("＜下準備＞");
 	await expect.poll(() => hintKeys().slice(1)).toEqual(["↑↓", "Tab"]);
 	// 先頭は、OS によって、Alt（Windows・Linux）か Option（Apple 系）。
 	expect(["Alt", "Option"]).toContain(hintKeys()[0]);
@@ -709,4 +711,61 @@ test("変換が確定しても、本文とカーソルが動くまで、メニ�
 	// 続けて打てば、通常の位置（カーソルの下）に戻る。
 	await userEvent.keyboard("ー");
 	await expect.poll(() => popup().top).not.toBe(before);
+});
+
+// 案内（Tips）：空のときは placeholder の下に、見出しだけの雛形のあいだは、フォーカスする前だけ、入力欄の下に重ねて出す。
+function findTips(): HTMLElement | undefined {
+	return [
+		...document.querySelectorAll<HTMLElement>('[aria-hidden="true"]'),
+	].find((element) => element.textContent?.startsWith("Tips"));
+}
+
+test("空のときは、placeholder の下に、案内をまとめて書く", async () => {
+	await render(
+		<Harness
+			linkTargets={[]}
+			searchLinkableUsers={async () => []}
+			loadUserRecipes={async () => []}
+		/>,
+	);
+
+	const placeholder = getTextarea().placeholder;
+
+	expect(placeholder).toContain("Tips");
+	expect(placeholder).toContain("材料名・食材名は、入力すると補完が出ます");
+	expect(placeholder).toContain("[[@ で他の人のレシピ");
+});
+
+test("見出しだけの雛形のあいだ、フォーカスする前だけ、案内を重ねて出す（折り返して、はみ出さない）", async () => {
+	await render(
+		<Harness
+			initialValue={"＜材料＞\n\n＜作り方＞\n"}
+			linkTargets={[]}
+			searchLinkableUsers={async () => []}
+			loadUserRecipes={async () => []}
+		/>,
+	);
+
+	const textarea = getTextarea();
+
+	await expect.poll(findTips).toBeDefined();
+
+	const tips = findTips() as HTMLElement;
+
+	expect(tips.getBoundingClientRect().right).toBeLessThanOrEqual(
+		textarea.getBoundingClientRect().right,
+	);
+	expect(tips.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+		textarea.getBoundingClientRect().bottom,
+	);
+
+	// フォーカスすると、消える。
+	await focusTextarea();
+	await expect.poll(findTips).toBeUndefined();
+});
+
+test("中身が書かれたら、案内は出さない", async () => {
+	await render(<Harness initialValue={"＜材料＞\n卵 1個\n"} />);
+
+	expect(findTips()).toBeUndefined();
 });

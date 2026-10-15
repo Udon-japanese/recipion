@@ -159,6 +159,8 @@ export const pane = style({
 
 export const bodyTextarea = style({
 	boxSizing: "border-box",
+	display: "block",
+	width: "100%",
 	minHeight: 420,
 	padding: 16,
 	color: "var(--color-text)",
@@ -282,59 +284,69 @@ export const completionWrap = style({
 	gap: 6,
 });
 
-// PC：カーソルの近くに出す、縦の一覧。
+// PC：カーソルの近くに出す、縦の一覧（メニューと同じ、白い丸角のカード）。
 export const completionPopup = style({
 	position: "absolute",
 	zIndex: 10,
 	display: "grid",
 	gap: 4,
-	minWidth: 160,
+	minWidth: 180,
 	maxWidth: "min(360px, 90vw)",
-	padding: 6,
+	padding: 4,
 	background: "var(--color-surface)",
-	border: "1px solid var(--color-border-strong)",
-	borderRadius: 12,
+	border: "1px solid var(--color-border)",
+	borderRadius: 16,
 	boxShadow: "var(--shadow-md)",
 });
 
 export const completionPopupList = style({
 	display: "grid",
+	gap: 2,
+	maxHeight: 264,
 	margin: 0,
 	padding: 0,
+	overflowY: "auto",
 	listStyle: "none",
 });
 
 export const completionPopupItem = style({
+	boxSizing: "border-box",
 	width: "100%",
-	padding: "6px 10px",
+	minHeight: 40,
+	padding: "0 12px",
+	color: "var(--color-text)",
+	font: "inherit",
+	fontWeight: "var(--font-weight-medium)",
 	textAlign: "left",
 	background: "transparent",
 	border: "none",
-	borderRadius: 6,
+	borderRadius: 12,
 	cursor: "pointer",
 	selectors: {
+		"&:hover": { background: "var(--color-surface-muted)" },
 		'&[aria-current="true"]': {
-			color: "var(--color-on-primary)",
-			background: "var(--color-primary)",
+			background: "var(--color-primary-soft)",
+			fontWeight: "var(--font-weight-bold)",
 		},
 	},
 });
 
 export const completionPopupHint = style({
 	margin: 0,
-	padding: "0 4px",
+	padding: "6px 12px 4px",
 	color: "var(--color-text-muted)",
-	fontSize: 12,
+	fontSize: "var(--font-size-xs)",
+	borderTop: "1px solid var(--color-border)",
 });
 
 // 候補が出ないときの理由（ユーザーを探している最中・見つからない・失敗）。
 export const completionNotice = style({
 	display: "block",
 	margin: 0,
-	padding: "4px 8px",
+	padding: "8px 12px",
 	color: "var(--color-text-muted)",
-	fontSize: 13,
-	lineHeight: 1.5,
+	fontSize: "var(--font-size-sm)",
+	lineHeight: "var(--line-height-normal)",
 });
 
 // スマホ：キーボードのすぐ上に固定する、横に並べた帯（横にスクロールできる）。
@@ -343,14 +355,15 @@ export const completionBar = style({
 	left: 0,
 	right: 0,
 	zIndex: 20,
-	padding: "6px 8px",
+	padding: "8px 12px",
 	background: "var(--color-surface)",
-	borderTop: "1px solid var(--color-border-strong)",
+	borderTop: "1px solid var(--color-border)",
+	boxShadow: "var(--shadow-sheet)",
 });
 
 export const completionBarList = style({
 	display: "flex",
-	gap: 6,
+	gap: 8,
 	margin: 0,
 	padding: 0,
 	overflowX: "auto",
@@ -362,16 +375,19 @@ export const completionBarList = style({
 export const completionItem = style({
 	flexShrink: 0,
 	minHeight: 40,
-	padding: "6px 12px",
+	padding: "0 16px",
+	color: "var(--color-text)",
+	font: "inherit",
+	fontWeight: "var(--font-weight-medium)",
 	background: "var(--color-surface)",
-	border: "1px solid var(--color-border)",
-	borderRadius: 18,
+	border: "1.5px solid var(--color-control-border)",
+	borderRadius: "var(--radius-control)",
 	cursor: "pointer",
 	selectors: {
 		'&[aria-current="true"]': {
-			color: "var(--color-on-primary)",
-			background: "var(--color-primary)",
-			borderColor: "var(--color-primary)",
+			background: "var(--color-primary-soft)",
+			borderColor: "var(--color-text)",
+			fontWeight: "var(--font-weight-bold)",
 		},
 	},
 });
@@ -512,35 +528,74 @@ export const addActions = style({
 	marginTop: 4,
 });
 
-// 人数：− 数字 ＋。
+// 人数：− 数字 ＋。全体で、ふつうの入力欄と同じ見た目（白い地・濃い枠・丸い形）。
 export const stepper = style({
+	boxSizing: "border-box",
 	display: "inline-flex",
 	alignItems: "center",
-	gap: 4,
+	alignSelf: "flex-start",
+	height: 48,
+	padding: "0 6px",
+	background: "var(--color-surface)",
+	border: "1.5px solid var(--color-control-border)",
+	borderRadius: "var(--radius-control)",
+	transition: "border-color var(--duration-fast) var(--ease-standard)",
+	selectors: {
+		"&:hover": { borderColor: "var(--color-text)" },
+		"&:focus-within": {
+			outline: "3px solid var(--color-focus)",
+			outlineOffset: 2,
+		},
+	},
 });
 
 export const stepperInput = style({
 	boxSizing: "border-box",
-	width: 64,
-	height: 44,
+	width: 56,
+	height: 40,
 	padding: 0,
 	color: "var(--color-text)",
 	font: "inherit",
+	fontSize: 16,
 	fontWeight: "var(--font-weight-bold)",
 	textAlign: "center",
 	background: "transparent",
-	border: "1.5px solid transparent",
-	borderRadius: 10,
+	border: "none",
+	outline: "none",
 	MozAppearance: "textfield",
 	selectors: {
 		"&::-webkit-outer-spin-button": { WebkitAppearance: "none", margin: 0 },
 		"&::-webkit-inner-spin-button": { WebkitAppearance: "none", margin: 0 },
-		"&:hover": { background: "var(--color-surface-muted)" },
-		"&:focus-visible": {
-			outline: "3px solid var(--color-focus)",
-			outlineOffset: 2,
-			background: "var(--color-surface)",
-			borderColor: "var(--color-control-border)",
-		},
 	},
+});
+
+// 消したあとの「元に戻す」。画面の下に、浮かせて出す。
+export const undoToast = style({
+	position: "fixed",
+	bottom: 16,
+	left: "50%",
+	zIndex: 40,
+	maxWidth: "calc(100vw - 32px)",
+	transform: "translateX(-50%)",
+});
+
+// 本文の入力欄と、見出しの下に重ねる案内（Tips）の土台。
+export const textareaFrame = style({
+	position: "relative",
+	display: "block",
+	overflow: "hidden",
+	borderRadius: "var(--radius-card)",
+});
+
+// 見出しだけの雛形のあいだ、入力欄の下に重ねる案内（折り返す。クリックは入力欄に通す）。
+export const bodyTips = style({
+	position: "absolute",
+	left: 16,
+	right: 16,
+	bottom: 12,
+	color: "var(--color-text-muted)",
+	fontSize: "var(--font-size-sm)",
+	lineHeight: "var(--line-height-normal)",
+	whiteSpace: "pre-wrap",
+	pointerEvents: "none",
 });

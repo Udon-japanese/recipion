@@ -40,6 +40,11 @@ import {
 	resolveLinkLabel,
 } from "../domain/recipe-links";
 import {
+	buildRecipeTips,
+	formatRecipeTips,
+	hasOnlyHeadings,
+} from "../domain/recipe-tips";
+import {
 	type EditKind,
 	editKindOfInput,
 	emptyTextHistory,
@@ -84,6 +89,8 @@ type RecipeBodyTextareaProps = {
 	// 他の人のレシピへのリンク（[[@ユーザー/…）。ユーザーを探す／そのユーザーの全体公開レシピを取ってくる。渡すと、@ の補完と、ボタンの「他の人のレシピ」が使える。
 	searchLinkableUsers?: (query: string) => Promise<LinkableUser[]>;
 	loadUserRecipes?: (handle: string) => Promise<OtherRecipeTarget[]>;
+	// 覚えている他の人のレシピの検索結果を捨てる（リンクを選ぶシートの「更新」）。
+	onRefreshOthers?: () => void;
 };
 
 type CompletionLayout = "caret" | "keyboard-bar";
@@ -103,6 +110,7 @@ export function RecipeBodyTextarea({
 	onLinkSelected,
 	searchLinkableUsers,
 	loadUserRecipes,
+	onRefreshOthers,
 }: RecipeBodyTextareaProps) {
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
 	const wrapperRef = useRef<HTMLDivElement>(null);
@@ -192,7 +200,6 @@ export function RecipeBodyTextarea({
 	>({});
 	const [isSearchingUsers, setIsSearchingUsers] = useState(false);
 	const [otherError, setOtherError] = useState<string | null>(null);
-	const requestedHandlesRef = useRef(new Set<string>());
 	// 親の再描画で関数が替わっても、検索をやり直さない（最新の関数を、ここから呼ぶ）。
 	const searchUsersRef = useRef(searchLinkableUsers);
 	const loadUserRecipesRef = useRef(loadUserRecipes);
@@ -248,16 +255,11 @@ export function RecipeBodyTextarea({
 		};
 	}, [usersQuery]);
 
-	// 選んだユーザーの、全体公開のレシピを取ってくる（同じユーザーは、1度だけ）。
+	// 選んだユーザーの、全体公開のレシピを取ってくる（覚えた結果は、期限まで使われる。控えは、エディタが持つ）。
 	useEffect(() => {
-		if (
-			recipesHandle === null ||
-			requestedHandlesRef.current.has(recipesHandle)
-		) {
+		if (recipesHandle === null) {
 			return;
 		}
-
-		requestedHandlesRef.current.add(recipesHandle);
 
 		loadUserRecipesRef
 			.current?.(recipesHandle)
@@ -269,8 +271,7 @@ export function RecipeBodyTextarea({
 				setOtherError(null);
 			})
 			.catch((error: unknown) => {
-				// 取れなかったら、次の入力で、もう一度試せるようにする。
-				requestedHandlesRef.current.delete(recipesHandle);
+				// 取れなかったら、控えには残らないので、次の入力で、もう一度試される。
 				setOtherError(describeError(error, "レシピを読み込めませんでした。"));
 			});
 	}, [recipesHandle]);
@@ -371,6 +372,15 @@ export function RecipeBodyTextarea({
 		otherNotice,
 		scrollTick,
 	]);
+
+	// 案内（Tips）。空のときは、placeholder の下にまとめて書く。見出しだけの雛形のあいだは、フォーカスする前だけ、入力欄の下に重ねて出す。
+	const tipsText = formatRecipeTips(
+		buildRecipeTips({
+			canLinkOwn: Boolean(linkTargets),
+			canLinkOthers: hasOtherLinks,
+		}),
+	);
+	const isShowingTips = !isFocused && hasOnlyHeadings(value);
 
 	// キーボードのすぐ上に出す帯の位置。キーボードを除いた見える範囲（visualViewport）の下端に合わせる。
 	useEffect(() => {
@@ -692,16 +702,16 @@ export function RecipeBodyTextarea({
 	}
 
 	// 変換中の Tab で使う候補。今出ている候補。なければ、Safari の方式のときだけ、直前の入力（IME の変換）の前に出ていた候補。
-	// 候補の選択を、1つ動かす（現在の選択がなければ、↓は先頭、↑は末尾）。
+	// 候補の選択を、1つ動かす（現在の選択がなければ、↓は先頭、↑は末尾）。端までいくと、反対側へ回る（押し続けると、循環する）。
 	function moveActive(direction: "up" | "down", itemCount: number) {
-		const lastIndex = itemCount - 1;
-
 		setActiveIndex((current) => {
 			if (direction === "down") {
-				return current === null ? 0 : Math.min(current + 1, lastIndex);
+				return current === null ? 0 : (current + 1) % itemCount;
 			}
 
-			return current === null ? lastIndex : Math.max(current - 1, 0);
+			return current === null
+				? itemCount - 1
+				: (current - 1 + itemCount) % itemCount;
 		});
 	}
 
@@ -842,6 +852,17 @@ export function RecipeBodyTextarea({
 		syncCaret(textarea);
 	}
 
+	// 選んでいる候補が、一覧の見える範囲の外にあれば、見える位置までスクロールする。
+	useEffect(() => {
+		if (activeIndex === null) return;
+
+		wrapperRef.current
+			?.querySelector<HTMLElement>(
+				'[aria-label="補完の候補"] [aria-current="true"]',
+			)
+			?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+	}, [activeIndex]);
+
 	const candidates = completion?.items.map((item, index) => (
 		<li key={item.label}>
 			<button
@@ -874,20 +895,29 @@ export function RecipeBodyTextarea({
 		<div ref={wrapperRef} className={styles.completionWrap}>
 			<label className={styles.field}>
 				<span>レシピの本文</span>
-				<textarea
-					ref={textareaRef}
-					className={styles.bodyTextarea}
-					value={value}
-					placeholder={placeholder}
-					onChange={handleChange}
-					onSelect={(event) => syncCaret(event.currentTarget)}
-					onScroll={() => setScrollTick((tick) => tick + 1)}
-					onKeyDown={handleKeyDown}
-					onCompositionStart={handleCompositionStart}
-					onCompositionEnd={handleCompositionEnd}
-					onFocus={() => setIsFocused(true)}
-					onBlur={() => setIsFocused(false)}
-				/>
+				<span className={styles.textareaFrame}>
+					<textarea
+						ref={textareaRef}
+						className={styles.bodyTextarea}
+						value={value}
+						placeholder={
+							placeholder ? `${placeholder}\n\n${tipsText}` : tipsText
+						}
+						onChange={handleChange}
+						onSelect={(event) => syncCaret(event.currentTarget)}
+						onScroll={() => setScrollTick((tick) => tick + 1)}
+						onKeyDown={handleKeyDown}
+						onCompositionStart={handleCompositionStart}
+						onCompositionEnd={handleCompositionEnd}
+						onFocus={() => setIsFocused(true)}
+						onBlur={() => setIsFocused(false)}
+					/>
+					{isShowingTips ? (
+						<span className={styles.bodyTips} aria-hidden="true">
+							{tipsText}
+						</span>
+					) : null}
+				</span>
 			</label>
 
 			{linkTargets ? (
@@ -918,6 +948,7 @@ export function RecipeBodyTextarea({
 					onClose={() => setPickerSelection(null)}
 					searchUsers={searchLinkableUsers}
 					loadUserRecipes={loadUserRecipes}
+					onRefresh={onRefreshOthers}
 				/>
 			) : null}
 

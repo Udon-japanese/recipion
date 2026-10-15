@@ -307,15 +307,101 @@ describe("RecipeEditor", () => {
 		);
 		expect(onSave).not.toHaveBeenCalled();
 
-		await user.click(
-			screen.getByRole("button", { name: "たれのグループを削除" }),
-		);
+		await chooseMenuItem(user, "たれのグループ", "グループを削除");
 		await user.click(screen.getByRole("button", { name: "レシピを保存" }));
 		await screen.findByText("レシピを保存しました。");
 
 		expect(onSave).toHaveBeenCalledWith(
 			expect.objectContaining({ ingredients: [] }),
 		);
+	});
+
+	it("グループを消しても、中の材料を残せる。本文を書き足しても、グループは戻らない", async () => {
+		const user = userEvent.setup();
+		const onSave = vi.fn(async (_document: RecipeEditorDocument) => ({
+			publicId: "recipe-1",
+		}));
+
+		render(<RecipeEditor onSave={onSave} />);
+
+		await enterTitle(user, "つくね");
+		await writeBody(user, "＜材料＞\n肉だね\n豚ひき肉 200g\n玉ねぎ 1/2個");
+
+		await chooseMenuItem(
+			user,
+			"肉だねのグループ",
+			"グループを削除（材料は残す）",
+		);
+
+		expect(
+			screen.queryByRole("button", { name: "肉だねのグループ名を編集" }),
+		).toBeNull();
+		expect(
+			screen.getByRole("button", { name: "豚ひき肉の材料名を編集" }),
+		).toBeTruthy();
+
+		const textarea = screen.getByRole("textbox", { name: "レシピの本文" });
+
+		await user.click(textarea);
+		await user.keyboard("{Control>}{End}{/Control}\n塩 少々");
+		expect(
+			screen.queryByRole("button", { name: "肉だねのグループ名を編集" }),
+		).toBeNull();
+
+		await user.click(screen.getByRole("button", { name: "レシピを保存" }));
+		await screen.findByText("レシピを保存しました。");
+
+		expect(onSave).toHaveBeenCalledWith(
+			expect.objectContaining({
+				ingredients: [
+					expect.objectContaining({ type: "ingredient", name: "豚ひき肉" }),
+					expect.objectContaining({ type: "ingredient", name: "玉ねぎ" }),
+					expect.objectContaining({ type: "ingredient", name: "塩" }),
+				],
+			}),
+		);
+	});
+
+	it("グループと中の材料を消せて、「元に戻す」で戻せる", async () => {
+		const user = userEvent.setup();
+
+		render(<RecipeEditor onSave={vi.fn()} />);
+
+		await writeBody(user, "＜材料＞\n肉だね\n豚ひき肉 200g\n玉ねぎ 1/2個");
+
+		await chooseMenuItem(user, "肉だねのグループ", "グループと材料を削除");
+
+		expect(screen.getByText("材料はまだありません。")).toBeTruthy();
+		expect(screen.getByText("グループ「肉だね」を削除しました")).toBeTruthy();
+
+		await user.click(screen.getByRole("button", { name: "元に戻す" }));
+
+		expect(
+			screen.getByRole("button", { name: "肉だねのグループ名を編集" }),
+		).toBeTruthy();
+		expect(
+			screen.getByRole("button", { name: "豚ひき肉の材料名を編集" }),
+		).toBeTruthy();
+		expect(screen.queryByRole("button", { name: "元に戻す" })).toBeNull();
+	});
+
+	it("材料を消したあとも、「元に戻す」で戻せる", async () => {
+		const user = userEvent.setup();
+
+		render(<RecipeEditor onSave={vi.fn()} />);
+
+		await writeBody(user, "＜材料＞\n卵 1個\n牛乳 200ml");
+		await chooseMenuItem(user, "卵", "削除");
+
+		expect(
+			screen.queryByRole("button", { name: "卵の材料名を編集" }),
+		).toBeNull();
+
+		await user.click(screen.getByRole("button", { name: "元に戻す" }));
+
+		expect(
+			screen.getByRole("button", { name: "卵の材料名を編集" }),
+		).toBeTruthy();
 	});
 
 	it("保存に成功したら、保存したレシピを onSaved に渡す", async () => {
@@ -801,7 +887,26 @@ describe("RecipeEditor", () => {
 			await user.clear(bodyTextarea());
 			await user.type(bodyTextarea(), "＜{ArrowDown}{ArrowDown}{Enter}");
 
+			expect(bodyTextarea()).toHaveProperty("value", "＜材料＞\n");
+		});
+
+		it("↑↓は、端までいくと反対側へ回る（押し続けると循環する）", async () => {
+			const user = userEvent.setup();
+
+			render(<RecipeEditor onSave={vi.fn()} />);
+
+			await user.clear(bodyTextarea());
+			// 4つの候補を、↓で5回：1つ目に戻る。
+			await user.type(
+				bodyTextarea(),
+				"＜{ArrowDown}{ArrowDown}{ArrowDown}{ArrowDown}{ArrowDown}{Enter}",
+			);
 			expect(bodyTextarea()).toHaveProperty("value", "＜下準備＞\n");
+
+			await user.clear(bodyTextarea());
+			// 1つ目から↑：最後（メモ）へ回る。
+			await user.type(bodyTextarea(), "＜{ArrowDown}{ArrowUp}{Enter}");
+			expect(bodyTextarea()).toHaveProperty("value", "＜メモ＞\n");
 		});
 
 		it("Esc で閉じられる", async () => {

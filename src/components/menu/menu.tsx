@@ -3,6 +3,7 @@ import {
 	type ReactNode,
 	useEffect,
 	useId,
+	useLayoutEffect,
 	useRef,
 	useState,
 } from "react";
@@ -41,6 +42,24 @@ const ITEM_HEIGHT = 48;
 const GAP = 6;
 const EDGE = 12;
 
+// ボタンの右端にそろえ、画面の端に収まる位置に置く。下に入らなければ、上に出す。
+function placeMenu(
+	anchor: { right: number; top: number; bottom: number },
+	size: { width: number; height: number },
+) {
+	const left = Math.min(
+		Math.max(EDGE, anchor.right - size.width),
+		window.innerWidth - size.width - EDGE,
+	);
+	const below = anchor.bottom + GAP;
+	const top =
+		below + size.height > window.innerHeight - EDGE
+			? Math.max(EDGE, anchor.top - GAP - size.height)
+			: below;
+
+	return { left, top };
+}
+
 // 押すと出る、短い操作の一覧（行の「その他」・並べ替え など）。
 // 矢印で選び、Esc で閉じてボタンへ戻る。外を押す・Tab でも閉じる。
 export function Menu({ label, icon, items, disabled, trigger }: MenuProps) {
@@ -51,6 +70,12 @@ export function Menu({ label, icon, items, disabled, trigger }: MenuProps) {
 		left: number;
 		top: number;
 	} | null>(null);
+	// 開くボタンの位置（メニューの大きさが分かったあとに、置き直すため）。
+	const anchorRef = useRef<{
+		right: number;
+		top: number;
+		bottom: number;
+	} | null>(null);
 
 	function open() {
 		const trigger = triggerRef.current;
@@ -60,18 +85,20 @@ export function Menu({ label, icon, items, disabled, trigger }: MenuProps) {
 		}
 
 		const rect = trigger.getBoundingClientRect();
-		const height = items.length * ITEM_HEIGHT + 8;
-		const left = Math.min(
-			Math.max(EDGE, rect.right - WIDTH),
-			window.innerWidth - WIDTH - EDGE,
-		);
-		const below = rect.bottom + GAP;
-		const top =
-			below + height > window.innerHeight - EDGE
-				? Math.max(EDGE, rect.top - GAP - height)
-				: below;
 
-		setPosition({ left, top });
+		anchorRef.current = {
+			right: rect.right,
+			top: rect.top,
+			bottom: rect.bottom,
+		};
+
+		// 大きさは、まだ分からないので、仮の値で置く（直後に、実際の大きさで置き直す）。
+		const placed = placeMenu(anchorRef.current, {
+			width: WIDTH,
+			height: items.length * ITEM_HEIGHT + 8,
+		});
+
+		setPosition(placed);
 	}
 
 	function close(returnFocus: boolean) {
@@ -83,6 +110,27 @@ export function Menu({ label, icon, items, disabled, trigger }: MenuProps) {
 	}
 
 	const isOpen = position !== null;
+
+	// 内容の幅に合わせて広がるので、実際の大きさが分かったら、右端をボタンにそろえて置き直す。
+	useLayoutEffect(() => {
+		const popup = popupRef.current;
+		const anchor = anchorRef.current;
+
+		if (!isOpen || !popup || !anchor) {
+			return;
+		}
+
+		const placed = placeMenu(anchor, {
+			width: popup.offsetWidth,
+			height: popup.offsetHeight,
+		});
+
+		setPosition((current) =>
+			current && current.left === placed.left && current.top === placed.top
+				? current
+				: placed,
+		);
+	}, [isOpen]);
 
 	useEffect(() => {
 		if (!isOpen) {

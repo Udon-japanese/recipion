@@ -312,10 +312,11 @@ export const powdersAndSpicesEntries: readonly IngredientCatalogEntry[] =
 			categoryId: "snacks",
 			// 小麦粉に近い値を仮置きしている。
 			density: { gramsPerMl: 0.6, approximate: true },
+			// 市販は、3袋セットが基本（150g・200g どちらも）。
 			presets: [
 				{
-					label: "150g袋",
-					quantity: 1,
+					label: "150g袋 ×3",
+					quantity: 3,
 					unitLabel: "袋",
 					inventoryConversion: {
 						inputUnitCode: "bag",
@@ -326,8 +327,8 @@ export const powdersAndSpicesEntries: readonly IngredientCatalogEntry[] =
 					},
 				},
 				{
-					label: "200g袋",
-					quantity: 1,
+					label: "200g袋 ×3",
+					quantity: 3,
 					unitLabel: "袋",
 					inventoryConversion: {
 						inputUnitCode: "bag",
