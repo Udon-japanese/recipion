@@ -159,6 +159,8 @@ export const pane = style({
 
 export const bodyTextarea = style({
 	boxSizing: "border-box",
+	display: "block",
+	width: "100%",
 	minHeight: 420,
 	padding: 16,
 	color: "var(--color-text)",

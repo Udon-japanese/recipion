@@ -14,16 +14,7 @@ import { useStorageItem } from "#/local-storage/use-storage-item";
 import type { ShoppingBranchRepository } from "../application/shopping-branch-repository";
 import type { ShoppingRepository } from "../application/shopping-repository";
 import type { ShoppingStoreRepository } from "../application/shopping-store-repository";
-import {
-	getShoppingBranchConditionItem,
-	type ShoppingBranch,
-} from "../domain/shopping-branch";
-import type { ShoppingCategoryId } from "../domain/shopping-category";
-import {
-	getShoppingCategoryLabel,
-	groupShoppingItemsByCategory,
-	type ShoppingCategoryGroup,
-} from "../domain/shopping-category-group";
+import { groupShoppingItemsByCategory } from "../domain/shopping-category-group";
 import { type ShoppingItem, toggleShoppingItem } from "../domain/shopping-item";
 import { groupShoppingItemsByStore } from "../domain/shopping-store";
 import { useShoppingBranches } from "../hooks/use-shopping-branches";
@@ -51,6 +42,7 @@ import { ShoppingItemForm } from "./shopping-item-form";
 import { ShoppingItemInventoryConversionForm } from "./shopping-item-inventory-conversion-form";
 import { ShoppingItemRow } from "./shopping-item-row";
 import * as styles from "./shopping-page.css";
+import { ShoppingPurchasedSection } from "./shopping-purchased-section";
 import { ShoppingQuantitySheet } from "./shopping-quantity-sheet";
 import { ShoppingStoreManager } from "./shopping-store-manager";
 import {
@@ -240,45 +232,18 @@ export function ShoppingList({
 		},
 	};
 	const branches = branchState.branches;
-	// 条件つきのメモは、条件の材料の分類の見出しの下に置く（分類に項目がなくても、見出しを出す）。
-	const categoryGroups = groupShoppingItemsByCategory(items);
-	const branchesByCategory = new Map<
-		ShoppingCategoryId | null,
-		ShoppingBranch[]
-	>();
-
-	for (const branch of branches) {
-		const categoryId =
-			getShoppingBranchConditionItem(shopping.allItems, branch.id)
-				?.categoryId ?? null;
-
-		branchesByCategory.set(categoryId, [
-			...(branchesByCategory.get(categoryId) ?? []),
-			branch,
-		]);
-	}
-
-	const aisleSections = [
-		...categoryGroups,
-		...[...branchesByCategory.keys()]
-			.filter(
-				(categoryId) =>
-					!categoryGroups.some((group) => group.categoryId === categoryId),
-			)
-			.map(
-				(categoryId): ShoppingCategoryGroup => ({
-					categoryId,
-					label: getShoppingCategoryLabel(categoryId),
-					items: [],
-					remaining: 0,
-				}),
-			),
-	];
+	// 購入済みは、1か所にまとめる（普段は閉じている）。
+	const activeItems = items.filter((item) => item.status !== "purchased");
+	const purchasedItems = items.filter((item) => item.status === "purchased");
+	// 分類の見出しは出さない。同じ分類の項目が続く並びを、1つのカードに入れる（並べ替えは、同じ分類の中）。
+	const categoryGroups = groupShoppingItemsByCategory(activeItems);
 
 	const storeGroups = groupShoppingItemsByStore(
 		currentStoreId
-			? items.filter((item) => !item.storeId || item.storeId === currentStoreId)
-			: items,
+			? activeItems.filter(
+					(item) => !item.storeId || item.storeId === currentStoreId,
+				)
+			: activeItems,
 		stores,
 	);
 
@@ -303,7 +268,7 @@ export function ShoppingList({
 					<Menu
 						label="並べ替え"
 						icon="swap"
-						disabled={items.length < 2 || isReordering}
+						disabled={activeItems.length < 2 || isReordering}
 						items={[
 							{
 								label: "売り場順",
@@ -322,7 +287,7 @@ export function ShoppingList({
 								icon="swap"
 								label="並べ替え"
 								size="std"
-								disabled={items.length < 2 || isReordering}
+								disabled={activeItems.length < 2 || isReordering}
 							/>
 						)}
 					/>
@@ -411,7 +376,7 @@ export function ShoppingList({
 				</div>
 			) : null}
 
-			{!isLoading && items.length === 0 && branches.length === 0 ? (
+			{!isLoading && activeItems.length === 0 && branches.length === 0 ? (
 				<div className={styles.center}>
 					<Mascot size={64} motion="still" />
 					<p className={styles.centerText}>買うものはまだありません。</p>
@@ -486,71 +451,69 @@ export function ShoppingList({
 				</div>
 			) : null}
 
-			{!isLoading && view === "aisle" ? (
-				<div className={styles.groups}>
-					{aisleSections.map((group) => (
-						<section key={group.categoryId ?? "uncategorized"}>
-							<div className={styles.groupHeader}>
-								<h2 className={styles.groupTitle}>{group.label}</h2>
+			{!isLoading &&
+			view === "aisle" &&
+			(activeItems.length > 0 || branches.length > 0) ? (
+				<div className={styles.categoryCard}>
+					<ShoppingBranchCards branches={branches} context={branchContext} />
 
-								{group.items.length > 0 ? (
-									<Tag>残り {group.remaining}</Tag>
-								) : null}
-							</div>
+					{categoryGroups.map((group) => (
+						<DragDropProvider
+							key={group.categoryId ?? "uncategorized"}
+							onDragEnd={(event) => {
+								if (event.canceled) {
+									return;
+								}
 
-							<div className={styles.categoryCard}>
-								<ShoppingBranchCards
-									branches={branchesByCategory.get(group.categoryId) ?? []}
-									context={branchContext}
-								/>
+								const { source } = event.operation;
 
-								{group.items.length > 0 ? (
-									<DragDropProvider
-										onDragEnd={(event) => {
-											if (event.canceled) {
-												return;
-											}
+								if (!isSortable(source)) {
+									return;
+								}
 
-											const { source } = event.operation;
-
-											if (!isSortable(source)) {
-												return;
-											}
-
-											void shopping.dragMove(
-												group.categoryId,
-												source.initialIndex,
-												source.index,
-											);
-										}}
+								void shopping.dragMove(
+									group.categoryId,
+									source.initialIndex,
+									source.index,
+								);
+							}}
+						>
+							<ul className={styles.rowList}>
+								{group.items.map((item, index) => (
+									<SortableShoppingItem
+										id={item.id}
+										index={index}
+										disabled={isReordering || editingItemId === item.id}
+										key={item.id}
 									>
-										<ul className={styles.rowList}>
-											{group.items.map((item, index) => (
-												<SortableShoppingItem
-													id={item.id}
-													index={index}
-													disabled={isReordering || editingItemId === item.id}
-													key={item.id}
-												>
-													{({ rowRef, handleRef, isDragging }) =>
-														renderItem(item, {
-															rowRef,
-															dragHandleRef: handleRef,
-															isDragging,
-															isFirst: index === 0,
-															isLast: index === group.items.length - 1,
-														})
-													}
-												</SortableShoppingItem>
-											))}
-										</ul>
-									</DragDropProvider>
-								) : null}
-							</div>
-						</section>
+										{({ rowRef, handleRef, isDragging }) =>
+											renderItem(item, {
+												rowRef,
+												dragHandleRef: handleRef,
+												isDragging,
+												isFirst: index === 0,
+												isLast: index === group.items.length - 1,
+											})
+										}
+									</SortableShoppingItem>
+								))}
+							</ul>
+						</DragDropProvider>
 					))}
 				</div>
 			) : null}
+
+			{isLoading ? null : (
+				<ShoppingPurchasedSection
+					items={purchasedItems}
+					renderItem={(item) => renderItem(item)}
+					onClear={async (targets) => {
+						for (const target of targets) {
+							await shopping.removeItem(target.id);
+						}
+					}}
+				/>
+			)}
 
 			{isLoading ? null : (
 				<ShoppingBranchCreate

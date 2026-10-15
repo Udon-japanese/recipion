@@ -293,6 +293,10 @@ export const rowList = style({
 	margin: 0,
 	padding: "0 12px 0 8px",
 	listStyle: "none",
+	selectors: {
+		// 分類ごとに分かれた並びも、1つのカードの中で、続けて見えるよう、区切り線を引く。
+		"& + &": { borderTop: "1px solid var(--color-border)" },
+	},
 });
 
 // 条件つきのメモ 1 つ分のブロック。
@@ -401,4 +405,55 @@ export const notices = style({
 	selectors: {
 		"&:empty": { display: "none" },
 	},
+});
+
+// 購入済みをまとめた、折りたたみのセクション。
+export const purchasedSection = style({
+	display: "grid",
+	gap: 8,
+});
+
+export const purchasedHeader = style({
+	display: "flex",
+	alignItems: "center",
+	justifyContent: "space-between",
+	gap: 8,
+	padding: "0 4px",
+});
+
+export const purchasedToggle = style({
+	display: "inline-flex",
+	alignItems: "center",
+	gap: 6,
+	minHeight: 44,
+	padding: 0,
+	color: "var(--color-text-muted)",
+	font: "inherit",
+	fontSize: "var(--font-size-sm)",
+	fontWeight: "var(--font-weight-semibold)",
+	background: "transparent",
+	border: "none",
+	cursor: "pointer",
+	selectors: {
+		"&:focus-visible": {
+			outline: "3px solid var(--color-focus)",
+			outlineOffset: 2,
+		},
+	},
+});
+
+export const purchasedChevron = style({
+	display: "grid",
+	transition: "transform var(--duration-fast) var(--ease-standard)",
+	selectors: {
+		'&[data-open="true"]': { transform: "rotate(90deg)" },
+	},
+});
+
+export const purchasedCount = style({
+	padding: "0 8px",
+	color: "var(--color-text-muted)",
+	fontSize: "var(--font-size-xs)",
+	background: "var(--color-surface-muted)",
+	borderRadius: 9999,
 });

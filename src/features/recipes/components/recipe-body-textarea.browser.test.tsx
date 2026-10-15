@@ -742,6 +742,10 @@ test("見出しの下が空なら、次の行の位置に案内を出し、書�
 	const offsetTop =
 		tip.getBoundingClientRect().top - textarea.getBoundingClientRect().top;
 
+	// 入力欄の幅を、はみ出さない（長い案内は、末尾を省略する）。
+	expect(tip.getBoundingClientRect().right).toBeLessThanOrEqual(
+		textarea.getBoundingClientRect().right,
+	);
 	// 見出しより下の行（見出しの次の行）にあり、入力欄の中の文字と同じ高さにそろう。
 	expect(expected.top).toBeGreaterThan(heading.top);
 	expect(Math.abs(offsetTop - expected.top)).toBeLessThan(2);
