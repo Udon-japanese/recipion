@@ -34,8 +34,8 @@ describe("getRecipeTextCompletion（見出し）", () => {
 	it("飾りを打つと、4つの見出しを出す", () => {
 		for (const opener of ["＜", "<", "【", "■", "["]) {
 			expect(labelsAtEnd(opener)).toEqual([
-				"＜材料＞",
 				"＜下準備＞",
+				"＜材料＞",
 				"＜作り方＞",
 				"＜メモ＞",
 			]);
@@ -66,7 +66,7 @@ describe("getRecipeTextCompletion（見出し）", () => {
 		const completion = requireCompletion(text, 1);
 
 		expect(applyRecipeTextCompletion(text, completion, 0).text).toBe(
-			"＜材料＞\n卵 1個",
+			"＜下準備＞\n卵 1個",
 		);
 	});
 });

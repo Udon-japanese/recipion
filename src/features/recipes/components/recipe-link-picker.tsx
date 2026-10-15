@@ -1,4 +1,11 @@
 import { useEffect, useRef, useState } from "react";
+import { Button } from "#/components/button/button";
+import { Field, TextInput } from "#/components/field/field";
+import { Icon } from "#/components/icon/icon";
+import { Note } from "#/components/note/note";
+import { SegmentedControl } from "#/components/segmented-control/segmented-control";
+import { Sheet } from "#/components/sheet/sheet";
+import { useMediaQuery } from "#/components/use-media-query";
 import { describeError } from "#/errors/user-facing-error";
 import { filterLinkTargets } from "../domain/filter-link-targets";
 import { buildLinkTargetHints } from "../domain/link-target-hints";
@@ -20,13 +27,15 @@ type RecipeLinkPickerProps = {
 	// 渡すと、「他の人のレシピ」の切り替えが使える（ユーザーを探して、そのユーザーの全体公開レシピを選ぶ）。
 	searchUsers?: (query: string) => Promise<LinkableUser[]>;
 	loadUserRecipes?: (handle: string) => Promise<OtherRecipeTarget[]>;
+	// 覚えている他の人のレシピの検索結果を捨てる（「更新」を押したとき。そのあと、取り直す）。
+	onRefresh?: () => void;
 };
 
 const maxShown = 30;
 
 type Mode = "mine" | "others";
 
-// リンクするレシピを、一覧から選ぶ（名前で絞れる）。入力欄の下に開く。
+// リンクするレシピを、一覧から選ぶ（名前で絞れる）。シートで開く（広い画面は右から、狭い画面は下から）。
 export function RecipeLinkPicker({
 	title,
 	targets,
@@ -35,90 +44,80 @@ export function RecipeLinkPicker({
 	onClose,
 	searchUsers,
 	loadUserRecipes,
+	onRefresh,
 }: RecipeLinkPickerProps) {
 	const [mode, setMode] = useState<Mode>("mine");
+	const [hasVisitedOthers, setHasVisitedOthers] = useState(false);
 	const [query, setQuery] = useState("");
 	const searchRef = useRef<HTMLInputElement>(null);
 	const shown = filterLinkTargets(targets, query, maxShown);
 	// 同じ名前のレシピが複数あるときは、登録日を添えて、見分けられるようにする。
 	const hints = buildLinkTargetHints(targets);
 	const canPickOthers = Boolean(searchUsers && loadUserRecipes);
+	const isRight = useMediaQuery("(min-width: 1024px)");
 
 	useEffect(() => {
 		searchRef.current?.focus();
 	}, []);
 
 	function handleKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
-		// Enter で、入力欄のあるフォーム（レシピの保存）が、送信されないようにする。変換中の Enter は、IME に任せる。
+		// Enter で、入力欄のあるフォーム（レシピの保存）が、送信されないようにする。変換中の Enter は、IME に任せる。Esc は、シートが閉じる。
 		if (event.key === "Enter") {
 			event.preventDefault();
-		}
-
-		if (event.key === "Escape" && !event.nativeEvent.isComposing) {
-			onClose();
 		}
 	}
 
 	return (
-		<section className={styles.picker} aria-label={title}>
-			<div className={styles.header}>
-				<p className={styles.title}>{title}</p>
-				<button type="button" onClick={onClose}>
-					閉じる
-				</button>
-			</div>
+		<Sheet
+			open
+			onOpenChange={(open) => {
+				if (!open) {
+					onClose();
+				}
+			}}
+			title={title}
+			placement={isRight ? "right" : "bottom"}
+			snapPoints={isRight ? [0.92] : [0.7, 0.92]}
+		>
+			<div className={styles.body}>
+				{canPickOthers ? (
+					<SegmentedControl<Mode>
+						label="レシピの種類"
+						value={mode}
+						options={[
+							{ value: "mine", label: "自分のレシピ" },
+							{ value: "others", label: "他の人のレシピ" },
+						]}
+						onChange={(next) => {
+							setMode(next);
 
-			{canPickOthers ? (
-				<fieldset className={styles.modes} aria-label="レシピの種類">
-					<button
-						type="button"
-						aria-pressed={mode === "mine"}
-						onClick={() => {
-							setMode("mine");
-							setQuery("");
+							// 他の人のレシピは、初めて開くときに作り、以後は、残す（切り替えるたびに取り直さない）。
+							if (next === "others") {
+								setHasVisitedOthers(true);
+							}
 						}}
-					>
-						自分のレシピ
-					</button>
-					<button
-						type="button"
-						aria-pressed={mode === "others"}
-						onClick={() => {
-							setMode("others");
-							setQuery("");
-						}}
-					>
-						他の人のレシピ
-					</button>
-				</fieldset>
-			) : null}
-
-			{mode === "others" && searchUsers && loadUserRecipes ? (
-				<OtherRecipesPicker
-					searchUsers={searchUsers}
-					loadUserRecipes={loadUserRecipes}
-					onSelect={onSelect}
-					onKeyDown={handleKeyDown}
-				/>
-			) : (
-				<>
-					<input
-						ref={searchRef}
-						className={styles.search}
-						aria-label="レシピを探す"
-						placeholder="レシピの名前で探す"
-						value={query}
-						onChange={(event) => setQuery(event.target.value)}
-						onKeyDown={handleKeyDown}
 					/>
+				) : null}
+
+				<div className={styles.body} hidden={mode !== "mine"}>
+					<Field label="レシピを探す" hideLabel>
+						{(control) => (
+							<TextInput
+								{...control}
+								ref={searchRef}
+								placeholder="レシピの名前で探す"
+								value={query}
+								onChange={(event) => setQuery(event.target.value)}
+								onKeyDown={handleKeyDown}
+							/>
+						)}
+					</Field>
 
 					{status === "loading" ? (
 						<p className={styles.message}>読み込んでいます…</p>
 					) : null}
 					{status === "error" ? (
-						<p className={styles.message} role="alert">
-							レシピの一覧を読み込めませんでした。
-						</p>
+						<Note tone="error">レシピの一覧を読み込めませんでした。</Note>
 					) : null}
 					{status === "ready" && targets.length === 0 ? (
 						<p className={styles.message}>
@@ -138,21 +137,35 @@ export function RecipeLinkPicker({
 										className={styles.item}
 										onClick={() => onSelect(target)}
 									>
-										{target.name}
-										{hints.has(target.publicId) ? (
-											<span className={styles.hint}>
-												{" ・ "}
-												{hints.get(target.publicId)}
-											</span>
-										) : null}
+										<span className={styles.itemText}>
+											{target.name}
+											{hints.has(target.publicId) ? (
+												<span className={styles.hint}>
+													{" ・ "}
+													{hints.get(target.publicId)}
+												</span>
+											) : null}
+										</span>
+										<Icon name="chevron-right" size={20} />
 									</button>
 								</li>
 							))}
 						</ul>
 					) : null}
-				</>
-			)}
-		</section>
+				</div>
+				{searchUsers && loadUserRecipes && hasVisitedOthers ? (
+					<div className={styles.body} hidden={mode !== "others"}>
+						<OtherRecipesPicker
+							searchUsers={searchUsers}
+							loadUserRecipes={loadUserRecipes}
+							onSelect={onSelect}
+							onKeyDown={handleKeyDown}
+							onRefresh={onRefresh}
+						/>
+					</div>
+				) : null}
+			</div>
+		</Sheet>
 	);
 }
 
@@ -161,6 +174,8 @@ type OtherRecipesPickerProps = {
 	loadUserRecipes: (handle: string) => Promise<OtherRecipeTarget[]>;
 	onSelect: (target: RecipeLinkTarget) => void;
 	onKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void;
+	// 覚えている検索結果を捨てる（「更新」）。
+	onRefresh?: () => void;
 };
 
 // 他の人のレシピ：ユーザーを探す → そのユーザーの全体公開レシピを選ぶ。
@@ -169,12 +184,15 @@ function OtherRecipesPicker({
 	loadUserRecipes,
 	onSelect,
 	onKeyDown,
+	onRefresh,
 }: OtherRecipesPickerProps) {
 	const [query, setQuery] = useState("");
 	const [users, setUsers] = useState<LinkableUser[] | null>(null);
 	const [selectedUser, setSelectedUser] = useState<LinkableUser | null>(null);
 	const [recipes, setRecipes] = useState<OtherRecipeTarget[] | null>(null);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
+	// 「更新」で増やす。ユーザーの検索を、取り直すきっかけ。
+	const [reloadTick, setReloadTick] = useState(0);
 	const searchRef = useRef<HTMLInputElement>(null);
 
 	useEffect(() => {
@@ -182,6 +200,7 @@ function OtherRecipesPicker({
 	}, []);
 
 	// ユーザーを探す（打ち終わるのを少し待つ）。
+	// biome-ignore lint/correctness/useExhaustiveDependencies: reloadTick は、「更新」で取り直すためのきっかけ。
 	useEffect(() => {
 		if (selectedUser) {
 			return;
@@ -210,11 +229,9 @@ function OtherRecipesPicker({
 			isCancelled = true;
 			window.clearTimeout(timer);
 		};
-	}, [query, selectedUser, searchUsers]);
+	}, [query, selectedUser, searchUsers, reloadTick]);
 
-	function handleSelectUser(user: LinkableUser) {
-		setSelectedUser(user);
-		setQuery("");
+	function loadRecipes(user: LinkableUser) {
 		setRecipes(null);
 		setErrorMessage(null);
 
@@ -225,6 +242,37 @@ function OtherRecipesPicker({
 				setErrorMessage(describeError(error, "レシピを読み込めませんでした。"));
 			});
 	}
+
+	function handleSelectUser(user: LinkableUser) {
+		setSelectedUser(user);
+		setQuery("");
+		loadRecipes(user);
+	}
+
+	// 覚えている結果を捨てて、いまの画面を、取り直す。
+	function handleRefresh() {
+		onRefresh?.();
+
+		if (selectedUser) {
+			loadRecipes(selectedUser);
+		} else {
+			setUsers(null);
+			setReloadTick((tick) => tick + 1);
+		}
+	}
+
+	const refreshButton = onRefresh ? (
+		<div className={styles.toolbar}>
+			<Button
+				variant="ghost"
+				size="sm"
+				leadingIcon={<Icon name="refresh" size={20} />}
+				onClick={handleRefresh}
+			>
+				更新
+			</Button>
+		</div>
+	) : null;
 
 	if (selectedUser) {
 		const shown = filterOtherRecipes(
@@ -239,33 +287,33 @@ function OtherRecipesPicker({
 			<>
 				<p className={styles.message}>
 					{selectedUser.name}（@{selectedUser.handle}）のレシピ
-					<button
-						type="button"
+					<Button
+						variant="ghost"
+						size="sm"
 						onClick={() => {
 							setSelectedUser(null);
 							setQuery("");
 						}}
 					>
 						ユーザーを選び直す
-					</button>
+					</Button>
 				</p>
-				<input
-					ref={searchRef}
-					className={styles.search}
-					aria-label="レシピを探す"
-					placeholder="レシピの名前で絞る"
-					value={query}
-					onChange={(event) => setQuery(event.target.value)}
-					onKeyDown={onKeyDown}
-				/>
+				<Field label="レシピを探す" hideLabel>
+					{(control) => (
+						<TextInput
+							{...control}
+							ref={searchRef}
+							placeholder="レシピの名前で絞る"
+							value={query}
+							onChange={(event) => setQuery(event.target.value)}
+							onKeyDown={onKeyDown}
+						/>
+					)}
+				</Field>
 				{recipes === null ? (
 					<p className={styles.message}>読み込んでいます…</p>
 				) : null}
-				{errorMessage ? (
-					<p className={styles.message} role="alert">
-						{errorMessage}
-					</p>
-				) : null}
+				{errorMessage ? <Note tone="error">{errorMessage}</Note> : null}
 				{recipes !== null && shown.length === 0 && !errorMessage ? (
 					<p className={styles.message}>公開されているレシピがありません。</p>
 				) : null}
@@ -288,41 +336,44 @@ function OtherRecipesPicker({
 										})
 									}
 								>
-									{recipe.name}
-									{hints.has(recipe.publicId) ? (
-										<span className={styles.hint}>
-											{" ・ "}
-											{hints.get(recipe.publicId)}
-										</span>
-									) : null}
+									<span className={styles.itemText}>
+										{recipe.name}
+										{hints.has(recipe.publicId) ? (
+											<span className={styles.hint}>
+												{" ・ "}
+												{hints.get(recipe.publicId)}
+											</span>
+										) : null}
+									</span>
+									<Icon name="chevron-right" size={20} />
 								</button>
 							</li>
 						))}
 					</ul>
 				) : null}
+				{refreshButton}
 			</>
 		);
 	}
 
 	return (
 		<>
-			<input
-				ref={searchRef}
-				className={styles.search}
-				aria-label="ユーザーを探す"
-				placeholder="表示名か、ハンドルで探す"
-				value={query}
-				onChange={(event) => setQuery(event.target.value)}
-				onKeyDown={onKeyDown}
-			/>
+			<Field label="ユーザーを探す" hideLabel>
+				{(control) => (
+					<TextInput
+						{...control}
+						ref={searchRef}
+						placeholder="表示名か、ハンドルで探す"
+						value={query}
+						onChange={(event) => setQuery(event.target.value)}
+						onKeyDown={onKeyDown}
+					/>
+				)}
+			</Field>
 			{users === null ? (
 				<p className={styles.message}>読み込んでいます…</p>
 			) : null}
-			{errorMessage ? (
-				<p className={styles.message} role="alert">
-					{errorMessage}
-				</p>
-			) : null}
+			{errorMessage ? <Note tone="error">{errorMessage}</Note> : null}
 			{users !== null && users.length === 0 && !errorMessage ? (
 				<p className={styles.message}>
 					全体公開のレシピがある人が、見つかりません。
@@ -337,12 +388,16 @@ function OtherRecipesPicker({
 								className={styles.item}
 								onClick={() => handleSelectUser(user)}
 							>
-								{user.name}（@{user.handle}）
+								<span className={styles.itemText}>
+									{user.name}（@{user.handle}）
+								</span>
+								<Icon name="chevron-right" size={20} />
 							</button>
 						</li>
 					))}
 				</ul>
 			) : null}
+			{refreshButton}
 		</>
 	);
 }

@@ -14,14 +14,18 @@ import { Checkbox } from "#/components/checkbox/checkbox";
 import { Field, TextInput } from "#/components/field/field";
 import { IconButton } from "#/components/icon-button/icon-button";
 import { Note } from "#/components/note/note";
+import { Toast } from "#/components/toast/toast";
 import { describeError } from "#/errors/user-facing-error";
 import type { RecipeDetail } from "../application/recipe-repository";
 import {
+	collectIngredientIds,
 	createIngredientGroup,
 	createIngredientItem,
+	dissolveIngredientGroup,
+	findIngredientGroup,
 	hasEmptyIngredientGroup,
 	moveIngredientItem,
-	removeEmptyIngredientGroup,
+	removeIngredientGroup,
 	removeIngredientItem,
 	renameIngredientGroup,
 	updateIngredientItem,
@@ -30,6 +34,7 @@ import {
 	formatRecipeEditorText,
 	formatRecipeTemplateText,
 } from "../domain/format-recipe-editor-text";
+import { createLinkLookupCache } from "../domain/link-lookup-cache";
 import type {
 	LinkableUser,
 	OtherRecipeTarget,
@@ -174,6 +179,31 @@ export function RecipeEditor({
 	const [useTemplate, setUseTemplate] = useState(true);
 	const [activeTab, setActiveTab] = useState<ActiveTab>("input");
 	const saveAction = useButtonAction();
+	// 消した直前の状態（「元に戻す」用）。8秒たつか、別の操作で消える。
+	const [deletion, setDeletion] = useState<{
+		message: string;
+		previous: IngredientSyncState;
+	} | null>(null);
+	// 他の人のレシピの検索結果は、5分間、覚える（本文の [[@ の補完と、リンクを選ぶシートで共有）。
+	const searchUsersRef = useRef(searchLinkableUsers);
+	const loadUserRecipesRef = useRef(loadUserRecipes);
+	searchUsersRef.current = searchLinkableUsers;
+	loadUserRecipesRef.current = loadUserRecipes;
+	useEffect(() => {
+		if (!deletion) return;
+
+		const timer = window.setTimeout(() => setDeletion(null), 8000);
+
+		return () => window.clearTimeout(timer);
+	}, [deletion]);
+	const [linkLookup] = useState(() =>
+		createLinkLookupCache({
+			searchUsers: async (query) =>
+				(await searchUsersRef.current?.(query)) ?? [],
+			loadUserRecipes: async (handle) =>
+				(await loadUserRecipesRef.current?.(handle)) ?? [],
+		}),
+	);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [savedRecipeId, setSavedRecipeId] = useState<string | null>(null);
 	// 本文の [[ラベル]] が指すレシピ。本文から消えたラベルは、保存のときに捨てられる。
@@ -337,31 +367,80 @@ export function RecipeEditor({
 		setSavedRecipeId(null);
 	}
 
-	// 元の行が文章に残っていても、解析し直したときに出さないよう、消した行を覚える。
-	function dismissSource(current: IngredientSyncState, id: string): string[] {
-		const source = current.sources.get(id);
+	// 消した行の ID から、元の行を、まとめて覚える。
+	function dismissSources(
+		current: IngredientSyncState,
+		ids: readonly string[],
+	): string[] {
+		const dismissed = [...current.dismissed];
 
-		return source === undefined
-			? [...current.dismissed]
-			: [...current.dismissed, source];
+		for (const id of ids) {
+			const source = current.sources.get(id);
+
+			if (source !== undefined) {
+				dismissed.push(source);
+			}
+		}
+
+		return dismissed;
+	}
+
+	// 材料・グループの削除。直前の状態を覚えて、短いあいだ、「元に戻す」を出す。
+	function applyDeletion(
+		message: string,
+		update: (current: IngredientSyncState) => IngredientSyncState,
+	) {
+		setDeletion({ message, previous: sync });
+		setSync(update);
+		setSavedRecipeId(null);
+	}
+
+	// 解析し直して、消す前の状態（消した行の記録も）に戻す。そのあいだに本文を書き換えていても、いまの本文に合わせる。
+	function undoDeletion() {
+		if (!deletion) return;
+
+		setSync(reconcileFromText(deletion.previous, text));
+		setDeletion(null);
+		setSavedRecipeId(null);
 	}
 
 	function removeIngredient(id: string) {
-		setSync((current) => ({
-			...current,
-			nodes: removeIngredientItem(current.nodes, id).remaining,
-			dismissed: dismissSource(current, id),
-		}));
-		setSavedRecipeId(null);
+		const name = removeIngredientItem(sync.nodes, id).removed?.name ?? "材料";
+
+		applyDeletion(
+			`「${stripLinkBrackets(name)}」を削除しました`,
+			(current) => ({
+				...current,
+				nodes: removeIngredientItem(current.nodes, id).remaining,
+				dismissed: dismissSources(current, [id]),
+			}),
+		);
 	}
 
-	function removeGroup(id: string) {
-		setSync((current) => ({
-			...current,
-			nodes: removeEmptyIngredientGroup(current.nodes, id),
-			dismissed: dismissSource(current, id),
-		}));
-		setSavedRecipeId(null);
+	// keep：グループだけ消して、中の材料はグループ外に残す。all：グループと、中の材料を消す。
+	function removeGroup(id: string, mode: "keep" | "all") {
+		const group = findIngredientGroup(sync.nodes, id);
+
+		if (!group) return;
+
+		const keepsChildren = mode === "keep" && group.children.length > 0;
+		const label = `グループ「${group.name}」`;
+
+		applyDeletion(
+			keepsChildren
+				? `${label}を削除しました（材料は残しています）`
+				: `${label}を削除しました`,
+			(current) => ({
+				...current,
+				nodes: keepsChildren
+					? dissolveIngredientGroup(current.nodes, id)
+					: removeIngredientGroup(current.nodes, id),
+				dismissed: dismissSources(
+					current,
+					keepsChildren ? [id] : collectIngredientIds(group),
+				),
+			}),
+		);
 	}
 
 	// 手直しを元に戻す。解析し直して、元の行の内容（と、元のグループ）に戻す。
@@ -501,6 +580,7 @@ export function RecipeEditor({
 									<IconButton
 										icon="minus"
 										label="人数を減らす"
+										tone="plain"
 										disabled={!(Number(servings) > 1)}
 										onClick={() => stepServings(-1)}
 									/>
@@ -521,6 +601,7 @@ export function RecipeEditor({
 									<IconButton
 										icon="plus"
 										label="人数を増やす"
+										tone="plain"
 										onClick={() => stepServings(1)}
 									/>
 								</div>
@@ -591,9 +672,16 @@ export function RecipeEditor({
 							links={links}
 							onLinkSelected={handleLinkSelected}
 							searchLinkableUsers={
-								loadLinkTargets ? searchLinkableUsers : undefined
+								loadLinkTargets && searchLinkableUsers
+									? linkLookup.searchUsers
+									: undefined
 							}
-							loadUserRecipes={loadLinkTargets ? loadUserRecipes : undefined}
+							loadUserRecipes={
+								loadLinkTargets && loadUserRecipes
+									? linkLookup.loadUserRecipes
+									: undefined
+							}
+							onRefreshOthers={linkLookup.refresh}
 							placeholder={
 								"＜材料＞\n豚ひき肉 200g\n玉ねぎ 1/2個\n\n＜作り方＞\n1. 材料を混ぜる\n2. フライパンで焼く"
 							}
@@ -763,6 +851,14 @@ export function RecipeEditor({
 					<Note tone="success">レシピを保存しました。</Note>
 				) : null}
 			</form>
+
+			{deletion ? (
+				<div className={styles.undoToast}>
+					<Toast action={{ label: "元に戻す", onClick: undoDeletion }}>
+						{deletion.message}
+					</Toast>
+				</div>
+			) : null}
 
 			{openedLinkPublicId !== null && loadLinkedRecipe && renderOpenLink ? (
 				<RecipeLinkPreview

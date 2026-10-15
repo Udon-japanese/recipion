@@ -100,8 +100,8 @@ const headingOpenerPattern =
 	/^(\s*)[＜<【[［■□◆◇▼▽●○◎＃#《〈]\s*([^＞>】\]］》〉]*)$/u;
 
 const headingKinds: RecipeSectionKind[] = [
-	"ingredients",
 	"preparations",
+	"ingredients",
 	"instructions",
 	"note",
 ];

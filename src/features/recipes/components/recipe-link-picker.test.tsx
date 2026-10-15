@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { RecipeLinkPicker } from "./recipe-link-picker";
@@ -151,14 +151,13 @@ describe("RecipeLinkPicker", () => {
 			/>,
 		);
 
+		// 閉じるボタンは、アイコンだけ（文字がない）。
 		expect(
-			screen.getAllByRole("button").map((button) => button.textContent),
-		).toEqual([
-			"閉じる",
-			"カレー ・ 10/1 登録",
-			"カレー ・ 10/5 登録",
-			"ハンバーグ",
-		]);
+			screen
+				.getAllByRole("button")
+				.map((button) => button.textContent)
+				.filter((text) => text !== ""),
+		).toEqual(["カレー ・ 10/1 登録", "カレー ・ 10/5 登録", "ハンバーグ"]);
 	});
 });
 
@@ -198,6 +197,42 @@ describe("RecipeLinkPicker（他の人のレシピ）", () => {
 			name: "たろうのカレー",
 			createdAt: "2026-10-01T00:00:00+09:00",
 		});
+	});
+
+	it("タブを切り替えても、他の人のレシピは取り直さない。「更新」で、取り直す", async () => {
+		const user = userEvent.setup();
+		const searchUsers = vi.fn(async () => [{ handle: "taro", name: "たろう" }]);
+		const onRefresh = vi.fn();
+
+		render(
+			<RecipeLinkPicker
+				title="リンクするレシピを選ぶ"
+				targets={targets}
+				status="ready"
+				onSelect={vi.fn()}
+				onClose={vi.fn()}
+				searchUsers={searchUsers}
+				loadUserRecipes={async () => []}
+				onRefresh={onRefresh}
+			/>,
+		);
+
+		await user.click(screen.getByRole("button", { name: "他の人のレシピ" }));
+		await screen.findByRole("button", { name: "たろう（@taro）" });
+		expect(searchUsers).toHaveBeenCalledTimes(1);
+
+		// 行き来しても、残っていて、取り直さない。
+		await user.click(screen.getByRole("button", { name: "自分のレシピ" }));
+		await user.click(screen.getByRole("button", { name: "他の人のレシピ" }));
+		expect(
+			screen.getByRole("button", { name: "たろう（@taro）" }),
+		).toBeVisible();
+		await new Promise((resolve) => setTimeout(resolve, 400));
+		expect(searchUsers).toHaveBeenCalledTimes(1);
+
+		await user.click(screen.getByRole("button", { name: "更新" }));
+		expect(onRefresh).toHaveBeenCalledTimes(1);
+		await waitFor(() => expect(searchUsers).toHaveBeenCalledTimes(2));
 	});
 
 	it("searchUsers を渡さなければ、切り替えは出ない", () => {
