@@ -19,7 +19,6 @@ import {
 	continueRecipeList,
 	removeRecipeListMarker,
 } from "../domain/continue-recipe-list";
-import { findRecipeTipSlots } from "../domain/find-recipe-tip-slots";
 import {
 	adjustCompletionItem,
 	applyRecipeTextCompletion,
@@ -40,7 +39,11 @@ import {
 	type RecipeLinkTarget,
 	resolveLinkLabel,
 } from "../domain/recipe-links";
-import type { RecipeSectionKind } from "../domain/split-recipe-sections";
+import {
+	buildRecipeTips,
+	formatRecipeTips,
+	hasOnlyHeadings,
+} from "../domain/recipe-tips";
 import {
 	type EditKind,
 	editKindOfInput,
@@ -89,23 +92,6 @@ type RecipeBodyTextareaProps = {
 	// 覚えている他の人のレシピの検索結果を捨てる（リンクを選ぶシートの「更新」）。
 	onRefreshOthers?: () => void;
 };
-
-// 材料名の補完と、リンクの入力の案内（使えるものだけ）。
-function tipForLinks(canLinkOwn: boolean, canLinkOthers: boolean): string {
-	if (canLinkOwn && canLinkOthers) {
-		return "[[ で自分のレシピ、[[@ で他の人のレシピをリンクできます";
-	}
-
-	return canLinkOwn ? "[[ で、自分のレシピをリンクできます" : "";
-}
-
-function tipForSteps(canLinkOwn: boolean, canLinkOthers: boolean): string {
-	const links = tipForLinks(canLinkOwn, canLinkOthers);
-
-	return links === ""
-		? "材料名を入力すると、補完が出ます"
-		: `材料名は補完できます。${links}`;
-}
 
 type CompletionLayout = "caret" | "keyboard-bar";
 
@@ -387,43 +373,14 @@ export function RecipeBodyTextarea({
 		scrollTick,
 	]);
 
-	// 見出しの下が空のあいだ、見出しの次の行に、案内（Tips）を薄く出す。位置は、本文の文字の位置から測る。
-	const tipSlots = useMemo(() => findRecipeTipSlots(value), [value]);
-	const [tipPositions, setTipPositions] = useState<
-		{ top: number; left: number; height: number }[]
-	>([]);
-	const [tipLayoutTick, setTipLayoutTick] = useState(0);
-
-	useEffect(() => {
-		const onResize = () => setTipLayoutTick((tick) => tick + 1);
-
-		window.addEventListener("resize", onResize);
-
-		return () => window.removeEventListener("resize", onResize);
-	}, []);
-
-	// biome-ignore lint/correctness/useExhaustiveDependencies: スクロール・画面の大きさが変わったときも、測り直す。
-	useLayoutEffect(() => {
-		const textarea = textareaRef.current;
-
-		if (!textarea || tipSlots.length === 0) {
-			setTipPositions([]);
-
-			return;
-		}
-
-		setTipPositions(
-			tipSlots.map((slot) => measureTextareaCaret(textarea, slot.offset)),
-		);
-	}, [tipSlots, scrollTick, tipLayoutTick]);
-
-	const canLinkOthers = hasOtherLinks;
-	const tipTexts: Record<RecipeSectionKind, string> = {
-		ingredients: "食材名を入力すると、補完が出ます",
-		preparations: tipForSteps(Boolean(linkTargets), canLinkOthers),
-		instructions: tipForSteps(Boolean(linkTargets), canLinkOthers),
-		note: tipForLinks(Boolean(linkTargets), canLinkOthers),
-	};
+	// 案内（Tips）。空のときは、placeholder の下にまとめて書く。見出しだけの雛形のあいだは、フォーカスする前だけ、入力欄の下に重ねて出す。
+	const tipsText = formatRecipeTips(
+		buildRecipeTips({
+			canLinkOwn: Boolean(linkTargets),
+			canLinkOthers: hasOtherLinks,
+		}),
+	);
+	const isShowingTips = !isFocused && hasOnlyHeadings(value);
 
 	// キーボードのすぐ上に出す帯の位置。キーボードを除いた見える範囲（visualViewport）の下端に合わせる。
 	useEffect(() => {
@@ -943,7 +900,9 @@ export function RecipeBodyTextarea({
 						ref={textareaRef}
 						className={styles.bodyTextarea}
 						value={value}
-						placeholder={placeholder}
+						placeholder={
+							placeholder ? `${placeholder}\n\n${tipsText}` : tipsText
+						}
 						onChange={handleChange}
 						onSelect={(event) => syncCaret(event.currentTarget)}
 						onScroll={() => setScrollTick((tick) => tick + 1)}
@@ -953,24 +912,11 @@ export function RecipeBodyTextarea({
 						onFocus={() => setIsFocused(true)}
 						onBlur={() => setIsFocused(false)}
 					/>
-					{tipSlots.map((slot, index) => {
-						const position = tipPositions[index];
-
-						return position && tipTexts[slot.kind] !== "" ? (
-							<span
-								key={slot.offset}
-								className={styles.bodyTip}
-								aria-hidden="true"
-								style={{
-									top: position.top,
-									left: position.left,
-									height: position.height,
-								}}
-							>
-								{tipTexts[slot.kind]}
-							</span>
-						) : null;
-					})}
+					{isShowingTips ? (
+						<span className={styles.bodyTips} aria-hidden="true">
+							{tipsText}
+						</span>
+					) : null}
 				</span>
 			</label>
 

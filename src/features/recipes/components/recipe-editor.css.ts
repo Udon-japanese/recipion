@@ -587,14 +587,15 @@ export const textareaFrame = style({
 	borderRadius: "var(--radius-card)",
 });
 
-export const bodyTip = style({
+// 見出しだけの雛形のあいだ、入力欄の下に重ねる案内（折り返す。クリックは入力欄に通す）。
+export const bodyTips = style({
 	position: "absolute",
-	right: 20,
-	overflow: "hidden",
+	left: 16,
+	right: 16,
+	bottom: 12,
 	color: "var(--color-text-muted)",
-	fontSize: "inherit",
-	lineHeight: "var(--line-height-relaxed)",
-	whiteSpace: "nowrap",
-	textOverflow: "ellipsis",
+	fontSize: "var(--font-size-sm)",
+	lineHeight: "var(--line-height-normal)",
+	whiteSpace: "pre-wrap",
 	pointerEvents: "none",
 });

@@ -713,14 +713,30 @@ test("変換が確定しても、本文とカーソルが動くまで、メニ�
 	await expect.poll(() => popup().top).not.toBe(before);
 });
 
-// 見出しの下が空のあいだ、見出しの次の行に、案内（Tips）を重ねて出す。
-function findTip(text: string): HTMLElement | undefined {
+// 案内（Tips）：空のときは placeholder の下に、見出しだけの雛形のあいだは、フォーカスする前だけ、入力欄の下に重ねて出す。
+function findTips(): HTMLElement | undefined {
 	return [
 		...document.querySelectorAll<HTMLElement>('[aria-hidden="true"]'),
-	].find((element) => element.textContent === text);
+	].find((element) => element.textContent?.startsWith("Tips"));
 }
 
-test("見出しの下が空なら、次の行の位置に案内を出し、書き始めると消える", async () => {
+test("空のときは、placeholder の下に、案内をまとめて書く", async () => {
+	await render(
+		<Harness
+			linkTargets={[]}
+			searchLinkableUsers={async () => []}
+			loadUserRecipes={async () => []}
+		/>,
+	);
+
+	const placeholder = getTextarea().placeholder;
+
+	expect(placeholder).toContain("Tips");
+	expect(placeholder).toContain("材料名・食材名は、入力すると補完が出ます");
+	expect(placeholder).toContain("[[@ で他の人のレシピ");
+});
+
+test("見出しだけの雛形のあいだ、フォーカスする前だけ、案内を重ねて出す（折り返して、はみ出さない）", async () => {
 	await render(
 		<Harness
 			initialValue={"＜材料＞\n\n＜作り方＞\n"}
@@ -732,34 +748,24 @@ test("見出しの下が空なら、次の行の位置に案内を出し、書�
 
 	const textarea = getTextarea();
 
-	await expect
-		.poll(() => findTip("食材名を入力すると、補完が出ます"))
-		.toBeDefined();
+	await expect.poll(findTips).toBeDefined();
 
-	const tip = findTip("食材名を入力すると、補完が出ます") as HTMLElement;
-	const expected = measureTextareaCaret(textarea, "＜材料＞\n".length);
-	const heading = measureTextareaCaret(textarea, 0);
-	const offsetTop =
-		tip.getBoundingClientRect().top - textarea.getBoundingClientRect().top;
+	const tips = findTips() as HTMLElement;
 
-	// 入力欄の幅を、はみ出さない（長い案内は、末尾を省略する）。
-	expect(tip.getBoundingClientRect().right).toBeLessThanOrEqual(
+	expect(tips.getBoundingClientRect().right).toBeLessThanOrEqual(
 		textarea.getBoundingClientRect().right,
 	);
-	// 見出しより下の行（見出しの次の行）にあり、入力欄の中の文字と同じ高さにそろう。
-	expect(expected.top).toBeGreaterThan(heading.top);
-	expect(Math.abs(offsetTop - expected.top)).toBeLessThan(2);
-	expect(
-		findTip(
-			"材料名は補完できます。[[ で自分のレシピ、[[@ で他の人のレシピをリンクできます",
-		),
-	).toBeDefined();
+	expect(tips.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+		textarea.getBoundingClientRect().bottom,
+	);
 
-	// 材料の欄に書き始めると、その見出しの案内だけ、消える。
-	await userEvent.click(textarea);
-	textarea.setSelectionRange("＜材料＞\n".length, "＜材料＞\n".length);
-	await userEvent.keyboard("卵");
-	await expect
-		.poll(() => findTip("食材名を入力すると、補完が出ます"))
-		.toBeUndefined();
+	// フォーカスすると、消える。
+	await focusTextarea();
+	await expect.poll(findTips).toBeUndefined();
+});
+
+test("中身が書かれたら、案内は出さない", async () => {
+	await render(<Harness initialValue={"＜材料＞\n卵 1個\n"} />);
+
+	expect(findTips()).toBeUndefined();
 });
