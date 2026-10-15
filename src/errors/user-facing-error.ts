@@ -7,6 +7,13 @@ export class UserFacingError extends Error {
 	}
 }
 
+// ログインが必要なとき（セッションがない）のエラーの文。画面は、これを見て、ログインを案内する。
+export const AUTH_REQUIRED_MESSAGE = "認証が必要です";
+
+export function isAuthRequiredError(error: unknown): boolean {
+	return error instanceof Error && error.message === AUTH_REQUIRED_MESSAGE;
+}
+
 // 内部のエラーの代わりに、画面に出す文。
 export const GENERIC_ERROR_MESSAGE =
 	"うまく処理できませんでした。時間をおいて、もう一度お試しください。";
