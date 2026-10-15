@@ -1,4 +1,5 @@
 import { createRouter as createTanStackRouter } from "@tanstack/react-router";
+import { NotFoundPage } from "./errors/not-found-page";
 import { RouteError } from "./errors/route-error";
 import { routeTree } from "./routeTree.gen";
 
@@ -10,6 +11,7 @@ export function getRouter() {
 		defaultPreloadStaleTime: 0,
 		// errorComponent のない画面でも、内部のエラー文を出さない。
 		defaultErrorComponent: RouteError,
+		defaultNotFoundComponent: NotFoundPage,
 	});
 
 	return router;

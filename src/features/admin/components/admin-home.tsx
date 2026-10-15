@@ -20,25 +20,31 @@ export function AdminHome({
 			<ul className={styles.list}>
 				<li className={styles.item}>
 					<p className={styles.title}>
-						<Link to="/admin/reports">通報</Link>
+						<Link to="/admin/reports" reloadDocument>
+							通報
+						</Link>
 					</p>
 					<p className={styles.meta}>未対応：{openReports}件</p>
 				</li>
 				<li className={styles.item}>
 					<p className={styles.title}>
-						<Link to="/admin/user-reports">ユーザー名の通報</Link>
+						<Link to="/admin/user-reports" reloadDocument>
+							ユーザー名の通報
+						</Link>
 					</p>
 					<p className={styles.meta}>未対応：{openUserReports}件</p>
 				</li>
 				<li className={styles.item}>
 					<p className={styles.title}>
-						<Link to="/admin/appeals">停止への申し立て</Link>
+						<Link to="/admin/appeals" reloadDocument>
+							停止への申し立て
+						</Link>
 					</p>
 					<p className={styles.meta}>未対応：{openAppeals}件</p>
 				</li>
 				<li className={styles.item}>
 					<p className={styles.title}>
-						<Link to="/admin/users" search={{ q: "" }}>
+						<Link to="/admin/users" search={{ q: "" }} reloadDocument>
 							ユーザー
 						</Link>
 					</p>

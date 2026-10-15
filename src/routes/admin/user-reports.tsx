@@ -1,4 +1,5 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { AdminRouteError } from "#/features/admin/components/admin-route-error";
 import { AdminUserReportsPage } from "#/features/reports/components/admin-user-reports-page";
 import {
 	listOpenUserReportsServerFn,
@@ -15,14 +16,9 @@ export const Route = createFileRoute("/admin/user-reports")({
 
 		return { open, resolved };
 	},
-	errorComponent: AdminError,
+	errorComponent: AdminRouteError,
 	component: AdminUserReportsRoute,
 });
-
-// 管理者として確認できないとき（Access のログインがない、メールが一覧にない）や、読み込みの失敗。
-function AdminError() {
-	return <p>この画面は、管理者だけが使えます。</p>;
-}
 
 function AdminUserReportsRoute() {
 	const { open, resolved } = Route.useLoaderData();
