@@ -75,7 +75,12 @@ async function generateOutputs(): Promise<GeneratedOutputs> {
 		}
 
 		const response = await fetch(new URL("/", origin), {
-			headers: { "X-TSS_SHELL": "true" },
+			// X-TSS_SHELL は TanStack Start の内部ヘッダー（シェルとして描画させる）。
+			// アプリ側はこれを読まず、自前のヘッダーだけでセッションの焼き込みを避ける。
+			headers: {
+				"X-TSS_SHELL": "true",
+				[STATIC_PAGE_REQUEST_HEADER]: "true",
+			},
 		});
 
 		if (!response.ok) {

@@ -14,12 +14,15 @@ export const popover = style({
 	borderRadius: 20,
 	background: "var(--color-surface)",
 	boxShadow: "var(--shadow-md)",
+	boxSizing: "border-box",
 });
 
 export const list = style({
 	display: "flex",
 	flexDirection: "column",
 	gap: 2,
+	width: "100%",
+	boxSizing: "border-box",
 });
 
 export const option = style({
@@ -38,6 +41,7 @@ export const option = style({
 	fontSize: 16,
 	textAlign: "left",
 	cursor: "pointer",
+	boxSizing: "border-box",
 
 	selectors: {
 		"&:hover:not(:disabled)": { background: "var(--color-surface-muted)" },

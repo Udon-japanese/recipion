@@ -7,21 +7,12 @@ import { createAuth } from "#/integrations/better-auth/auth";
 import type { InitialSession } from "#/integrations/better-auth/initial-session";
 import { hasSessionCookie } from "#/integrations/better-auth/session-cookie";
 
-// ビルド時に静的シェルを作るリクエスト（scripts/postbuild-app-shell.ts）に付くヘッダー。
-// TanStack Start の内部実装（start-server-core の HEADERS.TSS_SHELL）に依存している。
-// TanStack Start を更新するときは、この名前が変わっていないか確認すること。
-const SHELL_REQUEST_HEADER = "X-TSS_SHELL";
-
 // 認可には使わない。初回の描画で、ログイン状態の表示がちらつかないようにするための値。
-// シェルのリクエストでは undefined（サーバーの結果なし）を返し、誰のセッションも、ゲストの確定も焼き込まない。
 export const getInitialSessionServerFn = createServerFn({
 	method: "GET",
 }).handler(async (): Promise<InitialSession | null | undefined> => {
-	if (getRequestHeaders().get(SHELL_REQUEST_HEADER) === "true") {
-		return undefined;
-	}
-
-	// ビルドの後処理が、静的なページ（規約など）を作るときも、誰のセッションも、ゲストの確定も、焼き込まない。
+	// ビルドの後処理（scripts/postbuild-app-shell.ts）が、静的シェルや静的ページ（規約など）を作るときは、
+	// undefined（サーバーの結果なし）を返し、誰のセッションも、ゲストの確定も焼き込まない。
 	if (getRequestHeaders().get(STATIC_PAGE_REQUEST_HEADER) === "true") {
 		return undefined;
 	}
