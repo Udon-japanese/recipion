@@ -3,8 +3,8 @@ import { getRequestHeaders } from "@tanstack/react-start/server";
 import { createRemoteJWKSet, type JWTVerifyGetKey } from "jose";
 
 import { createDb } from "#/db/client";
+import { UserFacingError } from "#/errors/user-facing-error";
 import { createAuth } from "#/integrations/better-auth/auth";
-
 import {
 	extractAccessToken,
 	isAdminEmail,
@@ -35,7 +35,7 @@ export async function requireAdmin() {
 	const adminEmails = parseAdminEmails(env.ADMIN_EMAILS);
 
 	if (adminEmails.length === 0) {
-		throw new Error("管理者として確認できません");
+		throw new UserFacingError("管理者として確認できません");
 	}
 
 	const teamDomain = env.CF_ACCESS_TEAM_DOMAIN?.replace(/\/+$/u, "");
@@ -52,7 +52,7 @@ export async function requireAdmin() {
 			: null;
 
 		if (!verified || !isAdminEmail(verified.email, adminEmails)) {
-			throw new Error("管理者として確認できません");
+			throw new UserFacingError("管理者として確認できません");
 		}
 
 		const { db } = await createDb();
@@ -69,5 +69,5 @@ export async function requireAdmin() {
 		}
 	}
 
-	throw new Error("管理者として確認できません");
+	throw new UserFacingError("管理者として確認できません");
 }

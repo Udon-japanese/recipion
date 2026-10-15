@@ -1,3 +1,4 @@
+import { UserFacingError } from "#/errors/user-facing-error";
 import { convertToStockQuantity } from "#/features/ingredients/domain/convert-to-stock-quantity";
 import { findIngredientCatalogEntry } from "#/features/ingredients/domain/ingredient-catalog";
 import type { InventoryLotInput } from "../domain/inventory-lot";
@@ -101,7 +102,7 @@ function toStockUnitQuantity(
 	);
 
 	if (converted === null) {
-		throw new Error(
+		throw new UserFacingError(
 			`${resolved.name}の在庫の単位（${resolved.stockUnitLabel}）に、買った量を換算できません`,
 		);
 	}

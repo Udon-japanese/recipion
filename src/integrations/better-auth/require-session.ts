@@ -3,6 +3,7 @@ import { getRequestHeaders } from "@tanstack/react-start/server";
 import { eq } from "drizzle-orm";
 
 import { createDb } from "#/db/client";
+import { UserFacingError } from "#/errors/user-facing-error";
 import { accountSuspension } from "#/features/moderation/infrastructure/moderation.sql";
 import { createAuth } from "#/integrations/better-auth/auth";
 import { hasSessionCookie } from "#/integrations/better-auth/session-cookie";
@@ -16,7 +17,7 @@ export async function requireSession(
 	const headers = getRequestHeaders();
 
 	if (!hasSessionCookie(headers.get("cookie"))) {
-		throw new Error("認証が必要です");
+		throw new UserFacingError("認証が必要です");
 	}
 
 	const { db } = await createDb();
@@ -24,7 +25,7 @@ export async function requireSession(
 	const session = await auth.api.getSession({ headers });
 
 	if (!session) {
-		throw new Error("認証が必要です");
+		throw new UserFacingError("認証が必要です");
 	}
 
 	if (!options.allowSuspended) {
@@ -35,7 +36,7 @@ export async function requireSession(
 			.limit(1);
 
 		if (suspension) {
-			throw new Error("アカウントが停止されています");
+			throw new UserFacingError("アカウントが停止されています");
 		}
 	}
 

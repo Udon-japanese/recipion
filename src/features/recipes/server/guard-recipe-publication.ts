@@ -1,4 +1,5 @@
 import type { DB } from "#/db/client";
+import { UserFacingError } from "#/errors/user-facing-error";
 import { notifyAdminsOf } from "#/features/admin/server/notify-admins";
 import { describeFlagReasons } from "#/features/moderation/application/publish-refusal-message";
 import { enforceModeration } from "#/features/moderation/server/enforce-moderation";
@@ -24,7 +25,7 @@ export async function guardRecipePublication(
 	);
 
 	if (enforcement.status === "refused") {
-		throw new Error(enforcement.message);
+		throw new UserFacingError(enforcement.message);
 	}
 
 	const flagged = enforcement.flagged;

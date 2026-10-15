@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import * as v from "valibot";
+import { UserFacingError } from "#/errors/user-facing-error";
 import { prepareRecipeForStorage } from "#/features/recipes/application/prepare-recipe-for-storage";
 import { validateRecipeEditorDocument } from "#/features/recipes/domain/validate-recipe-editor-document";
 import { createDrizzleRecipeRepository } from "#/features/recipes/infrastructure/drizzle-recipe-repository";
@@ -41,7 +42,7 @@ export const updateRecipeServerFn = createServerFn({
 
 		// 存在しない場合と、他のユーザーのレシピの場合は、どちらも同じ扱いにする。
 		if (!updated) {
-			throw new Error("レシピが見つかりません");
+			throw new UserFacingError("レシピが見つかりません");
 		}
 
 		await publication.recordFlag(updated.publicId);

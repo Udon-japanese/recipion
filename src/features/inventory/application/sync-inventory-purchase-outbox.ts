@@ -1,3 +1,4 @@
+import { describeError } from "#/errors/user-facing-error";
 import type { InventoryPurchaseOwnerScope } from "./inventory-purchase-outbox";
 import type { InventoryPurchaseOutboxRepository } from "./inventory-purchase-outbox-repository";
 import type { RecordInventoryPurchaseInput } from "./record-inventory-purchase";
@@ -25,8 +26,7 @@ export async function syncInventoryPurchaseOutbox(
 			await outboxRepository.remove(entry.id);
 			syncedCount += 1;
 		} catch (error) {
-			const errorMessage =
-				error instanceof Error ? error.message : "送信に失敗しました";
+			const errorMessage = describeError(error, "送信に失敗しました");
 
 			await outboxRepository.markFailed(entry.id, errorMessage);
 

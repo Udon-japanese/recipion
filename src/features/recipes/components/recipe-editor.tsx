@@ -14,6 +14,7 @@ import { Checkbox } from "#/components/checkbox/checkbox";
 import { Field, TextInput } from "#/components/field/field";
 import { IconButton } from "#/components/icon-button/icon-button";
 import { Note } from "#/components/note/note";
+import { describeError } from "#/errors/user-facing-error";
 import type { RecipeDetail } from "../application/recipe-repository";
 import {
 	createIngredientGroup,
@@ -466,9 +467,7 @@ export function RecipeEditor({
 
 			return true;
 		} catch (error) {
-			setErrorMessage(
-				error instanceof Error ? error.message : "レシピを保存できませんでした",
-			);
+			setErrorMessage(describeError(error, "レシピを保存できませんでした"));
 
 			return false;
 		}

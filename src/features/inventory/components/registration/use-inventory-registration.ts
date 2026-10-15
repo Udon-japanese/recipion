@@ -1,6 +1,7 @@
 import { type SubmitEvent, useEffect, useMemo, useState } from "react";
 import * as v from "valibot";
 import { useButtonAction } from "#/components/button/use-button-action";
+import { describeError } from "#/errors/user-facing-error";
 import {
 	findIngredientCatalogEntry,
 	getDefaultStockUnitLabel,
@@ -213,9 +214,7 @@ export function useInventoryRegistration({
 				lot: toLotInput(expiry),
 			});
 		} catch (error) {
-			setErrorMessage(
-				error instanceof Error ? error.message : "入力内容を確認してください",
-			);
+			setErrorMessage(describeError(error, "入力内容を確認してください"));
 
 			return false;
 		}

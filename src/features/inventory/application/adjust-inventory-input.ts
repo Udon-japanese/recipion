@@ -1,5 +1,5 @@
 import * as v from "valibot";
-
+import { UserFacingError } from "#/errors/user-facing-error";
 import type { InventoryAdjustmentCommand } from "./inventory-adjustment-repository";
 import { inventoryLotInputSchema } from "./inventory-lot-input";
 
@@ -47,11 +47,13 @@ export function parseAdjustInventoryInput(
 
 	// ロットの指定は、減らすときだけ。
 	if (command.allocations && command.operation !== "decrease") {
-		throw new Error("ロットを指定できるのは、減らすときだけです");
+		throw new UserFacingError("ロットを指定できるのは、減らすときだけです");
 	}
 
 	if (command.lot && command.operation !== "increase") {
-		throw new Error("ロットの条件を指定できるのは、追加するときだけです");
+		throw new UserFacingError(
+			"ロットの条件を指定できるのは、追加するときだけです",
+		);
 	}
 
 	return command;

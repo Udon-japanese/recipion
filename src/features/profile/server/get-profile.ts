@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { UserFacingError } from "#/errors/user-facing-error";
 import { createDrizzleProfileRepository } from "#/features/profile/infrastructure/drizzle-profile-repository";
 import { requireSession } from "#/integrations/better-auth/require-session";
 
@@ -10,7 +11,7 @@ export const getProfileServerFn = createServerFn({
 	const profile = await createDrizzleProfileRepository(db, userId).get();
 
 	if (!profile) {
-		throw new Error("ユーザーが見つかりませんでした");
+		throw new UserFacingError("ユーザーが見つかりませんでした");
 	}
 
 	return profile;

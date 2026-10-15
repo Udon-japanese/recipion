@@ -1,4 +1,5 @@
 import * as v from "valibot";
+import { UserFacingError } from "#/errors/user-facing-error";
 import type {
 	RecipeEditorDocument,
 	RecipeEditorIngredientNode,
@@ -92,13 +93,13 @@ function validateIngredientIds(
 ): void {
 	for (const node of nodes) {
 		if (ids.has(node.id)) {
-			throw new Error("レシピ内でIDが重複しています");
+			throw new UserFacingError("レシピ内でIDが重複しています");
 		}
 		ids.add(node.id);
 
 		if (node.type === "group") {
 			if (node.children.length === 0) {
-				throw new Error("空の材料グループは保存できません");
+				throw new UserFacingError("空の材料グループは保存できません");
 			}
 			validateIngredientIds(node.children, ids);
 		}
@@ -111,7 +112,7 @@ export function validateRecipeEditorDocument(
 	const result = v.safeParse(documentSchema, input);
 
 	if (!result.success) {
-		throw new Error("レシピの入力内容を確認してください");
+		throw new UserFacingError("レシピの入力内容を確認してください");
 	}
 
 	// 再帰的な材料スキーマは GenericSchema として宣言しているため、
@@ -125,26 +126,26 @@ export function validateRecipeEditorDocument(
 	const limitViolation = findRecipeLimitViolation(document);
 
 	if (limitViolation) {
-		throw new Error(limitViolation);
+		throw new UserFacingError(limitViolation);
 	}
 
 	// 引用元のあるレシピは、公開できない（他のサイトの転載を避ける。DB の制約と同じ）。
 	if (document.visibility !== "private" && document.sourceUrl !== null) {
-		throw new Error("引用元のURLがあるレシピは、公開できません");
+		throw new UserFacingError("引用元のURLがあるレシピは、公開できません");
 	}
 
 	const linkLabels = new Set<string>();
 
 	for (const link of document.links) {
 		if (linkLabels.has(link.label)) {
-			throw new Error("リンクのラベルが重複しています");
+			throw new UserFacingError("リンクのラベルが重複しています");
 		}
 		linkLabels.add(link.label);
 	}
 
 	for (const preparation of document.preparations) {
 		if (ids.has(preparation.id)) {
-			throw new Error("レシピ内でIDが重複しています");
+			throw new UserFacingError("レシピ内でIDが重複しています");
 		}
 		ids.add(preparation.id);
 	}
@@ -153,7 +154,7 @@ export function validateRecipeEditorDocument(
 
 	for (const instruction of document.instructions) {
 		if (ids.has(instruction.id)) {
-			throw new Error("レシピ内でIDが重複しています");
+			throw new UserFacingError("レシピ内でIDが重複しています");
 		}
 		ids.add(instruction.id);
 
@@ -161,10 +162,10 @@ export function validateRecipeEditorDocument(
 
 		for (const referenceId of instruction.referencedInstructionIds) {
 			if (!precedingInstructionIds.has(referenceId)) {
-				throw new Error("前の工程だけを参照してください");
+				throw new UserFacingError("前の工程だけを参照してください");
 			}
 			if (references.has(referenceId)) {
-				throw new Error("同じ工程への参照が重複しています");
+				throw new UserFacingError("同じ工程への参照が重複しています");
 			}
 			references.add(referenceId);
 		}

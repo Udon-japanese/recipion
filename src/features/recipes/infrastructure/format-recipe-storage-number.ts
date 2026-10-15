@@ -1,3 +1,5 @@
+import { UserFacingError } from "#/errors/user-facing-error";
+
 function formatPositiveStorageNumber(
 	value: number,
 	scale: number,
@@ -5,13 +7,13 @@ function formatPositiveStorageNumber(
 	label: string,
 ): string {
 	if (!Number.isFinite(value) || value <= 0 || value >= upperBound) {
-		throw new Error(`${label}を保存できる範囲で指定してください`);
+		throw new UserFacingError(`${label}を保存できる範囲で指定してください`);
 	}
 
 	const formatted = value.toFixed(scale);
 
 	if (Number(formatted) <= 0) {
-		throw new Error(`${label}が小さすぎます`);
+		throw new UserFacingError(`${label}が小さすぎます`);
 	}
 
 	return formatted;

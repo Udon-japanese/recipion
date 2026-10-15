@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
+import { describeError } from "#/errors/user-facing-error";
 import { convertToStockQuantity } from "#/features/ingredients/domain/convert-to-stock-quantity";
 import { findIngredientCatalogEntry } from "#/features/ingredients/domain/ingredient-catalog";
 import {
@@ -102,7 +103,7 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 
 			return true;
 		} catch (error) {
-			setErrorMessage(error instanceof Error ? error.message : fallback);
+			setErrorMessage(describeError(error, fallback));
 
 			return false;
 		}
