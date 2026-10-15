@@ -439,7 +439,11 @@ export const groupHeader = style({
 	background: "var(--color-surface-muted)",
 });
 
-export const groupName = style({ flex: 1, minWidth: 0 });
+export const groupName = style({
+	flex: 1,
+	minWidth: 0,
+	selectors: { "&:hover": { width: "100%" } },
+});
 
 export const inferredTag = style({
 	flex: "none",

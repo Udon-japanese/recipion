@@ -743,7 +743,11 @@ describe("InventoryList", () => {
 			);
 			await user.click(screen.getByRole("button", { name: "削除する" }));
 
-			expect(await screen.findByRole("alert")).toHaveTextContent("offline");
+			// ネットワークなどの内部の文（英語）は出さず、操作の失敗として知らせる。
+			const alert = await screen.findByRole("alert");
+
+			expect(alert).toHaveTextContent("在庫を削除できませんでした");
+			expect(alert).not.toHaveTextContent("offline");
 			expect(
 				screen.getByRole("button", { name: /^鶏もも肉、/u }),
 			).toBeInTheDocument();
@@ -1049,7 +1053,9 @@ describe("InventoryList", () => {
 			await user.click(screen.getByRole("button", { name: "この数量にする" }));
 
 			await waitFor(() =>
-				expect(screen.getByRole("alert")).toHaveTextContent("failed"),
+				expect(screen.getByRole("alert")).toHaveTextContent(
+					"数量を直せませんでした",
+				),
 			);
 		});
 	});

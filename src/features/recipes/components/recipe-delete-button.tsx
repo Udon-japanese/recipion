@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ConfirmDialog } from "#/components/dialog/confirm-dialog";
+import { describeError } from "#/errors/user-facing-error";
 
 type RecipeDeleteButtonProps = {
 	// 確認のダイアログを開く（メニューの「削除」から）。
@@ -24,9 +25,7 @@ export function RecipeDeleteButton({
 		try {
 			await onDelete();
 		} catch (error) {
-			setErrorMessage(
-				error instanceof Error ? error.message : "レシピを削除できませんでした",
-			);
+			setErrorMessage(describeError(error, "レシピを削除できませんでした"));
 		} finally {
 			setIsDeleting(false);
 		}

@@ -2,6 +2,7 @@ import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import * as v from "valibot";
 
 import type { DB } from "#/db/client";
+import { UserFacingError } from "#/errors/user-facing-error";
 import { convertToStockQuantity } from "#/features/ingredients/domain/convert-to-stock-quantity";
 import { findIngredientCatalogEntry } from "#/features/ingredients/domain/ingredient-catalog";
 import {
@@ -403,7 +404,7 @@ export function createDrizzleInventoryRepository(
 				}
 
 				if (!storedIngredient) {
-					throw new Error("食材が見つかりません");
+					throw new UserFacingError("食材が見つかりません");
 				}
 
 				const [existingInventoryItem] = await transaction
@@ -540,7 +541,7 @@ export function createDrizzleInventoryRepository(
 					.limit(1);
 
 				if (!storedInventoryItem) {
-					throw new Error("在庫項目が見つかりません");
+					throw new UserFacingError("在庫項目が見つかりません");
 				}
 
 				/*
@@ -712,7 +713,7 @@ export function createDrizzleInventoryRepository(
 						const lot = lotsById.get(allocation.lotId);
 
 						if (!lot) {
-							throw new Error("ロットが見つかりません");
+							throw new UserFacingError("ロットが見つかりません");
 						}
 
 						await applyToLot(lot, {
@@ -946,11 +947,13 @@ export function createDrizzleInventoryRepository(
 					.limit(1);
 
 				if (!storedItem) {
-					throw new Error("在庫項目が見つかりません");
+					throw new UserFacingError("在庫項目が見つかりません");
 				}
 
 				if (parseTrackingMode(storedItem.trackingMode) === "presence") {
-					throw new Error("有無だけで管理している食材は、単位を変えられません");
+					throw new UserFacingError(
+						"有無だけで管理している食材は、単位を変えられません",
+					);
 				}
 
 				const allLots = await loadLots(
@@ -1078,7 +1081,7 @@ export function createDrizzleInventoryRepository(
 				});
 
 			if (!updated) {
-				throw new Error("在庫項目が見つかりません");
+				throw new UserFacingError("在庫項目が見つかりません");
 			}
 
 			return updated;
@@ -1110,7 +1113,7 @@ export function createDrizzleInventoryRepository(
 					.limit(1);
 
 				if (!storedItem) {
-					throw new Error("在庫項目が見つかりません");
+					throw new UserFacingError("在庫項目が見つかりません");
 				}
 
 				const previousMode = parseTrackingMode(storedItem.trackingMode);
@@ -1250,11 +1253,13 @@ export function createDrizzleInventoryRepository(
 					.limit(1);
 
 				if (!storedLot) {
-					throw new Error("ロットが見つかりません");
+					throw new UserFacingError("ロットが見つかりません");
 				}
 
 				if (parseTrackingMode(storedLot.trackingMode) === "presence") {
-					throw new Error("有無だけで管理している食材は、数量を直せません");
+					throw new UserFacingError(
+						"有無だけで管理している食材は、数量を直せません",
+					);
 				}
 
 				const delta = Number(
@@ -1326,7 +1331,7 @@ export function createDrizzleInventoryRepository(
 					.limit(1);
 
 				if (!storedLot) {
-					throw new Error("ロットが見つかりません");
+					throw new UserFacingError("ロットが見つかりません");
 				}
 
 				// 食材の行をロックして、加減算と直列にする。

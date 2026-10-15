@@ -1,4 +1,5 @@
 import * as v from "valibot";
+import { UserFacingError } from "#/errors/user-facing-error";
 import { convertInventoryQuantity } from "./convert-inventory-quantity";
 import {
 	type InventoryTrackingMode,
@@ -95,7 +96,7 @@ export function applyInventoryAdjustment(
 
 	if (resultingQuantity < 0) {
 		if (parsedInput.trackingMode === "exact") {
-			throw new Error("在庫数量が不足しています");
+			throw new UserFacingError("在庫数量が不足しています");
 		}
 
 		quantityDelta = Number((-parsedInput.currentQuantity).toFixed(6));

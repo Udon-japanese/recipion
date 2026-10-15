@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import * as v from "valibot";
+import { UserFacingError } from "#/errors/user-facing-error";
 import { createDrizzleRecipeRepository } from "#/features/recipes/infrastructure/drizzle-recipe-repository";
 import { requireSession } from "#/integrations/better-auth/require-session";
 
@@ -19,7 +20,7 @@ export const deleteRecipeServerFn = createServerFn({
 
 		// 存在しない場合と、他のユーザーのレシピの場合は、どちらも同じ扱いにする。
 		if (!deleted) {
-			throw new Error("レシピが見つかりません");
+			throw new UserFacingError("レシピが見つかりません");
 		}
 
 		return { deleted: true as const };

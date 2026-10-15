@@ -1,3 +1,4 @@
+import { UserFacingError } from "#/errors/user-facing-error";
 import type { InventoryLot } from "./inventory-lot";
 
 export type StockUnitChangedLot = {
@@ -29,11 +30,11 @@ export function planStockUnitChange(input: {
 
 	for (const { lotId, quantity } of input.lotQuantities ?? []) {
 		if (!stockedIds.has(lotId)) {
-			throw new Error("在庫のあるロットを指定してください");
+			throw new UserFacingError("在庫のあるロットを指定してください");
 		}
 
 		if (!(quantity >= 0) || !Number.isFinite(quantity)) {
-			throw new Error("ロットの数量は、0以上にしてください");
+			throw new UserFacingError("ロットの数量は、0以上にしてください");
 		}
 
 		entered.set(lotId, round(quantity));
@@ -45,7 +46,7 @@ export function planStockUnitChange(input: {
 		const quantity = entered.get(lot.id) ?? converted;
 
 		if (quantity === null) {
-			throw new Error(
+			throw new UserFacingError(
 				"この単位には換算できないため、ロットごとの量を入力してください",
 			);
 		}

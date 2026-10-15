@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { describeError } from "#/errors/user-facing-error";
 import { filterLinkTargets } from "../domain/filter-link-targets";
 import { buildLinkTargetHints } from "../domain/link-target-hints";
 import {
@@ -199,9 +200,7 @@ function OtherRecipesPicker({
 					if (!isCancelled) {
 						setUsers([]);
 						setErrorMessage(
-							error instanceof Error
-								? error.message
-								: "ユーザーを探せませんでした。",
+							describeError(error, "ユーザーを探せませんでした。"),
 						);
 					}
 				});
@@ -223,11 +222,7 @@ function OtherRecipesPicker({
 			.then(setRecipes)
 			.catch((error: unknown) => {
 				setRecipes([]);
-				setErrorMessage(
-					error instanceof Error
-						? error.message
-						: "レシピを読み込めませんでした。",
-				);
+				setErrorMessage(describeError(error, "レシピを読み込めませんでした。"));
 			});
 	}
 

@@ -1,7 +1,7 @@
 import { env } from "cloudflare:workers";
 import { createServerFn } from "@tanstack/react-start";
 import * as v from "valibot";
-
+import { UserFacingError } from "#/errors/user-facing-error";
 import { requireSession } from "#/integrations/better-auth/require-session";
 import {
 	listPublicRecipesOfUser,
@@ -14,7 +14,9 @@ async function assertWithinSearchLimit(userId: string): Promise<void> {
 		.LINK_SEARCH_LIMITER;
 
 	if (limiter && !(await limiter.limit({ key: userId })).success) {
-		throw new Error("検索の回数が多すぎます。少し待ってから、お試しください。");
+		throw new UserFacingError(
+			"検索の回数が多すぎます。少し待ってから、お試しください。",
+		);
 	}
 }
 

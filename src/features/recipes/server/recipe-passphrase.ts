@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import * as v from "valibot";
-
+import { UserFacingError } from "#/errors/user-facing-error";
 import { requireSession } from "#/integrations/better-auth/require-session";
 import { createDrizzleRecipeSharingRepository } from "../infrastructure/drizzle-recipe-sharing-repository";
 import {
@@ -43,7 +43,7 @@ export const regenerateRecipePassphraseServerFn = createServerFn({
 		).replacePassphrase(data.publicId, cipher);
 
 		if (!replaced) {
-			throw new Error("限定公開のレシピが見つかりません");
+			throw new UserFacingError("限定公開のレシピが見つかりません");
 		}
 
 		return readPassphrase(cipher);

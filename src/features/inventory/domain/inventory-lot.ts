@@ -1,3 +1,4 @@
+import { UserFacingError } from "#/errors/user-facing-error";
 import type { InventoryTrackingMode } from "./apply-inventory-adjustment";
 
 // 在庫は、買った（追加した）単位ごとの「ロット」で持つ。食材の数量は、ロットの数量の合計。
@@ -131,7 +132,7 @@ export function allocateDecrease(
 	);
 
 	if (sumLotQuantities(stockedLots) < quantity && trackingMode === "exact") {
-		throw new Error("在庫数量が不足しています");
+		throw new UserFacingError("在庫数量が不足しています");
 	}
 
 	const allocations: InventoryLotAllocation[] = [];
@@ -177,21 +178,21 @@ export function validateManualAllocations(
 		const lot = lotsById.get(allocation.lotId);
 
 		if (!lot) {
-			throw new Error("ロットが見つかりません");
+			throw new UserFacingError("ロットが見つかりません");
 		}
 
 		if (seenLotIds.has(allocation.lotId)) {
-			throw new Error("同じロットが、重複して指定されています");
+			throw new UserFacingError("同じロットが、重複して指定されています");
 		}
 
 		seenLotIds.add(allocation.lotId);
 
 		if (!(allocation.quantity > 0) || !Number.isFinite(allocation.quantity)) {
-			throw new Error("ロットの数量は、0より大きくしてください");
+			throw new UserFacingError("ロットの数量は、0より大きくしてください");
 		}
 
 		if (trackingMode === "exact" && allocation.quantity > lot.quantity) {
-			throw new Error("在庫数量が不足しています");
+			throw new UserFacingError("在庫数量が不足しています");
 		}
 	}
 

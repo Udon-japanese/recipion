@@ -3,8 +3,8 @@ import { nanoid } from "nanoid";
 import * as v from "valibot";
 
 import type { DB } from "#/db/client";
+import { UserFacingError } from "#/errors/user-facing-error";
 import { user } from "#/integrations/better-auth/auth.sql";
-
 import type {
 	CreateRecipeCommand,
 	RecipeDetail,
@@ -151,11 +151,13 @@ async function replaceRecipeLinks(
 				visibility: parseRecipeVisibility(target.visibility),
 			})
 		) {
-			throw new Error(`リンク先のレシピが見つかりません：${link.label}`);
+			throw new UserFacingError(
+				`リンク先のレシピが見つかりません：${link.label}`,
+			);
 		}
 
 		if (target.id === recipeId) {
-			throw new Error("このレシピ自身へはリンクできません");
+			throw new UserFacingError("このレシピ自身へはリンクできません");
 		}
 
 		return {
@@ -301,7 +303,7 @@ export function createDrizzleRecipeRepository(
 				const countViolation = findRecipeCountViolation(owned?.total ?? 0);
 
 				if (countViolation) {
-					throw new Error(countViolation);
+					throw new UserFacingError(countViolation);
 				}
 
 				const [createdRecipe] = await transaction

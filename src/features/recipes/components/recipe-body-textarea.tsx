@@ -9,6 +9,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { describeError } from "#/errors/user-facing-error";
 import { ShortcutKeys } from "#/features/shortcuts/components/shortcut-keys";
 import {
 	type CompositionStrategy,
@@ -235,11 +236,7 @@ export function RecipeBodyTextarea({
 				.catch((error: unknown) => {
 					if (!isCancelled) {
 						setOtherUsers([]);
-						setOtherError(
-							error instanceof Error && error.message
-								? error.message
-								: "ユーザーを探せませんでした。",
-						);
+						setOtherError(describeError(error, "ユーザーを探せませんでした。"));
 						setIsSearchingUsers(false);
 					}
 				});
@@ -274,11 +271,7 @@ export function RecipeBodyTextarea({
 			.catch((error: unknown) => {
 				// 取れなかったら、次の入力で、もう一度試せるようにする。
 				requestedHandlesRef.current.delete(recipesHandle);
-				setOtherError(
-					error instanceof Error && error.message
-						? error.message
-						: "レシピを読み込めませんでした。",
-				);
+				setOtherError(describeError(error, "レシピを読み込めませんでした。"));
 			});
 	}, [recipesHandle]);
 
