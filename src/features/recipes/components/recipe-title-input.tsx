@@ -1,4 +1,5 @@
 import { type KeyboardEvent, useEffect, useRef } from "react";
+import { Icon } from "#/components/icon/icon";
 import * as styles from "./recipe-editor.css";
 
 type RecipeTitleInputProps = {
@@ -64,6 +65,9 @@ export function RecipeTitleInput({
 			>
 				{value.trim() === "" ? "無題のレシピ" : value}
 			</button>
+			<span className={styles.titleEditIcon} aria-hidden="true">
+				<Icon name="edit" size={20} />
+			</span>
 		</h2>
 	);
 }

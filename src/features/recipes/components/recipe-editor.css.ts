@@ -15,19 +15,28 @@ export const eyebrow = style({
 });
 
 export const title = style({
+	position: "relative",
 	margin: 0,
 	fontSize: "var(--font-size-2xl)",
 	fontWeight: "var(--font-weight-extrabold)",
 	lineHeight: "var(--line-height-tight)",
+	borderRadius: 12,
+	transition: "background-color var(--duration-fast) var(--ease-standard)",
+	selectors: {
+		"&:hover": { background: "var(--color-surface-muted)" },
+	},
 });
 
 const titleBase = {
 	display: "block",
+	boxSizing: "border-box",
 	width: "100%",
 	minHeight: 44,
-	padding: "6px 10px",
+	padding: "6px 44px 6px 10px",
 	textAlign: "left",
 	font: "inherit",
+	background: "transparent",
+	border: "none",
 	borderRadius: 12,
 	cursor: "text",
 } as const;
@@ -35,7 +44,10 @@ const titleBase = {
 export const titleButton = style({
 	...titleBase,
 	selectors: {
-		"&:hover": { background: "var(--color-surface-muted)" },
+		"&:focus-visible": {
+			outline: "3px solid var(--color-focus)",
+			outlineOffset: 2,
+		},
 	},
 });
 
@@ -43,12 +55,27 @@ export const titlePlaceholder = style({
 	...titleBase,
 	color: "var(--color-text-muted)",
 	selectors: {
-		"&:hover": { background: "var(--color-surface-muted)" },
+		"&:focus-visible": {
+			outline: "3px solid var(--color-focus)",
+			outlineOffset: 2,
+		},
 	},
+});
+
+// 編集できることを示す鉛筆（押せるのは、左の文字のボタン）。
+export const titleEditIcon = style({
+	position: "absolute",
+	top: "50%",
+	right: 12,
+	display: "grid",
+	color: "var(--color-text-muted)",
+	transform: "translateY(-50%)",
+	pointerEvents: "none",
 });
 
 export const titleInput = style({
 	...titleBase,
+	padding: "6px 10px",
 	background: "var(--color-surface)",
 	border: "1.5px solid var(--color-control-border)",
 	outline: "none",
@@ -162,21 +189,6 @@ export const hint = style({
 	lineHeight: "var(--line-height-normal)",
 });
 
-export const editedBadge = style({
-	display: "inline-flex",
-	alignItems: "center",
-	gap: 6,
-	fontSize: "var(--font-size-xs)",
-	color: "var(--color-accent-text)",
-});
-
-export const linkButton = style({
-	color: "var(--color-accent-text)",
-	font: "inherit",
-	textDecoration: "underline",
-	cursor: "pointer",
-});
-
 export const note = style({
 	whiteSpace: "pre-wrap",
 });
@@ -259,37 +271,9 @@ export const list = style({
 	whiteSpace: "pre-wrap",
 });
 
-export const nestedList = style({
-	marginTop: 6,
-	paddingLeft: 24,
-	listStyle: "revert",
-});
-
 export const error = style({
 	margin: 0,
 	color: "var(--color-error)",
-});
-
-export const ingredientRow = style({
-	display: "grid",
-	gridTemplateColumns:
-		"minmax(0, 1fr) minmax(100px, 0.7fr) minmax(110px, 0.7fr) auto",
-	alignItems: "center",
-	gap: 8,
-});
-
-export const addIngredientRow = style({
-	display: "grid",
-	gridTemplateColumns: "minmax(0, 1fr) minmax(100px, 0.7fr) auto",
-	alignItems: "center",
-	gap: 8,
-});
-
-export const addGroupRow = style({
-	display: "grid",
-	gridTemplateColumns: "minmax(0, 1fr) auto",
-	alignItems: "center",
-	gap: 8,
 });
 
 export const completionWrap = style({
@@ -401,4 +385,158 @@ export const insertRecipeLinkButton = style({
 	borderRadius: "var(--radius-control)",
 	font: "inherit",
 	cursor: "pointer",
+});
+
+// 材料のリスト：1枚のカードに、行を並べる。
+export const ingredientCard = style({
+	margin: 0,
+	padding: 0,
+	overflow: "hidden",
+	listStyle: "none",
+	border: "1px solid var(--color-border)",
+	borderRadius: "var(--radius-card)",
+});
+
+const rowBorder = {
+	borderTop: "1px solid var(--color-border)",
+} as const;
+
+export const ingredientItem = style({
+	listStyle: "none",
+	selectors: {
+		"&:not(:first-child)": rowBorder,
+	},
+});
+
+export const ingredientRow = style({
+	display: "grid",
+	gridTemplateColumns: "minmax(0, 1fr) minmax(0, 0.7fr) auto auto",
+	alignItems: "center",
+	gap: 4,
+	padding: "2px 4px 2px 4px",
+});
+
+export const linkedName = style({
+	padding: "0 12px",
+	fontWeight: "var(--font-weight-bold)",
+});
+
+// 手直しの印がない行でも、右端の位置がそろうよう、ボタンの幅だけ空ける。
+export const rowActionSpace = style({ width: 36 });
+
+export const groupItem = style({
+	listStyle: "none",
+	selectors: {
+		"&:not(:first-child)": rowBorder,
+	},
+});
+
+export const groupHeader = style({
+	display: "flex",
+	alignItems: "center",
+	gap: 4,
+	padding: "2px 8px 2px 4px",
+	background: "var(--color-surface-muted)",
+});
+
+export const groupName = style({ flex: 1, minWidth: 0 });
+
+export const inferredTag = style({
+	flex: "none",
+	padding: "2px 8px",
+	color: "var(--color-text-muted)",
+	fontSize: "var(--font-size-xs)",
+	border: "1px solid var(--color-border)",
+	borderRadius: 999,
+});
+
+export const groupChildren = style({
+	margin: 0,
+	padding: "0 0 0 16px",
+	listStyle: "none",
+});
+
+export const addItem = style({
+	listStyle: "none",
+	...rowBorder,
+});
+
+export const addTrigger = style({
+	display: "flex",
+	alignItems: "center",
+	gap: 6,
+	width: "100%",
+	minHeight: 44,
+	padding: "0 16px",
+	color: "var(--color-text-muted)",
+	font: "inherit",
+	fontSize: "var(--font-size-sm)",
+	fontWeight: "var(--font-weight-semibold)",
+	textAlign: "left",
+	background: "transparent",
+	border: "none",
+	cursor: "pointer",
+	selectors: {
+		"&:hover": {
+			color: "var(--color-text)",
+			background: "var(--color-surface-muted)",
+		},
+		"&:focus-visible": {
+			outline: "3px solid var(--color-focus)",
+			outlineOffset: -3,
+		},
+	},
+});
+
+export const addRow = style({
+	display: "grid",
+	gridTemplateColumns: "minmax(0, 1fr) minmax(0, 0.7fr) auto auto",
+	alignItems: "center",
+	gap: 6,
+	padding: 8,
+	selectors: {
+		'&[data-kind="group"]': {
+			gridTemplateColumns: "minmax(0, 1fr) auto auto",
+		},
+	},
+});
+
+export const addActions = style({
+	display: "flex",
+	flexWrap: "wrap",
+	gap: 4,
+	marginTop: 4,
+});
+
+// 人数：− 数字 ＋。
+export const stepper = style({
+	display: "inline-flex",
+	alignItems: "center",
+	gap: 4,
+});
+
+export const stepperInput = style({
+	boxSizing: "border-box",
+	width: 64,
+	height: 44,
+	padding: 0,
+	color: "var(--color-text)",
+	font: "inherit",
+	fontWeight: "var(--font-weight-bold)",
+	textAlign: "center",
+	background: "transparent",
+	border: "1.5px solid transparent",
+	borderRadius: 10,
+	MozAppearance: "textfield",
+	selectors: {
+		"&::-webkit-outer-spin-button": { WebkitAppearance: "none", margin: 0 },
+		"&::-webkit-inner-spin-button": { WebkitAppearance: "none", margin: 0 },
+		"&:hover": { background: "var(--color-surface-muted)" },
+		"&:focus-visible": {
+			outline: "3px solid var(--color-focus)",
+			outlineOffset: 2,
+			background: "var(--color-surface)",
+			borderColor: "var(--color-control-border)",
+		},
+	},
 });

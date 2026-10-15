@@ -1,5 +1,4 @@
 import {
-	type KeyboardEvent,
 	type ReactNode,
 	type SubmitEvent,
 	useEffect,
@@ -13,6 +12,7 @@ import { Button } from "#/components/button/button";
 import { useButtonAction } from "#/components/button/use-button-action";
 import { Checkbox } from "#/components/checkbox/checkbox";
 import { Field, TextInput } from "#/components/field/field";
+import { IconButton } from "#/components/icon-button/icon-button";
 import { Note } from "#/components/note/note";
 import type { RecipeDetail } from "../application/recipe-repository";
 import {
@@ -65,6 +65,8 @@ import {
 import { RecipeBodyTextarea } from "./recipe-body-textarea";
 import * as styles from "./recipe-editor.css";
 import {
+	AddGroupRow,
+	AddIngredientRow,
 	IngredientPreviewNode,
 	listGroupOptions,
 	preventSubmitOnEnter,
@@ -173,9 +175,6 @@ export function RecipeEditor({
 	const saveAction = useButtonAction();
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [savedRecipeId, setSavedRecipeId] = useState<string | null>(null);
-	const [newIngredientName, setNewIngredientName] = useState("");
-	const [newIngredientAmount, setNewIngredientAmount] = useState("");
-	const [newGroupName, setNewGroupName] = useState("");
 	// 本文の [[ラベル]] が指すレシピ。本文から消えたラベルは、保存のときに捨てられる。
 	const [links, setLinks] = useState<RecipeLinkReference[]>(
 		initialDocument?.links ?? [],
@@ -380,45 +379,36 @@ export function RecipeEditor({
 		setSavedRecipeId(null);
 	}
 
-	function addIngredient() {
-		const name = newIngredientName.trim();
+	// groupId が null なら、グループ外の最後に足す。
+	function addIngredient(
+		groupId: string | null,
+		name: string,
+		amountText: string,
+	) {
+		const item = createIngredientItem(crypto.randomUUID(), name, amountText);
 
-		if (name.length === 0) return;
-
-		const item = createIngredientItem(
-			crypto.randomUUID(),
-			name,
-			newIngredientAmount.trim(),
+		editIngredients((current) =>
+			groupId === null
+				? [...current, item]
+				: moveIngredientItem([...current, item], item.id, groupId),
 		);
-
-		editIngredients((current) => [...current, item]);
-		setNewIngredientName("");
-		setNewIngredientAmount("");
 	}
 
-	function addGroup() {
-		const groupName = newGroupName.trim();
-
-		if (groupName.length === 0) return;
-
+	function addGroup(groupName: string) {
 		editIngredients((current) => [
 			...current,
 			createIngredientGroup(crypto.randomUUID(), groupName),
 		]);
-		setNewGroupName("");
 	}
 
-	// Enter でフォーム全体が保存されないようにする。変換確定の Enter では追加しない。
-	function handleEnterToAdd(action: () => void) {
-		return (event: KeyboardEvent<HTMLInputElement>) => {
-			if (event.key !== "Enter") return;
+	// 人数を、1 ずつ増減する（直接の入力は、小数も可）。
+	function stepServings(delta: number) {
+		const current = Number(servings);
+		const base = Number.isFinite(current) && current > 0 ? current : 2;
 
-			event.preventDefault();
-
-			if (!event.nativeEvent.isComposing) {
-				action();
-			}
-		};
+		setServings(String(Math.max(1, Number((base + delta).toFixed(3)))));
+		setIsServingsTouched(true);
+		setSavedRecipeId(null);
 	}
 
 	function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
@@ -508,19 +498,33 @@ export function RecipeEditor({
 					<div className={styles.metaField}>
 						<Field label="何人分">
 							{(control) => (
-								<TextInput
-									{...control}
-									type="number"
-									min="0.001"
-									step="any"
-									value={servings}
-									onChange={(event) => {
-										setServings(event.target.value);
-										setIsServingsTouched(true);
-									}}
-									onKeyDown={preventSubmitOnEnter}
-									required
-								/>
+								<div className={styles.stepper}>
+									<IconButton
+										icon="minus"
+										label="人数を減らす"
+										disabled={!(Number(servings) > 1)}
+										onClick={() => stepServings(-1)}
+									/>
+									<input
+										{...control}
+										className={styles.stepperInput}
+										type="number"
+										min="0.001"
+										step="any"
+										value={servings}
+										onChange={(event) => {
+											setServings(event.target.value);
+											setIsServingsTouched(true);
+										}}
+										onKeyDown={preventSubmitOnEnter}
+										required
+									/>
+									<IconButton
+										icon="plus"
+										label="人数を増やす"
+										onClick={() => stepServings(1)}
+									/>
+								</div>
 							)}
 						</Field>
 					</div>
@@ -628,7 +632,7 @@ export function RecipeEditor({
 
 						<h4>材料</h4>
 						{ingredients.length === 0 ? <p>材料はまだありません。</p> : null}
-						<ul className={styles.list}>
+						<ul className={styles.ingredientCard}>
 							{ingredients.map((node) => (
 								<IngredientPreviewNode
 									key={node.id}
@@ -658,56 +662,18 @@ export function RecipeEditor({
 									onRemoveGroup={removeGroup}
 									onRemove={removeIngredient}
 									onRevert={revertEdit}
+									onAdd={addIngredient}
 									linkViews={linkViews}
 									onOpenLink={handleOpenLink}
 								/>
 							))}
 						</ul>
 
-						<div className={styles.addIngredientRow}>
-							<input
-								className={styles.input}
-								aria-label="追加する材料名"
-								placeholder="材料名"
-								value={newIngredientName}
-								onChange={(event) => setNewIngredientName(event.target.value)}
-								onKeyDown={handleEnterToAdd(addIngredient)}
+						<div className={styles.addActions}>
+							<AddIngredientRow
+								onAdd={(name, amount) => addIngredient(null, name, amount)}
 							/>
-							<input
-								className={styles.input}
-								aria-label="追加する材料の分量"
-								placeholder="分量なし"
-								value={newIngredientAmount}
-								onChange={(event) => setNewIngredientAmount(event.target.value)}
-								onKeyDown={handleEnterToAdd(addIngredient)}
-							/>
-							<Button
-								variant="secondary"
-								size="sm"
-								disabled={newIngredientName.trim().length === 0}
-								onClick={addIngredient}
-							>
-								材料を追加
-							</Button>
-						</div>
-
-						<div className={styles.addGroupRow}>
-							<input
-								className={styles.input}
-								aria-label="追加するグループ名"
-								placeholder="グループ名"
-								value={newGroupName}
-								onChange={(event) => setNewGroupName(event.target.value)}
-								onKeyDown={handleEnterToAdd(addGroup)}
-							/>
-							<Button
-								variant="secondary"
-								size="sm"
-								disabled={newGroupName.trim().length === 0}
-								onClick={addGroup}
-							>
-								グループを追加
-							</Button>
+							<AddGroupRow onAdd={addGroup} />
 						</div>
 
 						<h4>下準備</h4>

@@ -28,6 +28,21 @@ async function enterTitle(user: User, title: string) {
 	await user.keyboard("{Enter}");
 }
 
+// 材料・分量・グループ名は、クリックして編集する（入力欄になる）。
+async function editField(user: User, name: string) {
+	await user.click(screen.getByRole("button", { name: `${name}を編集` }));
+
+	return screen.getByRole("textbox", { name });
+}
+
+// 材料の行の「⋯」メニューから、項目を選ぶ。
+async function chooseMenuItem(user: User, ingredient: string, item: string) {
+	await user.click(
+		screen.getByRole("button", { name: `${ingredient}のその他` }),
+	);
+	await user.click(screen.getByRole("menuitem", { name: item }));
+}
+
 // 本文を、入っている内容ごと置き換える。
 async function writeBody(user: User, body: string) {
 	const textarea = screen.getByRole("textbox", { name: "レシピの本文" });
@@ -50,20 +65,22 @@ describe("RecipeEditor", () => {
 		await writeBody(user, "＜材料＞\n肉だね\n豚ひき肉 200g\n玉ねぎ 1/2個");
 
 		// 前提：「肉だね」がグループとして取り込まれている（なければここで落ちる）
-		const initialSelect = screen.getByRole("combobox", {
-			name: "豚ひき肉のグループ",
-		});
-		within(initialSelect).getByRole("option", { name: "肉だね" });
+		await user.click(screen.getByRole("button", { name: "豚ひき肉のその他" }));
+		expect(
+			screen.getByRole("menuitem", { name: "グループから外す" }),
+		).toBeTruthy();
+		await user.keyboard("{Escape}");
 
 		// グループ外へ出す
-		await user.selectOptions(initialSelect, "グループ外");
-		const movedOutSelect = screen.getByRole("combobox", {
-			name: "豚ひき肉のグループ",
-		});
-		expect(movedOutSelect).toHaveProperty("value", "");
+		await chooseMenuItem(user, "豚ひき肉", "グループから外す");
+		await user.click(screen.getByRole("button", { name: "豚ひき肉のその他" }));
+		expect(
+			screen.queryByRole("menuitem", { name: "グループから外す" }),
+		).toBeNull();
+		await user.keyboard("{Escape}");
 
 		// 既存グループへ戻す（末尾に入るので順序が入れ替わる）
-		await user.selectOptions(movedOutSelect, "肉だね");
+		await chooseMenuItem(user, "豚ひき肉", "「肉だね」へ移動");
 
 		await user.click(screen.getByRole("button", { name: "レシピを保存" }));
 		await screen.findByText("レシピを保存しました。");
@@ -96,11 +113,13 @@ describe("RecipeEditor", () => {
 		await enterTitle(user, "つくね");
 		await writeBody(user, "＜材料＞\n肉だね\n豚ひき肉 200g\n玉ねぎ 1/2個");
 
-		await user.click(screen.getByRole("button", { name: "豚ひき肉を削除" }));
-		expect(screen.queryByRole("button", { name: "豚ひき肉を削除" })).toBeNull();
-		expect(screen.getByRole("button", { name: "玉ねぎを削除" })).toBeTruthy();
+		await chooseMenuItem(user, "豚ひき肉", "削除");
+		expect(
+			screen.queryByRole("button", { name: "豚ひき肉のその他" }),
+		).toBeNull();
+		expect(screen.getByRole("button", { name: "玉ねぎのその他" })).toBeTruthy();
 
-		await user.click(screen.getByRole("button", { name: "玉ねぎを削除" }));
+		await chooseMenuItem(user, "玉ねぎ", "削除");
 		expect(screen.getByText("材料はまだありません。")).toBeTruthy();
 
 		await user.click(screen.getByRole("button", { name: "レシピを保存" }));
@@ -122,16 +141,15 @@ describe("RecipeEditor", () => {
 		await enterTitle(user, "つくね");
 		await writeBody(user, "＜材料＞\n肉だね\n豚ひき肉 200g\n玉ねぎ 1/2個");
 
-		const groupNameInput = screen.getByRole("textbox", {
-			name: "肉だねのグループ名",
-		});
+		const groupNameInput = await editField(user, "肉だねのグループ名");
 		await user.clear(groupNameInput);
 		await user.type(groupNameInput, "つくねのたね");
+		await user.keyboard("{Enter}");
 
-		// 材料のグループ選択肢にも新しい名前が反映される
-		within(
-			screen.getByRole("combobox", { name: "豚ひき肉のグループ" }),
-		).getByRole("option", { name: "つくねのたね" });
+		// 材料の「⋯」メニューにも新しい名前が反映される（別のグループへの移動先）
+		expect(
+			screen.getByRole("button", { name: "つくねのたねのグループ名を編集" }),
+		).toBeTruthy();
 
 		await user.click(screen.getByRole("button", { name: "レシピを保存" }));
 		await screen.findByText("レシピを保存しました。");
@@ -160,8 +178,10 @@ describe("RecipeEditor", () => {
 		await enterTitle(user, "つくね");
 		await writeBody(user, "＜材料＞\n玉ねぎ 1/2個");
 
+		await user.click(screen.getByRole("button", { name: "材料を追加" }));
+
 		// 名前が空のうちは追加できない
-		expect(screen.getByRole("button", { name: "材料を追加" })).toHaveProperty(
+		expect(screen.getByRole("button", { name: "追加" })).toHaveProperty(
 			"disabled",
 			true,
 		);
@@ -207,18 +227,14 @@ describe("RecipeEditor", () => {
 		await enterTitle(user, "つくね");
 		await writeBody(user, "＜材料＞\n肉だね\n豚ひき肉 200g\n玉ねぎ 1/2個");
 
-		await user.type(
-			screen.getByRole("textbox", { name: "豚ひき肉の材料名" }),
-			"{Enter}",
-		);
-		await user.type(
-			screen.getByRole("textbox", { name: "豚ひき肉の分量" }),
-			"{Enter}",
-		);
-		await user.type(
-			screen.getByRole("textbox", { name: "肉だねのグループ名" }),
-			"{Enter}",
-		);
+		for (const name of [
+			"豚ひき肉の材料名",
+			"豚ひき肉の分量",
+			"肉だねのグループ名",
+		]) {
+			await editField(user, name);
+			await user.keyboard("{Enter}");
+		}
 
 		expect(onSave).not.toHaveBeenCalled();
 	});
@@ -234,10 +250,13 @@ describe("RecipeEditor", () => {
 		await enterTitle(user, "つくね");
 		await writeBody(user, "＜材料＞\n玉ねぎ 1/2個\n豚ひき肉 200g");
 
+		await user.click(screen.getByRole("button", { name: "グループを追加" }));
+
 		// 名前が空のうちは作成できない
-		expect(
-			screen.getByRole("button", { name: "グループを追加" }),
-		).toHaveProperty("disabled", true);
+		expect(screen.getByRole("button", { name: "追加" })).toHaveProperty(
+			"disabled",
+			true,
+		);
 
 		await user.type(
 			screen.getByRole("textbox", { name: "追加するグループ名" }),
@@ -245,10 +264,7 @@ describe("RecipeEditor", () => {
 		);
 		expect(onSave).not.toHaveBeenCalled();
 
-		await user.selectOptions(
-			screen.getByRole("combobox", { name: "豚ひき肉のグループ" }),
-			"肉だね",
-		);
+		await chooseMenuItem(user, "豚ひき肉", "「肉だね」へ移動");
 
 		await user.click(screen.getByRole("button", { name: "レシピを保存" }));
 		await screen.findByText("レシピを保存しました。");
@@ -278,11 +294,12 @@ describe("RecipeEditor", () => {
 		render(<RecipeEditor onSave={onSave} />);
 
 		await enterTitle(user, "つくね");
+		await user.click(screen.getByRole("button", { name: "グループを追加" }));
 		await user.type(
 			screen.getByRole("textbox", { name: "追加するグループ名" }),
 			"たれ",
 		);
-		await user.click(screen.getByRole("button", { name: "グループを追加" }));
+		await user.click(screen.getByRole("button", { name: "追加" }));
 
 		await user.click(screen.getByRole("button", { name: "レシピを保存" }));
 		expect((await screen.findByRole("alert")).textContent).toContain(
@@ -369,8 +386,8 @@ describe("RecipeEditor", () => {
 			"4",
 		);
 		expect(
-			screen.getByRole("textbox", { name: "豚ひき肉の分量" }),
-		).toHaveProperty("value", "200g");
+			screen.getByRole("button", { name: "豚ひき肉の分量を編集" }).textContent,
+		).toBe("200g");
 
 		await user.click(screen.getByRole("button", { name: "レシピ名を編集" }));
 		const nameInput = screen.getByRole("textbox", { name: "レシピ名" });
@@ -440,7 +457,9 @@ describe("RecipeEditor", () => {
 			"＜材料＞\n卵 1個\n\n＜下準備＞\n玉ねぎを切る\n\n＜作り方＞\n1. 混ぜる\n2. 焼く\n\n＜メモ＞\n冷凍できる",
 		);
 
-		expect(screen.getByRole("textbox", { name: "卵の材料名" })).toBeTruthy();
+		expect(
+			screen.getByRole("button", { name: "卵の材料名を編集" }),
+		).toBeTruthy();
 		expect(screen.getByText("玉ねぎを切る")).toBeTruthy();
 		expect(screen.getByText("混ぜる")).toBeTruthy();
 		expect(screen.getByText("焼く")).toBeTruthy();
@@ -490,25 +509,26 @@ describe("RecipeEditor", () => {
 
 		await writeBody(user, "＜材料＞\n卵 1個\n牛乳 200ml");
 
-		const amount = screen.getByRole("textbox", { name: "卵の分量" });
+		const amount = await editField(user, "卵の分量");
 
 		await user.clear(amount);
 		await user.type(amount, "2個");
-		expect(screen.getAllByText("手直し済み")).toHaveLength(1);
+		await user.keyboard("{Enter}");
+		expect(
+			screen.getAllByRole("button", { name: "卵の手直しを元に戻す" }),
+		).toHaveLength(1);
 
 		// 本文を、1回の変更で書き換える（いったん空にすると、材料ごと消えるため）。
 		fireEvent.change(screen.getByRole("textbox", { name: "レシピの本文" }), {
 			target: { value: "＜材料＞\n卵 1個\n牛乳 300ml" },
 		});
 
-		expect(screen.getByRole("textbox", { name: "卵の分量" })).toHaveProperty(
-			"value",
-			"2個",
-		);
-		expect(screen.getByRole("textbox", { name: "牛乳の分量" })).toHaveProperty(
-			"value",
-			"300ml",
-		);
+		expect(
+			screen.getByRole("button", { name: "卵の分量を編集" }).textContent,
+		).toBe("2個");
+		expect(
+			screen.getByRole("button", { name: "牛乳の分量を編集" }).textContent,
+		).toBe("300ml");
 	});
 
 	it("元の行を書き換えると、手直しは解析し直される", async () => {
@@ -517,18 +537,20 @@ describe("RecipeEditor", () => {
 		render(<RecipeEditor onSave={vi.fn()} />);
 
 		await writeBody(user, "＜材料＞\n卵 1個");
-		const amount = screen.getByRole("textbox", { name: "卵の分量" });
+		const amount = await editField(user, "卵の分量");
 
 		await user.clear(amount);
 		await user.type(amount, "2個");
+		await user.keyboard("{Enter}");
 
 		await writeBody(user, "＜材料＞\n卵 3個");
 
-		expect(screen.getByRole("textbox", { name: "卵の分量" })).toHaveProperty(
-			"value",
-			"3個",
-		);
-		expect(screen.queryByText("手直し済み")).toBeNull();
+		expect(
+			screen.getByRole("button", { name: "卵の分量を編集" }).textContent,
+		).toBe("3個");
+		expect(
+			screen.queryByRole("button", { name: "卵の手直しを元に戻す" }),
+		).toBeNull();
 	});
 
 	it("手直しを元に戻せる", async () => {
@@ -537,19 +559,21 @@ describe("RecipeEditor", () => {
 		render(<RecipeEditor onSave={vi.fn()} />);
 
 		await writeBody(user, "＜材料＞\n卵 1個");
-		const amount = screen.getByRole("textbox", { name: "卵の分量" });
+		const amount = await editField(user, "卵の分量");
 
 		await user.clear(amount);
 		await user.type(amount, "2個");
+		await user.keyboard("{Enter}");
 		await user.click(
 			screen.getByRole("button", { name: "卵の手直しを元に戻す" }),
 		);
 
-		expect(screen.getByRole("textbox", { name: "卵の分量" })).toHaveProperty(
-			"value",
-			"1個",
-		);
-		expect(screen.queryByText("手直し済み")).toBeNull();
+		expect(
+			screen.getByRole("button", { name: "卵の分量を編集" }).textContent,
+		).toBe("1個");
+		expect(
+			screen.queryByRole("button", { name: "卵の手直しを元に戻す" }),
+		).toBeNull();
 	});
 
 	it("プレビューで消した材料は、本文に残っていても、出てこない", async () => {
@@ -558,15 +582,19 @@ describe("RecipeEditor", () => {
 		render(<RecipeEditor onSave={vi.fn()} />);
 
 		await writeBody(user, "＜材料＞\n卵 1個\n牛乳 200ml");
-		await user.click(screen.getByRole("button", { name: "卵を削除" }));
+		await chooseMenuItem(user, "卵", "削除");
 
 		const textarea = screen.getByRole("textbox", { name: "レシピの本文" });
 
 		await user.click(textarea);
 		await user.keyboard("{Control>}{End}{/Control}\n塩 少々");
 
-		expect(screen.queryByRole("textbox", { name: "卵の材料名" })).toBeNull();
-		expect(screen.getByRole("textbox", { name: "塩の材料名" })).toBeTruthy();
+		expect(
+			screen.queryByRole("button", { name: "卵の材料名を編集" }),
+		).toBeNull();
+		expect(
+			screen.getByRole("button", { name: "塩の材料名を編集" }),
+		).toBeTruthy();
 	});
 
 	it("見出しの人数を、人数の欄に入れる（自分で直したあとは、変えない）", async () => {
@@ -587,6 +615,64 @@ describe("RecipeEditor", () => {
 		await writeBody(user, "＜材料（6人分）＞\n卵 1個");
 
 		expect(servings).toHaveProperty("value", "3");
+	});
+
+	it("人数を、ボタンで1ずつ増減でき、1より下には減らせない", async () => {
+		const user = userEvent.setup();
+
+		render(<RecipeEditor onSave={vi.fn()} />);
+
+		const servings = screen.getByRole("spinbutton", { name: "何人分" });
+
+		expect(servings).toHaveProperty("value", "2");
+
+		await user.click(screen.getByRole("button", { name: "人数を増やす" }));
+		expect(servings).toHaveProperty("value", "3");
+
+		await user.click(screen.getByRole("button", { name: "人数を減らす" }));
+		await user.click(screen.getByRole("button", { name: "人数を減らす" }));
+		expect(servings).toHaveProperty("value", "1");
+		expect(screen.getByRole("button", { name: "人数を減らす" })).toHaveProperty(
+			"disabled",
+			true,
+		);
+	});
+
+	it("グループの中に、直接、材料を追加できる", async () => {
+		const user = userEvent.setup();
+		const onSave = vi.fn(async (_document: RecipeEditorDocument) => ({
+			publicId: "recipe-1",
+		}));
+
+		render(<RecipeEditor onSave={onSave} />);
+
+		await enterTitle(user, "つくね");
+		await writeBody(user, "＜材料＞\n肉だね\n豚ひき肉 200g\n玉ねぎ 1/2個");
+
+		await user.click(
+			screen.getByRole("button", { name: "肉だねに材料を追加" }),
+		);
+		await user.type(
+			screen.getByRole("textbox", { name: "肉だね追加する材料名" }),
+			"卵{Enter}",
+		);
+
+		await user.click(screen.getByRole("button", { name: "レシピを保存" }));
+		await screen.findByText("レシピを保存しました。");
+
+		expect(onSave).toHaveBeenCalledWith(
+			expect.objectContaining({
+				ingredients: [
+					expect.objectContaining({
+						type: "group",
+						name: "肉だね",
+						children: expect.arrayContaining([
+							expect.objectContaining({ name: "卵" }),
+						]),
+					}),
+				],
+			}),
+		);
 	});
 
 	it("レシピ名が空のまま保存しようとすると、知らせて、名前の入力に移る", async () => {
@@ -1053,20 +1139,17 @@ describe("RecipeEditor", () => {
 				screen.queryByRole("textbox", { name: "カレーの材料名" }),
 			).toBeNull();
 			expect(
-				screen.getByRole("textbox", { name: "ごはんの材料名" }),
+				screen.getByRole("button", { name: "ごはんの材料名を編集" }),
 			).toBeVisible();
 			expect(
 				screen.queryByRole("textbox", { name: /のグループ名/u }),
 			).toBeNull();
-			// 分量・グループの移動・削除は、ふつうの材料と同じ
+			// 分量・グループの移動・削除（「⋯」メニュー）は、ふつうの材料と同じ
 			expect(
-				screen.getByRole("textbox", { name: "[[カレー]]の分量" }),
+				screen.getByRole("button", { name: "[[カレー]]の分量を編集" }),
 			).toBeVisible();
 			expect(
-				screen.getByRole("combobox", { name: "[[カレー]]のグループ" }),
-			).toBeVisible();
-			expect(
-				screen.getByRole("button", { name: "[[カレー]]を削除" }),
+				screen.getByRole("button", { name: "[[カレー]]のその他" }),
 			).toBeVisible();
 
 			const [linkButton] = screen.getAllByRole("button", { name: "カレー" });
