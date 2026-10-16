@@ -19,7 +19,9 @@ import { ShortcutKeys } from "#/features/shortcuts/components/shortcut-keys";
 import {
 	type CompositionStrategy,
 	chooseCompositionStrategy,
-} from "../domain/choose-composition-strategy";
+} from "#/ime/choose-composition-strategy";
+import { endComposition, restoreFocus } from "#/ime/end-composition";
+import { readBrowserEnvironment } from "#/ime/read-browser-environment";
 import {
 	continueRecipeList,
 	removeRecipeListMarker,
@@ -57,11 +59,6 @@ import {
 	type TextSnapshot,
 	undoEdit,
 } from "../domain/text-history";
-import {
-	endComposition,
-	restoreFocus,
-} from "../infrastructure/end-composition";
-import { readBrowserEnvironment } from "../infrastructure/read-browser-environment";
 import * as styles from "./recipe-editor.css";
 import { RecipeLinkPicker } from "./recipe-link-picker";
 

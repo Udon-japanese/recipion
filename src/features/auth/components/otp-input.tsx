@@ -5,8 +5,8 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { chooseCompositionStrategy } from "#/features/recipes/domain/choose-composition-strategy";
-import { readBrowserEnvironment } from "#/features/recipes/infrastructure/read-browser-environment";
+import { chooseCompositionStrategy } from "#/ime/choose-composition-strategy";
+import { readBrowserEnvironment } from "#/ime/read-browser-environment";
 import * as styles from "./otp-input.css";
 import {
 	digitsFromRaw,

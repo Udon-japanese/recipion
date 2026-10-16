@@ -475,33 +475,31 @@ export function ShoppingList({
 			{!isLoading &&
 			(items.length > 0 || branches.length > 0) &&
 			view === "store" ? (
-				<>
-					{stores.length > 0 ? (
-						<div className={styles.storeFilter}>
-							<Field label="今いる店">
-								{(control) => (
-									<SelectBox
-										id={control.id}
-										value={currentStoreId ?? ""}
-										onChange={(event) =>
-											setCurrentStoreId(
-												event.target.value === "" ? null : event.target.value,
-											)
-										}
-									>
-										<option value="">すべての店</option>
+				stores.length > 0 ? (
+					<div className={styles.storeFilter}>
+						<Field label="今いる店">
+							{(control) => (
+								<SelectBox
+									id={control.id}
+									value={currentStoreId ?? ""}
+									onChange={(event) =>
+										setCurrentStoreId(
+											event.target.value === "" ? null : event.target.value,
+										)
+									}
+								>
+									<option value="">すべての店</option>
 
-										{stores.map((store) => (
-											<option value={store.id} key={store.id}>
-												{store.name}
-											</option>
-										))}
-									</SelectBox>
-								)}
-							</Field>
-						</div>
-					) : null}
-				</>
+									{stores.map((store) => (
+										<option value={store.id} key={store.id}>
+											{store.name}
+										</option>
+									))}
+								</SelectBox>
+							)}
+						</Field>
+					</div>
+				) : null
 			) : null}
 
 			{!isLoading &&

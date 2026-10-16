@@ -3,7 +3,7 @@ import { expect, test } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { measureTextareaCaret } from "#/components/completion-menu/measure-textarea-caret";
-import type { CompositionStrategy } from "../domain/choose-composition-strategy";
+import type { CompositionStrategy } from "#/ime/choose-composition-strategy";
 import type {
 	LinkableUser,
 	OtherRecipeTarget,

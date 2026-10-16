@@ -1,5 +1,7 @@
 import {
+	type CompositionEvent,
 	type KeyboardEvent,
+	useEffect,
 	useLayoutEffect,
 	useMemo,
 	useRef,
@@ -9,12 +11,20 @@ import { Button } from "#/components/button/button";
 import { useButtonAction } from "#/components/button/use-button-action";
 import { CompletionMenu } from "#/components/completion-menu/completion-menu";
 import { useCompletionLayout } from "#/components/completion-menu/use-completion-layout";
+import { Modal } from "#/components/dialog/modal";
 import { Field, TextArea } from "#/components/field/field";
 import { Icon } from "#/components/icon/icon";
+import { SegmentedControl } from "#/components/segmented-control/segmented-control";
 import { Sheet } from "#/components/sheet/sheet";
 import { Tag } from "#/components/tag/tag";
 import { useMediaQuery } from "#/components/use-media-query";
 import { ShortcutKeys } from "#/features/shortcuts/components/shortcut-keys";
+import {
+	type CompositionStrategy,
+	chooseCompositionStrategy,
+} from "#/ime/choose-composition-strategy";
+import { endComposition, restoreFocus } from "#/ime/end-composition";
+import { readBrowserEnvironment } from "#/ime/read-browser-environment";
 import {
 	applyShoppingMemoCompletion,
 	getShoppingMemoCompletion,
@@ -56,8 +66,20 @@ export function ShoppingBulkAdd({
 }: ShoppingBulkAddProps) {
 	const [text, setText] = useState("");
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
-	// 補完：カーソルの位置と、選んでいる候補。変換中は、キー操作を横取りしない（候補のクリックだけ使える）。
+	// 補完：カーソルの位置と、選んでいる候補。
 	const [caret, setCaret] = useState(0);
+	// IME の変換中か（変換中の補完の扱いは、レシピのエディタと同じ。環境ごとに決まる）。
+	const [isComposing, setIsComposing] = useState(false);
+	const composingRef = useRef(false);
+	const isAcceptingRef = useRef(false);
+	const [strategy, setStrategy] = useState<CompositionStrategy>(
+		"wait-for-confirmation",
+	);
+	// 変換の確定のあと、本文とカーソルが動くまでは、メニューを、カーソルの上に置いたままにする（直後のクリックが、移った先に当たらないように）。
+	const [aboveUntilChange, setAboveUntilChange] = useState<{
+		text: string;
+		caret: number;
+	} | null>(null);
 	const [activeIndex, setActiveIndex] = useState<number | null>(null);
 	const [closedAt, setClosedAt] = useState<{
 		text: string;
@@ -68,7 +90,9 @@ export function ShoppingBulkAdd({
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
 	const pendingCaretRef = useRef<number | null>(null);
 	const addAction = useButtonAction();
-	const isRight = useMediaQuery("(min-width: 1024px)");
+	// 広い画面（PC）は、幅広のモーダル。狭い画面は、ボトムシートに、タブで切り替える。
+	const isWide = useMediaQuery("(min-width: 768px)");
+	const [tab, setTab] = useState<"input" | "preview">("input");
 	const lines = useMemo(() => parseShoppingMemo(text, stores), [text, stores]);
 	const completion = useMemo(() => {
 		const found = getShoppingMemoCompletion(text, caret, stores);
@@ -77,6 +101,17 @@ export function ShoppingBulkAdd({
 			? found
 			: null;
 	}, [text, caret, stores, closedAt]);
+	// 変換中に補完できない環境（iPhone・Firefox など）は、確定したあとに出す。
+	const isMenuOpen =
+		isFocused &&
+		completion !== null &&
+		(!isComposing || strategy !== "wait-for-confirmation");
+	const keepAbove =
+		aboveUntilChange?.text === text && aboveUntilChange.caret === caret;
+
+	useEffect(() => {
+		setStrategy(chooseCompositionStrategy(readBrowserEnvironment()));
+	}, []);
 	// 登録のない店の名前（同じ名前は、1つにまとめる）。
 	const unknownStoreNames = [
 		...new Set(
@@ -99,6 +134,13 @@ export function ShoppingBulkAdd({
 		}
 	}, [text]);
 
+	// Safari は、変換中の文字の範囲全体を選択状態にする。そのときのカーソルは、範囲の末尾。
+	function readCaret(textarea: HTMLTextAreaElement) {
+		return composingRef.current
+			? textarea.selectionEnd
+			: textarea.selectionStart;
+	}
+
 	function acceptCompletion(index: number) {
 		if (!completion) {
 			return;
@@ -112,23 +154,110 @@ export function ShoppingBulkAdd({
 		setActiveIndex(null);
 	}
 
-	function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-		// 変換中は、IME に任せる。
-		if (!completion || event.nativeEvent.isComposing) {
+	// 変換中に候補を決める。Chromium 系は、変換を確定させてから、確定した文字を含めて置き換える。Safari・Android は、変換中のまま書き換える。
+	async function acceptDuringComposition(index: number) {
+		const textarea = textareaRef.current;
+
+		if (!textarea || !completion || isAcceptingRef.current) {
 			return;
 		}
 
-		const count = completion.items.length;
+		isAcceptingRef.current = true;
+
+		const shouldEnd = strategy === "end-then-replace";
+
+		if (shouldEnd) {
+			await endComposition(textarea);
+		}
+
+		// 変換で本文の長さが変わっているので、置き換える範囲の終わりは、今のカーソルにする。
+		const applied = applyShoppingMemoCompletion(
+			textarea.value,
+			{ ...completion, to: textarea.selectionEnd },
+			index,
+		);
+
+		composingRef.current = false;
+		isAcceptingRef.current = false;
+		setIsComposing(false);
+		pendingCaretRef.current = applied.caret;
+		setText(applied.text);
+		setCaret(applied.caret);
+		setActiveIndex(null);
+
+		if (shouldEnd) {
+			restoreFocus(textarea, applied.caret);
+		}
+	}
+
+	function handleCompositionStart() {
+		composingRef.current = true;
+		setIsComposing(true);
+	}
+
+	function handleCompositionEnd(event: CompositionEvent<HTMLTextAreaElement>) {
+		// 候補を決める処理が、すでに扱っているときは、ここでは何もしない。
+		if (!composingRef.current || isAcceptingRef.current) {
+			return;
+		}
+
+		composingRef.current = false;
+		setIsComposing(false);
+		setAboveUntilChange({
+			text: event.currentTarget.value,
+			caret: event.currentTarget.selectionStart,
+		});
+	}
+
+	// 候補の選択を1つ動かす（端までいくと、反対側へ回る）。
+	function moveActive(direction: "up" | "down") {
+		const count = completion?.items.length ?? 0;
+
+		if (count === 0) {
+			return;
+		}
+
+		setActiveIndex((current) => {
+			if (direction === "down") {
+				return current === null ? 0 : (current + 1) % count;
+			}
+
+			return current === null ? count - 1 : (current - 1 + count) % count;
+		});
+	}
+
+	function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+		// 変換中は、IME に任せる。ただし、候補が出ているときは、Tab（決定）と Alt（Option）+↑↓（選択）を、補完に使う。
+		// 素の矢印と Enter は、IME が使う（Enter は変換の確定）。
+		if (event.nativeEvent.isComposing) {
+			if (!completion || strategy === "wait-for-confirmation") {
+				return;
+			}
+
+			if (
+				event.altKey &&
+				!event.ctrlKey &&
+				!event.metaKey &&
+				!event.shiftKey &&
+				(event.key === "ArrowDown" || event.key === "ArrowUp")
+			) {
+				event.preventDefault();
+				moveActive(event.key === "ArrowDown" ? "down" : "up");
+			} else if (event.code === "Tab" && !event.shiftKey) {
+				event.preventDefault();
+				void acceptDuringComposition(activeIndex ?? 0);
+			}
+
+			return;
+		}
+
+		if (!completion) {
+			return;
+		}
 
 		if (event.key === "ArrowDown" || event.key === "ArrowUp") {
 			event.preventDefault();
-			setActiveIndex((current) => {
-				if (event.key === "ArrowDown") {
-					return current === null ? 0 : (current + 1) % count;
-				}
-
-				return current === null ? count - 1 : (current - 1 + count) % count;
-			});
+			moveActive(event.key === "ArrowDown" ? "down" : "up");
 		} else if (event.key === "Tab") {
 			event.preventDefault();
 			acceptCompletion(activeIndex ?? 0);
@@ -170,6 +299,178 @@ export function ShoppingBulkAdd({
 		return true;
 	}
 
+	const inputPane = (
+		<div className={styles.bulkPane}>
+			<Field
+				label="買うもの（1行に1つ）"
+				hint="「卵 10個」「牛乳 2」のように書けます。数字だけなら「個」、数量を書かなければ1つになります。店の名前だけの行から下は、その店になり、「卵 @イオン」のように、行ごとにも店を指定できます。"
+			>
+				{(control) => (
+					<TextArea
+						{...control}
+						data-autofocus=""
+						rows={isWide ? 14 : 8}
+						placeholder={"イオン\n卵 10個\n牛乳 2\n\n豚こま 300g @業務スーパー"}
+						ref={textareaRef}
+						value={text}
+						onChange={(event) => {
+							setText(event.target.value);
+							setCaret(readCaret(event.target));
+							setActiveIndex(null);
+						}}
+						onSelect={(event) => setCaret(readCaret(event.currentTarget))}
+						onKeyDown={handleKeyDown}
+						onCompositionStart={handleCompositionStart}
+						onCompositionEnd={handleCompositionEnd}
+						onFocus={() => setIsFocused(true)}
+						onBlur={() => setIsFocused(false)}
+					/>
+				)}
+			</Field>
+
+			<CompletionMenu
+				textareaRef={textareaRef}
+				layout={layout}
+				open={isMenuOpen}
+				// 変換中・確定の直後は、IME の窓（文字の下に出る）を避けて、カーソルの上に出す。
+				prefer={isComposing || keepAbove ? "above" : "below"}
+				caret={caret}
+				items={
+					completion
+						? completion.items.map((item) => ({
+								key: `${item.kind}-${item.label}`,
+								label: item.label,
+								badge: item.kind === "store" ? "店" : undefined,
+							}))
+						: null
+				}
+				activeIndex={activeIndex}
+				onAccept={(index) =>
+					composingRef.current
+						? void acceptDuringComposition(index)
+						: acceptCompletion(index)
+				}
+				hint={
+					isComposing ? (
+						<>
+							<ShortcutKeys keys={["alt", "up-down"]} />
+							で選び、
+							<ShortcutKeys keys={["tab"]} />
+							で決定
+						</>
+					) : (
+						<>
+							<ShortcutKeys keys={["up-down"]} />
+							で選び、
+							<ShortcutKeys keys={["tab"]} />
+							で決定（
+							<ShortcutKeys keys={["esc"]} />
+							で閉じる）
+						</>
+					)
+				}
+			/>
+
+			{unknownStoreNames.length > 0 ? (
+				<div className={styles.bulkNewStores}>
+					<p className={styles.bulkNewStoresText}>
+						登録のない店があります。店に追加すると、その店の項目になります。
+					</p>
+					<div className={styles.bulkNewStoreButtons}>
+						{unknownStoreNames.map((name) => (
+							<Button
+								key={name}
+								variant="secondary"
+								size="sm"
+								leadingIcon={<Icon name="plus" size={20} />}
+								onClick={() => void createStore(name)}
+							>
+								「{name}」を店に追加
+							</Button>
+						))}
+					</div>
+				</div>
+			) : null}
+		</div>
+	);
+
+	const previewPane = (
+		<div className={styles.bulkPane}>
+			{isWide ? <p className={styles.bulkPaneTitle}>読み取った内容</p> : null}
+
+			{lines.length > 0 ? (
+				<ul className={styles.bulkList} aria-label="読み取った内容">
+					{lines.map((line, index) => (
+						// biome-ignore lint/suspicious/noArrayIndexKey: 書いた文章から作る確認用の一覧で、並びは行の順のまま。
+						<li className={styles.bulkRow} key={index}>
+							<span className={styles.bulkName}>{line.name}</span>
+							{formatQuantity(line) ? (
+								<span className={styles.bulkQuantity}>
+									{formatQuantity(line)}
+								</span>
+							) : null}
+							{line.storeId ? (
+								<Tag icon="store" tone="soft">
+									{storeNames.get(line.storeId)}
+								</Tag>
+							) : null}
+							{line.unknownStoreName ? (
+								<Tag tone="warn">
+									「{line.unknownStoreName}」は、登録のない店です
+								</Tag>
+							) : null}
+						</li>
+					))}
+				</ul>
+			) : (
+				<p className={styles.bulkEmpty}>
+					書いた内容が、ここに、読み取った結果として出ます。
+				</p>
+			)}
+		</div>
+	);
+
+	const error = errorMessage ? (
+		<p className={styles.bulkError} role="alert">
+			{errorMessage}
+		</p>
+	) : null;
+	const footer = (
+		<Button
+			fullWidth={!isWide}
+			status={addAction.status}
+			pendingLabel="追加しています"
+			disabled={lines.length === 0}
+			disabledReason="買うものを書いてください"
+			onClick={() => void addAction.run(add)}
+		>
+			{lines.length}件を追加
+		</Button>
+	);
+
+	// PC：幅広のモーダルに、入力（左）と確認（右）を並べる。
+	if (isWide) {
+		return (
+			<Modal
+				open
+				onOpenChange={(open) => {
+					if (!open) {
+						onClose();
+					}
+				}}
+				title={title}
+				footer={footer}
+			>
+				<div className={styles.bulkColumns}>
+					{inputPane}
+					{previewPane}
+				</div>
+				{error}
+			</Modal>
+		);
+	}
+
+	// スマホ：ボトムシートに、「入力」と「確認」のタブ（レシピエディタと同じ切り替え）。
 	return (
 		<Sheet
 			open
@@ -179,128 +480,23 @@ export function ShoppingBulkAdd({
 				}
 			}}
 			title={title}
-			placement={isRight ? "right" : "bottom"}
-			snapPoints={isRight ? [0.92] : [0.7, 0.92]}
-			footer={
-				<Button
-					fullWidth
-					status={addAction.status}
-					pendingLabel="追加しています"
-					disabled={lines.length === 0}
-					disabledReason="買うものを書いてください"
-					onClick={() => void addAction.run(add)}
-				>
-					{lines.length}件を追加
-				</Button>
-			}
+			placement="bottom"
+			snapPoints={[0.92]}
+			footer={footer}
 		>
 			<div className={styles.bulkBody}>
-				<Field
-					label="買うもの（1行に1つ）"
-					hint="「卵 10個」「牛乳 2」のように書けます。数字だけなら「個」、数量を書かなければ1つになります。店の名前だけの行から下は、その店になり、「卵 @イオン」のように、行ごとにも店を指定できます。"
-				>
-					{(control) => (
-						<TextArea
-							{...control}
-							rows={6}
-							placeholder={
-								"イオン\n卵 10個\n牛乳 2\n\n豚こま 300g @業務スーパー"
-							}
-							ref={textareaRef}
-							value={text}
-							onChange={(event) => {
-								setText(event.target.value);
-								setCaret(event.target.selectionStart);
-								setActiveIndex(null);
-							}}
-							onSelect={(event) => setCaret(event.currentTarget.selectionStart)}
-							onKeyDown={handleKeyDown}
-							onFocus={() => setIsFocused(true)}
-							onBlur={() => setIsFocused(false)}
-						/>
-					)}
-				</Field>
-
-				<CompletionMenu
-					textareaRef={textareaRef}
-					layout={layout}
-					open={isFocused && completion !== null}
-					caret={caret}
-					items={
-						completion
-							? completion.items.map((item) => ({
-									key: `${item.kind}-${item.label}`,
-									label: item.label,
-									badge: item.kind === "store" ? "店" : undefined,
-								}))
-							: null
-					}
-					activeIndex={activeIndex}
-					onAccept={acceptCompletion}
-					hint={
-						<>
-							<ShortcutKeys keys={["up-down"]} />
-							で選び、
-							<ShortcutKeys keys={["tab"]} />
-							で決定（
-							<ShortcutKeys keys={["esc"]} />
-							で閉じる）
-						</>
-					}
+				<SegmentedControl<"input" | "preview">
+					label="表示の切り替え"
+					value={tab}
+					onChange={setTab}
+					options={[
+						{ value: "input", label: "入力" },
+						{ value: "preview", label: `確認 ${lines.length}` },
+					]}
 				/>
 
-				{unknownStoreNames.length > 0 ? (
-					<div className={styles.bulkNewStores}>
-						<p className={styles.bulkNewStoresText}>
-							登録のない店があります。店に追加すると、その店の項目になります。
-						</p>
-						<div className={styles.bulkNewStoreButtons}>
-							{unknownStoreNames.map((name) => (
-								<Button
-									key={name}
-									variant="secondary"
-									size="sm"
-									leadingIcon={<Icon name="plus" size={20} />}
-									onClick={() => void createStore(name)}
-								>
-									「{name}」を店に追加
-								</Button>
-							))}
-						</div>
-					</div>
-				) : null}
-
-				{lines.length > 0 ? (
-					<ul className={styles.bulkList} aria-label="読み取った内容">
-						{lines.map((line, index) => (
-							// biome-ignore lint/suspicious/noArrayIndexKey: 書いた文章から作る確認用の一覧で、並びは行の順のまま。
-							<li className={styles.bulkRow} key={index}>
-								<span className={styles.bulkName}>{line.name}</span>
-								{formatQuantity(line) ? (
-									<span className={styles.bulkQuantity}>
-										{formatQuantity(line)}
-									</span>
-								) : null}
-								{line.storeId ? (
-									<Tag icon="store" tone="soft">
-										{storeNames.get(line.storeId)}
-									</Tag>
-								) : null}
-								{line.unknownStoreName ? (
-									<Tag tone="warn">
-										「{line.unknownStoreName}」は、登録のない店です
-									</Tag>
-								) : null}
-							</li>
-						))}
-					</ul>
-				) : null}
-
-				{errorMessage ? (
-					<p className={styles.bulkError} role="alert">
-						{errorMessage}
-					</p>
-				) : null}
+				{tab === "input" ? inputPane : previewPane}
+				{error}
 			</div>
 		</Sheet>
 	);

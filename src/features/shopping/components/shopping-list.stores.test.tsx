@@ -88,7 +88,9 @@ describe("ShoppingList の店", () => {
 		await user.click(memo);
 		await user.paste("イオン\n卵 10個\n牛乳 2\n\nパン @ドンキ");
 
-		// 確認の一覧：店と、登録のない店の注意。
+		// 確認の一覧（狭い画面は、「確認」のタブ）：店と、登録のない店の注意。
+		await user.click(screen.getByRole("button", { name: /^確認/ }));
+
 		const preview = screen.getByRole("list", { name: "読み取った内容" });
 
 		expect(within(preview).getByText("2個")).toBeInTheDocument();

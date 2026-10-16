@@ -130,3 +130,35 @@ test("分類をまたいで、購入済みを飛ばして、並び替える", as
 		["買った鶏肉", 4],
 	]);
 });
+
+// まとめて追加：PC は、入力と確認を左右に並べた幅広のモーダル。スマホは、ボトムシートに「入力」「確認」のタブ。
+test("まとめて追加は、広い画面では左右に並べ、狭い画面ではタブで切り替える", async () => {
+	const repository = createFakeShoppingRepository([]);
+
+	await page.viewport(1280, 900);
+	await render(<ShoppingList repository={repository} />);
+
+	await page.getByRole("button", { name: "まとめて追加" }).click();
+	await page
+		.getByRole("textbox", { name: "買うもの（1行に1つ）" })
+		.fill("卵 2\nたまねぎ");
+
+	const preview = page.getByRole("list", { name: "読み取った内容" });
+
+	// 広い画面：入力の横に、確認の一覧が、すぐ出ている。
+	await expect.element(page.getByRole("dialog")).toBeVisible();
+	await expect.element(preview).toBeVisible();
+	await expect
+		.element(page.getByRole("button", { name: /^確認/ }))
+		.not.toBeInTheDocument();
+
+	// 狭い画面：タブになり、確認は、タブを切り替えたときだけ出る。
+	await page.viewport(390, 700);
+	await expect
+		.element(page.getByRole("button", { name: "確認 2" }))
+		.toBeVisible();
+	await expect.element(preview).not.toBeInTheDocument();
+
+	await page.getByRole("button", { name: "確認 2" }).click();
+	await expect.element(preview).toBeVisible();
+});

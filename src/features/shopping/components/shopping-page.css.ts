@@ -534,3 +534,32 @@ export const addSubmitRow = style({
 	display: "flex",
 	justifyContent: "flex-end",
 });
+
+// まとめて追加：PC は入力（左）と確認（右）、スマホは、タブで切り替える。
+export const bulkColumns = style({
+	display: "grid",
+	gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+	gap: 24,
+	alignItems: "start",
+});
+
+export const bulkPane = style({
+	display: "grid",
+	gap: 16,
+	minWidth: 0,
+});
+
+export const bulkPaneTitle = style({
+	margin: 0,
+	fontSize: "var(--font-size-sm)",
+	fontWeight: "var(--font-weight-semibold)",
+});
+
+export const bulkEmpty = style({
+	margin: 0,
+	padding: 16,
+	color: "var(--color-text-muted)",
+	fontSize: "var(--font-size-sm)",
+	background: "var(--color-surface-muted)",
+	borderRadius: "var(--radius-card)",
+});

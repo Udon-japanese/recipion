@@ -1,4 +1,4 @@
-import type { BrowserEnvironment } from "../domain/choose-composition-strategy";
+import type { BrowserEnvironment } from "./choose-composition-strategy";
 
 type NavigatorWithBrands = Navigator & {
 	userAgentData?: { brands?: { brand: string }[] };
