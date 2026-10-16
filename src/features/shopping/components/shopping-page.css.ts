@@ -457,3 +457,54 @@ export const purchasedCount = style({
 	background: "var(--color-surface-muted)",
 	borderRadius: 9999,
 });
+
+// まとめて追加（確認つき）。
+export const bulkBody = style({
+	display: "grid",
+	gap: 16,
+});
+
+export const bulkList = style({
+	margin: 0,
+	padding: 0,
+	overflow: "hidden",
+	listStyle: "none",
+	border: "1px solid var(--color-border)",
+	borderRadius: "var(--radius-card)",
+});
+
+export const bulkRow = style({
+	display: "flex",
+	flexWrap: "wrap",
+	alignItems: "center",
+	gap: 8,
+	minHeight: 48,
+	padding: "8px 16px",
+	selectors: {
+		"& + &": { borderTop: "1px solid var(--color-border)" },
+	},
+});
+
+export const bulkName = style({
+	flex: "1 1 auto",
+	minWidth: 0,
+	fontWeight: "var(--font-weight-semibold)",
+	overflowWrap: "anywhere",
+});
+
+export const bulkQuantity = style({
+	color: "var(--color-text-muted)",
+	fontSize: "var(--font-size-sm)",
+});
+
+export const bulkError = style({
+	margin: 0,
+	color: "var(--color-error)",
+});
+
+// 入力の入口（まとめて追加・レシピから入れる）を、横に並べる。
+export const entryRow = style({
+	display: "flex",
+	flexWrap: "wrap",
+	gap: 8,
+});
