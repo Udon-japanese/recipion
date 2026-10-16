@@ -2,6 +2,7 @@ import { useState } from "react";
 import { expect, test } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
+import { measureTextareaCaret } from "#/components/completion-menu/measure-textarea-caret";
 import type { CompositionStrategy } from "../domain/choose-composition-strategy";
 import type {
 	LinkableUser,
@@ -11,7 +12,6 @@ import type {
 	RecipeLinkReference,
 	RecipeLinkTarget,
 } from "../domain/recipe-links";
-import { measureTextareaCaret } from "../infrastructure/measure-textarea-caret";
 import { RecipeBodyTextarea } from "./recipe-body-textarea";
 
 // 変換中の補完の方式は、実行する環境（OS・ブラウザ）で変わるので、テストでは、既定で明示する。
@@ -617,7 +617,7 @@ test("[[@ で候補がないとき、理由を、補完のメニューの中に�
 	expect(
 		document
 			.querySelector("output")
-			?.parentElement?.className.includes("completionPopup"),
+			?.parentElement?.className.includes("completion-menu_popup"),
 	).toBe(true);
 	// 少し待ってから、検索が呼ばれる（打ち終わるのを待つため）。
 	await expect.poll(() => isSearchCalled).toBe(true);

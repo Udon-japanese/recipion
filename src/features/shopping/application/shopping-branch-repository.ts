@@ -13,6 +13,8 @@ export interface ShoppingBranchRepository {
 	): () => void;
 	// 分岐と、条件の材料を、まとめて保存する。
 	create(branch: ShoppingBranch, conditionItem: ShoppingItem): Promise<void>;
+	// 分岐の条件・呼び名を保存する。
+	update(branch: ShoppingBranch): Promise<void>;
 	// 分岐を消す。中の項目もすべて消す。
 	remove(branchId: string): Promise<void>;
 	// 側の呼び名（thenLabel / elseLabel）を保存する。

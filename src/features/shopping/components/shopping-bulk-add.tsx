@@ -7,11 +7,14 @@ import {
 } from "react";
 import { Button } from "#/components/button/button";
 import { useButtonAction } from "#/components/button/use-button-action";
+import { CompletionMenu } from "#/components/completion-menu/completion-menu";
+import { useCompletionLayout } from "#/components/completion-menu/use-completion-layout";
 import { Field, TextArea } from "#/components/field/field";
 import { Icon } from "#/components/icon/icon";
 import { Sheet } from "#/components/sheet/sheet";
 import { Tag } from "#/components/tag/tag";
 import { useMediaQuery } from "#/components/use-media-query";
+import { ShortcutKeys } from "#/features/shortcuts/components/shortcut-keys";
 import {
 	applyShoppingMemoCompletion,
 	getShoppingMemoCompletion,
@@ -24,6 +27,8 @@ import type { ShoppingStore } from "../domain/shopping-store";
 import * as styles from "./shopping-page.css";
 
 type ShoppingBulkAddProps = {
+	// シートの見出し（省略すると、「まとめて追加」）。条件つきのメモの側に入れるときは、その側の名前を添える。
+	title?: string;
 	stores: readonly ShoppingStore[];
 	onClose: () => void;
 	// 読み取った行を、一覧に追加する。追加できた件数を返す（途中で失敗したら、そこまで）。
@@ -43,6 +48,7 @@ function formatQuantity(line: ParsedShoppingMemoLine): string | null {
 // 買い物のメモを、1行に1つずつ書いて（貼り付けて）、読み取った結果を確認してから、まとめて一覧に追加する。
 // 書いた文章は、追加したあと、一覧とは結びつかない（一覧が正）。
 export function ShoppingBulkAdd({
+	title = "まとめて追加",
 	stores,
 	onClose,
 	onAdd,
@@ -57,6 +63,8 @@ export function ShoppingBulkAdd({
 		text: string;
 		caret: number;
 	} | null>(null);
+	const [isFocused, setIsFocused] = useState(false);
+	const layout = useCompletionLayout();
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
 	const pendingCaretRef = useRef<number | null>(null);
 	const addAction = useButtonAction();
@@ -170,7 +178,7 @@ export function ShoppingBulkAdd({
 					onClose();
 				}
 			}}
-			title="まとめて追加"
+			title={title}
 			placement={isRight ? "right" : "bottom"}
 			snapPoints={isRight ? [0.92] : [0.7, 0.92]}
 			footer={
@@ -207,33 +215,39 @@ export function ShoppingBulkAdd({
 							}}
 							onSelect={(event) => setCaret(event.currentTarget.selectionStart)}
 							onKeyDown={handleKeyDown}
+							onFocus={() => setIsFocused(true)}
+							onBlur={() => setIsFocused(false)}
 						/>
 					)}
 				</Field>
 
-				{completion ? (
-					<ul className={styles.bulkCompletion} aria-label="補完の候補">
-						{completion.items.map((item, index) => (
-							<li key={`${item.kind}-${item.label}`}>
-								<button
-									className={styles.bulkCompletionItem}
-									type="button"
-									aria-current={activeIndex === index}
-									// 入力欄のフォーカスを外さないよう、押した時点で決める。
-									onMouseDown={(event) => {
-										event.preventDefault();
-										acceptCompletion(index);
-									}}
-								>
-									{item.label}
-									{item.kind === "store" ? (
-										<span className={styles.bulkCompletionKind}>店</span>
-									) : null}
-								</button>
-							</li>
-						))}
-					</ul>
-				) : null}
+				<CompletionMenu
+					textareaRef={textareaRef}
+					layout={layout}
+					open={isFocused && completion !== null}
+					caret={caret}
+					items={
+						completion
+							? completion.items.map((item) => ({
+									key: `${item.kind}-${item.label}`,
+									label: item.label,
+									badge: item.kind === "store" ? "店" : undefined,
+								}))
+							: null
+					}
+					activeIndex={activeIndex}
+					onAccept={acceptCompletion}
+					hint={
+						<>
+							<ShortcutKeys keys={["up-down"]} />
+							で選び、
+							<ShortcutKeys keys={["tab"]} />
+							で決定（
+							<ShortcutKeys keys={["esc"]} />
+							で閉じる）
+						</>
+					}
+				/>
 
 				{unknownStoreNames.length > 0 ? (
 					<div className={styles.bulkNewStores}>

@@ -1,4 +1,4 @@
-import { type SubmitEvent, useState } from "react";
+import { type ReactNode, type SubmitEvent, useState } from "react";
 import { Button } from "#/components/button/button";
 import { formatQuantity } from "#/features/quantity/domain/format-quantity";
 import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
@@ -30,6 +30,8 @@ type ShoppingItemEditFormProps = {
 	onCancel: () => void;
 	stores: readonly ShoppingStore[];
 	onCreateStore: (name: string) => Promise<ShoppingStore | null>;
+	// 商品の欄の上に出す、ほかの欄（条件つきのメモの条件・呼び名など）。
+	children?: ReactNode;
 };
 
 // 一覧の中で、1 項目を編集する欄（商品名・数量・単位・カテゴリ）。
@@ -39,6 +41,7 @@ export function ShoppingItemEditForm({
 	onCancel,
 	stores,
 	onCreateStore,
+	children,
 }: ShoppingItemEditFormProps) {
 	const [name, setName] = useState(item.name);
 	const [quantity, setQuantity] = useState(
@@ -95,6 +98,8 @@ export function ShoppingItemEditForm({
 			aria-label={`${item.name}の編集`}
 			onSubmit={(event) => void handleSubmit(event)}
 		>
+			{children}
+
 			<ShoppingNameField
 				label="商品名"
 				value={name}

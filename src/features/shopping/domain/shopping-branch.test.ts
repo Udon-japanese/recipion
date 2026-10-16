@@ -5,6 +5,7 @@ import {
 	getShoppingBranchSideItems,
 	maxShoppingBranchLabelLength,
 	suggestShoppingBranchSideLabel,
+	updateShoppingBranch,
 } from "./shopping-branch";
 import { createShoppingItem } from "./shopping-item";
 
@@ -107,5 +108,26 @@ describe("suggestShoppingBranchSideLabel", () => {
 			),
 		).toHaveLength(maxShoppingBranchLabelLength);
 		expect(suggestShoppingBranchSideLabel(branch, "else", "   ")).toBeNull();
+	});
+});
+
+describe("updateShoppingBranch", () => {
+	it("条件と呼び名を直す。呼び名が空なら、なしにする。ほかの値は、変えない", () => {
+		const updated = updateShoppingBranch(branch, {
+			condition: "安ければ",
+			thenLabel: "",
+			elseLabel: "チキン南蛮",
+		});
+
+		expect(updated).toEqual({
+			...branch,
+			condition: "安ければ",
+			thenLabel: null,
+			elseLabel: "チキン南蛮",
+		});
+	});
+
+	it("条件が空なら、拒否する", () => {
+		expect(() => updateShoppingBranch(branch, { condition: " " })).toThrow();
 	});
 });

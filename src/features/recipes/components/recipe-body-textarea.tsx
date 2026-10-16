@@ -9,6 +9,11 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { CompletionMenu } from "#/components/completion-menu/completion-menu";
+import {
+	type CompletionLayout,
+	useCompletionLayout,
+} from "#/components/completion-menu/use-completion-layout";
 import { describeError } from "#/errors/user-facing-error";
 import { ShortcutKeys } from "#/features/shortcuts/components/shortcut-keys";
 import {
@@ -32,7 +37,6 @@ import {
 	type OtherRecipeTarget,
 	parseOtherLinkQuery,
 } from "../domain/other-recipe-links";
-import { placePopup } from "../domain/place-popup";
 import {
 	formatLink,
 	type RecipeLinkReference,
@@ -57,7 +61,6 @@ import {
 	endComposition,
 	restoreFocus,
 } from "../infrastructure/end-composition";
-import { measureTextareaCaret } from "../infrastructure/measure-textarea-caret";
 import { readBrowserEnvironment } from "../infrastructure/read-browser-environment";
 import * as styles from "./recipe-editor.css";
 import { RecipeLinkPicker } from "./recipe-link-picker";
@@ -93,8 +96,6 @@ type RecipeBodyTextareaProps = {
 	onRefreshOthers?: () => void;
 };
 
-type CompletionLayout = "caret" | "keyboard-bar";
-
 // レシピの本文の入力欄。入力欄の下に、補完の候補を出す。
 // 候補は、↑↓ で選び、Tab（または、選んだあとの Enter）で決定する。選んでいないときの Enter は、ふつうの改行。Esc で閉じる。
 export function RecipeBodyTextarea({
@@ -113,8 +114,6 @@ export function RecipeBodyTextarea({
 	onRefreshOthers,
 }: RecipeBodyTextareaProps) {
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
-	const wrapperRef = useRef<HTMLDivElement>(null);
-	const popupRef = useRef<HTMLDivElement>(null);
 	// 元に戻す・やり直しの履歴。本文は、値として書き換える（ブラウザの履歴は、使えなくなる）ので、すべて自前で記録する。
 	const historyRef = useRef(emptyTextHistory);
 	const caretRef = useRef(0);
@@ -143,19 +142,7 @@ export function RecipeBodyTextarea({
 		start: number;
 		end: number;
 	} | null>(null);
-	// タッチ操作が主な端末か（サーバーでは判定できないので、ブラウザで判定する）。
-	const [isTouch, setIsTouch] = useState(false);
-	const layout: CompletionLayout =
-		completionLayout ?? (isTouch ? "keyboard-bar" : "caret");
-	// カーソルの近くに出す候補の位置（入力欄を含む枠の左上が基準）。測るまでは、見せない。
-	const [popupPosition, setPopupPosition] = useState<{
-		top: number;
-		left: number;
-	} | null>(null);
-	// 入力欄をスクロールしたとき、候補の位置を測り直す合図。
-	const [scrollTick, setScrollTick] = useState(0);
-	// キーボードを除いた見える範囲の下端から、画面の下端までの高さ（キーボードの上に出す帯の位置）。
-	const [barBottom, setBarBottom] = useState(0);
+	const layout = useCompletionLayout(completionLayout);
 	// 本文を書き換えたあとに、カーソルを置く位置。
 	const [selectionRequest, setSelectionRequest] = useState<{
 		caret: number;
@@ -173,24 +160,6 @@ export function RecipeBodyTextarea({
 
 	useEffect(() => {
 		setDetectedStrategy(chooseCompositionStrategy(readBrowserEnvironment()));
-	}, []);
-
-	useEffect(() => {
-		// matchMedia がない環境（テストなど）では、PC として扱う。
-		if (typeof window.matchMedia !== "function") {
-			return;
-		}
-
-		const query = window.matchMedia("(pointer: coarse)");
-
-		function update() {
-			setIsTouch(query.matches);
-		}
-
-		update();
-		query.addEventListener("change", update);
-
-		return () => query.removeEventListener("change", update);
 	}, []);
 
 	// 他の人のレシピへのリンク（[[@…）の入力中の、サーバーから取ってきた候補。
@@ -325,54 +294,6 @@ export function RecipeBodyTextarea({
 	const keepAbove =
 		aboveUntilChange?.value === value && aboveUntilChange.caret === caret;
 
-	// カーソルの近くに出す候補の位置を決める。入力中の行には重ねない。変換中は、IME 自身の変換候補の窓（文字の下に出る）と重ならないよう、上を先にする。
-	// biome-ignore lint/correctness/useExhaustiveDependencies: 本文・カーソル・候補・スクロールが変わったときに、測り直す。
-	useLayoutEffect(() => {
-		const textarea = textareaRef.current;
-		const popup = popupRef.current;
-		const wrapper = wrapperRef.current;
-
-		if (!isMenuOpen || layout !== "caret" || !textarea || !popup || !wrapper) {
-			setPopupPosition(null);
-
-			return;
-		}
-
-		const measured = measureTextareaCaret(textarea, caret);
-		const box = textarea.getBoundingClientRect();
-		// カーソルが、スクロールで入力欄の外に出ているときは、入力欄の端に寄せる。
-		const caretTop = Math.min(
-			Math.max(box.top + measured.top, box.top),
-			box.bottom - measured.height,
-		);
-		const placed = placePopup({
-			caret: {
-				top: caretTop,
-				left: box.left + measured.left,
-				height: measured.height,
-			},
-			popup: { width: popup.offsetWidth, height: popup.offsetHeight },
-			viewport: { width: window.innerWidth, height: window.innerHeight },
-			prefer: isComposing || keepAbove ? "above" : "below",
-		});
-		const frame = wrapper.getBoundingClientRect();
-
-		setPopupPosition({
-			top: placed.top - frame.top,
-			left: placed.left - frame.left,
-		});
-	}, [
-		isMenuOpen,
-		layout,
-		caret,
-		value,
-		isComposing,
-		keepAbove,
-		completion,
-		otherNotice,
-		scrollTick,
-	]);
-
 	// 案内（Tips）。空のときは、placeholder の下にまとめて書く。見出しだけの雛形のあいだは、フォーカスする前だけ、入力欄の下に重ねて出す。
 	const tipsText = formatRecipeTips(
 		buildRecipeTips({
@@ -381,35 +302,6 @@ export function RecipeBodyTextarea({
 		}),
 	);
 	const isShowingTips = !isFocused && hasOnlyHeadings(value);
-
-	// キーボードのすぐ上に出す帯の位置。キーボードを除いた見える範囲（visualViewport）の下端に合わせる。
-	useEffect(() => {
-		if (!isMenuOpen || layout !== "keyboard-bar") {
-			return;
-		}
-
-		const viewport = window.visualViewport;
-
-		function update() {
-			setBarBottom(
-				viewport
-					? Math.max(
-							0,
-							window.innerHeight - (viewport.height + viewport.offsetTop),
-						)
-					: 0,
-			);
-		}
-
-		update();
-		viewport?.addEventListener("resize", update);
-		viewport?.addEventListener("scroll", update);
-
-		return () => {
-			viewport?.removeEventListener("resize", update);
-			viewport?.removeEventListener("scroll", update);
-		};
-	}, [isMenuOpen, layout]);
 
 	// 本文を書き換えたあと、本文が更新されてから、カーソルを置く。
 	useLayoutEffect(() => {
@@ -852,47 +744,8 @@ export function RecipeBodyTextarea({
 		syncCaret(textarea);
 	}
 
-	// 選んでいる候補が、一覧の見える範囲の外にあれば、見える位置までスクロールする。
-	useEffect(() => {
-		if (activeIndex === null) return;
-
-		wrapperRef.current
-			?.querySelector<HTMLElement>(
-				'[aria-label="補完の候補"] [aria-current="true"]',
-			)
-			?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
-	}, [activeIndex]);
-
-	const candidates = completion?.items.map((item, index) => (
-		<li key={item.label}>
-			<button
-				type="button"
-				className={
-					layout === "caret"
-						? styles.completionPopupItem
-						: styles.completionItem
-				}
-				// Tab は、候補の決定に使う。ボタンへは移らない。
-				tabIndex={-1}
-				aria-current={activeIndex === index}
-				// 入力欄のフォーカスを外さないよう、押した時点で決定する（変換中は、変換を確定させてから置き換える）。
-				onMouseDown={(event) => {
-					event.preventDefault();
-
-					if (compositionRef.current) {
-						void acceptDuringComposition(item, { text: value, caret });
-					} else {
-						accept(index);
-					}
-				}}
-			>
-				{item.label}
-			</button>
-		</li>
-	));
-
 	return (
-		<div ref={wrapperRef} className={styles.completionWrap}>
+		<div className={styles.completionWrap}>
 			<label className={styles.field}>
 				<span>レシピの本文</span>
 				<span className={styles.textareaFrame}>
@@ -905,7 +758,6 @@ export function RecipeBodyTextarea({
 						}
 						onChange={handleChange}
 						onSelect={(event) => syncCaret(event.currentTarget)}
-						onScroll={() => setScrollTick((tick) => tick + 1)}
 						onKeyDown={handleKeyDown}
 						onCompositionStart={handleCompositionStart}
 						onCompositionEnd={handleCompositionEnd}
@@ -952,58 +804,57 @@ export function RecipeBodyTextarea({
 				/>
 			) : null}
 
-			{isMenuOpen && layout === "caret" ? (
-				<div
-					ref={popupRef}
-					className={styles.completionPopup}
-					style={{
-						top: popupPosition?.top ?? 0,
-						left: popupPosition?.left ?? 0,
-						visibility: popupPosition ? "visible" : "hidden",
-					}}
-				>
-					{!completion ? (
-						<output className={styles.completionNotice}>{otherNotice}</output>
-					) : (
-						<ul className={styles.completionPopupList} aria-label="補完の候補">
-							{candidates}
-						</ul>
-					)}
-					{!completion ? null : (
-						<p className={styles.completionPopupHint}>
-							{isComposing ? (
-								<>
-									<ShortcutKeys keys={["alt", "up-down"]} />
-									で選び、
-									<ShortcutKeys keys={["tab"]} />
-									で決定
-								</>
-							) : (
-								<>
-									<ShortcutKeys keys={["up-down"]} />
-									で選び、
-									<ShortcutKeys keys={["tab"]} />
-									で決定（
-									<ShortcutKeys keys={["esc"]} />
-									で閉じる）
-								</>
-							)}
-						</p>
-					)}
-				</div>
-			) : null}
+			<CompletionMenu
+				textareaRef={textareaRef}
+				layout={layout}
+				open={isMenuOpen}
+				caret={caret}
+				items={
+					completion
+						? completion.items.map((item) => ({
+								key: item.label,
+								label: item.label,
+							}))
+						: null
+				}
+				activeIndex={activeIndex}
+				onAccept={(index) => {
+					const item = completion?.items[index];
 
-			{isMenuOpen && layout === "keyboard-bar" ? (
-				<div className={styles.completionBar} style={{ bottom: barBottom }}>
-					{!completion ? (
-						<output className={styles.completionNotice}>{otherNotice}</output>
+					if (!item) {
+						return;
+					}
+
+					// 変換中は、変換を確定させてから置き換える。
+					if (compositionRef.current) {
+						void acceptDuringComposition(item, { text: value, caret });
+					} else {
+						accept(index);
+					}
+				}}
+				notice={otherNotice}
+				// 変換中・確定の直後は、IME の窓（文字の下に出る）を避けて、カーソルの上に出す。
+				prefer={isComposing || keepAbove ? "above" : "below"}
+				hint={
+					isComposing ? (
+						<>
+							<ShortcutKeys keys={["alt", "up-down"]} />
+							で選び、
+							<ShortcutKeys keys={["tab"]} />
+							で決定
+						</>
 					) : (
-						<ul className={styles.completionBarList} aria-label="補完の候補">
-							{candidates}
-						</ul>
-					)}
-				</div>
-			) : null}
+						<>
+							<ShortcutKeys keys={["up-down"]} />
+							で選び、
+							<ShortcutKeys keys={["tab"]} />
+							で決定（
+							<ShortcutKeys keys={["esc"]} />
+							で閉じる）
+						</>
+					)
+				}
+			/>
 		</div>
 	);
 }

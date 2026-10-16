@@ -1,5 +1,6 @@
 import * as v from "valibot";
 import { normalizeIngredientName } from "#/features/ingredients/domain/normalize-ingredient-name";
+import type { ShoppingBranch } from "./shopping-branch";
 import type { ShoppingItem } from "./shopping-item";
 
 export const maxShoppingStoreCount = 20;
@@ -69,35 +70,63 @@ export type ShoppingStoreGroup = {
 	// null は「どこでも」（店を決めていない項目）。
 	store: ShoppingStore | null;
 	items: ShoppingItem[];
+	// この店の、条件つきのメモ（条件の材料の店で決める）。
+	branches: ShoppingBranch[];
+};
+
+// 条件つきのメモと、その店（条件の材料の店。決まっていなければ null）。
+export type ShoppingBranchPlacement = {
+	branch: ShoppingBranch;
+	storeId: string | null;
 };
 
 // 店ごとにまとめる。店は並び順で、「どこでも」は最後。項目の順番は、一覧の順番のまま。
-// 項目のない店は出さない。店が見つからない項目（削除された店）は、「どこでも」に入れる。
-export function groupShoppingItemsByStore(
+// 条件つきのメモは、条件の材料の店に入れる。項目も、条件つきのメモも、ない店は出さない。
+// 店が見つからない（削除された店）ものは、「どこでも」に入れる。
+export function groupShoppingByStore(
 	items: readonly ShoppingItem[],
+	branches: readonly ShoppingBranchPlacement[],
 	stores: readonly ShoppingStore[],
 ): ShoppingStoreGroup[] {
 	const storesById = new Map(stores.map((store) => [store.id, store]));
-	const itemsByStoreId = new Map<string | null, ShoppingItem[]>();
+	const keyOf = (storeId: string | null) =>
+		storeId && storesById.has(storeId) ? storeId : null;
+	const groupsByKey = new Map<string | null, ShoppingStoreGroup>();
 
-	for (const item of items) {
-		const key =
-			item.storeId && storesById.has(item.storeId) ? item.storeId : null;
+	function groupFor(key: string | null): ShoppingStoreGroup {
+		const existing = groupsByKey.get(key);
 
-		itemsByStoreId.set(key, [...(itemsByStoreId.get(key) ?? []), item]);
+		if (existing) {
+			return existing;
+		}
+
+		const group: ShoppingStoreGroup = {
+			store: key ? (storesById.get(key) ?? null) : null,
+			items: [],
+			branches: [],
+		};
+
+		groupsByKey.set(key, group);
+
+		return group;
 	}
 
-	const groups: ShoppingStoreGroup[] = [...stores]
+	for (const item of items) {
+		groupFor(keyOf(item.storeId)).items.push(item);
+	}
+
+	for (const { branch, storeId } of branches) {
+		groupFor(keyOf(storeId)).branches.push(branch);
+	}
+
+	const storeGroups = [...stores]
 		.sort((first, second) => first.sortOrder - second.sortOrder)
 		.flatMap((store) => {
-			const storeItems = itemsByStoreId.get(store.id);
+			const group = groupsByKey.get(store.id);
 
-			return storeItems ? [{ store, items: storeItems }] : [];
+			return group ? [group] : [];
 		});
+	const anywhere = groupsByKey.get(null);
 
-	const anywhereItems = itemsByStoreId.get(null);
-
-	return anywhereItems
-		? [...groups, { store: null, items: anywhereItems }]
-		: groups;
+	return anywhere ? [...storeGroups, anywhere] : storeGroups;
 }

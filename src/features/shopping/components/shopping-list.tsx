@@ -15,9 +15,13 @@ import type { ShoppingBranchRepository } from "../application/shopping-branch-re
 import type { ShoppingRepository } from "../application/shopping-repository";
 import type { ShoppingStoreRepository } from "../application/shopping-store-repository";
 import type { ParsedShoppingMemoLine } from "../domain/parse-shopping-memo";
+import {
+	getShoppingBranchConditionItem,
+	type ShoppingBranchSide,
+} from "../domain/shopping-branch";
 import { type ShoppingItem, toggleShoppingItem } from "../domain/shopping-item";
 import { inferShoppingCategory } from "../domain/shopping-item-suggestion";
-import { groupShoppingItemsByStore } from "../domain/shopping-store";
+import { groupShoppingByStore } from "../domain/shopping-store";
 import { useShoppingBranches } from "../hooks/use-shopping-branches";
 import { useShoppingItems } from "../hooks/use-shopping-items";
 import {
@@ -208,7 +212,11 @@ export function ShoppingList({
 	}
 
 	// 「まとめて追加」で確認した行を、順に追加する（途中で失敗したら、そこで止める）。店を指定した行は、食材ごとの「いつも買う店」にも覚える。
-	async function addMemoLines(lines: readonly ParsedShoppingMemoLine[]) {
+	// destination を渡すと、条件つきのメモの、その側に入れる。
+	async function addMemoLines(
+		lines: readonly ParsedShoppingMemoLine[],
+		destination?: { branchId: string; side: ShoppingBranchSide },
+	) {
 		let added = 0;
 
 		for (const line of lines) {
@@ -221,6 +229,9 @@ export function ShoppingList({
 				quantity: line.quantity,
 				unitLabel: line.unitLabel,
 				storeId: line.storeId,
+				...(destination
+					? { branchId: destination.branchId, branchSide: destination.side }
+					: {}),
 			});
 
 			if (!ok) {
@@ -257,7 +268,11 @@ export function ShoppingList({
 
 			return added;
 		},
+		onAddItems: (branch, side, lines) =>
+			addMemoLines(lines, { branchId: branch.id, side }),
 		onRemoveItem: shopping.removeItem,
+		onUpdateBranch: branchState.updateBranch,
+		onUpdateItem: shopping.updateItem,
 		repository,
 		renderRecipePicker,
 		onRecipeApplied: (branch, side, recipeName) => {
@@ -275,13 +290,21 @@ export function ShoppingList({
 		(left, right) => left.sortOrder - right.sortOrder,
 	);
 
-	const storeGroups = groupShoppingItemsByStore(
-		// 項目の順番は、一覧の並び順のまま（店ごとの表示でも、同じ順番）。
-		currentStoreId
-			? listedItems.filter(
-					(item) => !item.storeId || item.storeId === currentStoreId,
-				)
-			: listedItems,
+	// 条件つきのメモは、条件の材料の店で、店ごとに分ける。
+	const branchPlacements = branches.map((branch) => ({
+		branch,
+		storeId:
+			getShoppingBranchConditionItem(shopping.allItems, branch.id)?.storeId ??
+			null,
+	}));
+	// 今いる店：その店と、店の決まっていない（「どこでも」）ものだけ。項目の順番は、一覧の並び順のまま。
+	const isForCurrentStore = (storeId: string | null) =>
+		!currentStoreId || !storeId || storeId === currentStoreId;
+	const storeGroups = groupShoppingByStore(
+		listedItems.filter((item) => isForCurrentStore(item.storeId)),
+		branchPlacements.filter((placement) =>
+			isForCurrentStore(placement.storeId),
+		),
 		stores,
 	);
 
@@ -449,7 +472,9 @@ export function ShoppingList({
 				/>
 			) : null}
 
-			{!isLoading && items.length > 0 && view === "store" ? (
+			{!isLoading &&
+			(items.length > 0 || branches.length > 0) &&
+			view === "store" ? (
 				<>
 					{stores.length > 0 ? (
 						<div className={styles.storeFilter}>
@@ -479,13 +504,9 @@ export function ShoppingList({
 				</>
 			) : null}
 
-			{!isLoading && view === "store" && branches.length > 0 ? (
-				<div className={styles.categoryCard}>
-					<ShoppingBranchCards branches={branches} context={branchContext} />
-				</div>
-			) : null}
-
-			{!isLoading && items.length > 0 && view === "store" ? (
+			{!isLoading &&
+			(activeItems.length > 0 || branches.length > 0) &&
+			view === "store" ? (
 				<div className={styles.groups}>
 					{storeGroups.map((group) => (
 						<section key={group.store?.id ?? "anywhere"}>
@@ -503,9 +524,20 @@ export function ShoppingList({
 								</Tag>
 							</div>
 
-							<ul className={styles.listCard}>
-								{group.items.map((item) => renderItem(item))}
-							</ul>
+							{group.branches.length > 0 ? (
+								<div className={styles.categoryCard}>
+									<ShoppingBranchCards
+										branches={group.branches}
+										context={branchContext}
+									/>
+								</div>
+							) : null}
+
+							{group.items.length > 0 ? (
+								<ul className={styles.listCard}>
+									{group.items.map((item) => renderItem(item))}
+								</ul>
+							) : null}
 						</section>
 					))}
 				</div>

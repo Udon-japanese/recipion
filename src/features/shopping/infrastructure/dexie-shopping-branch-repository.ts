@@ -29,6 +29,10 @@ export const dexieShoppingBranchRepository = {
 		);
 	},
 
+	async update(branch) {
+		await getLocalDatabase().shoppingBranches.put(branch);
+	},
+
 	async remove(branchId) {
 		const database = getLocalDatabase();
 

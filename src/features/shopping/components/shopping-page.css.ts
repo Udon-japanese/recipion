@@ -509,44 +509,6 @@ export const entryRow = style({
 	gap: 8,
 });
 
-// 補完の候補（入力欄の下に、並べる）。
-export const bulkCompletion = style({
-	display: "flex",
-	flexWrap: "wrap",
-	gap: 8,
-	margin: 0,
-	padding: 0,
-	listStyle: "none",
-});
-
-export const bulkCompletionItem = style({
-	display: "inline-flex",
-	alignItems: "center",
-	gap: 6,
-	minHeight: 40,
-	padding: "0 16px",
-	color: "var(--color-text)",
-	font: "inherit",
-	fontWeight: "var(--font-weight-medium)",
-	background: "var(--color-surface)",
-	border: "1.5px solid var(--color-control-border)",
-	borderRadius: "var(--radius-control)",
-	cursor: "pointer",
-	selectors: {
-		"&:hover": { background: "var(--color-surface-muted)" },
-		'&[aria-current="true"]': {
-			background: "var(--color-primary-soft)",
-			borderColor: "var(--color-text)",
-			fontWeight: "var(--font-weight-bold)",
-		},
-	},
-});
-
-export const bulkCompletionKind = style({
-	color: "var(--color-text-muted)",
-	fontSize: "var(--font-size-xs)",
-});
-
 // 登録のない店を、店に追加する案内。
 export const bulkNewStores = style({
 	display: "grid",

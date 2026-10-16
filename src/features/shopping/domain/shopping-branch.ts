@@ -74,6 +74,21 @@ export function createShoppingBranch(
 	};
 }
 
+// 条件（どんな時に）と、側の呼び名を直す。
+export function updateShoppingBranch(
+	branch: ShoppingBranch,
+	input: CreateShoppingBranchInput,
+): ShoppingBranch {
+	const parsed = v.parse(createShoppingBranchInputSchema, input);
+
+	return {
+		...branch,
+		condition: parsed.condition,
+		thenLabel: parsed.thenLabel || null,
+		elseLabel: parsed.elseLabel || null,
+	};
+}
+
 // 側の呼び名が空のとき、レシピの名前などを呼び名にする（すでにあれば、変えない）。長すぎる名前は、切り詰める。
 export function suggestShoppingBranchSideLabel(
 	branch: ShoppingBranch,
