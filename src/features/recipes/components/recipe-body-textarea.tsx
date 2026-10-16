@@ -1,6 +1,5 @@
 import {
 	type ChangeEvent,
-	type CompositionEvent,
 	type KeyboardEvent,
 	useEffect,
 	useEffectEvent,
@@ -9,19 +8,19 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { CompletionHint } from "#/components/completion-menu/completion-hint";
 import { CompletionMenu } from "#/components/completion-menu/completion-menu";
 import {
 	type CompletionLayout,
 	useCompletionLayout,
 } from "#/components/completion-menu/use-completion-layout";
 import { describeError } from "#/errors/user-facing-error";
-import { ShortcutKeys } from "#/features/shortcuts/components/shortcut-keys";
+import type { CompositionStrategy } from "#/ime/choose-composition-strategy";
+import { restoreFocus } from "#/ime/end-composition";
 import {
-	type CompositionStrategy,
-	chooseCompositionStrategy,
-} from "#/ime/choose-composition-strategy";
-import { endComposition, restoreFocus } from "#/ime/end-composition";
-import { readBrowserEnvironment } from "#/ime/read-browser-environment";
+	type CommitContext,
+	useCompositionCompletion,
+} from "#/ime/use-composition-completion";
 import {
 	continueRecipeList,
 	removeRecipeListMarker,
@@ -31,7 +30,6 @@ import {
 	applyRecipeTextCompletion,
 	getRecipeTextCompletion,
 	type RecipeTextCompletion,
-	type RecipeTextCompletionItem,
 } from "../domain/get-recipe-text-completions";
 import {
 	getOpenLinkTyped,
@@ -61,12 +59,6 @@ import {
 } from "../domain/text-history";
 import * as styles from "./recipe-editor.css";
 import { RecipeLinkPicker } from "./recipe-link-picker";
-
-// Safari で、IME の変換と Tab のキーのイベントが、続けて届くとみなす時間（ミリ秒）。
-const previousCompletionWindowMs = 100;
-
-// 変換中（IME の入力中）の、変換の前の状態と、変換が始まった位置。
-type Composition = { before: TextSnapshot; start: number };
 
 type RecipeBodyTextareaProps = {
 	value: string;
@@ -114,25 +106,16 @@ export function RecipeBodyTextarea({
 	// 元に戻す・やり直しの履歴。本文は、値として書き換える（ブラウザの履歴は、使えなくなる）ので、すべて自前で記録する。
 	const historyRef = useRef(emptyTextHistory);
 	const caretRef = useRef(0);
-	const compositionRef = useRef<Composition | null>(null);
-	// 変換中に候補を決める処理の間は、変換の終わりを、ここでは記録しない。
-	const isAcceptingRef = useRef(false);
-	// 変換中の入力の直前に出ていた候補。Safari は、Tab の前に IME が変換して本文が変わってから、キーのイベントが届くので、そのときに使う。
-	const previousCompletionRef = useRef<{
-		completion: RecipeTextCompletion;
-		value: string;
-		caret: number;
-		at: number;
-	} | null>(null);
 	const [caret, setCaret] = useState(0);
 	const [isFocused, setIsFocused] = useState(false);
-	// IME の変換中か。
-	const [isComposing, setIsComposing] = useState(false);
-	// 変換中の補完の扱い。サーバーと同じ初期値で描画し、ブラウザで判定する。
-	const [detectedStrategy, setDetectedStrategy] = useState<CompositionStrategy>(
-		"wait-for-confirmation",
-	);
-	const strategy = compositionStrategy ?? detectedStrategy;
+	// 変換中（IME）の補完。レシピの本文と、買い物メモの「まとめて追加」で共通。
+	const composing = useCompositionCompletion<RecipeTextCompletion>({
+		textareaRef,
+		strategy: compositionStrategy,
+		apply: applyDuringComposition,
+		onCompositionEnd: ({ before, after }) =>
+			recordHistory(before, after, "other"),
+	});
 	const [activeIndex, setActiveIndex] = useState<number | null>(null);
 	// 「現在の位置にレシピをリンク」を押したときの、選択範囲（開いている間だけ持つ）。
 	const [pickerSelection, setPickerSelection] = useState<{
@@ -144,20 +127,11 @@ export function RecipeBodyTextarea({
 	const [selectionRequest, setSelectionRequest] = useState<{
 		caret: number;
 	} | null>(null);
-	// 変換が確定した位置（確定のあと、本文かカーソルが動くまで、メニューの位置を動かさない）。
-	const [aboveUntilChange, setAboveUntilChange] = useState<{
-		value: string;
-		caret: number;
-	} | null>(null);
 	// Esc で閉じた位置。本文かカーソルが動くまで、出さない。
 	const [closedAt, setClosedAt] = useState<{
 		value: string;
 		caret: number;
 	} | null>(null);
-
-	useEffect(() => {
-		setDetectedStrategy(chooseCompositionStrategy(readBrowserEnvironment()));
-	}, []);
 
 	// 他の人のレシピへのリンク（[[@…）の入力中の、サーバーから取ってきた候補。
 	const [otherUsers, setOtherUsers] = useState<LinkableUser[]>([]);
@@ -265,7 +239,7 @@ export function RecipeBodyTextarea({
 	// 変換中は、変換中の補完に対応した環境だけ、候補を出す（ほかは、確定したあとに出す）。
 	const isOpen =
 		isFocused &&
-		(!isComposing || strategy !== "wait-for-confirmation") &&
+		composing.canCompleteWhileComposing &&
 		completion !== null &&
 		!(closedAt?.value === value && closedAt.caret === caret);
 	// 候補がないとき（[[@ で、探している最中・見つからない・失敗）は、その理由を、補完のメニューの中に出す。
@@ -283,13 +257,9 @@ export function RecipeBodyTextarea({
 	const isNoticeOpen =
 		isFocused &&
 		otherNotice !== null &&
-		(!isComposing || strategy !== "wait-for-confirmation") &&
+		composing.canCompleteWhileComposing &&
 		!(closedAt?.value === value && closedAt.caret === caret);
 	const isMenuOpen = isOpen || isNoticeOpen;
-	// 変換の確定のあと、本文とカーソルが動くまでは、メニューを、確定の前の位置（カーソルの上）に置いたままにする。
-	// 確定でメニューが下に移ると、その直後に届くクリックが、移った先に当たってしまうため。
-	const keepAbove =
-		aboveUntilChange?.value === value && aboveUntilChange.caret === caret;
 
 	// 案内（Tips）。空のときは、placeholder の下にまとめて書く。見出しだけの雛形のあいだは、フォーカスする前だけ、入力欄の下に重ねて出す。
 	const tipsText = formatRecipeTips(
@@ -316,7 +286,7 @@ export function RecipeBodyTextarea({
 		if (event.inputType === "deleteContentBackward") {
 			const textarea = textareaRef.current;
 
-			if (!textarea || event.isComposing || compositionRef.current) {
+			if (!textarea || event.isComposing || composing.isActive()) {
 				return;
 			}
 
@@ -370,10 +340,7 @@ export function RecipeBodyTextarea({
 	}
 
 	function syncCaret(textarea: HTMLTextAreaElement) {
-		// Safari は、変換中の文字の範囲全体を選択状態にする。そのときのカーソルは、範囲の末尾。
-		const position = compositionRef.current
-			? textarea.selectionEnd
-			: textarea.selectionStart;
+		const position = composing.readCaret(textarea);
 
 		// カーソルが動いていない通知（キーを押しただけでも届く）では、候補の選択を解除しない。
 		if (position !== caretRef.current) {
@@ -467,39 +434,21 @@ export function RecipeBodyTextarea({
 		}
 	}
 
-	// 変換中に候補を決める。Chromium 系は、変換を確定させてから、確定した文字を含めて置き換える。Safari は、変換中のまま書き換える（ブラウザが変換を取り消す）。
+	// 変換中に決めた候補で、本文を書き換える（変換の中身の扱いは、useCompositionCompletion）。
 	// source は、候補を計算したときの本文とカーソル（変換で長さが変わった分を、置き換える範囲に反映する。元に戻すで、この状態に戻る）。
-	async function acceptDuringComposition(
-		item: RecipeTextCompletionItem,
-		source: TextSnapshot,
-	) {
-		const textarea = textareaRef.current;
-		const composition = compositionRef.current;
-
-		if (!textarea || !composition || isAcceptingRef.current) {
-			return;
-		}
-
-		isAcceptingRef.current = true;
-
-		const shouldEnd = strategy === "end-then-replace";
-
-		if (shouldEnd) {
-			await endComposition(textarea);
-		}
-
-		const committed = textarea.value;
-		const committedSnapshot = {
-			text: committed,
-			caret: textarea.selectionStart,
-		};
+	function applyDuringComposition(
+		completion: RecipeTextCompletion,
+		index: number,
+		{ composition, source, committed, shouldEnd }: CommitContext,
+	): TextSnapshot {
+		const item = completion.items[index];
 		const result = applyRecipeTextCompletion(
-			committed,
+			committed.text,
 			{
 				items: [
 					adjustCompletionItem(item, {
 						start: composition.start,
-						delta: committed.length - source.text.length,
+						delta: committed.text.length - source.text.length,
 					}),
 				],
 			},
@@ -508,59 +457,17 @@ export function RecipeBodyTextarea({
 		const next = { text: result.text, caret: result.caret };
 
 		// 変換中の文字（「とま」）の段階を、履歴に残す。Safari は、確定を待たずに置き換えるので、候補を計算したときの本文を使う（Tab で IME が先に変換した文字ではなく）。
-		const middle = shouldEnd ? committedSnapshot : source;
+		const middle = shouldEnd ? committed : source;
 
 		recordHistory(composition.before, middle, "other");
 		recordHistory(middle, next, "other");
-
-		compositionRef.current = null;
-		isAcceptingRef.current = false;
-		setIsComposing(false);
 		writeText(next);
 
 		if (item.link) {
 			onLinkSelected?.(item.link);
 		}
 
-		if (shouldEnd) {
-			restoreFocus(textarea, next.caret);
-		}
-	}
-
-	function handleCompositionStart(
-		event: CompositionEvent<HTMLTextAreaElement>,
-	) {
-		const textarea = event.currentTarget;
-
-		compositionRef.current = {
-			before: { text: textarea.value, caret: textarea.selectionStart },
-			start: textarea.selectionStart,
-		};
-		setIsComposing(true);
-	}
-
-	function handleCompositionEnd(event: CompositionEvent<HTMLTextAreaElement>) {
-		const composition = compositionRef.current;
-
-		// 候補を決める処理が、すでに扱っているときは、ここでは何もしない。
-		if (!composition || isAcceptingRef.current) {
-			return;
-		}
-
-		compositionRef.current = null;
-		setIsComposing(false);
-
-		const textarea = event.currentTarget;
-
-		setAboveUntilChange({
-			value: textarea.value,
-			caret: textarea.selectionStart,
-		});
-		recordHistory(
-			composition.before,
-			{ text: textarea.value, caret: textarea.selectionStart },
-			"other",
-		);
+		return next;
 	}
 
 	// 番号・中黒の行で Enter を押したら、次の行にも印を付ける（Shift+Enter は、ふつうの改行）。
@@ -590,7 +497,6 @@ export function RecipeBodyTextarea({
 		edit({ text: result.text, caret: result.caret });
 	}
 
-	// 変換中の Tab で使う候補。今出ている候補。なければ、Safari の方式のときだけ、直前の入力（IME の変換）の前に出ていた候補。
 	// 候補の選択を、1つ動かす（現在の選択がなければ、↓は先頭、↑は末尾）。端までいくと、反対側へ回る（押し続けると、循環する）。
 	function moveActive(direction: "up" | "down", itemCount: number) {
 		setActiveIndex((current) => {
@@ -604,64 +510,24 @@ export function RecipeBodyTextarea({
 		});
 	}
 
-	function findCompletionForTab(): {
-		completion: RecipeTextCompletion;
-		value: string;
-		caret: number;
-	} | null {
-		if (isOpen && completion) {
-			return { completion, value, caret };
-		}
-
-		const previous = previousCompletionRef.current;
-
-		if (
-			strategy === "replace-in-place" &&
-			previous &&
-			performance.now() - previous.at < previousCompletionWindowMs
-		) {
-			return previous;
-		}
-
-		return null;
-	}
-
-	function handleCompositionKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-		const shown = findCompletionForTab();
-
-		if (!shown) {
-			return;
-		}
-
-		const items = shown.completion.items;
-		const source = { text: shown.value, caret: shown.caret };
-
-		// Windows は、1回のキーで、keydown が2回届く（1回目は key が Process、2回目が本物のキー）。1回だけ扱う。
-		if (
-			event.altKey &&
-			!event.ctrlKey &&
-			!event.metaKey &&
-			!event.shiftKey &&
-			(event.key === "ArrowDown" || event.key === "ArrowUp")
-		) {
-			event.preventDefault();
-			moveActive(event.key === "ArrowDown" ? "down" : "up", items.length);
-		} else if (event.code === "Tab" && !event.shiftKey) {
-			event.preventDefault();
-			void acceptDuringComposition(items[activeIndex ?? 0], source);
-		}
-	}
-
 	function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-		// 変換中の操作は、IME に任せる。ただし、候補が出ているときは、次のキーを、IME の変換候補ではなく、補完に使う。
-		// - Tab：決定（選んでいなければ先頭）
-		// - Alt（Option）+↑↓：選択（素の矢印と Shift+矢印は、IME が使うので、IME に任せる）
-		// - Enter は、IME が変換中の文字を確定する操作。止めても、Mac の IME は、確定の入力をあとから送ってきて、置き換えた本文の先頭に入ってしまう。補完には使わない。
-		if (event.nativeEvent.isComposing) {
-			if (compositionRef.current) {
-				handleCompositionKeyDown(event);
-			}
-
+		// 変換中の操作は、IME に任せる。ただし、候補が出ているときは、Tab と Alt+↑↓ を、補完に使う。
+		if (
+			composing.handleKeyDown(event, {
+				shown:
+					isOpen && completion
+						? {
+								completion,
+								count: completion.items.length,
+								text: value,
+								caret,
+							}
+						: null,
+				activeIndex,
+				moveActive: (direction) =>
+					moveActive(direction, completion?.items.length ?? 0),
+			})
+		) {
 			return;
 		}
 
@@ -722,12 +588,18 @@ export function RecipeBodyTextarea({
 		const textarea = event.target;
 
 		// 変換中の入力は、変換が終わったときに、まとめて記録する。
-		if (compositionRef.current) {
-			previousCompletionRef.current =
+		if (
+			!composing.noteChange(
 				isOpen && completion
-					? { completion, value, caret, at: performance.now() }
-					: null;
-		} else {
+					? {
+							completion,
+							count: completion.items.length,
+							text: value,
+							caret,
+						}
+					: null,
+			)
+		) {
 			recordHistory(
 				{ text: value, caret: caretRef.current },
 				{ text: textarea.value, caret: textarea.selectionStart },
@@ -756,8 +628,8 @@ export function RecipeBodyTextarea({
 						onChange={handleChange}
 						onSelect={(event) => syncCaret(event.currentTarget)}
 						onKeyDown={handleKeyDown}
-						onCompositionStart={handleCompositionStart}
-						onCompositionEnd={handleCompositionEnd}
+						onCompositionStart={composing.onCompositionStart}
+						onCompositionEnd={composing.onCompositionEnd}
 						onFocus={() => setIsFocused(true)}
 						onBlur={() => setIsFocused(false)}
 					/>
@@ -816,41 +688,21 @@ export function RecipeBodyTextarea({
 				}
 				activeIndex={activeIndex}
 				onAccept={(index) => {
-					const item = completion?.items[index];
-
-					if (!item) {
+					if (!completion?.items[index]) {
 						return;
 					}
 
 					// 変換中は、変換を確定させてから置き換える。
-					if (compositionRef.current) {
-						void acceptDuringComposition(item, { text: value, caret });
+					if (composing.isActive()) {
+						void composing.accept(completion, index, { text: value, caret });
 					} else {
 						accept(index);
 					}
 				}}
 				notice={otherNotice}
 				// 変換中・確定の直後は、IME の窓（文字の下に出る）を避けて、カーソルの上に出す。
-				prefer={isComposing || keepAbove ? "above" : "below"}
-				hint={
-					isComposing ? (
-						<>
-							<ShortcutKeys keys={["alt", "up-down"]} />
-							で選び、
-							<ShortcutKeys keys={["tab"]} />
-							で決定
-						</>
-					) : (
-						<>
-							<ShortcutKeys keys={["up-down"]} />
-							で選び、
-							<ShortcutKeys keys={["tab"]} />
-							で決定（
-							<ShortcutKeys keys={["esc"]} />
-							で閉じる）
-						</>
-					)
-				}
+				prefer={composing.prefersAbove(value, caret) ? "above" : "below"}
+				hint={<CompletionHint isComposing={composing.isComposing} />}
 			/>
 		</div>
 	);

@@ -1,7 +1,5 @@
 import {
-	type CompositionEvent,
 	type KeyboardEvent,
-	useEffect,
 	useLayoutEffect,
 	useMemo,
 	useRef,
@@ -9,6 +7,7 @@ import {
 } from "react";
 import { Button } from "#/components/button/button";
 import { useButtonAction } from "#/components/button/use-button-action";
+import { CompletionHint } from "#/components/completion-menu/completion-hint";
 import { CompletionMenu } from "#/components/completion-menu/completion-menu";
 import { useCompletionLayout } from "#/components/completion-menu/use-completion-layout";
 import { Modal } from "#/components/dialog/modal";
@@ -18,16 +17,15 @@ import { SegmentedControl } from "#/components/segmented-control/segmented-contr
 import { Sheet } from "#/components/sheet/sheet";
 import { Tag } from "#/components/tag/tag";
 import { useMediaQuery } from "#/components/use-media-query";
-import { ShortcutKeys } from "#/features/shortcuts/components/shortcut-keys";
 import {
-	type CompositionStrategy,
-	chooseCompositionStrategy,
-} from "#/ime/choose-composition-strategy";
-import { endComposition, restoreFocus } from "#/ime/end-composition";
-import { readBrowserEnvironment } from "#/ime/read-browser-environment";
+	type CaretSnapshot,
+	type CommitContext,
+	useCompositionCompletion,
+} from "#/ime/use-composition-completion";
 import {
 	applyShoppingMemoCompletion,
 	getShoppingMemoCompletion,
+	type ShoppingMemoCompletion,
 } from "../domain/get-shopping-memo-completion";
 import {
 	type ParsedShoppingMemoLine,
@@ -68,18 +66,7 @@ export function ShoppingBulkAdd({
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	// 補完：カーソルの位置と、選んでいる候補。
 	const [caret, setCaret] = useState(0);
-	// IME の変換中か（変換中の補完の扱いは、レシピのエディタと同じ。環境ごとに決まる）。
-	const [isComposing, setIsComposing] = useState(false);
-	const composingRef = useRef(false);
-	const isAcceptingRef = useRef(false);
-	const [strategy, setStrategy] = useState<CompositionStrategy>(
-		"wait-for-confirmation",
-	);
-	// 変換の確定のあと、本文とカーソルが動くまでは、メニューを、カーソルの上に置いたままにする（直後のクリックが、移った先に当たらないように）。
-	const [aboveUntilChange, setAboveUntilChange] = useState<{
-		text: string;
-		caret: number;
-	} | null>(null);
+	const keepBlurredRef = useRef(false);
 	const [activeIndex, setActiveIndex] = useState<number | null>(null);
 	const [closedAt, setClosedAt] = useState<{
 		text: string;
@@ -88,6 +75,11 @@ export function ShoppingBulkAdd({
 	const [isFocused, setIsFocused] = useState(false);
 	const layout = useCompletionLayout();
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
+	// 変換中（IME）の補完。レシピの本文と共通。
+	const composing = useCompositionCompletion<ShoppingMemoCompletion>({
+		textareaRef,
+		apply: applyDuringComposition,
+	});
 	const pendingCaretRef = useRef<number | null>(null);
 	const addAction = useButtonAction();
 	// 広い画面（PC）は、幅広のモーダル。狭い画面は、ボトムシートに、タブで切り替える。
@@ -103,15 +95,7 @@ export function ShoppingBulkAdd({
 	}, [text, caret, stores, closedAt]);
 	// 変換中に補完できない環境（iPhone・Firefox など）は、確定したあとに出す。
 	const isMenuOpen =
-		isFocused &&
-		completion !== null &&
-		(!isComposing || strategy !== "wait-for-confirmation");
-	const keepAbove =
-		aboveUntilChange?.text === text && aboveUntilChange.caret === caret;
-
-	useEffect(() => {
-		setStrategy(chooseCompositionStrategy(readBrowserEnvironment()));
-	}, []);
+		isFocused && completion !== null && composing.canCompleteWhileComposing;
 	// 登録のない店の名前（同じ名前は、1つにまとめる）。
 	const unknownStoreNames = [
 		...new Set(
@@ -129,17 +113,16 @@ export function ShoppingBulkAdd({
 
 		if (pending !== null && textareaRef.current) {
 			textareaRef.current.setSelectionRange(pending, pending);
-			textareaRef.current.focus();
+
+			// 変換を確定させるために外したフォーカスは、ここでは戻さない（IME の処理の最中に戻すと、変換中の文字が、後ろに残る）。あとで戻す（restoreFocus）。
+			if (!keepBlurredRef.current) {
+				textareaRef.current.focus();
+			}
+
+			keepBlurredRef.current = false;
 			pendingCaretRef.current = null;
 		}
 	}, [text]);
-
-	// Safari は、変換中の文字の範囲全体を選択状態にする。そのときのカーソルは、範囲の末尾。
-	function readCaret(textarea: HTMLTextAreaElement) {
-		return composingRef.current
-			? textarea.selectionEnd
-			: textarea.selectionStart;
-	}
 
 	function acceptCompletion(index: number) {
 		if (!completion) {
@@ -154,59 +137,27 @@ export function ShoppingBulkAdd({
 		setActiveIndex(null);
 	}
 
-	// 変換中に候補を決める。Chromium 系は、変換を確定させてから、確定した文字を含めて置き換える。Safari・Android は、変換中のまま書き換える。
-	async function acceptDuringComposition(index: number) {
-		const textarea = textareaRef.current;
-
-		if (!textarea || !completion || isAcceptingRef.current) {
-			return;
-		}
-
-		isAcceptingRef.current = true;
-
-		const shouldEnd = strategy === "end-then-replace";
-
-		if (shouldEnd) {
-			await endComposition(textarea);
-		}
-
-		// 変換で本文の長さが変わっているので、置き換える範囲の終わりは、今のカーソルにする。
+	// 変換中に決めた候補で、本文を書き換える（変換の中身の扱いは、useCompositionCompletion）。
+	function applyDuringComposition(
+		found: ShoppingMemoCompletion,
+		index: number,
+		{ source, committed, shouldEnd }: CommitContext,
+	): CaretSnapshot {
+		// 変換で本文の長さが変わった分だけ、置き換える範囲の終わりをずらす。
 		const applied = applyShoppingMemoCompletion(
-			textarea.value,
-			{ ...completion, to: textarea.selectionEnd },
+			committed.text,
+			{ ...found, to: found.to + committed.text.length - source.text.length },
 			index,
 		);
 
-		composingRef.current = false;
-		isAcceptingRef.current = false;
-		setIsComposing(false);
 		pendingCaretRef.current = applied.caret;
+		// 確定のために外したフォーカスは、ここでは戻さない（IME の処理の最中に戻すと、変換中の文字が、後ろに残る）。あとで戻す。
+		keepBlurredRef.current = shouldEnd;
 		setText(applied.text);
 		setCaret(applied.caret);
 		setActiveIndex(null);
 
-		if (shouldEnd) {
-			restoreFocus(textarea, applied.caret);
-		}
-	}
-
-	function handleCompositionStart() {
-		composingRef.current = true;
-		setIsComposing(true);
-	}
-
-	function handleCompositionEnd(event: CompositionEvent<HTMLTextAreaElement>) {
-		// 候補を決める処理が、すでに扱っているときは、ここでは何もしない。
-		if (!composingRef.current || isAcceptingRef.current) {
-			return;
-		}
-
-		composingRef.current = false;
-		setIsComposing(false);
-		setAboveUntilChange({
-			text: event.currentTarget.value,
-			caret: event.currentTarget.selectionStart,
-		});
+		return applied;
 	}
 
 	// 候補の選択を1つ動かす（端までいくと、反対側へ回る）。
@@ -227,27 +178,22 @@ export function ShoppingBulkAdd({
 	}
 
 	function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-		// 変換中は、IME に任せる。ただし、候補が出ているときは、Tab（決定）と Alt（Option）+↑↓（選択）を、補完に使う。
-		// 素の矢印と Enter は、IME が使う（Enter は変換の確定）。
-		if (event.nativeEvent.isComposing) {
-			if (!completion || strategy === "wait-for-confirmation") {
-				return;
-			}
-
-			if (
-				event.altKey &&
-				!event.ctrlKey &&
-				!event.metaKey &&
-				!event.shiftKey &&
-				(event.key === "ArrowDown" || event.key === "ArrowUp")
-			) {
-				event.preventDefault();
-				moveActive(event.key === "ArrowDown" ? "down" : "up");
-			} else if (event.code === "Tab" && !event.shiftKey) {
-				event.preventDefault();
-				void acceptDuringComposition(activeIndex ?? 0);
-			}
-
+		// 変換中は、IME に任せる。ただし、候補が出ているときは、Tab と Alt+↑↓ を、補完に使う。
+		if (
+			composing.handleKeyDown(event, {
+				shown:
+					isMenuOpen && completion
+						? {
+								completion,
+								count: completion.items.length,
+								text,
+								caret,
+							}
+						: null,
+				activeIndex,
+				moveActive,
+			})
+		) {
 			return;
 		}
 
@@ -315,13 +261,15 @@ export function ShoppingBulkAdd({
 						value={text}
 						onChange={(event) => {
 							setText(event.target.value);
-							setCaret(readCaret(event.target));
+							setCaret(composing.readCaret(event.target));
 							setActiveIndex(null);
 						}}
-						onSelect={(event) => setCaret(readCaret(event.currentTarget))}
+						onSelect={(event) =>
+							setCaret(composing.readCaret(event.currentTarget))
+						}
 						onKeyDown={handleKeyDown}
-						onCompositionStart={handleCompositionStart}
-						onCompositionEnd={handleCompositionEnd}
+						onCompositionStart={composing.onCompositionStart}
+						onCompositionEnd={composing.onCompositionEnd}
 						onFocus={() => setIsFocused(true)}
 						onBlur={() => setIsFocused(false)}
 					/>
@@ -333,7 +281,7 @@ export function ShoppingBulkAdd({
 				layout={layout}
 				open={isMenuOpen}
 				// 変換中・確定の直後は、IME の窓（文字の下に出る）を避けて、カーソルの上に出す。
-				prefer={isComposing || keepAbove ? "above" : "below"}
+				prefer={composing.prefersAbove(text, caret) ? "above" : "below"}
 				caret={caret}
 				items={
 					completion
@@ -346,29 +294,11 @@ export function ShoppingBulkAdd({
 				}
 				activeIndex={activeIndex}
 				onAccept={(index) =>
-					composingRef.current
-						? void acceptDuringComposition(index)
+					completion && composing.isActive()
+						? void composing.accept(completion, index, { text, caret })
 						: acceptCompletion(index)
 				}
-				hint={
-					isComposing ? (
-						<>
-							<ShortcutKeys keys={["alt", "up-down"]} />
-							で選び、
-							<ShortcutKeys keys={["tab"]} />
-							で決定
-						</>
-					) : (
-						<>
-							<ShortcutKeys keys={["up-down"]} />
-							で選び、
-							<ShortcutKeys keys={["tab"]} />
-							で決定（
-							<ShortcutKeys keys={["esc"]} />
-							で閉じる）
-						</>
-					)
-				}
+				hint={<CompletionHint isComposing={composing.isComposing} />}
 			/>
 
 			{unknownStoreNames.length > 0 ? (
