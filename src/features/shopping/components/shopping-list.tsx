@@ -370,6 +370,7 @@ export function ShoppingList({
 					stores={stores}
 					onClose={() => setIsBulkAdding(false)}
 					onAdd={addMemoLines}
+					onCreateStore={storeState.addStore}
 				/>
 			) : null}
 

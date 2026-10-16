@@ -41,6 +41,16 @@ describe("parseShoppingMemo（数量）", () => {
 	});
 });
 
+describe("parseShoppingMemo（数量のない行）", () => {
+	it("見出しがなくても、数量のない行は、名前だけの項目として読む（いつも買う量が決まっているもの）", () => {
+		expect(parse("豚肉\nごま油\nひき肉@イオン")).toEqual([
+			["豚肉", 1, null, null],
+			["ごま油", 1, null, null],
+			["ひき肉", 1, null, "aeon"],
+		]);
+	});
+});
+
 describe("parseShoppingMemo（店）", () => {
 	it("見出しの行（登録済みの店の名前だけ）で、以降の行の店が切り替わる", () => {
 		expect(parse("イオン\n卵 10個\n牛乳\n\n＜セブン＞\nおにぎり 2")).toEqual([

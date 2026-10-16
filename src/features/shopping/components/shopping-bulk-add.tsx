@@ -8,6 +8,7 @@ import {
 import { Button } from "#/components/button/button";
 import { useButtonAction } from "#/components/button/use-button-action";
 import { Field, TextArea } from "#/components/field/field";
+import { Icon } from "#/components/icon/icon";
 import { Sheet } from "#/components/sheet/sheet";
 import { Tag } from "#/components/tag/tag";
 import { useMediaQuery } from "#/components/use-media-query";
@@ -27,6 +28,8 @@ type ShoppingBulkAddProps = {
 	onClose: () => void;
 	// 読み取った行を、一覧に追加する。追加できた件数を返す（途中で失敗したら、そこまで）。
 	onAdd: (lines: readonly ParsedShoppingMemoLine[]) => Promise<number>;
+	// 登録のない店を、店として追加する（成功したら、その店）。追加すると、その店の項目として読み直される。
+	onCreateStore: (name: string) => Promise<ShoppingStore | null>;
 };
 
 function formatQuantity(line: ParsedShoppingMemoLine): string | null {
@@ -43,6 +46,7 @@ export function ShoppingBulkAdd({
 	stores,
 	onClose,
 	onAdd,
+	onCreateStore,
 }: ShoppingBulkAddProps) {
 	const [text, setText] = useState("");
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -65,6 +69,14 @@ export function ShoppingBulkAdd({
 			? found
 			: null;
 	}, [text, caret, stores, closedAt]);
+	// 登録のない店の名前（同じ名前は、1つにまとめる）。
+	const unknownStoreNames = [
+		...new Set(
+			lines.flatMap((line) =>
+				line.unknownStoreName ? [line.unknownStoreName] : [],
+			),
+		),
+	];
 	const storeNames = new Map(stores.map((store) => [store.id, store.name]));
 
 	// 置き換えたあと、カーソルを、候補の後ろへ動かす。
@@ -120,6 +132,18 @@ export function ShoppingBulkAdd({
 		}
 	}
 
+	async function createStore(name: string) {
+		setErrorMessage(null);
+
+		const created = await onCreateStore(name);
+
+		if (!created) {
+			setErrorMessage(
+				`「${name}」を店に追加できませんでした（店は20件まで、名前は30文字までです）。`,
+			);
+		}
+	}
+
 	async function add() {
 		setErrorMessage(null);
 
@@ -165,7 +189,7 @@ export function ShoppingBulkAdd({
 			<div className={styles.bulkBody}>
 				<Field
 					label="買うもの（1行に1つ）"
-					hint="「卵 10個」「牛乳 2」のように書けます。数字だけなら「個」になります。店の名前だけの行から下は、その店になり、「卵 @イオン」のように、行ごとにも店を指定できます。"
+					hint="「卵 10個」「牛乳 2」のように書けます。数字だけなら「個」、数量を書かなければ1つになります。店の名前だけの行から下は、その店になり、「卵 @イオン」のように、行ごとにも店を指定できます。"
 				>
 					{(control) => (
 						<TextArea
@@ -209,6 +233,27 @@ export function ShoppingBulkAdd({
 							</li>
 						))}
 					</ul>
+				) : null}
+
+				{unknownStoreNames.length > 0 ? (
+					<div className={styles.bulkNewStores}>
+						<p className={styles.bulkNewStoresText}>
+							登録のない店があります。店に追加すると、その店の項目になります。
+						</p>
+						<div className={styles.bulkNewStoreButtons}>
+							{unknownStoreNames.map((name) => (
+								<Button
+									key={name}
+									variant="secondary"
+									size="sm"
+									leadingIcon={<Icon name="plus" size={20} />}
+									onClick={() => void createStore(name)}
+								>
+									「{name}」を店に追加
+								</Button>
+							))}
+						</div>
+					</div>
 				) : null}
 
 				{lines.length > 0 ? (

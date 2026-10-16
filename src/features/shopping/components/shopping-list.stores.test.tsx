@@ -149,4 +149,35 @@ describe("ShoppingList の店", () => {
 		await user.keyboard("{ArrowDown}{Tab}");
 		expect(memo).toHaveProperty("value", "卵 2\n玉ねぎ 3\n牛乳 @イオン");
 	});
+
+	it("まとめて追加：登録のない店を、その場で店に追加でき、追加すると、その店の項目になる", async () => {
+		const user = userEvent.setup();
+		const repository = createFakeShoppingRepository();
+
+		render(<ShoppingList repository={repository} />);
+
+		await screen.findByText("買うものはまだありません。");
+		await user.click(screen.getByRole("button", { name: "まとめて追加" }));
+		await user.click(
+			await screen.findByRole("textbox", { name: "買うもの（1行に1つ）" }),
+		);
+		await user.paste("ひき肉@ドンキ\n豚肉@ドンキ");
+
+		// 同じ名前の店は、1つのボタンにまとまる。
+		await user.click(
+			screen.getByRole("button", { name: "「ドンキ」を店に追加" }),
+		);
+
+		await waitFor(() =>
+			expect(
+				screen.queryByRole("button", { name: "「ドンキ」を店に追加" }),
+			).toBeNull(),
+		);
+		await expect(getLocalDatabase().shoppingStores.count()).resolves.toBe(1);
+
+		await user.click(screen.getByRole("button", { name: "2件を追加" }));
+
+		await waitFor(() => expect(repository.items).toHaveLength(2));
+		expect(repository.items.every((item) => item.storeId !== null)).toBe(true);
+	});
 });

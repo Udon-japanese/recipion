@@ -546,3 +546,23 @@ export const bulkCompletionKind = style({
 	color: "var(--color-text-muted)",
 	fontSize: "var(--font-size-xs)",
 });
+
+// 登録のない店を、店に追加する案内。
+export const bulkNewStores = style({
+	display: "grid",
+	gap: 8,
+	padding: 12,
+	background: "var(--color-primary-soft)",
+	borderRadius: "var(--radius-card)",
+});
+
+export const bulkNewStoresText = style({
+	margin: 0,
+	fontSize: "var(--font-size-sm)",
+});
+
+export const bulkNewStoreButtons = style({
+	display: "flex",
+	flexWrap: "wrap",
+	gap: 8,
+});
