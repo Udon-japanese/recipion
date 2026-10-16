@@ -15,9 +15,13 @@ import type { ShoppingBranchRepository } from "../application/shopping-branch-re
 import type { ShoppingRepository } from "../application/shopping-repository";
 import type { ShoppingStoreRepository } from "../application/shopping-store-repository";
 import type { ParsedShoppingMemoLine } from "../domain/parse-shopping-memo";
-import { groupShoppingItemsByCategory } from "../domain/shopping-category-group";
+import {
+	getShoppingBranchConditionItem,
+	type ShoppingBranchSide,
+} from "../domain/shopping-branch";
 import { type ShoppingItem, toggleShoppingItem } from "../domain/shopping-item";
-import { groupShoppingItemsByStore } from "../domain/shopping-store";
+import { inferShoppingCategory } from "../domain/shopping-item-suggestion";
+import { groupShoppingByStore } from "../domain/shopping-store";
 import { useShoppingBranches } from "../hooks/use-shopping-branches";
 import { useShoppingItems } from "../hooks/use-shopping-items";
 import {
@@ -50,6 +54,7 @@ import { ShoppingStoreManager } from "./shopping-store-manager";
 import {
 	type DragHandleRef,
 	SortableShoppingItem,
+	shoppingSortSensors,
 } from "./sortable-shopping-item";
 
 // 既定の購入確定（ローカルの DB に保存する）。期限・保存方法のオプションを渡せるようにする。
@@ -207,15 +212,26 @@ export function ShoppingList({
 	}
 
 	// 「まとめて追加」で確認した行を、順に追加する（途中で失敗したら、そこで止める）。店を指定した行は、食材ごとの「いつも買う店」にも覚える。
-	async function addMemoLines(lines: readonly ParsedShoppingMemoLine[]) {
+	// destination を渡すと、条件つきのメモの、その側に入れる。
+	async function addMemoLines(
+		lines: readonly ParsedShoppingMemoLine[],
+		destination?: { branchId: string; side: ShoppingBranchSide },
+	) {
 		let added = 0;
 
 		for (const line of lines) {
+			// カテゴリは、食材のカタログから推定する（追加フォームと同じ。決められなければ、未設定）。
+			const categoryId = inferShoppingCategory(line.name);
 			const ok = await shopping.addItem({
+				categoryId,
+				categoryAssignment: categoryId ? "automatic" : null,
 				name: line.name,
 				quantity: line.quantity,
 				unitLabel: line.unitLabel,
 				storeId: line.storeId,
+				...(destination
+					? { branchId: destination.branchId, branchSide: destination.side }
+					: {}),
 			});
 
 			if (!ok) {
@@ -252,7 +268,11 @@ export function ShoppingList({
 
 			return added;
 		},
+		onAddItems: (branch, side, lines) =>
+			addMemoLines(lines, { branchId: branch.id, side }),
 		onRemoveItem: shopping.removeItem,
+		onUpdateBranch: branchState.updateBranch,
+		onUpdateItem: shopping.updateItem,
 		repository,
 		renderRecipePicker,
 		onRecipeApplied: (branch, side, recipeName) => {
@@ -264,15 +284,27 @@ export function ShoppingList({
 	// 購入済みは、1か所にまとめる（普段は閉じている）。
 	const activeItems = items.filter((item) => item.status !== "purchased");
 	const purchasedItems = items.filter((item) => item.status === "purchased");
-	// 分類の見出しは出さない。同じ分類の項目が続く並びを、1つのカードに入れる（並べ替えは、同じ分類の中）。
-	const categoryGroups = groupShoppingItemsByCategory(activeItems);
+	// 分類の見出しは出さない。並び順のまま、1つの一覧にする（ドラッグでも、上下でも、分類をまたいで動かせる）。
+	// 「売り場順」を押すと、分類ごとに並べ直す。
+	const listedItems = [...activeItems].sort(
+		(left, right) => left.sortOrder - right.sortOrder,
+	);
 
-	const storeGroups = groupShoppingItemsByStore(
-		currentStoreId
-			? activeItems.filter(
-					(item) => !item.storeId || item.storeId === currentStoreId,
-				)
-			: activeItems,
+	// 条件つきのメモは、条件の材料の店で、店ごとに分ける。
+	const branchPlacements = branches.map((branch) => ({
+		branch,
+		storeId:
+			getShoppingBranchConditionItem(shopping.allItems, branch.id)?.storeId ??
+			null,
+	}));
+	// 今いる店：その店と、店の決まっていない（「どこでも」）ものだけ。項目の順番は、一覧の並び順のまま。
+	const isForCurrentStore = (storeId: string | null) =>
+		!currentStoreId || !storeId || storeId === currentStoreId;
+	const storeGroups = groupShoppingByStore(
+		listedItems.filter((item) => isForCurrentStore(item.storeId)),
+		branchPlacements.filter((placement) =>
+			isForCurrentStore(placement.storeId),
+		),
 		stores,
 	);
 
@@ -440,43 +472,39 @@ export function ShoppingList({
 				/>
 			) : null}
 
-			{!isLoading && items.length > 0 && view === "store" ? (
-				<>
-					{stores.length > 0 ? (
-						<div className={styles.storeFilter}>
-							<Field label="今いる店">
-								{(control) => (
-									<SelectBox
-										id={control.id}
-										value={currentStoreId ?? ""}
-										onChange={(event) =>
-											setCurrentStoreId(
-												event.target.value === "" ? null : event.target.value,
-											)
-										}
-									>
-										<option value="">すべての店</option>
+			{!isLoading &&
+			(items.length > 0 || branches.length > 0) &&
+			view === "store" ? (
+				stores.length > 0 ? (
+					<div className={styles.storeFilter}>
+						<Field label="今いる店">
+							{(control) => (
+								<SelectBox
+									id={control.id}
+									value={currentStoreId ?? ""}
+									onChange={(event) =>
+										setCurrentStoreId(
+											event.target.value === "" ? null : event.target.value,
+										)
+									}
+								>
+									<option value="">すべての店</option>
 
-										{stores.map((store) => (
-											<option value={store.id} key={store.id}>
-												{store.name}
-											</option>
-										))}
-									</SelectBox>
-								)}
-							</Field>
-						</div>
-					) : null}
-				</>
+									{stores.map((store) => (
+										<option value={store.id} key={store.id}>
+											{store.name}
+										</option>
+									))}
+								</SelectBox>
+							)}
+						</Field>
+					</div>
+				) : null
 			) : null}
 
-			{!isLoading && view === "store" && branches.length > 0 ? (
-				<div className={styles.categoryCard}>
-					<ShoppingBranchCards branches={branches} context={branchContext} />
-				</div>
-			) : null}
-
-			{!isLoading && items.length > 0 && view === "store" ? (
+			{!isLoading &&
+			(activeItems.length > 0 || branches.length > 0) &&
+			view === "store" ? (
 				<div className={styles.groups}>
 					{storeGroups.map((group) => (
 						<section key={group.store?.id ?? "anywhere"}>
@@ -494,9 +522,20 @@ export function ShoppingList({
 								</Tag>
 							</div>
 
-							<ul className={styles.listCard}>
-								{group.items.map((item) => renderItem(item))}
-							</ul>
+							{group.branches.length > 0 ? (
+								<div className={styles.categoryCard}>
+									<ShoppingBranchCards
+										branches={group.branches}
+										context={branchContext}
+									/>
+								</div>
+							) : null}
+
+							{group.items.length > 0 ? (
+								<ul className={styles.listCard}>
+									{group.items.map((item) => renderItem(item))}
+								</ul>
+							) : null}
 						</section>
 					))}
 				</div>
@@ -508,9 +547,9 @@ export function ShoppingList({
 				<div className={styles.categoryCard}>
 					<ShoppingBranchCards branches={branches} context={branchContext} />
 
-					{categoryGroups.map((group) => (
+					{listedItems.length > 0 ? (
 						<DragDropProvider
-							key={group.categoryId ?? "uncategorized"}
+							sensors={shoppingSortSensors}
 							onDragEnd={(event) => {
 								if (event.canceled) {
 									return;
@@ -522,15 +561,11 @@ export function ShoppingList({
 									return;
 								}
 
-								void shopping.dragMove(
-									group.categoryId,
-									source.initialIndex,
-									source.index,
-								);
+								void shopping.dragMove(source.initialIndex, source.index);
 							}}
 						>
 							<ul className={styles.rowList}>
-								{group.items.map((item, index) => (
+								{listedItems.map((item, index) => (
 									<SortableShoppingItem
 										id={item.id}
 										index={index}
@@ -543,14 +578,14 @@ export function ShoppingList({
 												dragHandleRef: handleRef,
 												isDragging,
 												isFirst: index === 0,
-												isLast: index === group.items.length - 1,
+												isLast: index === listedItems.length - 1,
 											})
 										}
 									</SortableShoppingItem>
 								))}
 							</ul>
 						</DragDropProvider>
-					))}
+					) : null}
 				</div>
 			) : null}
 

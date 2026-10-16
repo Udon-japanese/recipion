@@ -509,44 +509,6 @@ export const entryRow = style({
 	gap: 8,
 });
 
-// 補完の候補（入力欄の下に、並べる）。
-export const bulkCompletion = style({
-	display: "flex",
-	flexWrap: "wrap",
-	gap: 8,
-	margin: 0,
-	padding: 0,
-	listStyle: "none",
-});
-
-export const bulkCompletionItem = style({
-	display: "inline-flex",
-	alignItems: "center",
-	gap: 6,
-	minHeight: 40,
-	padding: "0 16px",
-	color: "var(--color-text)",
-	font: "inherit",
-	fontWeight: "var(--font-weight-medium)",
-	background: "var(--color-surface)",
-	border: "1.5px solid var(--color-control-border)",
-	borderRadius: "var(--radius-control)",
-	cursor: "pointer",
-	selectors: {
-		"&:hover": { background: "var(--color-surface-muted)" },
-		'&[aria-current="true"]': {
-			background: "var(--color-primary-soft)",
-			borderColor: "var(--color-text)",
-			fontWeight: "var(--font-weight-bold)",
-		},
-	},
-});
-
-export const bulkCompletionKind = style({
-	color: "var(--color-text-muted)",
-	fontSize: "var(--font-size-xs)",
-});
-
 // 登録のない店を、店に追加する案内。
 export const bulkNewStores = style({
 	display: "grid",
@@ -565,4 +527,39 @@ export const bulkNewStoreButtons = style({
 	display: "flex",
 	flexWrap: "wrap",
 	gap: 8,
+});
+
+// 追加フォームの、右下の「追加 ＋」。
+export const addSubmitRow = style({
+	display: "flex",
+	justifyContent: "flex-end",
+});
+
+// まとめて追加：PC は入力（左）と確認（右）、スマホは、タブで切り替える。
+export const bulkColumns = style({
+	display: "grid",
+	gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+	gap: 24,
+	alignItems: "start",
+});
+
+export const bulkPane = style({
+	display: "grid",
+	gap: 16,
+	minWidth: 0,
+});
+
+export const bulkPaneTitle = style({
+	margin: 0,
+	fontSize: "var(--font-size-sm)",
+	fontWeight: "var(--font-weight-semibold)",
+});
+
+export const bulkEmpty = style({
+	margin: 0,
+	padding: 16,
+	color: "var(--color-text-muted)",
+	fontSize: "var(--font-size-sm)",
+	background: "var(--color-surface-muted)",
+	borderRadius: "var(--radius-card)",
 });

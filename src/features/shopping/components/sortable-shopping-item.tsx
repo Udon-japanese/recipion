@@ -1,3 +1,4 @@
+import { KeyboardSensor, PointerSensor } from "@dnd-kit/react";
 import { useSortable } from "@dnd-kit/react/sortable";
 import type { ReactNode } from "react";
 
@@ -31,3 +32,11 @@ export function SortableShoppingItem({
 
 	return children({ rowRef: ref, handleRef, isDragging });
 }
+
+// つかみ（ハンドル）から動かしたら、すぐにドラッグを始める。
+// 既定では、指で触れたときは、250ms 待ってから始まり、そのあいだに、ブラウザがスクロールを始めて、ドラッグが取り消される。
+// つかみには touch-action: none を付けてあるので、待たずに始めてよい。
+export const shoppingSortSensors = [
+	PointerSensor.configure({ activationConstraints: () => undefined }),
+	KeyboardSensor,
+];

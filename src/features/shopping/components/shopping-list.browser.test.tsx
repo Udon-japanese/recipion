@@ -77,3 +77,88 @@ test("ドラッグ操作で買い物項目を並び替える", async () => {
 		.element(page.getByRole("checkbox").nth(2))
 		.toHaveAccessibleName("卵をチェック");
 });
+
+// 分類の違う項目と、購入済みが混ざっていても、一覧の中のどこへでも動かせる。
+test("分類をまたいで、購入済みを飛ばして、並び替える", async () => {
+	const make = (
+		name: string,
+		categoryId: "dairy" | "produce" | "meat",
+		sortOrder: number,
+		status: "pending" | "purchased" = "pending",
+	) => ({
+		...createShoppingItem(
+			{ name, categoryId, categoryAssignment: "manual" },
+			new Date(2026, 8, 22, 10, sortOrder),
+			sortOrder,
+		),
+		status,
+	});
+	const repository = createFakeShoppingRepository([
+		make("卵", "dairy", 0),
+		make("買った牛乳", "dairy", 1, "purchased"),
+		make("玉ねぎ", "produce", 2),
+		make("豚肉", "meat", 3),
+		make("買った鶏肉", "meat", 4, "purchased"),
+		make("食パン", "dairy", 5),
+	]);
+
+	await page.viewport(900, 1600);
+	await render(<ShoppingList repository={repository} />);
+
+	const dragHandle = page.getByRole("button", { name: "卵を並べ替え" });
+
+	await expect.element(dragHandle).toBeVisible();
+	// 一覧の4つ目（食パン・別の分類）へ。
+	await dragHandle.dropTo(page.getByRole("listitem").nth(3));
+
+	await vi.waitFor(() => {
+		const listed = repository.items
+			.filter((item) => item.status !== "purchased")
+			.sort((left, right) => left.sortOrder - right.sortOrder)
+			.map((item) => item.name);
+
+		expect(listed).toEqual(["玉ねぎ", "豚肉", "食パン", "卵"]);
+	});
+
+	// 購入済みの項目は、元の場所のまま。
+	const purchased = repository.items
+		.filter((item) => item.status === "purchased")
+		.sort((left, right) => left.sortOrder - right.sortOrder);
+
+	expect(purchased.map((item) => [item.name, item.sortOrder])).toEqual([
+		["買った牛乳", 1],
+		["買った鶏肉", 4],
+	]);
+});
+
+// まとめて追加：PC は、入力と確認を左右に並べた幅広のモーダル。スマホは、ボトムシートに「入力」「確認」のタブ。
+test("まとめて追加は、広い画面では左右に並べ、狭い画面ではタブで切り替える", async () => {
+	const repository = createFakeShoppingRepository([]);
+
+	await page.viewport(1280, 900);
+	await render(<ShoppingList repository={repository} />);
+
+	await page.getByRole("button", { name: "まとめて追加" }).click();
+	await page
+		.getByRole("textbox", { name: "買うもの（1行に1つ）" })
+		.fill("卵 2\nたまねぎ");
+
+	const preview = page.getByRole("list", { name: "読み取った内容" });
+
+	// 広い画面：入力の横に、確認の一覧が、すぐ出ている。
+	await expect.element(page.getByRole("dialog")).toBeVisible();
+	await expect.element(preview).toBeVisible();
+	await expect
+		.element(page.getByRole("button", { name: /^確認/ }))
+		.not.toBeInTheDocument();
+
+	// 狭い画面：タブになり、確認は、タブを切り替えたときだけ出る。
+	await page.viewport(390, 700);
+	await expect
+		.element(page.getByRole("button", { name: "確認 2" }))
+		.toBeVisible();
+	await expect.element(preview).not.toBeInTheDocument();
+
+	await page.getByRole("button", { name: "確認 2" }).click();
+	await expect.element(preview).toBeVisible();
+});

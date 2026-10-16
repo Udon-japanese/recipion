@@ -79,4 +79,30 @@ describe("placePopup", () => {
 			}).left,
 		).toBe(8);
 	});
+
+	it("上を先にしたいのに入らなくても、余白が十分なら、縮めて上に置く（下に置くと IME の窓に重なる）", () => {
+		const caret = { top: 140, left: 50, height: 24 };
+		const placed = placePopup({
+			caret,
+			popup: { width: 200, height: 170 },
+			viewport,
+			prefer: "above",
+		});
+
+		expect(placed.side).toBe("above");
+		expect(placed.maxHeight).toBe(128);
+		expect(placed.top + (placed.maxHeight ?? 0)).toBeLessThanOrEqual(caret.top);
+	});
+
+	it("上の余白が小さすぎるときは、縮めずに、下に置く", () => {
+		const placed = placePopup({
+			caret: { top: 60, left: 50, height: 24 },
+			popup: { width: 200, height: 170 },
+			viewport,
+			prefer: "above",
+		});
+
+		expect(placed.side).toBe("below");
+		expect(placed.maxHeight).toBeUndefined();
+	});
 });

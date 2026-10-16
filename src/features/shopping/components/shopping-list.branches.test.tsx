@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getLocalDatabase } from "../../../local-db/database";
 import { createShoppingBranch } from "../domain/shopping-branch";
 import { createShoppingItem } from "../domain/shopping-item";
+import { createShoppingStore } from "../domain/shopping-store";
 import { dexieShoppingBranchRepository } from "../infrastructure/dexie-shopping-branch-repository";
 import { dexieShoppingRepository } from "../infrastructure/dexie-shopping-repository";
 import { ShoppingList } from "./shopping-list";
@@ -47,7 +48,7 @@ describe("ShoppingList の条件つきのメモ", () => {
 		);
 
 		const card = (
-			await screen.findByRole("heading", { name: /合い挽き 1.*が売っていたら/ })
+			await screen.findByRole("heading", { name: /合い挽きが売っていたら/ })
 		).closest("div") as HTMLElement;
 
 		// 「そうなら」の側に玉ねぎ、「そうでなければ」の側に鶏ももを入れる。
@@ -71,10 +72,14 @@ describe("ShoppingList の条件つきのメモ", () => {
 			await user.click(within(sheet).getByRole("button", { name: "完了" }));
 		}
 
-		await waitFor(() => {
-			expect(within(card).getByText(/玉ねぎ/)).toBeInTheDocument();
-			expect(within(card).getByText(/鶏もも/)).toBeInTheDocument();
-		});
+		// 全体のテストを並行して動かすと、描画が遅れることがあるので、待ちを長めにする。
+		await waitFor(
+			() => {
+				expect(within(card).getByText(/玉ねぎ/)).toBeInTheDocument();
+				expect(within(card).getByText(/鶏もも/)).toBeInTheDocument();
+			},
+			{ timeout: 5000 },
+		);
 
 		// 通常の一覧には出ず、チェックの欄もない。
 		expect(
@@ -147,5 +152,157 @@ describe("ShoppingList の条件つきのメモ", () => {
 				screen.queryByRole("heading", { name: /が売っていたら/ }),
 			).not.toBeInTheDocument(),
 		);
+	});
+
+	// 条件つきのメモと、条件の材料（店つき）を、保存しておく。
+	async function seedBranch(storeId: string | null, name = "合い挽き") {
+		const now = new Date("2026-10-12T00:00:00.000Z");
+		const branch = createShoppingBranch(
+			{ condition: "売っていたら" },
+			0,
+			now,
+			"branch-1",
+		);
+
+		await dexieShoppingBranchRepository.create(
+			branch,
+			createShoppingItem(
+				{ name, storeId, branchId: branch.id, branchSide: "condition" },
+				now,
+				0,
+			),
+		);
+	}
+
+	it("条件の材料と、どんな時に・呼び名を、あとから直せる", async () => {
+		const user = userEvent.setup();
+
+		await seedBranch(null);
+		render(<ShoppingList repository={dexieShoppingRepository} />);
+
+		await user.click(
+			await screen.findByRole("button", { name: "合い挽きの条件を編集" }),
+		);
+
+		const dialog = await screen.findByRole("dialog", { name: "条件を編集" });
+		const condition = within(dialog).getByLabelText("どんな時に");
+		const name = within(dialog).getByLabelText("商品名");
+
+		await user.clear(condition);
+		await user.type(condition, "安ければ");
+		await user.type(
+			within(dialog).getByLabelText(/「そうなら」の呼び名/),
+			"ハンバーグ",
+		);
+		await user.clear(name);
+		await user.type(name, "牛ひき");
+		await user.click(within(dialog).getByRole("button", { name: "保存" }));
+
+		expect(
+			await screen.findByRole("heading", { name: /牛ひきが安ければ/ }),
+		).toBeInTheDocument();
+		expect(screen.getByText("そうなら（ハンバーグ）")).toBeInTheDocument();
+		await expect(
+			getLocalDatabase().shoppingBranches.get("branch-1"),
+		).resolves.toMatchObject({
+			condition: "安ければ",
+			thenLabel: "ハンバーグ",
+		});
+	});
+
+	it("条件を空にして保存はできない", async () => {
+		const user = userEvent.setup();
+
+		await seedBranch(null);
+		render(<ShoppingList repository={dexieShoppingRepository} />);
+
+		await user.click(
+			await screen.findByRole("button", { name: "合い挽きの条件を編集" }),
+		);
+
+		const dialog = await screen.findByRole("dialog", { name: "条件を編集" });
+
+		await user.clear(within(dialog).getByLabelText("どんな時に"));
+		await user.click(within(dialog).getByRole("button", { name: "保存" }));
+
+		// 保存されず、元の条件のまま。
+		await expect(
+			getLocalDatabase().shoppingBranches.get("branch-1"),
+		).resolves.toMatchObject({ condition: "売っていたら" });
+	});
+
+	it("各側に、「まとめて追加」で、続けて入れられる（店の見出し・数量も読む）", async () => {
+		const user = userEvent.setup();
+
+		await seedBranch(null);
+		render(<ShoppingList repository={dexieShoppingRepository} />);
+
+		await user.click(
+			await screen.findByRole("button", {
+				name: "そうならにまとめて追加",
+			}),
+		);
+
+		const sheet = await screen.findByRole("dialog", {
+			name: "そうならにまとめて追加",
+		});
+
+		await user.click(within(sheet).getByRole("textbox"));
+		await user.paste("玉ねぎ 2\nにんじん");
+		await user.click(within(sheet).getByRole("button", { name: "2件を追加" }));
+
+		await waitFor(async () => {
+			const items = await getLocalDatabase().shoppingItems.toArray();
+
+			expect(
+				items
+					.filter((item) => item.branchSide === "then")
+					.map((item) => [item.name, item.quantity, item.branchId]),
+			).toEqual(
+				expect.arrayContaining([
+					["玉ねぎ", 2, "branch-1"],
+					["にんじん", 1, "branch-1"],
+				]),
+			);
+		});
+		// 通常の一覧には出ない。
+		expect(
+			screen.queryByRole("checkbox", { name: "玉ねぎをチェック" }),
+		).not.toBeInTheDocument();
+	});
+
+	it("店ごとの表示では、条件つきのメモも、条件の材料の店に入り、今いる店で絞れる", async () => {
+		const user = userEvent.setup();
+		const storeA = createShoppingStore("スーパーA", 0);
+		const storeB = createShoppingStore("スーパーB", 1);
+
+		await getLocalDatabase().shoppingStores.bulkAdd([storeA, storeB]);
+		await seedBranch(storeB.id);
+		await dexieShoppingRepository.save(
+			createShoppingItem({ name: "牛乳", storeId: storeA.id }, new Date(), 5),
+		);
+		render(<ShoppingList repository={dexieShoppingRepository} />);
+
+		await user.click(await screen.findByRole("button", { name: "店ごと" }));
+
+		const sectionB = screen
+			.getByRole("heading", { name: "スーパーB" })
+			.closest("section") as HTMLElement;
+
+		expect(
+			within(sectionB).getByRole("heading", {
+				name: /スーパーBに合い挽きが売っていたら/,
+			}),
+		).toBeInTheDocument();
+
+		// 今いる店を A にすると、B の条件つきのメモは出ない。
+		await user.selectOptions(screen.getByLabelText("今いる店"), "スーパーA");
+
+		expect(
+			screen.queryByRole("heading", { name: /合い挽きが売っていたら/ }),
+		).not.toBeInTheDocument();
+		expect(
+			screen.getByRole("heading", { name: "スーパーA" }),
+		).toBeInTheDocument();
 	});
 });

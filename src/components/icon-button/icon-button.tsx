@@ -15,6 +15,8 @@ type IconButtonProps = Omit<
 	// muted（既定）：薄い灰色の丸／plain：背景なし／danger：赤い文字／on：選択中（黄色の丸＋濃い枠）。
 	tone?: "muted" | "plain" | "danger" | "on";
 	iconSize?: 16 | 20 | 24;
+	// 並べ替えのつかみ部分（タッチで動かしたとき、スクロールではなくドラッグになるよう、スクロールを止める）。
+	dragHandle?: boolean;
 };
 
 // アイコンだけのボタン（閉じる・戻る・編集・並べ替え・その他 など）。
@@ -24,6 +26,7 @@ export function IconButton({
 	size = "sm",
 	tone = "muted",
 	iconSize,
+	dragHandle = false,
 	type = "button",
 	...rest
 }: IconButtonProps) {
@@ -35,6 +38,7 @@ export function IconButton({
 			aria-label={label}
 			data-size={size}
 			data-tone={tone}
+			data-drag-handle={dragHandle || undefined}
 		>
 			<Icon name={icon} size={iconSize ?? (size === "std" ? 24 : 20)} />
 		</button>

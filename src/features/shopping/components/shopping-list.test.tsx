@@ -115,6 +115,9 @@ describe("ShoppingList", () => {
 		render(<ShoppingList repository={repository} />);
 
 		await screen.findByText("買うものはまだありません。");
+		// 追加ボタンは、入力欄に触れて、フォームが開いてから、右下に出る。
+		expect(screen.queryByRole("button", { name: "追加" })).toBeNull();
+		await user.click(screen.getByLabelText("買うもの"));
 		await user.click(screen.getByRole("button", { name: "追加" }));
 
 		expect(await screen.findByRole("alert")).toHaveTextContent(

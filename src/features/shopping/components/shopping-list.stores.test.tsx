@@ -1,6 +1,7 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { buildShoppingItem } from "#/test/builders/build-shopping-item";
 import { createFakeShoppingRepository } from "#/test/fakes/fake-shopping-repository";
 import { getLocalDatabase } from "../../../local-db/database";
 import { createShoppingStore } from "../domain/shopping-store";
@@ -87,7 +88,9 @@ describe("ShoppingList の店", () => {
 		await user.click(memo);
 		await user.paste("イオン\n卵 10個\n牛乳 2\n\nパン @ドンキ");
 
-		// 確認の一覧：店と、登録のない店の注意。
+		// 確認の一覧（狭い画面は、「確認」のタブ）：店と、登録のない店の注意。
+		await user.click(screen.getByRole("button", { name: /^確認/ }));
+
 		const preview = screen.getByRole("list", { name: "読み取った内容" });
 
 		expect(within(preview).getByText("2個")).toBeInTheDocument();
@@ -115,6 +118,12 @@ describe("ShoppingList の店", () => {
 					storeId: store.id,
 				}),
 				expect.objectContaining({ name: "パン", storeId: null }),
+				// カタログにある食材は、追加した時点で、カテゴリが自動で決まる。
+				expect.objectContaining({
+					name: "卵",
+					categoryId: expect.any(String),
+					categoryAssignment: "automatic",
+				}),
 			]),
 		);
 	});
@@ -202,5 +211,53 @@ describe("ShoppingList の店", () => {
 		);
 		expect(input).toHaveProperty("value", "");
 		await expect(getLocalDatabase().shoppingStores.count()).resolves.toBe(1);
+	});
+
+	it("店ごとの表示でも、同じ店の項目は、一覧の並び順のまま。分類をまたいだ並び順も保つ", async () => {
+		const user = userEvent.setup();
+		const store = createShoppingStore("スーパーA", 0);
+
+		await getLocalDatabase().shoppingStores.add(store);
+		// 配列の順番は、並び順（sortOrder）と、わざと違える。
+		const repository = createFakeShoppingRepository([
+			buildShoppingItem({
+				id: "c",
+				name: "牛乳",
+				categoryId: "dairy",
+				storeId: store.id,
+				sortOrder: 2,
+			}),
+			buildShoppingItem({
+				id: "a",
+				name: "豚肉",
+				categoryId: "meat",
+				storeId: store.id,
+				sortOrder: 0,
+			}),
+			buildShoppingItem({
+				id: "b",
+				name: "玉ねぎ",
+				categoryId: "produce",
+				storeId: store.id,
+				sortOrder: 1,
+			}),
+		]);
+
+		render(<ShoppingList repository={repository} />);
+
+		await user.click(await screen.findByRole("button", { name: "店ごと" }));
+
+		const section = screen
+			.getByRole("heading", { name: "スーパーA" })
+			.closest("section") as HTMLElement;
+		const names = within(section)
+			.getAllByRole("checkbox")
+			.map((checkbox) => checkbox.getAttribute("aria-label"));
+
+		expect(names).toEqual([
+			"豚肉をチェック",
+			"玉ねぎをチェック",
+			"牛乳をチェック",
+		]);
 	});
 });

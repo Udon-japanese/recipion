@@ -9,6 +9,7 @@ import {
 	type ShoppingBranch,
 	type ShoppingBranchSide,
 	suggestShoppingBranchSideLabel,
+	updateShoppingBranch,
 } from "../domain/shopping-branch";
 import {
 	type CreateShoppingItemInput,
@@ -116,6 +117,27 @@ export function useShoppingBranches({
 		}
 	}
 
+	// 条件（どんな時に）と、側の呼び名を直す。
+	async function updateBranch(
+		branch: ShoppingBranch,
+		input: CreateShoppingBranchInput,
+	): Promise<boolean> {
+		onError(null);
+
+		try {
+			const updated = updateShoppingBranch(branch, input);
+
+			await repository.update(updated);
+			setBranches((current) => upsertById(current, updated));
+
+			return true;
+		} catch (error) {
+			onError(getShoppingErrorMessage(error));
+
+			return false;
+		}
+	}
+
 	async function removeBranch(branch: ShoppingBranch): Promise<boolean> {
 		onError(null);
 
@@ -211,5 +233,12 @@ export function useShoppingBranches({
 		}
 	}
 
-	return { branches, addBranch, removeBranch, decideBranch, labelSideIfEmpty };
+	return {
+		branches,
+		addBranch,
+		updateBranch,
+		removeBranch,
+		decideBranch,
+		labelSideIfEmpty,
+	};
 }
