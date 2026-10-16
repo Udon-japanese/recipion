@@ -1,10 +1,10 @@
 import {
-	type ParsedRecipeIngredientLine,
-	parseRecipeIngredientLine,
-} from "./parse-recipe-ingredient-line";
+	type ParsedIngredientLine,
+	parseIngredientLine,
+} from "#/features/ingredients/domain/parse-ingredient-line";
 import { splitTextByLinks } from "./recipe-links";
 
-export type ParsedRecipeIngredientItem = ParsedRecipeIngredientLine & {
+export type ParsedRecipeIngredientItem = ParsedIngredientLine & {
 	type: "ingredient";
 };
 
@@ -26,7 +26,7 @@ type ResolvedLine = {
 };
 
 function toIngredientItem(
-	parsedLine: ParsedRecipeIngredientLine,
+	parsedLine: ParsedIngredientLine,
 	rawText = parsedLine.rawText,
 ): ParsedRecipeIngredientItem {
 	return {
@@ -38,7 +38,7 @@ function toIngredientItem(
 
 function resolveLine(lines: readonly string[], index: number): ResolvedLine {
 	const currentLine = lines[index];
-	const parsedCurrentLine = parseRecipeIngredientLine(currentLine);
+	const parsedCurrentLine = parseIngredientLine(currentLine);
 
 	if (!parsedCurrentLine) {
 		throw new Error("空行は事前に除外してください");
@@ -54,7 +54,7 @@ function resolveLine(lines: readonly string[], index: number): ResolvedLine {
 	const nextLine = lines[index + 1];
 
 	if (nextLine) {
-		const combinedLine = parseRecipeIngredientLine(
+		const combinedLine = parseIngredientLine(
 			`${parsedCurrentLine.name}: ${nextLine}`,
 		);
 

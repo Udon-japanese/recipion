@@ -1,4 +1,4 @@
-import { parseRecipeIngredientLine } from "#/features/recipes/domain/parse-recipe-ingredient-line";
+import { parseIngredientLine } from "#/features/ingredients/domain/parse-ingredient-line";
 
 // 買い物のメモ（1行に1つ）を、買い物メモの項目の元に読む（純粋な関数）。
 // 文章が正ではなく、確認のあと一覧に追加するための、一方向の入力。
@@ -69,7 +69,7 @@ function parseItemText(text: string): Quantity | null {
 		};
 	}
 
-	const parsed = parseRecipeIngredientLine(text);
+	const parsed = parseIngredientLine(text);
 
 	if (!parsed) {
 		return null;

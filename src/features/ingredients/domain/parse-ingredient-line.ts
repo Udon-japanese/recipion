@@ -1,4 +1,4 @@
-export type ParsedRecipeIngredientLine =
+export type ParsedIngredientLine =
 	| {
 			status: "parsed";
 			rawText: string;
@@ -105,7 +105,7 @@ function createParsedLine(
 	amountText: string,
 	// 分量のあとの括弧つきの補足（原文のまま分量に残す。数量には使わない）。
 	supplement = "",
-): ParsedRecipeIngredientLine {
+): ParsedIngredientLine {
 	const quantityMatch = amountText.match(quantityPattern);
 	const unitMatch = amountText.match(unitPattern);
 
@@ -126,9 +126,9 @@ function createParsedLine(
 // 行の終わりの、括弧つきの補足（「適量(色がつくくらい)」「1丁(300g)」）。
 const trailingSupplementPattern = /^(?<body>.+?)(?<supplement>\s*\([^()]*\))$/u;
 
-export function parseRecipeIngredientLine(
+export function parseIngredientLine(
 	input: string,
-): ParsedRecipeIngredientLine | null {
+): ParsedIngredientLine | null {
 	const rawText = input.trim();
 
 	if (rawText.length === 0) {
@@ -142,9 +142,7 @@ export function parseRecipeIngredientLine(
 	const supplementMatch = normalizedText.match(trailingSupplementPattern);
 
 	if (supplementMatch?.groups) {
-		const withoutSupplement = parseRecipeIngredientLine(
-			supplementMatch.groups.body,
-		);
+		const withoutSupplement = parseIngredientLine(supplementMatch.groups.body);
 
 		if (withoutSupplement?.status === "parsed") {
 			return createParsedLine(

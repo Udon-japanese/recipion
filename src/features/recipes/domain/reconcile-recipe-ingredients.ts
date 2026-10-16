@@ -1,8 +1,8 @@
+import { parseIngredientLine } from "#/features/ingredients/domain/parse-ingredient-line";
 import {
 	formatIngredientGroupLine,
 	formatIngredientLine,
 } from "./format-recipe-editor-text";
-import { parseRecipeIngredientLine } from "./parse-recipe-ingredient-line";
 import type {
 	ParsedRecipeIngredientGroup,
 	ParsedRecipeIngredientNode,
@@ -360,7 +360,7 @@ export function createIngredientSyncState(
 		}
 
 		const line = formatIngredientLine(node);
-		const reparsed = parseRecipeIngredientLine(line);
+		const reparsed = parseIngredientLine(line);
 
 		sources.set(node.id, line);
 

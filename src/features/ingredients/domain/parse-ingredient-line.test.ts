@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { parseRecipeIngredientLine } from "./parse-recipe-ingredient-line";
+import { parseIngredientLine } from "./parse-ingredient-line";
 
-describe("parseRecipeIngredientLine", () => {
+describe("parseIngredientLine", () => {
 	it.each([
 		["卵 1個", "卵", "1個", 1, "個"],
 		["卵　1個", "卵", "1個", 1, "個"],
@@ -19,7 +19,7 @@ describe("parseRecipeIngredientLine", () => {
 		["薄力粉 約200g", "薄力粉", "約200g", 200, "g"],
 		["5枚切り食パン 1枚", "5枚切り食パン", "1枚", 1, "枚"],
 	])("%sを食材名と使用量へ分割する", (input, name, amountText, quantity, unitLabel) => {
-		expect(parseRecipeIngredientLine(input)).toEqual({
+		expect(parseIngredientLine(input)).toEqual({
 			status: "parsed",
 			rawText: input,
 			name,
@@ -47,7 +47,7 @@ describe("parseRecipeIngredientLine", () => {
 		["小麦粉 1キログラム", "小麦粉", "1キログラム", 1, "kg"],
 		["だし 1リットル", "だし", "1リットル", 1, "l"],
 	])("%sの範囲や「位」付きの使用量を分量として区切る", (input, name, amountText, quantity, unitLabel) => {
-		expect(parseRecipeIngredientLine(input)).toEqual({
+		expect(parseIngredientLine(input)).toEqual({
 			status: "parsed",
 			rawText: input,
 			name,
@@ -69,7 +69,7 @@ describe("parseRecipeIngredientLine", () => {
 		["青のり 適宜", "青のり", "適宜"],
 		["こしょう お好みで", "こしょう", "お好みで"],
 	])("%sの数値化できない使用量も保持する", (input, name, amountText) => {
-		expect(parseRecipeIngredientLine(input)).toEqual({
+		expect(parseIngredientLine(input)).toEqual({
 			status: "parsed",
 			rawText: input,
 			name,
@@ -89,7 +89,7 @@ describe("parseRecipeIngredientLine", () => {
 		],
 		["豆腐 1丁(300g)", "豆腐", "1丁(300g)", 1, "丁"],
 	])("分量のあとの括弧つきの補足は、分量の原文に残し、数量には使わない（%s）", (input, name, amountText, quantity, unitLabel) => {
-		expect(parseRecipeIngredientLine(input)).toEqual({
+		expect(parseIngredientLine(input)).toEqual({
 			status: "parsed",
 			rawText: input,
 			name,
@@ -100,14 +100,14 @@ describe("parseRecipeIngredientLine", () => {
 	});
 
 	it("名前の括弧は、分量がなければ、名前の一部のまま", () => {
-		expect(parseRecipeIngredientLine("ソーセージ(ベーコン)")).toMatchObject({
+		expect(parseIngredientLine("ソーセージ(ベーコン)")).toMatchObject({
 			status: "missing-amount",
 			name: "ソーセージ(ベーコン)",
 		});
 	});
 
 	it("使用量がなければ未解析として食材名を保持する", () => {
-		expect(parseRecipeIngredientLine("肉だね")).toEqual({
+		expect(parseIngredientLine("肉だね")).toEqual({
 			status: "missing-amount",
 			rawText: "肉だね",
 			name: "肉だね",
@@ -118,11 +118,11 @@ describe("parseRecipeIngredientLine", () => {
 	});
 
 	it("空行は無視する", () => {
-		expect(parseRecipeIngredientLine("　 ")).toBeNull();
+		expect(parseIngredientLine("　 ")).toBeNull();
 	});
 
 	it("お好みで少々をひとつの分量として扱う", () => {
-		expect(parseRecipeIngredientLine("大葉 お好みで少々")).toMatchObject({
+		expect(parseIngredientLine("大葉 お好みで少々")).toMatchObject({
 			status: "parsed",
 			name: "大葉",
 			amountText: "お好みで少々",
