@@ -15,7 +15,6 @@ import type { ShoppingBranchRepository } from "../application/shopping-branch-re
 import type { ShoppingRepository } from "../application/shopping-repository";
 import type { ShoppingStoreRepository } from "../application/shopping-store-repository";
 import type { ParsedShoppingMemoLine } from "../domain/parse-shopping-memo";
-import { groupShoppingItemsByCategory } from "../domain/shopping-category-group";
 import { type ShoppingItem, toggleShoppingItem } from "../domain/shopping-item";
 import { inferShoppingCategory } from "../domain/shopping-item-suggestion";
 import { groupShoppingItemsByStore } from "../domain/shopping-store";
@@ -270,8 +269,11 @@ export function ShoppingList({
 	// 購入済みは、1か所にまとめる（普段は閉じている）。
 	const activeItems = items.filter((item) => item.status !== "purchased");
 	const purchasedItems = items.filter((item) => item.status === "purchased");
-	// 分類の見出しは出さない。同じ分類の項目が続く並びを、1つのカードに入れる（並べ替えは、同じ分類の中）。
-	const categoryGroups = groupShoppingItemsByCategory(activeItems);
+	// 分類の見出しは出さない。並び順のまま、1つの一覧にする（ドラッグでも、上下でも、分類をまたいで動かせる）。
+	// 「売り場順」を押すと、分類ごとに並べ直す。
+	const listedItems = [...activeItems].sort(
+		(left, right) => left.sortOrder - right.sortOrder,
+	);
 
 	const storeGroups = groupShoppingItemsByStore(
 		currentStoreId
@@ -514,9 +516,8 @@ export function ShoppingList({
 				<div className={styles.categoryCard}>
 					<ShoppingBranchCards branches={branches} context={branchContext} />
 
-					{categoryGroups.map((group) => (
+					{listedItems.length > 0 ? (
 						<DragDropProvider
-							key={group.categoryId ?? "uncategorized"}
 							sensors={shoppingSortSensors}
 							onDragEnd={(event) => {
 								if (event.canceled) {
@@ -529,15 +530,11 @@ export function ShoppingList({
 									return;
 								}
 
-								void shopping.dragMove(
-									group.categoryId,
-									source.initialIndex,
-									source.index,
-								);
+								void shopping.dragMove(source.initialIndex, source.index);
 							}}
 						>
 							<ul className={styles.rowList}>
-								{group.items.map((item, index) => (
+								{listedItems.map((item, index) => (
 									<SortableShoppingItem
 										id={item.id}
 										index={index}
@@ -550,14 +547,14 @@ export function ShoppingList({
 												dragHandleRef: handleRef,
 												isDragging,
 												isFirst: index === 0,
-												isLast: index === group.items.length - 1,
+												isLast: index === listedItems.length - 1,
 											})
 										}
 									</SortableShoppingItem>
 								))}
 							</ul>
 						</DragDropProvider>
-					))}
+					) : null}
 				</div>
 			) : null}
 
