@@ -180,4 +180,27 @@ describe("ShoppingList の店", () => {
 		await waitFor(() => expect(repository.items).toHaveLength(2));
 		expect(repository.items.every((item) => item.storeId !== null)).toBe(true);
 	});
+
+	it("店の管理から、店を追加できる（店が1つもなくても）", async () => {
+		const user = userEvent.setup();
+		const repository = createFakeShoppingRepository();
+
+		render(<ShoppingList repository={repository} />);
+
+		await screen.findByText("買うものはまだありません。");
+		await user.click(screen.getByRole("button", { name: "店ごと" }));
+
+		const input = screen.getByLabelText("新しい店の名前");
+
+		// 名前が空のうちは追加できない。
+		expect(screen.getByRole("button", { name: "店を追加" })).toBeDisabled();
+
+		await user.type(input, "スーパーB{Enter}");
+
+		await waitFor(() =>
+			expect(screen.getByText("スーパーB")).toBeInTheDocument(),
+		);
+		expect(input).toHaveProperty("value", "");
+		await expect(getLocalDatabase().shoppingStores.count()).resolves.toBe(1);
+	});
 });

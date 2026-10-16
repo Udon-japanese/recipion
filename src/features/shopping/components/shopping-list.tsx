@@ -431,14 +431,17 @@ export function ShoppingList({
 				</div>
 			) : null}
 
+			{!isLoading && view === "store" ? (
+				<ShoppingStoreManager
+					stores={stores}
+					onAdd={storeState.addStore}
+					onRename={storeState.renameStore}
+					onRemove={storeState.removeStore}
+				/>
+			) : null}
+
 			{!isLoading && items.length > 0 && view === "store" ? (
 				<>
-					<ShoppingStoreManager
-						stores={stores}
-						onRename={storeState.renameStore}
-						onRemove={storeState.removeStore}
-					/>
-
 					{stores.length > 0 ? (
 						<div className={styles.storeFilter}>
 							<Field label="今いる店">

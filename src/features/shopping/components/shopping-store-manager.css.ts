@@ -72,3 +72,11 @@ export const confirm = style({
 	fontSize: "var(--font-size-sm)",
 	lineHeight: 1.55,
 });
+
+// 店の追加の入力（一覧の下）。
+export const addRow = style({
+	display: "flex",
+	alignItems: "center",
+	gap: 8,
+	padding: "8px 12px 12px",
+});
