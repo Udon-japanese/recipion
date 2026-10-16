@@ -6,17 +6,26 @@
 		width="512"
 		height="512"
 		rx="112"
-		fill="#2563eb"
+		fill="#fffdf7"
 	/>
 	<path
-		d="M160 116h192c22 0 40 18 40 40v224c0 22-18 40-40 40H160c-22 0-40-18-40-40V156c0-22 18-40 40-40Z"
-		fill="#fff"
+		d="M104 279A152 167 0 0 1 256 112A152 167 0 0 1 408 279A115.5 121 0 0 1 292.5 400H219.5A115.5 121 0 0 1 104 279Z"
+		fill="#e9a900"
 	/>
-	<path
-		d="M184 196h144M184 256h144M184 316h92"
-		fill="none"
-		stroke="#2563eb"
-		stroke-width="28"
-		stroke-linecap="round"
+	<rect
+		x="184"
+		y="192"
+		width="41.6"
+		height="80"
+		rx="20.8"
+		fill="#292720"
+	/>
+	<rect
+		x="286.4"
+		y="192"
+		width="41.6"
+		height="80"
+		rx="20.8"
+		fill="#292720"
 	/>
 </svg>
