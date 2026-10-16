@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback } from "react";
+import { pageTitle } from "#/config/app";
 import {
 	findIngredientCatalogEntry,
 	getDefaultStockUnitLabel,
@@ -18,6 +19,7 @@ import type { RecipePickerContext } from "#/features/shopping/components/recipe-
 import { ShoppingList } from "#/features/shopping/components/shopping-list";
 
 export const Route = createFileRoute("/shopping")({
+	head: () => ({ meta: [{ title: pageTitle("買い物メモ") }] }),
 	ssr: false,
 	component: ShoppingPage,
 });

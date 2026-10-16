@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useState } from "react";
+import { pageTitle } from "#/config/app";
 import { adjustInventoryWithCache } from "#/features/inventory/application/adjust-inventory-with-cache";
 import { changeInventoryTrackingModeWithCache } from "#/features/inventory/application/change-inventory-tracking-mode-with-cache";
 import type { InventoryAdjustmentCommand } from "#/features/inventory/application/inventory-adjustment-repository";
@@ -46,6 +47,7 @@ import {
 } from "#/features/inventory/server/update-inventory-lot";
 
 export const Route = createFileRoute("/inventory")({
+	head: () => ({ meta: [{ title: pageTitle("在庫") }] }),
 	ssr: false,
 	component: InventoryPage,
 });

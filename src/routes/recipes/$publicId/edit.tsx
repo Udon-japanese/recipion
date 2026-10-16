@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { pageTitle } from "#/config/app";
 import { RecipeEditor } from "#/features/recipes/components/recipe-editor";
 import { RecipeRouteError } from "#/features/recipes/components/recipe-route-error";
 import { getLinkedRecipesServerFn } from "#/features/recipes/server/get-linked-recipes";
@@ -37,6 +38,15 @@ export const Route = createFileRoute("/recipes/$publicId/edit")({
 	// ブラウザ専用の処理が多い重い画面なので、サーバーでは描画しない（loader も、ブラウザで実行される）。
 	ssr: false,
 	loader: ({ params }) => loadRecipe(params.publicId),
+	head: ({ loaderData }) => ({
+		meta: [
+			{
+				title: pageTitle(
+					loaderData ? `${loaderData.name}を編集` : "レシピを編集",
+				),
+			},
+		],
+	}),
 	errorComponent: RecipeRouteError,
 	notFoundComponent: RecipeNotFound,
 	component: EditRecipePage,

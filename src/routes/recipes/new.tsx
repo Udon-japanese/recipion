@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { pageTitle } from "#/config/app";
 import { useOwnerScope } from "#/features/inventory/hooks/use-owner-scope";
 import { RecipeEditor } from "#/features/recipes/components/recipe-editor";
 import { createRecipeServerFn } from "#/features/recipes/server/create-recipe";
@@ -44,6 +45,7 @@ function renderOpenLink(publicId: string) {
 }
 
 export const Route = createFileRoute("/recipes/new")({
+	head: () => ({ meta: [{ title: pageTitle("レシピを登録") }] }),
 	ssr: false,
 	component: NewRecipePage,
 });

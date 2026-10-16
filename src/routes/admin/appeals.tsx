@@ -1,4 +1,5 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { pageTitle } from "#/config/app";
 import { AdminRouteError } from "#/features/admin/components/admin-route-error";
 import { AdminAppealsPage } from "#/features/moderation/components/admin-appeals-page";
 import {
@@ -8,6 +9,7 @@ import {
 } from "#/features/moderation/server/admin-appeals";
 
 export const Route = createFileRoute("/admin/appeals")({
+	head: () => ({ meta: [{ title: pageTitle("停止の申し立て（管理者）") }] }),
 	loader: async () => {
 		const [open, resolved] = await Promise.all([
 			listOpenAppealsServerFn(),

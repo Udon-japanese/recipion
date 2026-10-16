@@ -1,4 +1,5 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { pageTitle } from "#/config/app";
 import { AdminRouteError } from "#/features/admin/components/admin-route-error";
 import { AdminReportsPage } from "#/features/reports/components/admin-reports-page";
 import {
@@ -9,6 +10,7 @@ import {
 } from "#/features/reports/server/admin-reports";
 
 export const Route = createFileRoute("/admin/reports")({
+	head: () => ({ meta: [{ title: pageTitle("通報（管理者）") }] }),
 	loader: async () => {
 		const [open, resolved] = await Promise.all([
 			listOpenReportsServerFn(),

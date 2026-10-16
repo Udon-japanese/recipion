@@ -6,6 +6,7 @@ import {
 } from "@tanstack/react-router";
 import { useCallback } from "react";
 import { Tag } from "#/components/tag/tag";
+import { pageTitle } from "#/config/app";
 import {
 	findIngredientCatalogEntry,
 	getDefaultStockUnitLabel,
@@ -54,6 +55,17 @@ export const Route = createFileRoute("/recipes/$publicId/")({
 	// 見てはいけないレシピと、存在しないレシピは、どちらも null（パスフレーズの入力画面になる）。
 	loader: ({ params }) =>
 		viewRecipeServerFn({ data: { publicId: params.publicId } }),
+	head: ({ loaderData }) => ({
+		meta: [
+			{
+				title: pageTitle(
+					loaderData
+						? `${loaderData.isOwn ? "" : `${loaderData.author.name}の`}${loaderData.recipe.name}`
+						: "レシピ",
+				),
+			},
+		],
+	}),
 	errorComponent: RecipeRouteError,
 	component: RecipePage,
 });

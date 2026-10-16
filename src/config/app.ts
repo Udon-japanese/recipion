@@ -5,3 +5,8 @@ export const APP_DISPLAY_NAME = "れしぴょん";
 
 // マスコットキャラクターの表示名。名前を変えるときはここだけを直す。
 export const MASCOT_DISPLAY_NAME = "れしぽよ";
+
+// ページのタイトル。「ページ名 - アプリ名」の形にする（ページ名を先にすると、タブが狭くても、ページが分かる）。
+export function pageTitle(pageName?: string): string {
+	return pageName ? `${pageName} - ${APP_DISPLAY_NAME}` : APP_DISPLAY_NAME;
+}

@@ -4,6 +4,7 @@ import {
 	useRouter,
 } from "@tanstack/react-router";
 import * as v from "valibot";
+import { pageTitle } from "#/config/app";
 import { AdminRouteError } from "#/features/admin/components/admin-route-error";
 import { AdminUsersPage } from "#/features/admin/components/admin-users-page";
 import {
@@ -13,6 +14,7 @@ import {
 } from "#/features/admin/server/admin-users";
 
 export const Route = createFileRoute("/admin/users")({
+	head: () => ({ meta: [{ title: pageTitle("ユーザー（管理者）") }] }),
 	validateSearch: (search) =>
 		v.parse(v.object({ q: v.optional(v.string(), "") }), search),
 	loaderDeps: ({ search }) => ({ query: search.q }),

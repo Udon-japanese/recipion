@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { pageTitle } from "#/config/app";
 import { SignOutButton } from "#/features/auth/components/sign-out-button";
 import { AccountDeletionSection } from "#/features/profile/components/account-deletion-section";
 import { ProfileForm } from "#/features/profile/components/profile-form";
@@ -13,6 +14,7 @@ import { authClient } from "#/integrations/better-auth/auth-client";
 import { useAppSession } from "#/integrations/better-auth/use-app-session";
 
 export const Route = createFileRoute("/profile")({
+	head: () => ({ meta: [{ title: pageTitle("プロフィール") }] }),
 	loader: () => getProfileServerFn(),
 	errorComponent: ProfileRouteError,
 	component: ProfilePage,
