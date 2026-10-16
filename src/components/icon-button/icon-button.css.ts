@@ -23,6 +23,14 @@ export const button = style({
 		'&[data-size="std"]::before': { inset: 0 },
 		'&[data-tone="plain"]': { background: "transparent" },
 		'&[data-tone="danger"]': { color: "var(--color-error)" },
+		// 並べ替えのつかみ：指で触れたとき、ブラウザのスクロールに奪われない。
+		"&[data-drag-handle]": {
+			touchAction: "none",
+			cursor: "grab",
+			userSelect: "none",
+			WebkitUserSelect: "none",
+			WebkitTouchCallout: "none",
+		},
 		'&[data-tone="on"]': {
 			background: "var(--color-primary)",
 			border: "2px solid var(--color-text)",

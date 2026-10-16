@@ -566,3 +566,9 @@ export const bulkNewStoreButtons = style({
 	flexWrap: "wrap",
 	gap: 8,
 });
+
+// 追加フォームの、右下の「追加 ＋」。
+export const addSubmitRow = style({
+	display: "flex",
+	justifyContent: "flex-end",
+});

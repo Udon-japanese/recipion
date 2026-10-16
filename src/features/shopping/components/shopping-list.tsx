@@ -17,6 +17,7 @@ import type { ShoppingStoreRepository } from "../application/shopping-store-repo
 import type { ParsedShoppingMemoLine } from "../domain/parse-shopping-memo";
 import { groupShoppingItemsByCategory } from "../domain/shopping-category-group";
 import { type ShoppingItem, toggleShoppingItem } from "../domain/shopping-item";
+import { inferShoppingCategory } from "../domain/shopping-item-suggestion";
 import { groupShoppingItemsByStore } from "../domain/shopping-store";
 import { useShoppingBranches } from "../hooks/use-shopping-branches";
 import { useShoppingItems } from "../hooks/use-shopping-items";
@@ -50,6 +51,7 @@ import { ShoppingStoreManager } from "./shopping-store-manager";
 import {
 	type DragHandleRef,
 	SortableShoppingItem,
+	shoppingSortSensors,
 } from "./sortable-shopping-item";
 
 // 既定の購入確定（ローカルの DB に保存する）。期限・保存方法のオプションを渡せるようにする。
@@ -211,7 +213,11 @@ export function ShoppingList({
 		let added = 0;
 
 		for (const line of lines) {
+			// カテゴリは、食材のカタログから推定する（追加フォームと同じ。決められなければ、未設定）。
+			const categoryId = inferShoppingCategory(line.name);
 			const ok = await shopping.addItem({
+				categoryId,
+				categoryAssignment: categoryId ? "automatic" : null,
 				name: line.name,
 				quantity: line.quantity,
 				unitLabel: line.unitLabel,
@@ -511,6 +517,7 @@ export function ShoppingList({
 					{categoryGroups.map((group) => (
 						<DragDropProvider
 							key={group.categoryId ?? "uncategorized"}
+							sensors={shoppingSortSensors}
 							onDragEnd={(event) => {
 								if (event.canceled) {
 									return;

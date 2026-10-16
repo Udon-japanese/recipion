@@ -108,6 +108,7 @@ export function ShoppingItemRow({
 							icon="grip"
 							label={`${item.name}を並べ替え`}
 							tone="plain"
+							dragHandle
 							disabled={isReordering}
 						/>
 					) : null}

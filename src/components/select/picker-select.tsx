@@ -351,6 +351,8 @@ function Popover({
 		<div
 			ref={ref}
 			className={styles.popover}
+			// 開いているフォームが、「外を押した」と見なして閉じないための印。
+			data-picker-popover=""
 			style={{
 				left,
 				width,

@@ -115,6 +115,12 @@ describe("ShoppingList の店", () => {
 					storeId: store.id,
 				}),
 				expect.objectContaining({ name: "パン", storeId: null }),
+				// カタログにある食材は、追加した時点で、カテゴリが自動で決まる。
+				expect.objectContaining({
+					name: "卵",
+					categoryId: expect.any(String),
+					categoryAssignment: "automatic",
+				}),
 			]),
 		);
 	});

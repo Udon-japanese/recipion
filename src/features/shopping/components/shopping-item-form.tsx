@@ -8,7 +8,6 @@ import {
 import { Button } from "#/components/button/button";
 import { Chip } from "#/components/chip/chip";
 import { Icon } from "#/components/icon/icon";
-import { IconButton } from "#/components/icon-button/icon-button";
 import { formatQuantity } from "#/features/quantity/domain/format-quantity";
 import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
 import {
@@ -95,7 +94,9 @@ export function ShoppingItemForm({
 
 			if (
 				!formRef.current?.contains(target) &&
-				!target.closest('[role="dialog"], [role="listbox"], [role="menu"]')
+				!target.closest(
+					'[role="dialog"], [role="listbox"], [role="menu"], [data-picker-popover]',
+				)
 			) {
 				setIsOpened(false);
 			}
@@ -134,7 +135,7 @@ export function ShoppingItemForm({
 	async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
 		event.preventDefault();
 
-		// 追加ボタンは常に見えているので、名前が空なら、押した理由を伝えて入力へ戻す。
+		// 名前が空のまま「追加」を押したときは、理由を伝えて入力へ戻す。
 		if (!alwaysExpanded && name.trim() === "") {
 			setIsNameMissing(true);
 			focusNameField();
@@ -201,18 +202,6 @@ export function ShoppingItemForm({
 						placeholder={alwaysExpanded ? "卵、牛乳など" : "例：牛乳"}
 					/>
 				</div>
-
-				{alwaysExpanded ? null : (
-					<IconButton
-						icon="plus"
-						label="追加"
-						size="std"
-						tone="on"
-						type="submit"
-						disabled={isSubmitting}
-						aria-disabled={name.trim() === "" || undefined}
-					/>
-				)}
 			</div>
 
 			{isExpanded ? (
@@ -281,6 +270,21 @@ export function ShoppingItemForm({
 							{submitLabel}
 						</Button>
 					) : null}
+
+					{/* ふだんのフォーム：開いたときだけ、右下に「追加 ＋」を出す。 */}
+					{alwaysExpanded ? null : (
+						<div className={styles.addSubmitRow}>
+							<Button
+								type="submit"
+								size="md"
+								disabled={isSubmitting}
+								aria-disabled={name.trim() === "" || undefined}
+							>
+								追加
+								<Icon name="plus" size={20} />
+							</Button>
+						</div>
+					)}
 				</>
 			) : null}
 
