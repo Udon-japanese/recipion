@@ -276,11 +276,12 @@ export function ShoppingList({
 	);
 
 	const storeGroups = groupShoppingItemsByStore(
+		// 項目の順番は、一覧の並び順のまま（店ごとの表示でも、同じ順番）。
 		currentStoreId
-			? activeItems.filter(
+			? listedItems.filter(
 					(item) => !item.storeId || item.storeId === currentStoreId,
 				)
-			: activeItems,
+			: listedItems,
 		stores,
 	);
 
