@@ -14,6 +14,7 @@ import { useStorageItem } from "#/local-storage/use-storage-item";
 import type { ShoppingBranchRepository } from "../application/shopping-branch-repository";
 import type { ShoppingRepository } from "../application/shopping-repository";
 import type { ShoppingStoreRepository } from "../application/shopping-store-repository";
+import type { ParsedShoppingMemoLine } from "../domain/parse-shopping-memo";
 import { groupShoppingItemsByCategory } from "../domain/shopping-category-group";
 import { type ShoppingItem, toggleShoppingItem } from "../domain/shopping-item";
 import { groupShoppingItemsByStore } from "../domain/shopping-store";
@@ -37,6 +38,7 @@ import {
 	type ShoppingBranchCardsContext,
 } from "./shopping-branch-cards";
 import { ShoppingBranchCreate } from "./shopping-branch-create";
+import { ShoppingBulkAdd } from "./shopping-bulk-add";
 import { ShoppingItemEditForm } from "./shopping-item-edit-form";
 import { ShoppingItemForm } from "./shopping-item-form";
 import { ShoppingItemInventoryConversionForm } from "./shopping-item-inventory-conversion-form";
@@ -88,6 +90,7 @@ export function ShoppingList({
 	const [editingItemId, setEditingItemId] = useState<string | null>(null);
 	const [view, setView] = useStorageItem(shoppingViewStorage);
 	const [isPickingRecipe, setIsPickingRecipe] = useState(false);
+	const [isBulkAdding, setIsBulkAdding] = useState(false);
 	// 数量だけを直すシートの項目。
 	const [quantityItem, setQuantityItem] = useState<ShoppingItem | null>(null);
 
@@ -203,6 +206,32 @@ export function ShoppingList({
 		);
 	}
 
+	// 「まとめて追加」で確認した行を、順に追加する（途中で失敗したら、そこで止める）。店を指定した行は、食材ごとの「いつも買う店」にも覚える。
+	async function addMemoLines(lines: readonly ParsedShoppingMemoLine[]) {
+		let added = 0;
+
+		for (const line of lines) {
+			const ok = await shopping.addItem({
+				name: line.name,
+				quantity: line.quantity,
+				unitLabel: line.unitLabel,
+				storeId: line.storeId,
+			});
+
+			if (!ok) {
+				break;
+			}
+
+			if (line.storeId) {
+				await storeState.rememberStore(line.name, line.storeId);
+			}
+
+			added += 1;
+		}
+
+		return added;
+	}
+
 	const branchContext: ShoppingBranchCardsContext = {
 		items: shopping.allItems,
 		stores,
@@ -312,8 +341,18 @@ export function ShoppingList({
 				onCreateStore={storeState.addStore}
 			/>
 
-			{renderRecipePicker ? (
-				<>
+			<div className={styles.entryRow}>
+				<Button
+					variant="secondary"
+					size="sm"
+					align="start"
+					leadingIcon={<Icon name="rows" size={20} />}
+					onClick={() => setIsBulkAdding(true)}
+				>
+					まとめて追加
+				</Button>
+
+				{renderRecipePicker ? (
 					<Button
 						variant="secondary"
 						size="sm"
@@ -323,16 +362,24 @@ export function ShoppingList({
 					>
 						レシピから入れる
 					</Button>
+				) : null}
+			</div>
 
-					{isPickingRecipe
-						? renderRecipePicker({
-								repository,
-								onClose: () => setIsPickingRecipe(false),
-								onApplied: () => void reloadItems(),
-							})
-						: null}
-				</>
+			{isBulkAdding ? (
+				<ShoppingBulkAdd
+					stores={stores}
+					onClose={() => setIsBulkAdding(false)}
+					onAdd={addMemoLines}
+				/>
 			) : null}
+
+			{renderRecipePicker && isPickingRecipe
+				? renderRecipePicker({
+						repository,
+						onClose: () => setIsPickingRecipe(false),
+						onApplied: () => void reloadItems(),
+					})
+				: null}
 
 			{purchase.conversionItem ? (
 				<ShoppingItemInventoryConversionForm

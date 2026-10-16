@@ -4,6 +4,7 @@ import {
 	useRouter,
 } from "@tanstack/react-router";
 import * as v from "valibot";
+import { AdminRouteError } from "#/features/admin/components/admin-route-error";
 import { AdminUsersPage } from "#/features/admin/components/admin-users-page";
 import {
 	liftSuspensionServerFn,
@@ -19,14 +20,9 @@ export const Route = createFileRoute("/admin/users")({
 		query: deps.query,
 		users: await searchAdminUsersServerFn({ data: { query: deps.query } }),
 	}),
-	errorComponent: AdminError,
+	errorComponent: AdminRouteError,
 	component: AdminUsersRoute,
 });
-
-// 管理者として確認できないとき（Access のログインがない、メールが一覧にない）や、読み込みの失敗。
-function AdminError() {
-	return <p>この画面は、管理者だけが使えます。</p>;
-}
 
 function AdminUsersRoute() {
 	const { users, query } = Route.useLoaderData();

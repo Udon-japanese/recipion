@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createFakeShoppingRepository } from "#/test/fakes/fake-shopping-repository";
 import { getLocalDatabase } from "../../../local-db/database";
+import { createShoppingStore } from "../domain/shopping-store";
 import { ShoppingList } from "./shopping-list";
 
 beforeEach(async () => {
@@ -66,5 +67,55 @@ describe("ShoppingList の店", () => {
 		expect(
 			screen.queryByRole("button", { name: "卵を並べ替え" }),
 		).not.toBeInTheDocument();
+	});
+
+	it("まとめて追加：読み取った内容を確認してから、見出しの店・@店名・「個」の数量つきで一覧に追加する", async () => {
+		const user = userEvent.setup();
+		const repository = createFakeShoppingRepository();
+		const store = createShoppingStore("イオン", 0);
+
+		await getLocalDatabase().shoppingStores.add(store);
+		render(<ShoppingList repository={repository} />);
+
+		await screen.findByText("買うものはまだありません。");
+		await user.click(screen.getByRole("button", { name: "まとめて追加" }));
+
+		const memo = await screen.findByRole("textbox", {
+			name: "買うもの（1行に1つ）",
+		});
+
+		await user.click(memo);
+		await user.paste("イオン\n卵 10個\n牛乳 2\n\nパン @ドンキ");
+
+		// 確認の一覧：店と、登録のない店の注意。
+		const preview = screen.getByRole("list", { name: "読み取った内容" });
+
+		expect(within(preview).getByText("2個")).toBeInTheDocument();
+		expect(within(preview).getAllByText("イオン")).toHaveLength(2);
+		expect(
+			within(preview).getByText("「ドンキ」は、登録のない店です"),
+		).toBeInTheDocument();
+		expect(repository.items).toHaveLength(0);
+
+		await user.click(screen.getByRole("button", { name: "3件を追加" }));
+
+		await waitFor(() => expect(repository.items).toHaveLength(3));
+		expect(repository.items).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					name: "卵",
+					quantity: 10,
+					unitLabel: "個",
+					storeId: store.id,
+				}),
+				expect.objectContaining({
+					name: "牛乳",
+					quantity: 2,
+					unitLabel: "個",
+					storeId: store.id,
+				}),
+				expect.objectContaining({ name: "パン", storeId: null }),
+			]),
+		);
 	});
 });

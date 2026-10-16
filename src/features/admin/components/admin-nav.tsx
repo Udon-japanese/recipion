@@ -19,6 +19,8 @@ export function AdminNav() {
 					activeProps={{ className: `${styles.link} ${styles.currentLink}` }}
 					activeOptions={{ exact: item.exact }}
 					to={item.to}
+					// 管理者の画面は、ページとして読み込み直す（Cloudflare Access のログインは、ページの読み込みのときだけ求められるため）。
+					reloadDocument
 					// ユーザーの画面は、検索の条件（空）が要る。
 					search={item.to === "/admin/users" ? { q: "" } : undefined}
 					key={item.to}
