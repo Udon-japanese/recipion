@@ -1,10 +1,20 @@
-import { useMemo, useState } from "react";
+import {
+	type KeyboardEvent,
+	useLayoutEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { Button } from "#/components/button/button";
 import { useButtonAction } from "#/components/button/use-button-action";
 import { Field, TextArea } from "#/components/field/field";
 import { Sheet } from "#/components/sheet/sheet";
 import { Tag } from "#/components/tag/tag";
 import { useMediaQuery } from "#/components/use-media-query";
+import {
+	applyShoppingMemoCompletion,
+	getShoppingMemoCompletion,
+} from "../domain/get-shopping-memo-completion";
 import {
 	type ParsedShoppingMemoLine,
 	parseShoppingMemo,
@@ -36,10 +46,79 @@ export function ShoppingBulkAdd({
 }: ShoppingBulkAddProps) {
 	const [text, setText] = useState("");
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
+	// 補完：カーソルの位置と、選んでいる候補。変換中は、キー操作を横取りしない（候補のクリックだけ使える）。
+	const [caret, setCaret] = useState(0);
+	const [activeIndex, setActiveIndex] = useState<number | null>(null);
+	const [closedAt, setClosedAt] = useState<{
+		text: string;
+		caret: number;
+	} | null>(null);
+	const textareaRef = useRef<HTMLTextAreaElement>(null);
+	const pendingCaretRef = useRef<number | null>(null);
 	const addAction = useButtonAction();
 	const isRight = useMediaQuery("(min-width: 1024px)");
 	const lines = useMemo(() => parseShoppingMemo(text, stores), [text, stores]);
+	const completion = useMemo(() => {
+		const found = getShoppingMemoCompletion(text, caret, stores);
+
+		return found && !(closedAt?.text === text && closedAt.caret === caret)
+			? found
+			: null;
+	}, [text, caret, stores, closedAt]);
 	const storeNames = new Map(stores.map((store) => [store.id, store.name]));
+
+	// 置き換えたあと、カーソルを、候補の後ろへ動かす。
+	// biome-ignore lint/correctness/useExhaustiveDependencies: 本文が替わったとき（置き換えの直後）に、実行する。
+	useLayoutEffect(() => {
+		const pending = pendingCaretRef.current;
+
+		if (pending !== null && textareaRef.current) {
+			textareaRef.current.setSelectionRange(pending, pending);
+			textareaRef.current.focus();
+			pendingCaretRef.current = null;
+		}
+	}, [text]);
+
+	function acceptCompletion(index: number) {
+		if (!completion) {
+			return;
+		}
+
+		const applied = applyShoppingMemoCompletion(text, completion, index);
+
+		pendingCaretRef.current = applied.caret;
+		setText(applied.text);
+		setCaret(applied.caret);
+		setActiveIndex(null);
+	}
+
+	function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+		// 変換中は、IME に任せる。
+		if (!completion || event.nativeEvent.isComposing) {
+			return;
+		}
+
+		const count = completion.items.length;
+
+		if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+			event.preventDefault();
+			setActiveIndex((current) => {
+				if (event.key === "ArrowDown") {
+					return current === null ? 0 : (current + 1) % count;
+				}
+
+				return current === null ? count - 1 : (current - 1 + count) % count;
+			});
+		} else if (event.key === "Tab") {
+			event.preventDefault();
+			acceptCompletion(activeIndex ?? 0);
+		} else if (event.key === "Escape") {
+			// シートごと閉じないよう、ここで止めて、候補だけ閉じる。
+			event.preventDefault();
+			event.stopPropagation();
+			setClosedAt({ text, caret });
+		}
+	}
 
 	async function add() {
 		setErrorMessage(null);
@@ -95,11 +174,42 @@ export function ShoppingBulkAdd({
 							placeholder={
 								"イオン\n卵 10個\n牛乳 2\n\n豚こま 300g @業務スーパー"
 							}
+							ref={textareaRef}
 							value={text}
-							onChange={(event) => setText(event.target.value)}
+							onChange={(event) => {
+								setText(event.target.value);
+								setCaret(event.target.selectionStart);
+								setActiveIndex(null);
+							}}
+							onSelect={(event) => setCaret(event.currentTarget.selectionStart)}
+							onKeyDown={handleKeyDown}
 						/>
 					)}
 				</Field>
+
+				{completion ? (
+					<ul className={styles.bulkCompletion} aria-label="補完の候補">
+						{completion.items.map((item, index) => (
+							<li key={`${item.kind}-${item.label}`}>
+								<button
+									className={styles.bulkCompletionItem}
+									type="button"
+									aria-current={activeIndex === index}
+									// 入力欄のフォーカスを外さないよう、押した時点で決める。
+									onMouseDown={(event) => {
+										event.preventDefault();
+										acceptCompletion(index);
+									}}
+								>
+									{item.label}
+									{item.kind === "store" ? (
+										<span className={styles.bulkCompletionKind}>店</span>
+									) : null}
+								</button>
+							</li>
+						))}
+					</ul>
+				) : null}
 
 				{lines.length > 0 ? (
 					<ul className={styles.bulkList} aria-label="読み取った内容">

@@ -118,4 +118,35 @@ describe("ShoppingList の店", () => {
 			]),
 		);
 	});
+
+	it("まとめて追加：書きかけの食材名・店の名前を補完できる（クリックと、↓と Tab）", async () => {
+		const user = userEvent.setup();
+		const repository = createFakeShoppingRepository();
+
+		await getLocalDatabase().shoppingStores.add(
+			createShoppingStore("イオン", 0),
+		);
+		render(<ShoppingList repository={repository} />);
+
+		await screen.findByText("買うものはまだありません。");
+		await user.click(screen.getByRole("button", { name: "まとめて追加" }));
+
+		const memo = await screen.findByRole("textbox", {
+			name: "買うもの（1行に1つ）",
+		});
+
+		// クリック：書きかけの行だけを置き換える。
+		await user.type(memo, "卵 2{Enter}たまね");
+		await user.click(await screen.findByRole("button", { name: "玉ねぎ" }));
+		expect(memo).toHaveProperty("value", "卵 2\n玉ねぎ");
+
+		// 数量を書き始めたら、候補は出ない。
+		await user.type(memo, " 3");
+		expect(screen.queryByRole("list", { name: "補完の候補" })).toBeNull();
+
+		// @ のあと：店の名前。Tab で決める。
+		await user.type(memo, "{Enter}牛乳 @");
+		await user.keyboard("{ArrowDown}{Tab}");
+		expect(memo).toHaveProperty("value", "卵 2\n玉ねぎ 3\n牛乳 @イオン");
+	});
 });
