@@ -17,10 +17,12 @@ import {
 import { describeError } from "#/errors/user-facing-error";
 import type { CompositionStrategy } from "#/ime/choose-composition-strategy";
 import { restoreFocus } from "#/ime/end-composition";
+import { editKindOfInput, type TextSnapshot } from "#/ime/text-history";
 import {
 	type CommitContext,
 	useCompositionCompletion,
 } from "#/ime/use-composition-completion";
+import { useTextHistory } from "#/ime/use-text-history";
 import {
 	continueRecipeList,
 	removeRecipeListMarker,
@@ -48,15 +50,6 @@ import {
 	formatRecipeTips,
 	hasOnlyHeadings,
 } from "../domain/recipe-tips";
-import {
-	type EditKind,
-	editKindOfInput,
-	emptyTextHistory,
-	recordEdit,
-	redoEdit,
-	type TextSnapshot,
-	undoEdit,
-} from "../domain/text-history";
 import * as styles from "./recipe-editor.css";
 import { RecipeLinkPicker } from "./recipe-link-picker";
 
@@ -103,8 +96,8 @@ export function RecipeBodyTextarea({
 	onRefreshOthers,
 }: RecipeBodyTextareaProps) {
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
-	// 元に戻す・やり直しの履歴。本文は、値として書き換える（ブラウザの履歴は、使えなくなる）ので、すべて自前で記録する。
-	const historyRef = useRef(emptyTextHistory);
+	// 元に戻す・やり直しの履歴（自前。買い物メモの「まとめて追加」と共通）。
+	const history = useTextHistory({ textareaRef, restore: writeText });
 	const caretRef = useRef(0);
 	const [caret, setCaret] = useState(0);
 	const [isFocused, setIsFocused] = useState(false);
@@ -114,7 +107,7 @@ export function RecipeBodyTextarea({
 		strategy: compositionStrategy,
 		apply: applyDuringComposition,
 		onCompositionEnd: ({ before, after }) =>
-			recordHistory(before, after, "other"),
+			history.record(before, after, "other"),
 	});
 	const [activeIndex, setActiveIndex] = useState<number | null>(null);
 	// 「現在の位置にレシピをリンク」を押したときの、選択範囲（開いている間だけ持つ）。
@@ -280,7 +273,6 @@ export function RecipeBodyTextarea({
 		}
 	}, [selectionRequest]);
 
-	// メニューからの「元に戻す」「やり直す」も、自前の履歴で行う（ブラウザの履歴に任せない）。
 	// 番号・中黒の印の直後の Backspace は、印を一度に消す（スマホのキーボードでも届くよう、入力の直前のイベントで扱う）。
 	const handleHistoryInput = useEffectEvent((event: InputEvent) => {
 		if (event.inputType === "deleteContentBackward") {
@@ -300,12 +292,6 @@ export function RecipeBodyTextarea({
 				event.preventDefault();
 				edit({ text: result.text, caret: result.caret });
 			}
-		} else if (event.inputType === "historyUndo") {
-			event.preventDefault();
-			stepHistory("undo");
-		} else if (event.inputType === "historyRedo") {
-			event.preventDefault();
-			stepHistory("redo");
 		}
 	});
 
@@ -324,20 +310,6 @@ export function RecipeBodyTextarea({
 
 		return () => textarea.removeEventListener("beforeinput", listener);
 	}, []);
-
-	function recordHistory(
-		before: TextSnapshot,
-		after: TextSnapshot,
-		kind: EditKind,
-	) {
-		historyRef.current = recordEdit(
-			historyRef.current,
-			before,
-			after,
-			kind,
-			Date.now(),
-		);
-	}
 
 	function syncCaret(textarea: HTMLTextAreaElement) {
 		const position = composing.readCaret(textarea);
@@ -364,7 +336,7 @@ export function RecipeBodyTextarea({
 	function edit(next: TextSnapshot) {
 		const textarea = textareaRef.current;
 
-		recordHistory(
+		history.record(
 			{
 				text: value,
 				caret: textarea?.selectionStart ?? caretRef.current,
@@ -373,25 +345,6 @@ export function RecipeBodyTextarea({
 			"other",
 		);
 		writeText(next);
-	}
-
-	function stepHistory(direction: "undo" | "redo") {
-		const textarea = textareaRef.current;
-
-		if (!textarea) {
-			return;
-		}
-
-		const current = { text: textarea.value, caret: textarea.selectionStart };
-		const result = (direction === "undo" ? undoEdit : redoEdit)(
-			historyRef.current,
-			current,
-		);
-
-		if (result) {
-			historyRef.current = result.history;
-			writeText(result.snapshot);
-		}
 	}
 
 	function accept(index: number) {
@@ -459,8 +412,8 @@ export function RecipeBodyTextarea({
 		// 変換中の文字（「とま」）の段階を、履歴に残す。Safari は、確定を待たずに置き換えるので、候補を計算したときの本文を使う（Tab で IME が先に変換した文字ではなく）。
 		const middle = shouldEnd ? committed : source;
 
-		recordHistory(composition.before, middle, "other");
-		recordHistory(middle, next, "other");
+		history.record(composition.before, middle, "other");
+		history.record(middle, next, "other");
 		writeText(next);
 
 		if (item.link) {
@@ -532,22 +485,8 @@ export function RecipeBodyTextarea({
 		}
 
 		// 元に戻す・やり直す（Cmd/Ctrl+Z、Cmd/Ctrl+Shift+Z、Ctrl+Y）は、自前の履歴で行う。
-		if ((event.metaKey || event.ctrlKey) && !event.altKey) {
-			const key = event.key.toLowerCase();
-
-			if (key === "z") {
-				event.preventDefault();
-				stepHistory(event.shiftKey ? "redo" : "undo");
-
-				return;
-			}
-
-			if (key === "y" && !event.metaKey) {
-				event.preventDefault();
-				stepHistory("redo");
-
-				return;
-			}
+		if (history.handleKeyDown(event)) {
+			return;
 		}
 
 		if (!isOpen || !completion) {
@@ -600,7 +539,7 @@ export function RecipeBodyTextarea({
 					: null,
 			)
 		) {
-			recordHistory(
+			history.record(
 				{ text: value, caret: caretRef.current },
 				{ text: textarea.value, caret: textarea.selectionStart },
 				editKindOfInput((event.nativeEvent as InputEvent).inputType),

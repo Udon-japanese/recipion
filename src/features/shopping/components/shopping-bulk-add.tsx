@@ -17,11 +17,13 @@ import { SegmentedControl } from "#/components/segmented-control/segmented-contr
 import { Sheet } from "#/components/sheet/sheet";
 import { Tag } from "#/components/tag/tag";
 import { useMediaQuery } from "#/components/use-media-query";
+import { editKindOfInput } from "#/ime/text-history";
 import {
 	type CaretSnapshot,
 	type CommitContext,
 	useCompositionCompletion,
 } from "#/ime/use-composition-completion";
+import { useTextHistory } from "#/ime/use-text-history";
 import {
 	applyShoppingMemoCompletion,
 	getShoppingMemoCompletion,
@@ -79,7 +81,11 @@ export function ShoppingBulkAdd({
 	const composing = useCompositionCompletion<ShoppingMemoCompletion>({
 		textareaRef,
 		apply: applyDuringComposition,
+		onCompositionEnd: ({ before, after }) =>
+			history.record(before, after, "other"),
 	});
+	// 元に戻す・やり直しの履歴（自前。レシピの本文と共通）。補完で本文を書き換えると、ブラウザの履歴は使えなくなるため。
+	const history = useTextHistory({ textareaRef, restore: write });
 	const pendingCaretRef = useRef<number | null>(null);
 	const addAction = useButtonAction();
 	// 広い画面（PC）は、幅広のモーダル。狭い画面は、ボトムシートに、タブで切り替える。
@@ -124,6 +130,14 @@ export function ShoppingBulkAdd({
 		}
 	}, [text]);
 
+	// 本文を書き換えて、カーソルを置く。
+	function write(next: CaretSnapshot) {
+		pendingCaretRef.current = next.caret;
+		setText(next.text);
+		setCaret(next.caret);
+		setActiveIndex(null);
+	}
+
 	function acceptCompletion(index: number) {
 		if (!completion) {
 			return;
@@ -131,17 +145,19 @@ export function ShoppingBulkAdd({
 
 		const applied = applyShoppingMemoCompletion(text, completion, index);
 
-		pendingCaretRef.current = applied.caret;
-		setText(applied.text);
-		setCaret(applied.caret);
-		setActiveIndex(null);
+		history.record(
+			{ text, caret: textareaRef.current?.selectionStart ?? caret },
+			applied,
+			"other",
+		);
+		write(applied);
 	}
 
 	// 変換中に決めた候補で、本文を書き換える（変換の中身の扱いは、useCompositionCompletion）。
 	function applyDuringComposition(
 		found: ShoppingMemoCompletion,
 		index: number,
-		{ source, committed, shouldEnd }: CommitContext,
+		{ composition, source, committed, shouldEnd }: CommitContext,
 	): CaretSnapshot {
 		// 変換で本文の長さが変わった分だけ、置き換える範囲の終わりをずらす。
 		const applied = applyShoppingMemoCompletion(
@@ -150,12 +166,14 @@ export function ShoppingBulkAdd({
 			index,
 		);
 
-		pendingCaretRef.current = applied.caret;
+		// 変換中の文字（「とま」）の段階を、履歴に残す。変換中のまま置き換える方式では、候補を計算したときの本文を使う。
+		const middle = shouldEnd ? committed : source;
+
+		history.record(composition.before, middle, "other");
+		history.record(middle, applied, "other");
 		// 確定のために外したフォーカスは、ここでは戻さない（IME の処理の最中に戻すと、変換中の文字が、後ろに残る）。あとで戻す。
 		keepBlurredRef.current = shouldEnd;
-		setText(applied.text);
-		setCaret(applied.caret);
-		setActiveIndex(null);
+		write(applied);
 
 		return applied;
 	}
@@ -194,6 +212,11 @@ export function ShoppingBulkAdd({
 				moveActive,
 			})
 		) {
+			return;
+		}
+
+		// 元に戻す・やり直す（Cmd/Ctrl+Z、Cmd/Ctrl+Shift+Z、Ctrl+Y）は、自前の履歴で行う。
+		if (history.handleKeyDown(event)) {
 			return;
 		}
 
@@ -260,6 +283,29 @@ export function ShoppingBulkAdd({
 						ref={textareaRef}
 						value={text}
 						onChange={(event) => {
+							// 変換中の入力は、変換が終わったときに、まとめて記録する。
+							if (
+								!composing.noteChange(
+									isMenuOpen && completion
+										? {
+												completion,
+												count: completion.items.length,
+												text,
+												caret,
+											}
+										: null,
+								)
+							) {
+								history.record(
+									{ text, caret },
+									{
+										text: event.target.value,
+										caret: event.target.selectionStart,
+									},
+									editKindOfInput((event.nativeEvent as InputEvent).inputType),
+								);
+							}
+
 							setText(event.target.value);
 							setCaret(composing.readCaret(event.target));
 							setActiveIndex(null);

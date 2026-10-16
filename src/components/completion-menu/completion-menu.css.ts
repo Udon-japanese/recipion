@@ -9,6 +9,8 @@ export const popup = style({
 	position: "fixed",
 	zIndex: layer,
 	display: "grid",
+	// 高さを縮めるとき（上に置くため）は、一覧が縮んで、中でスクロールする。
+	gridTemplateRows: "minmax(0, 1fr) auto",
 	gap: 4,
 	minWidth: 180,
 	maxWidth: "min(360px, 90vw)",
@@ -23,6 +25,7 @@ export const popupList = style({
 	display: "grid",
 	gap: 2,
 	maxHeight: 264,
+	minHeight: 0,
 	margin: 0,
 	padding: 0,
 	overflowY: "auto",

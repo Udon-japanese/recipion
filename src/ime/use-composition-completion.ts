@@ -11,9 +11,10 @@ import {
 } from "./choose-composition-strategy";
 import { endComposition, restoreFocus } from "./end-composition";
 import { readBrowserEnvironment } from "./read-browser-environment";
+import type { TextSnapshot } from "./text-history";
 
 // 入力欄の、本文とカーソル。
-export type CaretSnapshot = { text: string; caret: number };
+export type CaretSnapshot = TextSnapshot;
 
 // 変換中（IME の入力中）の、変換の前の状態と、変換が始まった位置。
 export type Composition = { before: CaretSnapshot; start: number };

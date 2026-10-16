@@ -37,7 +37,7 @@ type CompletionMenuProps = {
 	prefer?: "above" | "below";
 };
 
-type Position = { top: number; left: number };
+type Position = { top: number; left: number; maxHeight?: number };
 
 // 入力欄の補完の候補を出す共通の部品（レシピの本文・買い物メモの「まとめて追加」）。
 // 見た目と位置合わせだけを受け持つ。キー操作（↑↓・Tab・Esc）、変換中の扱い、候補の作り方は、使う側が行う。
@@ -57,6 +57,7 @@ export function CompletionMenu({
 }: CompletionMenuProps) {
 	const popupRef = useRef<HTMLDivElement>(null);
 	const rootRef = useRef<HTMLDivElement>(null);
+	const listRef = useRef<HTMLUListElement>(null);
 	const [position, setPosition] = useState<Position | null>(null);
 	// 入力欄のスクロール・画面の大きさの変化で、測り直す合図。
 	const [, setLayoutTick] = useState(0);
@@ -105,15 +106,29 @@ export function CompletionMenu({
 				left: box.left + measured.left,
 				height: measured.height,
 			},
-			popup: { width: popup.offsetWidth, height: popup.offsetHeight },
+			// 縮めているときも、本来の高さで決める（一覧の中身の高さを足す）。
+			popup: {
+				width: popup.offsetWidth,
+				height:
+					popup.offsetHeight +
+					(listRef.current
+						? Math.max(
+								0,
+								listRef.current.scrollHeight - listRef.current.clientHeight,
+							)
+						: 0),
+			},
 			viewport: { width: window.innerWidth, height: window.innerHeight },
 			prefer,
 		});
 
 		setPosition((current) =>
-			current && current.top === placed.top && current.left === placed.left
+			current &&
+			current.top === placed.top &&
+			current.left === placed.left &&
+			current.maxHeight === placed.maxHeight
 				? current
-				: { top: placed.top, left: placed.left },
+				: { top: placed.top, left: placed.left, maxHeight: placed.maxHeight },
 		);
 	});
 
@@ -197,11 +212,16 @@ export function CompletionMenu({
 				style={{
 					top: position?.top ?? 0,
 					left: position?.left ?? 0,
+					maxHeight: position?.maxHeight,
 					visibility: position ? "visible" : "hidden",
 				}}
 			>
 				{list ? (
-					<ul className={styles.popupList} aria-label="補完の候補">
+					<ul
+						className={styles.popupList}
+						aria-label="補完の候補"
+						ref={listRef}
+					>
 						{list}
 					</ul>
 				) : (

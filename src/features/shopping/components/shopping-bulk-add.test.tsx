@@ -58,3 +58,25 @@ describe("ShoppingBulkAdd の変換中の補完", () => {
 		expect(memo.value).toMatch(/^(玉ねぎ|たまねぎ|玉葱)/u);
 	});
 });
+
+describe("ShoppingBulkAdd の元に戻す", () => {
+	it("補完で書き換えたあとも、Ctrl+Z で補完の前に、Ctrl+Shift+Z で補完のあとに戻る", async () => {
+		const memo = renderBulkAdd() as HTMLTextAreaElement;
+
+		memo.focus();
+		fireEvent.change(memo, { target: { value: "たまね" } });
+		memo.setSelectionRange(3, 3);
+		fireEvent.select(memo);
+		fireEvent.keyDown(memo, { key: "Tab", code: "Tab" });
+
+		await waitFor(() => expect(memo.value).toMatch(/^(玉ねぎ|たまねぎ)/u));
+
+		const completed = memo.value;
+
+		fireEvent.keyDown(memo, { key: "z", ctrlKey: true });
+		expect(memo.value).toBe("たまね");
+
+		fireEvent.keyDown(memo, { key: "z", ctrlKey: true, shiftKey: true });
+		expect(memo.value).toBe(completed);
+	});
+});
