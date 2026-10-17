@@ -38,7 +38,7 @@ export const Route = createRootRoute({
 				name: "viewport",
 				content: "width=device-width, initial-scale=1",
 			},
-			// 個人用のアプリのため、検索エンジンに載せない。
+			// 他人のレシピは、ログインした人だけが見られるため、検索エンジンに載せない。
 			{
 				name: "robots",
 				content: "noindex, nofollow",
