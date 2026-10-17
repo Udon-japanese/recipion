@@ -1,12 +1,14 @@
 import { APP_DISPLAY_NAME } from "#/config/app";
 import {
-	emailButton,
-	emailLinkText,
-	emailNote,
-	emailParagraph,
-	renderEmailHtml,
-} from "./email-layout";
+	ButtonLink,
+	EmailLayout,
+	Heading,
+	LinkFallback,
+	Note,
+	Paragraph,
+} from "./email-components";
 import type { EmailMessage } from "./mailer";
+import { renderEmail } from "./render-email";
 
 // 管理者へのお知らせの内容。投稿の中身や、利用者の情報は、書かない（件数と、画面のリンクだけ）。
 export function adminNotificationEmail(input: {
@@ -23,16 +25,18 @@ export function adminNotificationEmail(input: {
 	return {
 		subject: `【${APP_DISPLAY_NAME}】${input.kindLabel}があります（未対応${input.openCount}件）`,
 		text: [lead, "", summary, guide, "", input.url, "", interval].join("\n"),
-		html: renderEmailHtml({
-			preheader: summary,
-			bodyHtml: [
-				emailParagraph(lead),
-				emailParagraph(summary),
-				emailParagraph(guide),
-				emailButton("管理者の画面を開く", input.url),
-				emailLinkText(input.url),
-				emailNote(interval),
-			].join("\n"),
-		}),
+		html: renderEmail(
+			<EmailLayout preheader={summary}>
+				<Heading>{input.kindLabel}があります</Heading>
+				<Paragraph>{lead}</Paragraph>
+				<Paragraph>
+					{summary}
+					{guide}
+				</Paragraph>
+				<ButtonLink href={input.url}>管理者の画面を開く</ButtonLink>
+				<LinkFallback url={input.url} />
+				<Note>{interval}</Note>
+			</EmailLayout>,
+		),
 	};
 }
