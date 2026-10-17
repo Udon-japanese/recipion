@@ -32,9 +32,10 @@ import {
 } from "#/integrations/better-auth/auth-rate-limit";
 import {
 	DELETE_ACCOUNT_LINK_EXPIRES_IN_SECONDS,
-	sendDeleteAccountEmail,
-} from "#/integrations/email/send-delete-account-email";
-import { sendLoginCodeEmail } from "#/integrations/email/send-login-code";
+	deleteAccountEmail,
+} from "#/integrations/email/delete-account-email";
+import { getMailer } from "#/integrations/email/get-mailer";
+import { loginCodeEmail } from "#/integrations/email/login-code-email";
 
 const isDevelopment = import.meta.env.DEV;
 
@@ -51,58 +52,6 @@ function getRateLimiters(): AuthRateLimiters | null {
 	}
 
 	return limiters as AuthRateLimiters;
-}
-
-// 削除の確認メール。本番では Resend で送る。開発中に API キーがない場合は、リンクをコンソールに出す。
-async function deliverDeleteAccountLink(
-	email: string,
-	url: string,
-): Promise<void> {
-	if (env.RESEND_API_KEY && env.AUTH_EMAIL_FROM) {
-		await sendDeleteAccountEmail({
-			to: email,
-			url,
-			from: env.AUTH_EMAIL_FROM,
-			apiKey: env.RESEND_API_KEY,
-		});
-
-		return;
-	}
-
-	if (isDevelopment) {
-		console.log(`[開発用] アカウント削除の確認リンク（${email}）: ${url}`);
-
-		return;
-	}
-
-	throw new Error(
-		"メール送信の設定（RESEND_API_KEY、AUTH_EMAIL_FROM）がありません",
-	);
-}
-
-// コードの送信。本番では Resend で送る。
-// 開発中に API キー（RESEND_API_KEY）がない場合は、メールを送らず、コードをコンソールに出す。
-async function deliverLoginCode(email: string, otp: string): Promise<void> {
-	if (env.RESEND_API_KEY && env.AUTH_EMAIL_FROM) {
-		await sendLoginCodeEmail({
-			to: email,
-			otp,
-			from: env.AUTH_EMAIL_FROM,
-			apiKey: env.RESEND_API_KEY,
-		});
-
-		return;
-	}
-
-	if (isDevelopment) {
-		console.log(`[開発用] ログイン用コード（${email}）: ${otp}`);
-
-		return;
-	}
-
-	throw new Error(
-		"メール送信の設定（RESEND_API_KEY、AUTH_EMAIL_FROM）がありません",
-	);
 }
 
 // 0 以上 size 未満の乱数（ハンドルの自動生成用）。
@@ -149,7 +98,7 @@ export function createAuth(db: DB) {
 						}
 					}
 
-					await deliverDeleteAccountLink(user.email, url);
+					await getMailer().send(deleteAccountEmail(user.email, url));
 				},
 				beforeDelete: async (user) => {
 					// 停止中のアカウントは、削除して作り直すことで停止から逃れられないよう、削除できない。
@@ -252,7 +201,7 @@ export function createAuth(db: DB) {
 					// このアプリは、ログイン用のコードだけを使う。
 					if (type !== "sign-in") return;
 
-					await deliverLoginCode(email, otp);
+					await getMailer().send(loginCodeEmail(email, otp));
 				},
 			}),
 			// コードの送信（メールの爆撃の入口）を、Turnstile のトークンで保護する。

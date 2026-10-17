@@ -6,7 +6,6 @@ interface __BaseEnv_Env {
 	AUTH_SEND_EMAIL_LIMITER: RateLimit;
 	AUTH_SEND_IP_LIMITER: RateLimit;
 	AUTH_VERIFY_IP_LIMITER: RateLimit;
-	AUTH_EMAIL_FROM: "れしぴょん <login@recipion.app>";
 	DATABASE_URL: string;
 	BETTER_AUTH_URL: string;
 	BETTER_AUTH_SECRET: string;
@@ -22,7 +21,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "AUTH_EMAIL_FROM" | "DATABASE_URL" | "BETTER_AUTH_URL" | "BETTER_AUTH_SECRET" | "hyperdrive_user" | "CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE" | "RESEND_API_KEY">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "DATABASE_URL" | "BETTER_AUTH_URL" | "BETTER_AUTH_SECRET" | "hyperdrive_user" | "CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE" | "RESEND_API_KEY">> {}
 }
 
 // Begin runtime types
