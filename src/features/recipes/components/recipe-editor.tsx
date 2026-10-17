@@ -205,7 +205,6 @@ export function RecipeEditor({
 		}),
 	);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
-	const [savedRecipeId, setSavedRecipeId] = useState<string | null>(null);
 	// 本文の [[ラベル]] が指すレシピ。本文から消えたラベルは、保存のときに捨てられる。
 	const [links, setLinks] = useState<RecipeLinkReference[]>(
 		initialDocument?.links ?? [],
@@ -281,7 +280,6 @@ export function RecipeEditor({
 	function applyText(nextText: string) {
 		setText(nextText);
 		setSync((current) => reconcileFromText(current, nextText));
-		setSavedRecipeId(null);
 
 		const nextServings = splitRecipeSections(nextText).servings;
 
@@ -336,7 +334,6 @@ export function RecipeEditor({
 			...current.filter((existing) => existing.label !== link.label),
 			link,
 		]);
-		setSavedRecipeId(null);
 	}
 
 	// 端末に保存した「雛形なし」の設定を、表示のあとに反映する（localStorage は、サーバーでは読めない）。
@@ -364,7 +361,6 @@ export function RecipeEditor({
 				? new Set([...current.edited, editedId])
 				: current.edited,
 		}));
-		setSavedRecipeId(null);
 	}
 
 	// 消した行の ID から、元の行を、まとめて覚える。
@@ -392,7 +388,6 @@ export function RecipeEditor({
 	) {
 		setDeletion({ message, previous: sync });
 		setSync(update);
-		setSavedRecipeId(null);
 	}
 
 	// 解析し直して、消す前の状態（消した行の記録も）に戻す。そのあいだに本文を書き換えていても、いまの本文に合わせる。
@@ -401,7 +396,6 @@ export function RecipeEditor({
 
 		setSync(reconcileFromText(deletion.previous, text));
 		setDeletion(null);
-		setSavedRecipeId(null);
 	}
 
 	function removeIngredient(id: string) {
@@ -456,7 +450,6 @@ export function RecipeEditor({
 				text,
 			),
 		);
-		setSavedRecipeId(null);
 	}
 
 	// groupId が null なら、グループ外の最後に足す。
@@ -488,13 +481,11 @@ export function RecipeEditor({
 
 		setServings(String(Math.max(1, Number((base + delta).toFixed(3)))));
 		setIsServingsTouched(true);
-		setSavedRecipeId(null);
 	}
 
 	function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
 		event.preventDefault();
 		setErrorMessage(null);
-		setSavedRecipeId(null);
 
 		if (title.trim() === "") {
 			setErrorMessage("レシピ名を入力してください。");
@@ -541,7 +532,6 @@ export function RecipeEditor({
 			}
 
 			const result = await onSave(document);
-			setSavedRecipeId(result.publicId);
 			onSaved?.(result);
 
 			return true;
@@ -566,7 +556,6 @@ export function RecipeEditor({
 					value={title}
 					onChange={(value) => {
 						setTitle(value);
-						setSavedRecipeId(null);
 					}}
 					isEditing={isTitleEditing}
 					onEditingChange={setIsTitleEditing}
@@ -828,7 +817,6 @@ export function RecipeEditor({
 					value={visibility}
 					onChange={(next) => {
 						setVisibility(next);
-						setSavedRecipeId(null);
 					}}
 					hasSourceUrl={sourceUrl.trim() !== ""}
 				/>
@@ -846,10 +834,6 @@ export function RecipeEditor({
 				</Button>
 
 				{errorMessage ? <Note tone="error">{errorMessage}</Note> : null}
-
-				{savedRecipeId ? (
-					<Note tone="success">レシピを保存しました。</Note>
-				) : null}
 			</form>
 
 			{deletion ? (
