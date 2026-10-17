@@ -1,6 +1,7 @@
 // Cloudflare の WAF カスタムルールに貼る式を表示する（ダッシュボードで設定する。設定は自動では行わない）。
 // 使い方: `nr waf:allowlist`
 import { readdirSync, readFileSync } from "node:fs";
+import { join, relative } from "node:path";
 import {
 	buildWafAllowlist,
 	buildWafBlockExpression,
@@ -8,9 +9,13 @@ import {
 } from "../src/config/waf-allowlist.ts";
 
 const routePaths = parseRoutePaths(readFileSync("src/routeTree.gen.ts", "utf8"));
-const publicFiles = readdirSync("public", { withFileTypes: true })
+// public/ の下のファイルを、サブフォルダも含めて集める（例：email/mascot.png）。
+const publicFiles = readdirSync("public", {
+	recursive: true,
+	withFileTypes: true,
+})
 	.filter((entry) => entry.isFile())
-	.map((entry) => entry.name);
+	.map((entry) => relative("public", join(entry.parentPath, entry.name)));
 
 const allowlist = buildWafAllowlist({ routePaths, publicFiles });
 
