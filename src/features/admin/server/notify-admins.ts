@@ -4,14 +4,14 @@ import { createDrizzleAppealRepository } from "#/features/moderation/infrastruct
 import { createDrizzleReportRepository } from "#/features/reports/infrastructure/drizzle-report-repository";
 import { createDrizzleUserReportRepository } from "#/features/reports/infrastructure/drizzle-user-report-repository";
 import { parseAdminEmails } from "#/integrations/cloudflare-access/access-token";
-import { sendAdminNotificationEmail } from "#/integrations/email/send-admin-notification-email";
+import { getMailer } from "#/integrations/email/get-mailer";
 import { notifyAdmins } from "../application/notify-admins";
 import type { AdminNotificationKind } from "../domain/admin-notification";
 import { createDrizzleAdminNotificationRepository } from "../infrastructure/drizzle-admin-notification-repository";
 
 /**
  * 管理者（ADMIN_EMAILS）に、お知らせのメールを送る。失敗しても、例外にしない。
- * 管理者のメールや、メール送信の設定（RESEND_API_KEY、AUTH_EMAIL_FROM）がなければ、何もしない
+ * 管理者のメールや、メール送信の設定（RESEND_API_KEY）がなければ、何もしない
  * （開発中は、コンソールに出す）。
  */
 export async function notifyAdminsOf(
@@ -40,23 +40,7 @@ export async function notifyAdminsOf(
 
 			return createDrizzleReportRepository(db).countOpen();
 		},
-		send: async (message) => {
-			if (env.RESEND_API_KEY && env.AUTH_EMAIL_FROM) {
-				await sendAdminNotificationEmail({
-					to,
-					subject: message.subject,
-					text: message.text,
-					from: env.AUTH_EMAIL_FROM,
-					apiKey: env.RESEND_API_KEY,
-				});
-
-				return;
-			}
-
-			console.log(
-				`[開発用] 管理者へのお知らせ: ${message.subject}\n${message.text}`,
-			);
-		},
+		send: (message) => getMailer().send({ to, ...message }),
 		baseUrl: env.BETTER_AUTH_URL,
 	});
 }

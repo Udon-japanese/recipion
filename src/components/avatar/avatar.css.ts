@@ -1,8 +1,9 @@
 import { style } from "@vanilla-extract/css";
 
 export const avatar = style({
-	display: "grid",
-	placeItems: "center",
+	display: "flex",
+	justifyContent: "center",
+	alignItems: "center",
 	flex: "none",
 	width: 36,
 	height: 36,

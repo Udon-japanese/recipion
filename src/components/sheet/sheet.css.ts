@@ -109,7 +109,6 @@ export const body = style({
 	minHeight: 0,
 	overflowY: "hidden",
 	overscrollBehavior: "contain",
-	WebkitOverflowScrolling: "touch",
 
 	selectors: {
 		'&[data-scrollable="true"]': { overflowY: "auto" },

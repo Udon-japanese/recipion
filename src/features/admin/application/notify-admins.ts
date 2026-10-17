@@ -1,4 +1,4 @@
-import { renderAdminNotificationEmail } from "#/integrations/email/send-admin-notification-email";
+import { adminNotificationEmail } from "#/integrations/email/admin-notification-email";
 import {
 	type AdminNotificationKind,
 	adminNotificationIntervalMs,
@@ -15,7 +15,11 @@ export type NotifyAdminsDependencies = {
 	) => Promise<boolean>;
 	// 未対応の件数。
 	countOpen: (kind: AdminNotificationKind) => Promise<number>;
-	send: (message: { subject: string; text: string }) => Promise<void>;
+	send: (message: {
+		subject: string;
+		text: string;
+		html: string;
+	}) => Promise<void>;
 	// 送れなかったときに、記録を戻す（次の通知を、30分止めないため）。
 	releaseSlot?: (kind: AdminNotificationKind) => Promise<void>;
 	// 画面のリンクの先頭（例：https://recipion.app）。
@@ -51,7 +55,7 @@ export async function notifyAdmins(
 		const openCount = await dependencies.countOpen(kind);
 
 		await dependencies.send(
-			renderAdminNotificationEmail({
+			adminNotificationEmail({
 				kindLabel: adminNotificationKindLabels[kind],
 				openCount,
 				url: `${dependencies.baseUrl.replace(/\/+$/u, "")}${adminNotificationPaths[kind]}`,

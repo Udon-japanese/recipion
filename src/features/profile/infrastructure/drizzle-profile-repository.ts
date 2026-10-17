@@ -1,28 +1,9 @@
 import { eq } from "drizzle-orm";
 
 import type { DB } from "#/db/client";
+import { isUniqueViolation } from "#/db/is-unique-violation";
 import { user } from "#/integrations/better-auth/auth.sql";
-
 import type { ProfileRepository } from "../application/profile-repository";
-
-type PostgresError = { code?: unknown; constraint?: unknown; cause?: unknown };
-
-// 一意制約への違反か（Drizzle は、元のエラーを cause に入れることがある）。
-function isUniqueViolation(error: unknown, constraint: string): boolean {
-	for (
-		let current: unknown = error;
-		typeof current === "object" && current !== null;
-		current = (current as PostgresError).cause
-	) {
-		const { code, constraint: name } = current as PostgresError;
-
-		if (code === "23505" && name === constraint) {
-			return true;
-		}
-	}
-
-	return false;
-}
 
 // 呼び出すユーザー本人のプロフィールだけを扱う（ほかのユーザーの行は、読み書きできない）。
 export function createDrizzleProfileRepository(

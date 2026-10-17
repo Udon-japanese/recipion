@@ -13,10 +13,6 @@
 	"preview_urls": false,
 	// Workers Logs。bot のアクセスの量や、エラーを確認できるようにする。
 	"observability": { "enabled": true },
-	"vars": {
-		// ログイン用コードのメールの差出人。ドメイン recipion.app は、Resend で認証済み。
-		"AUTH_EMAIL_FROM": "れしぴょん <login@recipion.app>"
-	},
 	// ログイン用コードの送信と検証のレート制限（auth-rate-limit.ts）。period は 10 か 60 秒のみ。
 	// 場所ごとに数える、結果整合の制限なので、正規のユーザーが不便にならない範囲に、やや緩めに設定している。
 	"ratelimits": [

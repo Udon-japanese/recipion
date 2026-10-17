@@ -83,7 +83,9 @@ describe("RecipeEditor", () => {
 		await chooseMenuItem(user, "豚ひき肉", "「肉だね」へ移動");
 
 		await user.click(screen.getByRole("button", { name: "レシピを保存" }));
-		await screen.findByText("レシピを保存しました。");
+		await screen.findByText("保存しました", {
+			selector: "output",
+		});
 
 		expect(onSave).toHaveBeenCalledTimes(1);
 		expect(onSave).toHaveBeenCalledWith(
@@ -123,7 +125,9 @@ describe("RecipeEditor", () => {
 		expect(screen.getByText("材料はまだありません。")).toBeTruthy();
 
 		await user.click(screen.getByRole("button", { name: "レシピを保存" }));
-		await screen.findByText("レシピを保存しました。");
+		await screen.findByText("保存しました", {
+			selector: "output",
+		});
 
 		expect(onSave).toHaveBeenCalledWith(
 			expect.objectContaining({ ingredients: [] }),
@@ -152,7 +156,9 @@ describe("RecipeEditor", () => {
 		).toBeTruthy();
 
 		await user.click(screen.getByRole("button", { name: "レシピを保存" }));
-		await screen.findByText("レシピを保存しました。");
+		await screen.findByText("保存しました", {
+			selector: "output",
+		});
 
 		expect(onSave).toHaveBeenCalledWith(
 			expect.objectContaining({
@@ -199,7 +205,9 @@ describe("RecipeEditor", () => {
 		expect(amountInput).toHaveProperty("value", "");
 
 		await user.click(screen.getByRole("button", { name: "レシピを保存" }));
-		await screen.findByText("レシピを保存しました。");
+		await screen.findByText("保存しました", {
+			selector: "output",
+		});
 
 		expect(onSave).toHaveBeenCalledWith(
 			expect.objectContaining({
@@ -267,7 +275,9 @@ describe("RecipeEditor", () => {
 		await chooseMenuItem(user, "豚ひき肉", "「肉だね」へ移動");
 
 		await user.click(screen.getByRole("button", { name: "レシピを保存" }));
-		await screen.findByText("レシピを保存しました。");
+		await screen.findByText("保存しました", {
+			selector: "output",
+		});
 
 		expect(onSave).toHaveBeenCalledWith(
 			expect.objectContaining({
@@ -309,7 +319,9 @@ describe("RecipeEditor", () => {
 
 		await chooseMenuItem(user, "たれのグループ", "グループを削除");
 		await user.click(screen.getByRole("button", { name: "レシピを保存" }));
-		await screen.findByText("レシピを保存しました。");
+		await screen.findByText("保存しました", {
+			selector: "output",
+		});
 
 		expect(onSave).toHaveBeenCalledWith(
 			expect.objectContaining({ ingredients: [] }),
@@ -349,7 +361,9 @@ describe("RecipeEditor", () => {
 		).toBeNull();
 
 		await user.click(screen.getByRole("button", { name: "レシピを保存" }));
-		await screen.findByText("レシピを保存しました。");
+		await screen.findByText("保存しました", {
+			selector: "output",
+		});
 
 		expect(onSave).toHaveBeenCalledWith(
 			expect.objectContaining({
@@ -415,7 +429,9 @@ describe("RecipeEditor", () => {
 
 		await enterTitle(user, "つくね");
 		await user.click(screen.getByRole("button", { name: "レシピを保存" }));
-		await screen.findByText("レシピを保存しました。");
+		await screen.findByText("保存しました", {
+			selector: "output",
+		});
 
 		expect(onSaved).toHaveBeenCalledWith({ publicId: "abc123" });
 		// 引用元URLは任意なので、未入力でも保存できる
@@ -438,7 +454,9 @@ describe("RecipeEditor", () => {
 			"https://example.com/recipe/1",
 		);
 		await user.click(screen.getByRole("button", { name: "レシピを保存" }));
-		await screen.findByText("レシピを保存しました。");
+		await screen.findByText("保存しました", {
+			selector: "output",
+		});
 
 		expect(onSave).toHaveBeenCalledWith(
 			expect.objectContaining({ sourceUrl: "https://example.com/recipe/1" }),
@@ -481,7 +499,9 @@ describe("RecipeEditor", () => {
 		await user.type(nameInput, "鶏つくね");
 		await user.keyboard("{Enter}");
 		await user.click(screen.getByRole("button", { name: "レシピを保存" }));
-		await screen.findByText("レシピを保存しました。");
+		await screen.findByText("保存しました", {
+			selector: "output",
+		});
 
 		const saved = onSave.mock.calls[0]?.[0];
 
@@ -563,7 +583,9 @@ describe("RecipeEditor", () => {
 		await enterTitle(user, "卵焼き");
 		await writeBody(user, "・卵 3個\n・砂糖 大さじ1\n\n1. 混ぜる\n2. 焼く");
 		await user.click(screen.getByRole("button", { name: "レシピを保存" }));
-		await screen.findByText("レシピを保存しました。");
+		await screen.findByText("保存しました", {
+			selector: "output",
+		});
 
 		const saved = onSave.mock.calls[0]?.[0];
 
@@ -744,7 +766,9 @@ describe("RecipeEditor", () => {
 		);
 
 		await user.click(screen.getByRole("button", { name: "レシピを保存" }));
-		await screen.findByText("レシピを保存しました。");
+		await screen.findByText("保存しました", {
+			selector: "output",
+		});
 
 		expect(onSave).toHaveBeenCalledWith(
 			expect.objectContaining({
@@ -1033,7 +1057,9 @@ describe("RecipeEditor", () => {
 			expect(screen.getByText("カレー", { selector: "li span" })).toBeVisible();
 
 			await user.click(screen.getByRole("button", { name: "レシピを保存" }));
-			await screen.findByText("レシピを保存しました。");
+			await screen.findByText("保存しました", {
+				selector: "output",
+			});
 
 			expect(onSave.mock.calls[0]?.[0].links).toEqual([
 				{ label: "カレー", targetPublicId: "curry-id" },
@@ -1057,7 +1083,9 @@ describe("RecipeEditor", () => {
 			expect(screen.getByText("カレー")).toBeVisible();
 
 			await user.click(screen.getByRole("button", { name: "レシピを保存" }));
-			await screen.findByText("レシピを保存しました。");
+			await screen.findByText("保存しました", {
+				selector: "output",
+			});
 
 			expect(onSave.mock.calls[0]?.[0].links).toEqual([]);
 		});
@@ -1078,7 +1106,9 @@ describe("RecipeEditor", () => {
 			await user.click(await screen.findByRole("button", { name: "ごはん" }));
 			await writeBody(user, "＜作り方＞\n1. 盛る");
 			await user.click(screen.getByRole("button", { name: "レシピを保存" }));
-			await screen.findByText("レシピを保存しました。");
+			await screen.findByText("保存しました", {
+				selector: "output",
+			});
 
 			expect(onSave.mock.calls[0]?.[0].links).toEqual([]);
 		});
@@ -1105,7 +1135,9 @@ describe("RecipeEditor", () => {
 			);
 			await screen.findByText("カレー", { selector: "li span" });
 			await user.click(screen.getByRole("button", { name: "レシピを保存" }));
-			await screen.findByText("レシピを保存しました。");
+			await screen.findByText("保存しました", {
+				selector: "output",
+			});
 
 			expect(onSave.mock.calls[0]?.[0].links).toEqual([
 				{ label: "カレー", targetPublicId: "curry-id" },
@@ -1157,7 +1189,9 @@ describe("RecipeEditor", () => {
 			);
 
 			await user.click(screen.getByRole("button", { name: "レシピを保存" }));
-			await screen.findByText("レシピを保存しました。");
+			await screen.findByText("保存しました", {
+				selector: "output",
+			});
 
 			expect(onSave.mock.calls[0]?.[0].links).toEqual([
 				{ label: "カレー", targetPublicId: "a" },
