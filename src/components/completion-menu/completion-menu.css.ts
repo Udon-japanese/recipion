@@ -95,7 +95,6 @@ export const barList = style({
 	overflowX: "auto",
 	listStyle: "none",
 	whiteSpace: "nowrap",
-	WebkitOverflowScrolling: "touch",
 });
 
 export const barItem = style({
