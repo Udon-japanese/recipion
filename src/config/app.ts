@@ -14,5 +14,6 @@ export function pageTitle(pageName?: string): string {
 // 本番の URL。メールの中の画像など、アプリの外から参照される絶対 URL に使う。
 export const APP_ORIGIN = "https://recipion.app";
 
-// メールの差出人。返信が届くアドレスにする（返信できないアドレスは、迷惑メールに判定されやすい）。
-export const EMAIL_FROM = `${APP_DISPLAY_NAME} <contact@recipion.app>`;
+// 問い合わせ先と、メールの差出人。返信が届くアドレスにする（返信できないアドレスは、迷惑メールに判定されやすい）。
+export const CONTACT_EMAIL = "contact@recipion.app";
+export const EMAIL_FROM = `${APP_DISPLAY_NAME} <${CONTACT_EMAIL}>`;

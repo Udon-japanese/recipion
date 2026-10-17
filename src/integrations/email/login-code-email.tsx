@@ -1,12 +1,14 @@
 import { APP_DISPLAY_NAME } from "#/config/app";
 import { OTP_EXPIRES_IN_SECONDS } from "#/config/auth";
 import {
-	emailCodeBlock,
-	emailNote,
-	emailParagraph,
-	renderEmailHtml,
-} from "./email-layout";
+	CodeBlock,
+	EmailLayout,
+	Heading,
+	Note,
+	Paragraph,
+} from "./email-components";
 import type { EmailMessage } from "./mailer";
+import { renderEmail } from "./render-email";
 
 // ログイン用コードのメール。
 export function loginCodeEmail(to: string, otp: string): EmailMessage {
@@ -25,14 +27,17 @@ export function loginCodeEmail(to: string, otp: string): EmailMessage {
 			validity,
 			ignore,
 		].join("\n"),
-		html: renderEmailHtml({
-			preheader: `ログイン用コード: ${otp}`,
-			bodyHtml: [
-				emailParagraph(`${APP_DISPLAY_NAME}のログイン用コードです。`),
-				emailCodeBlock(otp),
-				emailNote(validity),
-				emailNote(ignore),
-			].join("\n"),
-		}),
+		html: renderEmail(
+			<EmailLayout preheader={`ログイン用コード: ${otp}`}>
+				<Heading>ログイン用コード</Heading>
+				<Paragraph>
+					{APP_DISPLAY_NAME}
+					にログインするためのコードです。画面に入力してください。
+				</Paragraph>
+				<CodeBlock>{otp}</CodeBlock>
+				<Note>{validity}</Note>
+				<Note>{ignore}</Note>
+			</EmailLayout>,
+		),
 	};
 }
