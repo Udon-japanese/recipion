@@ -244,9 +244,6 @@ export function RecipeConsumeSection({
 			>
 				作った（在庫から引く）
 			</Button>
-			<p className={styles.hint}>
-				使った分を、在庫からすぐに引きます。間違えたときは、あとから「元に戻す」で戻せます。
-			</p>
 			{errorMessage && !outcome ? (
 				<Note tone="error">{errorMessage}</Note>
 			) : null}
