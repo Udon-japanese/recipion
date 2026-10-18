@@ -1,4 +1,5 @@
 import { createVar, keyframes, style } from "@vanilla-extract/css";
+import { type RecipeVariants, recipe } from "@vanilla-extract/recipes";
 
 // 完了＝緑、失敗＝赤。形の変化は同じで、色だけを切り替える。
 const tone = createVar();
@@ -12,170 +13,194 @@ const ease = "var(--ease-standard)";
 const emphasized = "var(--ease-emphasized)";
 
 // 幅を固定して、周りの並びがずれないようにする（変形のあいだ）。
-export const wrapper = style({
-	display: "inline-flex",
-	alignItems: "center",
-	justifyContent: "center",
-	minWidth: "var(--box-width, 0)",
-	minHeight: "var(--box-height, 0)",
-	verticalAlign: "middle",
-	position: "relative",
-
-	selectors: {
-		'&[data-full-width="true"]': { display: "flex", width: "100%" },
-		'&[data-align="end"]': { justifySelf: "end" },
+export const wrapper = recipe({
+	base: {
+		display: "inline-flex",
+		alignItems: "center",
+		justifyContent: "center",
+		minWidth: "var(--box-width, 0)",
+		minHeight: "var(--box-height, 0)",
+		verticalAlign: "middle",
+		position: "relative",
 	},
+	variants: {
+		fullWidth: { true: { display: "flex", width: "100%" } },
+		// 並びの中での位置（フォームの右端に置くときは end）。
+		align: { start: {}, end: { justifySelf: "end" } },
+	},
+	defaultVariants: { align: "start" },
 });
 
-export const button = style({
-	position: "relative",
-	display: "flex",
-	alignItems: "center",
-	justifyContent: "center",
-	flexShrink: 0,
-	// 中のラベルより小さく縮めるため（変形のとき）。
-	minWidth: 0,
-	boxSizing: "border-box",
-	minHeight: 48,
-	paddingInline: 24,
-	border: "1.5px solid transparent",
-	borderRadius: "var(--radius-control)",
-	font: "inherit",
-	fontSize: "var(--font-size-sm)",
-	fontWeight: "var(--font-weight-bold)",
-	lineHeight: 1,
-	whiteSpace: "nowrap",
-	textDecoration: "none",
-	cursor: "pointer",
-	overflow: "hidden",
-	WebkitTapHighlightColor: "transparent",
-	transition: [
-		`width 420ms ${emphasized}`,
-		`background-color var(--duration-normal) ${ease}`,
-		`border-color var(--duration-normal) ${ease}`,
-		`box-shadow var(--duration-normal) ${ease}`,
-		`transform var(--duration-fast) ${ease}`,
-	].join(", "),
+// 見た目の種類・大きさ・幅は、recipe の variants（型で守る）。
+// 実行中に変わる状態（処理中・完了・失敗・使えない）は、data 属性のセレクタで書く。
+export const button = recipe({
+	base: {
+		position: "relative",
+		display: "flex",
+		alignItems: "center",
+		justifyContent: "center",
+		flexShrink: 0,
+		// 中のラベルより小さく縮めるため（変形のとき）。
+		minWidth: 0,
+		boxSizing: "border-box",
+		minHeight: 48,
+		paddingInline: 24,
+		border: "1.5px solid transparent",
+		borderRadius: "var(--radius-control)",
+		font: "inherit",
+		fontSize: "var(--font-size-sm)",
+		fontWeight: "var(--font-weight-bold)",
+		lineHeight: 1,
+		whiteSpace: "nowrap",
+		textDecoration: "none",
+		cursor: "pointer",
+		overflow: "hidden",
+		WebkitTapHighlightColor: "transparent",
+		transition: [
+			`width 420ms ${emphasized}`,
+			`background-color var(--duration-normal) ${ease}`,
+			`border-color var(--duration-normal) ${ease}`,
+			`box-shadow var(--duration-normal) ${ease}`,
+			`transform var(--duration-fast) ${ease}`,
+		].join(", "),
 
-	vars: {
-		[tone]: "var(--color-success)",
-		[toneSoft]: "var(--color-success-soft)",
-	},
+		vars: {
+			[tone]: "var(--color-success)",
+			[toneSoft]: "var(--color-success-soft)",
+		},
 
-	selectors: {
-		// 幅いっぱいのボタン（変形のあいだは、固定した幅が優先される）。
-		[`${wrapper}[data-full-width="true"] > &`]: { width: "100%" },
-		'&[data-tone="error"]': {
-			vars: {
-				[tone]: "var(--color-error)",
-				[toneSoft]: "var(--color-error-soft)",
+		selectors: {
+			'&[data-tone="error"]': {
+				vars: {
+					[tone]: "var(--color-error)",
+					[toneSoft]: "var(--color-error-soft)",
+				},
 			},
-		},
-		'&[data-size="sm"]': { minHeight: 40, paddingInline: 16 },
-		'&[data-size="lg"]': {
-			minHeight: 52,
-			paddingInline: 24,
-			fontSize: "var(--font-size-md)",
-		},
-		"&:focus-visible": {
-			outline: "3px solid var(--color-focus)",
-			outlineOffset: 3,
-		},
+			"&:focus-visible": {
+				outline: "3px solid var(--color-focus)",
+				outlineOffset: 3,
+			},
+			[`&${canPress}`]: { transform: "translateY(1px) scale(0.98)" },
 
-		// ---- 種類 ----
-		'&[data-variant="primary"]': {
-			color: "var(--color-on-primary)",
-			background: "var(--color-primary)",
-			borderColor: "var(--color-primary)",
-			boxShadow: "var(--shadow-md)",
-		},
-		[`&[data-variant="primary"]${canHover}`]: {
-			background: "var(--color-primary-hover)",
-			borderColor: "var(--color-primary-hover)",
-		},
-		[`&[data-variant="primary"]${canPress}`]: {
-			background: "var(--color-primary-pressed)",
-			borderColor: "var(--color-primary-pressed)",
-		},
-		'&[data-variant="secondary"]': {
-			color: "var(--color-text)",
-			background: "var(--color-surface)",
-			borderColor: "var(--color-control-border)",
-		},
-		[`&[data-variant="secondary"]${canHover}`]: {
-			background: "var(--color-surface-muted)",
-		},
-		'&[data-variant="danger"]': {
-			color: "var(--color-on-error)",
-			background: "var(--color-error)",
-			borderColor: "var(--color-error)",
-			boxShadow: "var(--shadow-sm)",
-		},
-		[`&[data-variant="danger"]${canHover}`]: {
-			background: "color-mix(in srgb, var(--color-error) 88%, black)",
-			borderColor: "color-mix(in srgb, var(--color-error) 88%, black)",
-		},
-		'&[data-variant="ghost"]': {
-			color: "var(--color-text)",
-			background: "transparent",
-			fontWeight: "var(--font-weight-semibold)",
-			// 文字だけでも、押せると分かるように、細い下線を付ける（暫定。デザインの案で決める）。
-			textDecoration: "underline",
-			textDecorationColor: "var(--color-border-strong)",
-			textUnderlineOffset: 4,
-		},
-		[`&[data-variant="ghost"]${canHover}`]: {
-			background: "var(--color-surface-muted)",
-		},
-		[`&${canPress}`]: { transform: "translateY(1px) scale(0.98)" },
+			// ---- 使えない（入力が足りないなど） ----
+			'&[data-disabled="true"]': {
+				color: "var(--color-text-disabled)",
+				background: "var(--color-surface-muted)",
+				borderColor: "var(--color-border)",
+				boxShadow: "none",
+				cursor: "not-allowed",
+				transform: "none",
+			},
 
-		// ---- 使えない（入力が足りないなど） ----
-		'&[data-disabled="true"]': {
-			color: "var(--color-text-disabled)",
-			background: "var(--color-surface-muted)",
-			borderColor: "var(--color-border)",
-			boxShadow: "none",
-			cursor: "not-allowed",
-			transform: "none",
-		},
-
-		// ---- 処理中・完了・失敗（どの種類でも同じ形） ----
-		// 変形中は、横の余白をなくす（余白が丸の幅より大きいと、正円にならない）。
-		'&:not([data-phase="idle"])': { paddingInline: 0 },
-		'&[data-phase="loading"]': {
-			background: "var(--color-surface)",
-			borderColor: "var(--color-border-strong)",
-			boxShadow: "var(--shadow-sm)",
-			pointerEvents: "none",
-		},
-		'&[data-phase="success"], &[data-phase="error"]': {
-			background: "transparent",
-			borderColor: "transparent",
-			boxShadow: "none",
-			overflow: "visible",
-		},
-		'&[data-phase="success-expanded"], &[data-phase="error-expanded"]': {
-			background: toneSoft,
-			borderColor: toneSoft,
-			boxShadow: "var(--shadow-md)",
-			overflow: "hidden",
-		},
-		// 完了・失敗の表示中も押せる。ホバーや押下で、色は変えない。
-		[`&[data-phase="success"]${canHover}, &[data-phase="success"]${canPress}, &[data-phase="error"]${canHover}, &[data-phase="error"]${canPress}`]:
-			{
+			// ---- 処理中・完了・失敗（どの種類でも同じ形） ----
+			// 変形中は、横の余白をなくす（余白が丸の幅より大きいと、正円にならない）。
+			'&:not([data-phase="idle"])': { paddingInline: 0 },
+			'&[data-phase="loading"]': {
+				background: "var(--color-surface)",
+				borderColor: "var(--color-border-strong)",
+				boxShadow: "var(--shadow-sm)",
+				pointerEvents: "none",
+			},
+			'&[data-phase="success"], &[data-phase="error"]': {
 				background: "transparent",
 				borderColor: "transparent",
+				boxShadow: "none",
+				overflow: "visible",
 			},
-		[`&[data-phase="success-expanded"]${canHover}, &[data-phase="success-expanded"]${canPress}, &[data-phase="error-expanded"]${canHover}, &[data-phase="error-expanded"]${canPress}`]:
-			{
+			'&[data-phase="success-expanded"], &[data-phase="error-expanded"]': {
 				background: toneSoft,
 				borderColor: toneSoft,
+				boxShadow: "var(--shadow-md)",
+				overflow: "hidden",
 			},
+			// 完了・失敗の表示中も押せる。ホバーや押下で、色は変えない。
+			[`&[data-phase="success"]${canHover}, &[data-phase="success"]${canPress}, &[data-phase="error"]${canHover}, &[data-phase="error"]${canPress}`]:
+				{
+					background: "transparent",
+					borderColor: "transparent",
+				},
+			[`&[data-phase="success-expanded"]${canHover}, &[data-phase="success-expanded"]${canPress}, &[data-phase="error-expanded"]${canHover}, &[data-phase="error-expanded"]${canPress}`]:
+				{
+					background: toneSoft,
+					borderColor: toneSoft,
+				},
+		},
 	},
+	variants: {
+		variant: {
+			primary: {
+				color: "var(--color-on-primary)",
+				background: "var(--color-primary)",
+				borderColor: "var(--color-primary)",
+				boxShadow: "var(--shadow-md)",
+				selectors: {
+					[`&${canHover}`]: {
+						background: "var(--color-primary-hover)",
+						borderColor: "var(--color-primary-hover)",
+					},
+					[`&${canPress}`]: {
+						background: "var(--color-primary-pressed)",
+						borderColor: "var(--color-primary-pressed)",
+					},
+				},
+			},
+			secondary: {
+				color: "var(--color-text)",
+				background: "var(--color-surface)",
+				borderColor: "var(--color-control-border)",
+				selectors: {
+					[`&${canHover}`]: { background: "var(--color-surface-muted)" },
+				},
+			},
+			danger: {
+				color: "var(--color-on-error)",
+				background: "var(--color-error)",
+				borderColor: "var(--color-error)",
+				boxShadow: "var(--shadow-sm)",
+				selectors: {
+					[`&${canHover}`]: {
+						background: "color-mix(in srgb, var(--color-error) 88%, black)",
+						borderColor: "color-mix(in srgb, var(--color-error) 88%, black)",
+					},
+				},
+			},
+			ghost: {
+				color: "var(--color-text)",
+				background: "transparent",
+				fontWeight: "var(--font-weight-semibold)",
+				// 文字だけでも、押せると分かるように、細い下線を付ける（暫定。デザインの案で決める）。
+				textDecoration: "underline",
+				textDecorationColor: "var(--color-border-strong)",
+				textUnderlineOffset: 4,
+				selectors: {
+					[`&${canHover}`]: { background: "var(--color-surface-muted)" },
+				},
+			},
+		},
+		size: {
+			sm: { minHeight: 40, paddingInline: 16 },
+			md: {},
+			lg: {
+				minHeight: 52,
+				paddingInline: 24,
+				fontSize: "var(--font-size-md)",
+			},
+		},
+		// 幅いっぱいのボタン（変形のあいだは、固定した幅が、インラインの指定で優先される）。
+		fullWidth: { true: { width: "100%" } },
+	},
+	defaultVariants: { variant: "primary", size: "md" },
 });
 
+// props の型は、スタイルの定義から作る（種類を足すときは、ここだけを直す）。
+type ButtonStyleVariants = NonNullable<RecipeVariants<typeof button>>;
+export type ButtonVariant = NonNullable<ButtonStyleVariants["variant"]>;
+export type ButtonSize = NonNullable<ButtonStyleVariants["size"]>;
+
 const inPhase = (phases: string[]) =>
-	phases.map((p) => `${button}[data-phase="${p}"] &`).join(", ");
+	phases
+		.map((p) => `.${button.classNames.base}[data-phase="${p}"] &`)
+		.join(", ");
 
 const resultPhases = ["success", "error", "success-expanded", "error-expanded"];
 

@@ -11,12 +11,13 @@ import { createPortal } from "react-dom";
 import { Icon } from "../icon/icon";
 import type { IconName } from "../icon/icon-definitions";
 import { IconButton } from "../icon-button/icon-button";
+import type { MenuItemTone } from "./menu.css";
 import * as styles from "./menu.css";
 
 export type MenuItem = {
 	label: string;
 	icon?: IconName;
-	tone?: "default" | "danger";
+	tone?: MenuItemTone;
 	disabled?: boolean;
 	onSelect: () => void;
 };
@@ -238,11 +239,10 @@ export function Menu({ label, icon, items, disabled, trigger }: MenuProps) {
 						>
 							{items.map((entry) => (
 								<button
-									className={styles.item}
+									className={styles.item({ tone: entry.tone })}
 									type="button"
 									role="menuitem"
 									key={entry.label}
-									data-tone={entry.tone}
 									aria-disabled={entry.disabled || undefined}
 									onClick={() => {
 										if (entry.disabled) {
