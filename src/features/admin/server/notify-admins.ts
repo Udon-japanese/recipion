@@ -40,7 +40,8 @@ export async function notifyAdminsOf(
 
 			return createDrizzleReportRepository(db).countOpen();
 		},
-		send: (message) => getMailer().send({ to, ...message }),
+		recipients: to,
+		send: (message) => getMailer().send(message),
 		baseUrl: env.BETTER_AUTH_URL,
 	});
 }

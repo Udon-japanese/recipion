@@ -10,6 +10,7 @@ function setup(overrides: Partial<NotifyAdminsDependencies> = {}) {
 		claimSlot,
 		releaseSlot,
 		countOpen: async () => 4,
+		recipients: ["admin@example.com"],
 		send,
 		baseUrl: "https://recipion.app/",
 		now: new Date("2026-10-12T00:00:00.000Z"),
@@ -35,9 +36,10 @@ describe("notifyAdmins", () => {
 			30 * 60 * 1000,
 		);
 		const [message] = send.mock.calls[0] as unknown as [
-			{ subject: string; text: string },
+			{ to: readonly string[]; subject: string; text: string },
 		];
 
+		expect(message.to).toEqual(["admin@example.com"]);
 		expect(message.subject).toContain(label);
 		expect(message.subject).toContain("未対応4件");
 		expect(message.text).toContain(url);
