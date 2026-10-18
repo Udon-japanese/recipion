@@ -105,6 +105,48 @@ describe("LoginForm（メールのワンタイムコード）", () => {
 		).toBeTruthy();
 	});
 
+	it("ログインに成功して、セッションを取り直すあいだも、コードの入力の画面のまま待つ（メールの入力に戻らない）", async () => {
+		const user = userEvent.setup();
+		let finishRefetch: () => void = () => {};
+
+		mocks.refetch.mockImplementationOnce(
+			() =>
+				new Promise<void>((resolve) => {
+					finishRefetch = resolve;
+				}),
+		);
+
+		render(<LoginForm refetchSession={mocks.refetch} />);
+		await sendCodeFor(user, "user@example.com");
+		await user.click(codeInput());
+		await user.keyboard("123456");
+		await waitFor(() => expect(mocks.refetch).toHaveBeenCalled());
+
+		expect(codeInput()).toBeTruthy();
+		expect(
+			screen.queryByRole("textbox", { name: "メールアドレス" }),
+		).toBeNull();
+
+		finishRefetch();
+	});
+
+	it("onLoggedIn を渡すと、セッションを取り直したあとに呼び、メールの入力に戻す", async () => {
+		const user = userEvent.setup();
+		const onLoggedIn = vi.fn();
+
+		render(
+			<LoginForm refetchSession={mocks.refetch} onLoggedIn={onLoggedIn} />,
+		);
+		await sendCodeFor(user, "user@example.com");
+		await user.click(codeInput());
+		await user.keyboard("123456");
+
+		await waitFor(() => expect(onLoggedIn).toHaveBeenCalledTimes(1));
+		expect(
+			await screen.findByRole("textbox", { name: "メールアドレス" }),
+		).toBeTruthy();
+	});
+
 	it("6桁が揃うと、自動でログインを試み、成功したらセッションを取り直す", async () => {
 		const user = userEvent.setup();
 

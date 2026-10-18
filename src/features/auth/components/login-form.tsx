@@ -139,9 +139,14 @@ export function LoginForm({ onLoggedIn, refetchSession }: LoginFormProps) {
 				return;
 			}
 
-			resetToEmailStep();
+			// セッションを取り直すあいだも、コードの入力の画面のまま待つ（メールの入力に戻すと、ちらつく）。
 			await refetchSession();
-			onLoggedIn?.();
+
+			// 画面が移動しないで、フォームが残る使い方のときだけ、初期の状態に戻す。
+			if (onLoggedIn) {
+				onLoggedIn();
+				resetToEmailStep();
+			}
 		} catch {
 			setErrorMessage(getAuthErrorMessage(null));
 		} finally {
