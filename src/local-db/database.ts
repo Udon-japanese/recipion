@@ -19,7 +19,7 @@ export class LocalDatabase extends Dexie {
 	shoppingBranches!: Table<ShoppingBranch, string>;
 	shoppingStoreDefaults!: Table<ShoppingStoreDefault, string>;
 
-	// まだリリース前なので、バージョンは 1 つにまとめている（古いデータを新しい形に直す処理は持たない）。
+	// リリース直後なので、バージョンは 1 つにまとめている（古いデータを新しい形に直す処理は持たない）。
 	// リリース後は、まとめず、スキーマを変えるたびに、バージョンを足す（.upgrade でデータを直す）。
 	// 古い名前（app-local）のデータベースは、バージョンの数が合わないため、使わない（名前を変えてある）。
 	constructor(databaseName = "recipion-local") {

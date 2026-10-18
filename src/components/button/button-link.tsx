@@ -1,6 +1,6 @@
 import { createLink } from "@tanstack/react-router";
 import type { ComponentProps, ReactNode } from "react";
-import type { ButtonSize, ButtonVariant } from "./button";
+import type { ButtonSize, ButtonVariant } from "./button.css";
 import * as styles from "./button.css";
 
 type ButtonAnchorProps = Omit<ComponentProps<"a">, "className" | "style"> & {
@@ -21,16 +21,10 @@ function ButtonAnchor({
 	...rest
 }: ButtonAnchorProps) {
 	return (
-		<span
-			className={styles.wrapper}
-			data-full-width={fullWidth || undefined}
-			data-align={align}
-		>
+		<span className={styles.wrapper({ fullWidth, align })}>
 			<a
 				{...rest}
-				className={styles.button}
-				data-variant={variant}
-				data-size={size}
+				className={styles.button({ variant, size, fullWidth })}
 				data-phase="idle"
 				data-tone="success"
 			>

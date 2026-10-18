@@ -17,7 +17,7 @@ export function RouteError({
 	error,
 	reset,
 	subject,
-	loginMessage = "ログインすると、利用できます",
+	loginMessage = "ログインすると利用できます",
 }: RouteErrorProps) {
 	const router = useRouter();
 

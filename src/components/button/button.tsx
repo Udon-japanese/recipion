@@ -8,11 +8,11 @@ import {
 	useState,
 } from "react";
 import { Mascot } from "../mascot/mascot";
+import type { ButtonSize, ButtonVariant } from "./button.css";
 import * as styles from "./button.css";
 import { type ButtonStatus, useButtonPhase } from "./use-button-phase";
 
-export type ButtonVariant = "primary" | "secondary" | "danger" | "ghost";
-export type ButtonSize = "sm" | "md" | "lg";
+export type { ButtonSize, ButtonVariant } from "./button.css";
 
 type ButtonProps = Omit<ComponentProps<"button">, "className" | "style"> & {
 	variant?: ButtonVariant;
@@ -62,6 +62,8 @@ export function Button({
 	const phase = useButtonPhase(status);
 	const buttonRef = useRef<HTMLButtonElement>(null);
 	const textRef = useRef<HTMLSpanElement>(null);
+	// 前の描画の status（変わった瞬間を知るため）。
+	const lastStatusRef = useRef<ButtonStatus>("idle");
 	// 変形のあいだ、もとの大きさを覚えておく（周りがずれないように、場所を保つ）。
 	const [box, setBox] = useState<Box | null>(null);
 	const [expandedWidth, setExpandedWidth] = useState(0);
@@ -96,9 +98,13 @@ export function Button({
 	}, [isReasonShown, explainsDisabled]);
 
 	// 変形の開始前に、もとの大きさを測る。
+	// 状態（status）が変わった直後の描画では、まだ待機の形（横の余白がある）のまま。
+	// 形が変わってからだと、余白が 0 になっていて、元より狭く測ってしまい、戻るときに縮みすぎる。
 	useLayoutEffect(() => {
 		const button = buttonRef.current;
-		if (isIdle || box || !button) {
+		const changed = lastStatusRef.current !== status;
+		lastStatusRef.current = status;
+		if (!changed || status === "idle" || box || !button) {
 			return;
 		}
 		const rect = button.getBoundingClientRect();
@@ -106,7 +112,7 @@ export function Button({
 		button.style.width = `${rect.width}px`;
 		void button.offsetWidth;
 		setBox({ width: rect.width, height: rect.height });
-	}, [isIdle, box]);
+	}, [status, box]);
 
 	// 広がるときの幅は、文言の長さから決める。
 	useLayoutEffect(() => {
@@ -165,9 +171,7 @@ export function Button({
 
 	return (
 		<span
-			className={styles.wrapper}
-			data-full-width={fullWidth || undefined}
-			data-align={align}
+			className={styles.wrapper({ fullWidth, align })}
 			style={
 				box
 					? {
@@ -180,9 +184,7 @@ export function Button({
 			<button
 				{...rest}
 				ref={buttonRef}
-				className={styles.button}
-				data-variant={variant}
-				data-size={size}
+				className={styles.button({ variant, size, fullWidth })}
 				data-phase={phase}
 				data-tone={tone}
 				type={type}

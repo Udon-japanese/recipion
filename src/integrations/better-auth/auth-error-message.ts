@@ -13,10 +13,10 @@ const messagesByCode: Record<string, string> = {
 	OTP_EXPIRED: "コードの有効期限が切れました。コードを再送してください。",
 	TOO_MANY_ATTEMPTS: "入力の回数が上限に達しました。コードを再送してください。",
 	[AUTH_RATE_LIMITED_CODE]:
-		"短い時間に何度も試行されました。しばらく待ってから、やり直してください。",
+		"短い時間に何度も試行されました。しばらく待ってからやり直してください。",
 	VERIFICATION_FAILED: "ボットの判定に失敗しました。もう一度お試しください。",
 	MISSING_RESPONSE:
-		"ボットの判定が完了していません。少し待ってから、お試しください。",
+		"ボットの判定が完了していません。少し待ってからお試しください。",
 };
 
 export function getAuthErrorMessage(

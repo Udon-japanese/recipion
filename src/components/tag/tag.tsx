@@ -1,10 +1,11 @@
 import type { ReactNode } from "react";
 import { Icon } from "../icon/icon";
 import type { IconName } from "../icon/icon-definitions";
+import type { TagTone } from "./tag.css";
 import * as styles from "./tag.css";
 
 type TagProps = {
-	tone?: "default" | "warn" | "error" | "soft" | "success";
+	tone?: TagTone;
 	icon?: IconName;
 	// 「約」（だいたい）の印として、輪郭を破線にする。
 	approximate?: boolean;
@@ -19,13 +20,9 @@ export function Tag({
 	children,
 }: TagProps) {
 	return (
-		<span
-			className={styles.tag}
-			data-tone={tone}
-			data-approximate={approximate || undefined}
-		>
+		<span className={styles.tag({ tone, approximate })}>
 			{icon ? (
-				<span className={styles.icon}>
+				<span className={styles.icon({ tone })}>
 					<Icon name={icon} size={16} />
 				</span>
 			) : null}

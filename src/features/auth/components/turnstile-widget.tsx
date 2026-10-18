@@ -111,7 +111,7 @@ export function TurnstileWidget({
 		};
 	}, [siteKey]);
 
-	// resetKey が変わったときだけ、ウィジェットを作り直す。
+	// resetKey が変わったら、既存のウィジェットを reset() する
 	useEffect(() => {
 		if (resetKey === 0) return;
 

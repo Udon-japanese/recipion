@@ -73,6 +73,33 @@ it("押すと、丸く縮み、完了で広がり、元の幅に戻る", async (
 		.toBeLessThan(2);
 });
 
+// 元の形に戻るとき、元の幅より狭く縮まない（形が変わってから測ると、横の余白の分だけ狭く覚えてしまう）。
+it("元の形に戻るとき、元の幅より狭く縮まない", async () => {
+	await render(<Demo ok />);
+
+	const idleWidth = width();
+
+	button().click();
+
+	await expect
+		.poll(() => button().dataset.phase, { timeout: 3000 })
+		.toBe("success-expanded");
+	await expect
+		.poll(() => button().dataset.phase, { timeout: 4000 })
+		.toBe("idle");
+
+	// 戻りの動き（420ms）と、そのあとの大きさの手放し（500ms）をまたいで、幅を見続ける。
+	let narrowest = Number.POSITIVE_INFINITY;
+	const end = performance.now() + 1000;
+
+	while (performance.now() < end) {
+		narrowest = Math.min(narrowest, width());
+		await new Promise((resolve) => requestAnimationFrame(resolve));
+	}
+
+	expect(narrowest).toBeGreaterThan(idleWidth - 2);
+});
+
 it("失敗のときは、赤い印の形になる", async () => {
 	await render(<Demo ok={false} />);
 
