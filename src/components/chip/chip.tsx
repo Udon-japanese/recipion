@@ -1,6 +1,7 @@
 import type { ComponentProps, ReactNode } from "react";
 import { Icon } from "../icon/icon";
 import type { IconName } from "../icon/icon-definitions";
+import type { ChipSize } from "./chip.css";
 import * as styles from "./chip.css";
 
 type ChipProps = Omit<ComponentProps<"button">, "className" | "style"> & {
@@ -8,7 +9,7 @@ type ChipProps = Omit<ComponentProps<"button">, "className" | "style"> & {
 	pressed?: boolean;
 	icon?: IconName;
 	// qty：数量の押しボタン（大きな数字）。
-	size?: "md" | "qty";
+	size?: ChipSize;
 	children: ReactNode;
 };
 
@@ -24,10 +25,9 @@ export function Chip({
 	return (
 		<button
 			{...rest}
-			className={styles.chip}
+			className={styles.chip({ size })}
 			type={type}
 			aria-pressed={pressed}
-			data-size={size}
 		>
 			{pressed ? (
 				<Icon name="check" size={16} />
