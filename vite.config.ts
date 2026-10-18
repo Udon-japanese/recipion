@@ -6,11 +6,10 @@ import viteReact from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 const config = defineConfig(({ isPreview }) => ({
-	// React は、1つだけにする（複数あると、Hooks が動かない）。
-	resolve: { tsconfigPaths: true, dedupe: ["react", "react-dom"] },
+	resolve: { tsconfigPaths: true },
 	environments: {
-		// 開発サーバーが、実行中に依存を見つけて再最適化すると、React が入れ替わって、最初の描画が失敗する。
-		// 事前に、すべて最適化の対象にしておく。
+		// 開発サーバーが、実行中に依存（メールの描画で使う react-dom/server など）を見つけて再最適化すると、
+		// React が2つになって、最初の描画が失敗する（Invalid hook call）。事前に、最適化の対象にしておく。
 		ssr: {
 			optimizeDeps: {
 				include: ["react-dom/server", "@vanilla-extract/css"],
