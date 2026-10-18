@@ -6,8 +6,16 @@ import viteReact from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 const config = defineConfig(({ isPreview }) => ({
-	resolve: { tsconfigPaths: true },
+	// React は、1つだけにする（複数あると、Hooks が動かない）。
+	resolve: { tsconfigPaths: true, dedupe: ["react", "react-dom"] },
 	environments: {
+		// 開発サーバーが、実行中に依存を見つけて再最適化すると、React が入れ替わって、最初の描画が失敗する。
+		// 事前に、すべて最適化の対象にしておく。
+		ssr: {
+			optimizeDeps: {
+				include: ["react-dom/server", "@vanilla-extract/css"],
+			},
+		},
 		// scripts/postbuild-app-shell.ts が、今回のビルドが出したファイルの一覧として読む。
 		client: { build: { manifest: true } },
 	},
