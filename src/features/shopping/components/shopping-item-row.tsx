@@ -35,6 +35,8 @@ type ShoppingItemRowProps = {
 	onMove: (itemId: string, direction: ShoppingItemMoveDirection) => void;
 	onStartEditing: (item: ShoppingItem) => void;
 	onEditQuantity: (item: ShoppingItem) => void;
+	// 在庫への換算（「1袋＝300g」）を直す。
+	onEditConversion: (item: ShoppingItem) => void;
 	onRemove: (itemId: string) => void;
 };
 
@@ -52,6 +54,7 @@ export function ShoppingItemRow({
 	onMove,
 	onStartEditing,
 	onEditQuantity,
+	onEditConversion,
 	onRemove,
 }: ShoppingItemRowProps) {
 	const isPurchased = item.status === "purchased";
@@ -134,7 +137,14 @@ export function ShoppingItemRow({
 				</Chip>
 
 				{convertedQuantityLabel ? (
-					<span className={styles.converted}>（{convertedQuantityLabel}）</span>
+					<Chip
+						aria-label={`${item.name}の在庫への換算を直す`}
+						disabled={isPurchased}
+						onClick={() => onEditConversion(item)}
+					>
+						{item.inventoryConversion?.isApproximate ? "約" : ""}
+						{convertedQuantityLabel}
+					</Chip>
 				) : null}
 
 				<span className={styles.doneTags} data-done={isChecked}>

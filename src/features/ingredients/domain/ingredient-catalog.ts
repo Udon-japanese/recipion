@@ -50,6 +50,15 @@ export type IngredientExpiryInfo = {
 	shelfLifeDays: { room?: number; fridge?: number; freezer?: number };
 };
 
+// 日本のスーパーで一般的に売られている単位と、その1つ分が在庫の単位でいくつか（例：卵 パック・10）。
+export type IngredientUsualRetailUnit = {
+	unitLabel: string;
+	// 1つ分が、在庫の単位でいくつか。
+	quantity: number;
+	// 規格を確認できていない目安の値。
+	approximate?: boolean;
+};
+
 export type IngredientCatalogEntry = {
 	id: string;
 	name: string;
@@ -73,6 +82,8 @@ export type IngredientCatalogEntry = {
 	reading?: string;
 	// 期限の種類・初期の保存方法・目安の日数。
 	expiry?: IngredientExpiryInfo;
+	// 一般的に売られている単位。買い物メモで単位を書かなかったときの既定の単位に使う。
+	usualRetailUnit?: IngredientUsualRetailUnit;
 	// この食材が、代わりに使える、別の食材の名前（冷凍野菜が、生の野菜の代わりになる）。
 	// レシピの材料が「玉ねぎ」のとき、在庫の「冷凍玉ねぎ」で足りているとみなすために使う。
 	standsFor?: readonly string[];

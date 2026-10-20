@@ -11,6 +11,7 @@ import { ingredientReadingById } from "./readings";
 import { seasoningsEntries } from "./seasonings";
 import { soyAndProcessedEntries } from "./soy-and-processed";
 import { staplesEntries } from "./staples";
+import { usualRetailUnitById } from "./usual-retail-units";
 import { vegetablesEntries } from "./vegetables";
 
 // 食材のカタログのデータ。全食材は網羅せず、よく使う定番と、登録したレシピに出る食材だけを入れる。
@@ -57,15 +58,17 @@ const entriesWithoutExpiry: readonly IngredientCatalogEntry[] = [
 	...withDefaultTrackingMode("presence", seasoningsEntries),
 ];
 
-// 期限の目安と読み仮名を、食材に付ける（別のファイルで管理している）。
+// 期限の目安・読み仮名・一般的な売られ方を、食材に付ける（別のファイルで管理している）。
 export const ingredientCatalogEntries: readonly IngredientCatalogEntry[] =
 	entriesWithoutExpiry.map((entry) => {
 		const expiry = ingredientExpiryById[entry.id];
 		const reading = ingredientReadingById[entry.id];
+		const usualRetailUnit = usualRetailUnitById[entry.id];
 
 		return {
 			...entry,
 			...(expiry ? { expiry } : {}),
 			...(reading ? { reading } : {}),
+			...(usualRetailUnit ? { usualRetailUnit } : {}),
 		};
 	});

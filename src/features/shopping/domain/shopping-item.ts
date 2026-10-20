@@ -25,6 +25,8 @@ export type ShoppingItemInventoryConversion = {
 	stockUnitLabel: string;
 	stockQuantityPerInputUnit: number;
 	trackingMode: InventoryTrackingMode;
+	// 規格を確認できていない目安の換算（カタログの「一般的な売られ方」から補ったもの）。表示で「目安」と示す。
+	isApproximate?: boolean;
 };
 
 export type ShoppingItem = {
@@ -65,6 +67,7 @@ const inventoryConversionSchema = v.object({
 		v.gtValue(0, "1単位あたりの在庫数量は0より大きくしてください"),
 	),
 	trackingMode: inventoryTrackingModeSchema,
+	isApproximate: v.optional(v.boolean()),
 });
 
 const shoppingCategoryAssignmentSchema = v.picklist(["automatic", "manual"]);

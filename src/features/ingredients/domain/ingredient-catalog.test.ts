@@ -9,6 +9,7 @@ import {
 } from "./ingredient-catalog";
 import { ingredientExpiryById } from "./ingredient-catalog-data/expiry";
 import { ingredientReadingById } from "./ingredient-catalog-data/readings";
+import { usualRetailUnitById } from "./ingredient-catalog-data/usual-retail-units";
 import { normalizeIngredientName } from "./normalize-ingredient-name";
 
 describe("食材のカタログのデータ", () => {
@@ -293,6 +294,41 @@ describe("読み仮名", () => {
 			["きのこ", "frozen-mushroom-mix"],
 		])("「%s」の代わりに、%s は使えない", (name, unexpectedId) => {
 			expect(getStandInCatalogEntryIds(name).has(unexpectedId)).toBe(false);
+		});
+	});
+});
+
+describe("一般的に売られている単位", () => {
+	it("カタログにない ID がない", () => {
+		const ids = new Set(ingredientCatalogEntries.map((entry) => entry.id));
+
+		expect(
+			Object.keys(usualRetailUnitById).filter((id) => !ids.has(id)),
+		).toEqual([]);
+	});
+
+	it("単位は空でなく、分数のカットではない。量は、正の有限の数である", () => {
+		const invalid = Object.entries(usualRetailUnitById)
+			.filter(
+				([, unit]) =>
+					unit.unitLabel.trim() === "" ||
+					unit.unitLabel.includes("/") ||
+					!Number.isFinite(unit.quantity) ||
+					unit.quantity <= 0,
+			)
+			.map(([id]) => id);
+
+		expect(invalid).toEqual([]);
+	});
+
+	it("卵は、パック・10個。牛乳は、本・1000ml", () => {
+		expect(findIngredientCatalogEntry("卵")?.usualRetailUnit).toEqual({
+			unitLabel: "パック",
+			quantity: 10,
+		});
+		expect(findIngredientCatalogEntry("牛乳")?.usualRetailUnit).toEqual({
+			unitLabel: "本",
+			quantity: 1000,
 		});
 	});
 });

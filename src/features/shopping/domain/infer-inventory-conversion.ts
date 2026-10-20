@@ -28,7 +28,7 @@ const unitCodes: Record<string, string> = {
 	l: "l",
 };
 
-function toInputUnitCode(unit: string): string {
+export function toInputUnitCode(unit: string): string {
 	return unitCodes[unit.toLocaleLowerCase("ja-JP")] ?? unit;
 }
 

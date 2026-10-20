@@ -20,6 +20,10 @@ import {
 } from "#/features/inventory/infrastructure/expiry-hints-storage";
 import type { ShoppingItemInventoryConfiguration } from "../components/shopping-item-inventory-conversion-form";
 import {
+	isSameConversionDefault,
+	type ShoppingConversionDefault,
+} from "../domain/shopping-conversion-default";
+import {
 	isInventoryTrackedShoppingItem,
 	type ShoppingItem,
 	updateShoppingItem,
@@ -48,6 +52,24 @@ type UseShoppingPurchaseOptions = {
 	applyPurchasedItems: (purchasedItems: ShoppingItem[]) => void;
 	// 換算の設定を保存する（成功したら、更新後の項目）。
 	saveConversion: (change: () => ShoppingItem) => Promise<ShoppingItem | null>;
+	// 食材ごとの、在庫換算の記憶。設定した換算を覚え、次から数量のない行に使う。
+	conversionMemory: {
+		lookup: (
+			itemName: string,
+			unitLabel: string | null,
+		) => ShoppingConversionDefault | undefined;
+		remember: (
+			itemName: string,
+			value: ShoppingConversionDefault,
+		) => Promise<void>;
+	};
+};
+
+// 記憶と違う換算を設定したときの、確認（「変える」か「今回だけ」）。
+export type ConversionOverwriteRequest = {
+	itemName: string;
+	previous: ShoppingConversionDefault;
+	next: ShoppingConversionDefault;
 };
 
 // チェック済みの購入確定の流れ（期限の確認 → 確定 → 在庫換算の設定 → 在庫への反映）。
@@ -59,10 +81,14 @@ export function useShoppingPurchase({
 	setErrorMessage,
 	applyPurchasedItems,
 	saveConversion,
+	conversionMemory,
 }: UseShoppingPurchaseOptions) {
 	const [isConfirmingPurchase, setIsConfirmingPurchase] = useState(false);
 	const [conversionItemId, setConversionItemId] = useState<string | null>(null);
 	const [isSavingConversion, setIsSavingConversion] = useState(false);
+	// 記憶と違う換算を設定したとき、答えを待つあいだ。
+	const [overwriteRequest, setOverwriteRequest] =
+		useState<ConversionOverwriteRequest | null>(null);
 
 	// 購入確定の前に、期限・保存方法を確認する画面（任意入力）。
 	const [isReviewingExpiry, setIsReviewingExpiry] = useState(false);
@@ -259,6 +285,25 @@ export function useShoppingPurchase({
 
 			setConversionItemId(null);
 
+			// 決めた換算は、次から同じ食材の初期値にするため、覚える。
+			// 記憶と違うときは、覚え直すかを聞いてから、購入確定をやり直す。
+			const next: ShoppingConversionDefault = {
+				unitLabel: configuration.unitLabel,
+				inventoryConversion: configuration.inventoryConversion,
+			};
+			const previous = conversionMemory.lookup(
+				item.name,
+				configuration.unitLabel,
+			);
+
+			if (!previous) {
+				await conversionMemory.remember(item.name, next);
+			} else if (!isSameConversionDefault(previous, next)) {
+				setOverwriteRequest({ itemName: item.name, previous, next });
+
+				return;
+			}
+
 			/*
 			 * Dexieへの換算保存が完了しているため、
 			 * 購入確定を最初から再試行する。
@@ -267,6 +312,23 @@ export function useShoppingPurchase({
 		} finally {
 			setIsSavingConversion(false);
 		}
+	}
+
+	// 記憶と違う換算の確認への答え。「変える」なら記憶を置き換える。どちらでも、購入確定を続ける。
+	async function answerConversionOverwrite(choice: "replace" | "once") {
+		const request = overwriteRequest;
+
+		if (!request) {
+			return;
+		}
+
+		setOverwriteRequest(null);
+
+		if (choice === "replace") {
+			await conversionMemory.remember(request.itemName, request.next);
+		}
+
+		await confirm();
 	}
 
 	function cancelConversion() {
@@ -290,6 +352,8 @@ export function useShoppingPurchase({
 		requestPurchase,
 		confirmWithExpiry,
 		saveInventoryConfiguration,
+		overwriteRequest,
+		answerConversionOverwrite,
 		cancelConversion,
 	};
 }

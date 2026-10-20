@@ -2,6 +2,7 @@ import { DragDropProvider } from "@dnd-kit/react";
 import { isSortable } from "@dnd-kit/react/sortable";
 import { type ReactNode, type Ref, useState } from "react";
 import { Button } from "#/components/button/button";
+import { ConfirmDialog } from "#/components/dialog/confirm-dialog";
 import { Field, SelectBox } from "#/components/field/field";
 import { Icon } from "#/components/icon/icon";
 import { IconButton } from "#/components/icon-button/icon-button";
@@ -12,6 +13,7 @@ import { Tag } from "#/components/tag/tag";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import { useStorageItem } from "#/local-storage/use-storage-item";
 import type { ShoppingBranchRepository } from "../application/shopping-branch-repository";
+import type { ShoppingConversionDefaultRepository } from "../application/shopping-conversion-default-repository";
 import type { ShoppingRepository } from "../application/shopping-repository";
 import type { ShoppingStoreRepository } from "../application/shopping-store-repository";
 import type { ParsedShoppingMemoLine } from "../domain/parse-shopping-memo";
@@ -19,10 +21,12 @@ import {
 	getShoppingBranchConditionItem,
 	type ShoppingBranchSide,
 } from "../domain/shopping-branch";
+import { describeConversionDefault } from "../domain/shopping-conversion-default";
 import { type ShoppingItem, toggleShoppingItem } from "../domain/shopping-item";
 import { inferShoppingCategory } from "../domain/shopping-item-suggestion";
 import { groupShoppingByStore } from "../domain/shopping-store";
 import { useShoppingBranches } from "../hooks/use-shopping-branches";
+import { useShoppingConversionDefaults } from "../hooks/use-shopping-conversion-defaults";
 import { useShoppingItems } from "../hooks/use-shopping-items";
 import {
 	type ConfirmPurchases,
@@ -31,6 +35,7 @@ import {
 } from "../hooks/use-shopping-purchase";
 import { useShoppingStores } from "../hooks/use-shopping-stores";
 import { dexieShoppingBranchRepository } from "../infrastructure/dexie-shopping-branch-repository";
+import { dexieShoppingConversionDefaultRepository } from "../infrastructure/dexie-shopping-conversion-default-repository";
 import { confirmCheckedShoppingItemsPurchase } from "../infrastructure/dexie-shopping-purchase";
 import { dexieShoppingRepository } from "../infrastructure/dexie-shopping-repository";
 import { dexieShoppingStoreRepository } from "../infrastructure/dexie-shopping-store-repository";
@@ -69,6 +74,7 @@ const defaultConfirmPurchases: ConfirmPurchases = (ownerScope, options) =>
 type ShoppingListProps = {
 	repository?: ShoppingRepository;
 	storeRepository?: ShoppingStoreRepository;
+	conversionDefaultRepository?: ShoppingConversionDefaultRepository;
 	branchRepository?: ShoppingBranchRepository;
 	confirmPurchases?: ConfirmPurchases;
 	syncPurchases?: SyncPurchases;
@@ -82,6 +88,7 @@ type ShoppingListProps = {
 export function ShoppingList({
 	repository = dexieShoppingRepository,
 	storeRepository = dexieShoppingStoreRepository,
+	conversionDefaultRepository = dexieShoppingConversionDefaultRepository,
 	branchRepository = dexieShoppingBranchRepository,
 	confirmPurchases = defaultConfirmPurchases,
 	syncPurchases,
@@ -98,6 +105,10 @@ export function ShoppingList({
 	const [isBulkAdding, setIsBulkAdding] = useState(false);
 	// 数量だけを直すシートの項目。
 	const [quantityItem, setQuantityItem] = useState<ShoppingItem | null>(null);
+	// 在庫への換算を直している項目（行の換算を押したとき）。
+	const [conversionEditItem, setConversionEditItem] =
+		useState<ShoppingItem | null>(null);
+	const [isSavingConversionEdit, setIsSavingConversionEdit] = useState(false);
 
 	// レシピの材料を入れたあと、保存済みの一覧を読み直す（購読できない保存先でも、画面に反映する）。
 	async function reloadItems() {
@@ -120,6 +131,9 @@ export function ShoppingList({
 		onStoreRemoved: handleStoreRemoved,
 	});
 	const { stores } = storeState;
+	const conversionState = useShoppingConversionDefaults({
+		repository: conversionDefaultRepository,
+	});
 	const branchState = useShoppingBranches({
 		repository: branchRepository,
 		allItems: shopping.allItems,
@@ -144,6 +158,7 @@ export function ShoppingList({
 			}
 		},
 		saveConversion: shopping.changeItem,
+		conversionMemory: conversionState,
 	});
 
 	// 1 項目の中身（編集中は編集フォーム）。一覧（並び替えあり）と店ごと（並び替えなし）で共通。
@@ -206,6 +221,7 @@ export function ShoppingList({
 					setEditingItemId(target.id);
 				}}
 				onEditQuantity={setQuantityItem}
+				onEditConversion={setConversionEditItem}
 				onRemove={(itemId) => void shopping.removeItem(itemId)}
 			/>
 		);
@@ -228,6 +244,7 @@ export function ShoppingList({
 				name: line.name,
 				quantity: line.quantity,
 				unitLabel: line.unitLabel,
+				inventoryConversion: line.inventoryConversion,
 				storeId: line.storeId,
 				...(destination
 					? { branchId: destination.branchId, branchSide: destination.side }
@@ -251,6 +268,7 @@ export function ShoppingList({
 	const branchContext: ShoppingBranchCardsContext = {
 		items: shopping.allItems,
 		stores,
+		conversionDefaults: conversionState.defaults,
 		defaultStoreIdFor: storeState.defaultStoreIdFor,
 		onCreateStore: storeState.addStore,
 		onRemoveBranch: branchState.removeBranch,
@@ -400,6 +418,7 @@ export function ShoppingList({
 			{isBulkAdding ? (
 				<ShoppingBulkAdd
 					stores={stores}
+					conversionDefaults={conversionState.defaults}
 					onClose={() => setIsBulkAdding(false)}
 					onAdd={addMemoLines}
 					onCreateStore={storeState.addStore}
@@ -413,6 +432,24 @@ export function ShoppingList({
 						onApplied: () => void reloadItems(),
 					})
 				: null}
+
+			{purchase.overwriteRequest ? (
+				<ConfirmDialog
+					open
+					title={`${purchase.overwriteRequest.itemName}のいつもの換算を変えますか`}
+					cancelLabel="今回だけ"
+					confirmLabel="変える"
+					pending={purchase.isConfirmingPurchase}
+					onCancel={() => void purchase.answerConversionOverwrite("once")}
+					onConfirm={() => void purchase.answerConversionOverwrite("replace")}
+				>
+					いつもの換算は「
+					{describeConversionDefault(purchase.overwriteRequest.previous)}
+					」です。今回の設定は「
+					{describeConversionDefault(purchase.overwriteRequest.next)}
+					」です。
+				</ConfirmDialog>
+			) : null}
 
 			{purchase.conversionItem ? (
 				<ShoppingItemInventoryConversionForm
@@ -633,6 +670,39 @@ export function ShoppingList({
 					</span>
 				</Button>
 			</div>
+
+			{conversionEditItem ? (
+				<ShoppingItemInventoryConversionForm
+					item={conversionEditItem}
+					isSaving={isSavingConversionEdit}
+					onSave={async (configuration) => {
+						const target = conversionEditItem;
+
+						setIsSavingConversionEdit(true);
+
+						try {
+							const updated = await shopping.updateItem(target, {
+								name: target.name,
+								quantity: configuration.quantity,
+								unitLabel: configuration.unitLabel,
+								inventoryConversion: configuration.inventoryConversion,
+							});
+
+							if (updated) {
+								// 直したこと自体が意思表示なので、聞かずに、その食材×単位の記憶を更新する。
+								await conversionState.remember(updated.name, {
+									unitLabel: configuration.unitLabel,
+									inventoryConversion: configuration.inventoryConversion,
+								});
+								setConversionEditItem(null);
+							}
+						} finally {
+							setIsSavingConversionEdit(false);
+						}
+					}}
+					onCancel={() => setConversionEditItem(null)}
+				/>
+			) : null}
 
 			<ShoppingQuantitySheet
 				item={quantityItem}

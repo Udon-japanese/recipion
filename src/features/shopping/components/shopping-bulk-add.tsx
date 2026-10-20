@@ -33,6 +33,10 @@ import {
 	type ParsedShoppingMemoLine,
 	parseShoppingMemo,
 } from "../domain/parse-shopping-memo";
+import {
+	applyConversionDefaults,
+	type ShoppingConversionDefaults,
+} from "../domain/shopping-conversion-default";
 import type { ShoppingStore } from "../domain/shopping-store";
 import * as styles from "./shopping-page.css";
 
@@ -40,12 +44,16 @@ type ShoppingBulkAddProps = {
 	// シートの見出し（省略すると、「まとめて追加」）。条件つきのメモの側に入れるときは、その側の名前を添える。
 	title?: string;
 	stores: readonly ShoppingStore[];
+	// 食材ごとの、在庫換算の記憶。数量のない行に、記憶の単位を補う。
+	conversionDefaults?: ShoppingConversionDefaults;
 	onClose: () => void;
 	// 読み取った行を、一覧に追加する。追加できた件数を返す（途中で失敗したら、そこまで）。
 	onAdd: (lines: readonly ParsedShoppingMemoLine[]) => Promise<number>;
 	// 登録のない店を、店として追加する（成功したら、その店）。追加すると、その店の項目として読み直される。
 	onCreateStore: (name: string) => Promise<ShoppingStore | null>;
 };
+
+const noConversionDefaults: ShoppingConversionDefaults = {};
 
 function formatQuantity(line: ParsedShoppingMemoLine): string | null {
 	if (line.unitLabel === null && line.quantity === 1) {
@@ -60,6 +68,7 @@ function formatQuantity(line: ParsedShoppingMemoLine): string | null {
 export function ShoppingBulkAdd({
 	title = "まとめて追加",
 	stores,
+	conversionDefaults = noConversionDefaults,
 	onClose,
 	onAdd,
 	onCreateStore,
@@ -91,7 +100,14 @@ export function ShoppingBulkAdd({
 	// 広い画面（PC）は、幅広のモーダル。狭い画面は、ボトムシートに、タブで切り替える。
 	const isWide = useMediaQuery("(min-width: 768px)");
 	const [tab, setTab] = useState<"input" | "preview">("input");
-	const lines = useMemo(() => parseShoppingMemo(text, stores), [text, stores]);
+	const lines = useMemo(
+		() =>
+			applyConversionDefaults(
+				parseShoppingMemo(text, stores),
+				conversionDefaults,
+			),
+		[text, stores, conversionDefaults],
+	);
 	const completion = useMemo(() => {
 		const found = getShoppingMemoCompletion(text, caret, stores);
 
