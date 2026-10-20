@@ -159,4 +159,73 @@ describe("ShoppingItemInventoryConversionForm", () => {
 			),
 		).toBeEnabled();
 	});
+
+	it("換算を直すときは、いまの換算から始める。単位を触らずに数量だけ変えても、「800袋」にならず 800g になる", async () => {
+		const user = userEvent.setup();
+		const onSave = vi.fn();
+
+		render(
+			<ShoppingItemInventoryConversionForm
+				item={createItem({
+					name: "そうめん",
+					inventoryConversion: {
+						inputUnitCode: "袋",
+						stockUnitCode: "g",
+						stockUnitLabel: "g",
+						stockQuantityPerInputUnit: 300,
+						trackingMode: "estimated",
+					},
+				})}
+				onSave={onSave}
+				onCancel={vi.fn()}
+			/>,
+		);
+
+		const quantity = screen.getByLabelText("1袋あたりの数量");
+
+		expect(quantity).toHaveValue(300);
+
+		await user.clear(quantity);
+		await user.type(quantity, "800");
+		await user.click(screen.getByRole("button", { name: "設定を保存" }));
+
+		expect(onSave).toHaveBeenCalledWith({
+			quantity: 1,
+			unitLabel: "袋",
+			inventoryConversion: {
+				inputUnitCode: "袋",
+				stockUnitCode: "g",
+				stockUnitLabel: "g",
+				stockQuantityPerInputUnit: 800,
+				trackingMode: "estimated",
+			},
+		});
+	});
+
+	it("換算のない食材は、カタログの在庫の単位から始める（そうめんは g）", async () => {
+		const user = userEvent.setup();
+		const onSave = vi.fn();
+
+		render(
+			<ShoppingItemInventoryConversionForm
+				item={createItem({ name: "そうめん" })}
+				onSave={onSave}
+				onCancel={vi.fn()}
+			/>,
+		);
+
+		await user.clear(screen.getByLabelText("1袋あたりの数量"));
+		await user.type(screen.getByLabelText("1袋あたりの数量"), "800");
+		await user.click(screen.getByRole("button", { name: "設定を保存" }));
+
+		expect(onSave).toHaveBeenCalledWith(
+			expect.objectContaining({
+				inventoryConversion: expect.objectContaining({
+					stockUnitCode: "g",
+					stockUnitLabel: "g",
+					stockQuantityPerInputUnit: 800,
+				}),
+			}),
+		);
+	});
 });

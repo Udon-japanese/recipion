@@ -98,21 +98,38 @@ export function ShoppingItemInventoryConversionForm({
 			? catalogEntry.stockUnitCode
 			: null;
 
+	// すでに換算がある項目（行の換算を押して直すとき）は、その値から始める。
+	// ない項目は、カタログの在庫の単位から始める（「袋」のまま g の数量を入れて、800袋になるのを防ぐ）。
+	const existing = item.inventoryConversion;
+	const initialStockUnitCode =
+		lockedStockUnitCode ??
+		existing?.stockUnitCode ??
+		catalogEntry?.stockUnitCode ??
+		"count";
+
 	const [stockUnitCode, setStockUnitCode] = useState<"count" | "g" | "ml">(
-		lockedStockUnitCode ?? "count",
+		initialStockUnitCode,
 	);
 
 	const [stockUnitLabel, setStockUnitLabel] = useState(
-		item.unitLabel?.trim() || "個",
+		initialStockUnitCode === "count"
+			? existing?.stockUnitCode === "count"
+				? existing.stockUnitLabel
+				: item.unitLabel?.trim() || "個"
+			: getDefaultStockUnitLabel(initialStockUnitCode),
 	);
 
-	const [stockQuantityPerInputUnit, setStockQuantityPerInputUnit] =
-		useState("1");
+	const [stockQuantityPerInputUnit, setStockQuantityPerInputUnit] = useState(
+		existing && existing.trackingMode !== "presence"
+			? String(existing.stockQuantityPerInputUnit)
+			: "1",
+	);
 
 	const [trackingMode, setTrackingMode] = useState<InventoryTrackingMode>(
-		catalogEntry && lockedStockUnitCode
-			? catalogEntry.defaultTrackingMode
-			: "estimated",
+		existing?.trackingMode ??
+			(catalogEntry && lockedStockUnitCode
+				? catalogEntry.defaultTrackingMode
+				: "estimated"),
 	);
 
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -170,7 +187,11 @@ export function ShoppingItemInventoryConversionForm({
 				inventoryConversion: {
 					inputUnitCode: item.unitLabel?.trim() || "unit",
 					stockUnitCode: conversion.stockUnitCode,
-					stockUnitLabel: conversion.stockUnitLabel,
+					// g・ml は表示単位が決まっている（「袋」のまま g の数量を入れて、800袋と表示されるのを防ぐ）。
+					stockUnitLabel:
+						conversion.stockUnitCode === "count"
+							? conversion.stockUnitLabel
+							: getDefaultStockUnitLabel(conversion.stockUnitCode),
 					stockQuantityPerInputUnit: conversion.stockQuantityPerInputUnit,
 					trackingMode: conversion.trackingMode,
 				},
