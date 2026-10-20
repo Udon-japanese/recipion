@@ -22,6 +22,7 @@ import {
 	type ShoppingBranch,
 	type ShoppingBranchSide,
 } from "../domain/shopping-branch";
+import type { ShoppingConversionDefaults } from "../domain/shopping-conversion-default";
 import type {
 	CreateShoppingItemInput,
 	ShoppingItem,
@@ -39,6 +40,8 @@ export type ShoppingBranchCardsContext = {
 	// 分岐の中の項目も含む、すべての項目。
 	items: readonly ShoppingItem[];
 	stores: readonly ShoppingStore[];
+	// 食材ごとの、在庫換算の記憶（「まとめて追加」で、数量のない行に単位を補う）。
+	conversionDefaults?: ShoppingConversionDefaults;
 	defaultStoreIdFor: (itemName: string) => string | null;
 	onCreateStore: (name: string) => Promise<ShoppingStore | null>;
 	onRemoveBranch: (branch: ShoppingBranch) => Promise<boolean>;
@@ -377,6 +380,7 @@ export function ShoppingBranchCards({
 							: sideTitle(bulkTarget.branch.elseLabel, "そうでなければ")
 					}にまとめて追加`}
 					stores={context.stores}
+					conversionDefaults={context.conversionDefaults}
 					onClose={() => setBulkTarget(null)}
 					onAdd={(lines) =>
 						context.onAddItems(bulkTarget.branch, bulkTarget.side, lines)

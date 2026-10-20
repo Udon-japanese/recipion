@@ -9,6 +9,8 @@ import { parseIngredientLine } from "#/features/ingredients/domain/parse-ingredi
 //   イオン（見出しの行）                                … 以降の行は、その店（登録済みの店の名前だけ）
 //   @イオン（見出しの行）                                … 同じ。見出しは、登録のない店でも、読む（店は付かない）
 
+import type { ShoppingItemInventoryConversion } from "./shopping-item";
+
 export type ShoppingMemoStore = { id: string; name: string };
 
 export type ParsedShoppingMemoLine = {
@@ -20,6 +22,10 @@ export type ParsedShoppingMemoLine = {
 	storeId: string | null;
 	// 指定された店が、登録になかったとき、その名前（店は付けない）。
 	unknownStoreName: string | null;
+	// 単位を書いていない行（数量なし、または単位のない数字）。既定の単位を補う対象。
+	unitless: boolean;
+	// 記憶から付いた在庫換算（解析では付かない。applyConversionDefaults が付ける）。
+	inventoryConversion?: ShoppingItemInventoryConversion;
 };
 
 // レシピの計量の単位や、数量を決められない分量は、買い物の数量としては読まない（名前だけを使う）。
@@ -54,7 +60,12 @@ function toNumber(text: string): number {
 	return Number(text);
 }
 
-type Quantity = { name: string; quantity: number; unitLabel: string | null };
+type Quantity = {
+	name: string;
+	quantity: number;
+	unitLabel: string | null;
+	unitless: boolean;
+};
 
 // 1行から、名前と数量・単位を読む。
 function parseItemText(text: string): Quantity | null {
@@ -66,6 +77,7 @@ function parseItemText(text: string): Quantity | null {
 			name: times.groups.name.trim(),
 			quantity: Number(times.groups.count),
 			unitLabel: defaultUnit,
+			unitless: false,
 		};
 	}
 
@@ -86,14 +98,20 @@ function parseItemText(text: string): Quantity | null {
 				name: parsed.name.trim(),
 				quantity: parsed.quantity,
 				unitLabel: parsed.unitLabel,
+				unitless: false,
 			};
 		}
 
 		// 「塩 少々」「醤油 大さじ2」など：分量は、買い物の数量としては使わず、名前だけにする。
-		return { name: parsed.name.trim(), quantity: 1, unitLabel: null };
+		return {
+			name: parsed.name.trim(),
+			quantity: 1,
+			unitLabel: null,
+			unitless: true,
+		};
 	}
 
-	// 「牛乳 2」「レタス 1/2」：単位がない数字は、いちばん一般的な「個」にする。
+	// 「牛乳 2」「レタス 1/2」：単位がない数字は、いちばん一般的な「個」にする（既定の単位があれば、あとで置き換える）。
 	const unitless = text.match(
 		/^(?<name>.*[^\d\s/.])\s*(?<number>\d+\/\d+|\d+(?:\.\d+)?)$/u,
 	);
@@ -106,11 +124,17 @@ function parseItemText(text: string): Quantity | null {
 				name: unitless.groups.name.trim(),
 				quantity,
 				unitLabel: defaultUnit,
+				unitless: true,
 			};
 		}
 	}
 
-	return { name: parsed.name.trim(), quantity: 1, unitLabel: null };
+	return {
+		name: parsed.name.trim(),
+		quantity: 1,
+		unitLabel: null,
+		unitless: true,
+	};
 }
 
 type StoreTarget = { storeId: string | null; unknownName: string | null };
@@ -176,6 +200,7 @@ export function parseShoppingMemo(
 			unitLabel: item.unitLabel,
 			storeId: target.storeId,
 			unknownStoreName: target.unknownName,
+			unitless: item.unitless,
 		});
 	}
 

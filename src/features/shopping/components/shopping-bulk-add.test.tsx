@@ -1,5 +1,9 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import {
+	toConversionDefaultKey,
+	toConversionMemoryKey,
+} from "../domain/shopping-conversion-default";
 import { ShoppingBulkAdd } from "./shopping-bulk-add";
 
 // 変換中の補完の方式は、環境ごとに決まる。ここでは、Mac の Chrome（変換を確定させてから置き換える）にする。
@@ -78,5 +82,69 @@ describe("ShoppingBulkAdd の元に戻す", () => {
 
 		fireEvent.keyDown(memo, { key: "z", ctrlKey: true, shiftKey: true });
 		expect(memo.value).toBe(completed);
+	});
+});
+
+describe("ShoppingBulkAdd の在庫換算の記憶", () => {
+	const milk = {
+		unitLabel: "本",
+		inventoryConversion: {
+			inputUnitCode: "本",
+			stockUnitCode: "ml" as const,
+			stockUnitLabel: "ml",
+			stockQuantityPerInputUnit: 1000,
+			trackingMode: "estimated" as const,
+		},
+	};
+
+	it("数量のない行は、記憶の単位で1つにして（牛乳 1本）、記憶もカタログの既定もない食材は、そのまま", async () => {
+		const onAdd = vi.fn(async () => 2);
+
+		render(
+			<ShoppingBulkAdd
+				stores={[]}
+				conversionDefaults={{
+					[toConversionMemoryKey(toConversionDefaultKey("牛乳") ?? "", "本")]: {
+						...milk,
+						nameKey: toConversionDefaultKey("牛乳") ?? "",
+						usedAt: 1,
+					},
+				}}
+				onClose={() => undefined}
+				onAdd={onAdd}
+				onCreateStore={async () => null}
+			/>,
+		);
+
+		fireEvent.change(
+			screen.getByRole("textbox", { name: "買うもの（1行に1つ）" }),
+			{ target: { value: "牛乳\nティッシュ" } },
+		);
+
+		// 狭い画面は、「確認」のタブに切り替えて、読み取った内容を見る。
+		fireEvent.click(screen.getByRole("button", { name: /確認 2/u }));
+
+		const preview = screen.getByRole("list", { name: "読み取った内容" });
+
+		expect(preview.textContent).toContain("牛乳1本");
+		expect(preview.textContent).not.toContain("ティッシュ1");
+
+		fireEvent.click(screen.getByRole("button", { name: /2件を追加/u }));
+
+		await waitFor(() => expect(onAdd).toHaveBeenCalledTimes(1));
+		const [lines] = onAdd.mock.calls[0] as unknown as [
+			{
+				name: string;
+				unitLabel: string | null;
+				inventoryConversion?: unknown;
+			}[],
+		];
+
+		expect(lines[0]).toMatchObject({
+			name: "牛乳",
+			unitLabel: "本",
+			inventoryConversion: milk.inventoryConversion,
+		});
+		expect(lines[1]?.inventoryConversion).toBeUndefined();
 	});
 });

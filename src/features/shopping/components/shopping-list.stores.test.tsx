@@ -70,7 +70,7 @@ describe("ShoppingList の店", () => {
 		).not.toBeInTheDocument();
 	});
 
-	it("まとめて追加：読み取った内容を確認してから、見出しの店・@店名・「個」の数量つきで一覧に追加する", async () => {
+	it("まとめて追加：読み取った内容を確認してから、見出しの店・@店名・数量つきで（単位のない数字は、食材の一般的な単位で）一覧に追加する", async () => {
 		const user = userEvent.setup();
 		const repository = createFakeShoppingRepository();
 		const store = createShoppingStore("イオン", 0);
@@ -93,7 +93,7 @@ describe("ShoppingList の店", () => {
 
 		const preview = screen.getByRole("list", { name: "読み取った内容" });
 
-		expect(within(preview).getByText("2個")).toBeInTheDocument();
+		expect(within(preview).getByText("2本")).toBeInTheDocument();
 		expect(within(preview).getAllByText("イオン")).toHaveLength(2);
 		expect(
 			within(preview).getByText("「ドンキ」は、登録のない店です"),
@@ -114,7 +114,7 @@ describe("ShoppingList の店", () => {
 				expect.objectContaining({
 					name: "牛乳",
 					quantity: 2,
-					unitLabel: "個",
+					unitLabel: "本",
 					storeId: store.id,
 				}),
 				expect.objectContaining({ name: "パン", storeId: null }),
