@@ -1,0 +1,61 @@
+# Dependabot の PR を、ゲート（CI）が通ったら自動でマージする。
+# - major の更新は、自動ではマージしない（人が確認する）。
+# - セキュリティ更新だったときだけ、マージのあと本番へ自動でデプロイする（deploy.yml）。
+name: Dependabot auto merge
+
+on: pull_request
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+jobs:
+  inspect:
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    outputs:
+      mergeable: ${{ steps.decide.outputs.mergeable }}
+      security: ${{ steps.decide.outputs.security }}
+    steps:
+      - id: meta
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - id: decide
+        env:
+          UPDATE_TYPE: ${{ steps.meta.outputs.update-type }}
+          GHSA_ID: ${{ steps.meta.outputs.ghsa-id }}
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          # グループの PR では update-type が空になることがあるので、その場合は major の可能性を残して自動マージしない。
+          if [ "$UPDATE_TYPE" = "version-update:semver-patch" ] || [ "$UPDATE_TYPE" = "version-update:semver-minor" ]; then
+            echo "mergeable=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "mergeable=false" >> "$GITHUB_OUTPUT"
+          fi
+          if [ -n "$GHSA_ID" ] || echo "$LABELS" | grep -q '"security"'; then
+            echo "security=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "security=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  gate:
+    needs: inspect
+    if: needs.inspect.outputs.mergeable == 'true'
+    uses: ./.github/workflows/ci.yml
+
+  merge:
+    needs: [inspect, gate]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Merge
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: gh pr merge --squash "$PR_URL"
+      - name: Deploy (security updates only)
+        if: needs.inspect.outputs.security == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run deploy.yml --repo "$GITHUB_REPOSITORY" --ref main

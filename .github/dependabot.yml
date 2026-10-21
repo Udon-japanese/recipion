@@ -1,0 +1,31 @@
+# 依存関係の自動更新。セキュリティ更新（脆弱性が見つかったとき）は、cooldown に関係なく、すぐ PR になる。
+# 検証（CI）と自動マージは .github/workflows/dependabot-auto-merge.yml。
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: daily
+      timezone: Asia/Tokyo
+    open-pull-requests-limit: 10
+    # 公開されて間もない版は、通常の更新では入れない（悪意ある版が混ざる事故への備え。pnpm の minimumReleaseAge と同じ考え）。
+    # セキュリティ更新には効かない。
+    cooldown:
+      default-days: 3
+    groups:
+      # 通常の更新（patch と minor）は、1 本の PR にまとめる。
+      minor-and-patch:
+        applies-to: version-updates
+        update-types: [minor, patch]
+      # セキュリティ更新は、ほかの更新と混ぜない（自動デプロイの判定に使うため）。
+      security:
+        applies-to: security-updates
+        patterns: ["*"]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      timezone: Asia/Tokyo
+    groups:
+      actions:
+        patterns: ["*"]
