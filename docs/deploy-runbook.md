@@ -189,3 +189,30 @@ nr waf:allowlist
 > 手元の開発用 DB は、同じ手順で作り直し済み（2026-10-12）。スキーマが、以前の 19 本を適用した状態と、完全に一致すること（列 181・制約 243・索引 66、差 0）を、確認してから、作り直した。
 
 - **Dexie（ブラウザの IndexedDB）**：すでに 1 つのバージョンにまとめてある（データベース名は `recipion-local`）。古い `app-local` は、使われない（DevTools で消せる）。
+
+## 14. 確認用アカウント（デモ用。期間限定）
+
+見てもらう人が、メールを受け取れないと、ログインできない。そこで、固定のコードでログインできる確認用アカウントを、期間だけ有効にする。コードは `src/integrations/demo-login/` の1か所にまとめてある。**環境変数（シークレット）の2つがそろったときだけ有効**で、削除すれば無効に戻る（コードの再デプロイは要らない）。管理者の権限は付かない（管理者のメールが指定されたら、無効にする）。コードの送信・検証の回数制限と Turnstile は、ほかのアドレスと同じにかかる。
+
+有効にする（運営者が実行する。本番の DB は、ユーザーが操作する）：
+
+1. 確認用アカウントのデータを入れる。メールアドレスは、`demo-<ランダムな文字列>@recipion.app` の形で、未指定なら、スクリプトが作って表示する（`DEMO_LOGIN_EMAIL` を渡すと、そのアドレスで入れ直す。何度でも実行できる）。
+   ```sh
+   DATABASE_URL='<neondb_owner の直接接続>' nlx tsx scripts/seed-demo-account.ts           # 接続先と内容の確認だけ（書かない）
+   DATABASE_URL='<neondb_owner の直接接続>' nlx tsx scripts/seed-demo-account.ts --confirm # 入れる
+   ```
+2. 表示されたメールアドレスと、決めた6桁のコードを、シークレットに設定する。
+   ```sh
+   printf '%s' 'demo-xxxx@recipion.app' | nlx --local wrangler secret put DEMO_LOGIN_EMAIL
+   printf '%s' '123456' | nlx --local wrangler secret put DEMO_LOGIN_CODE
+   ```
+3. 本番で、そのアドレスと6桁のコードでログインし、レシピ（5件）と在庫（14件）が見えることを確認する。
+
+**不要になったら、必ず無効にする**：
+
+```sh
+nlx --local wrangler secret delete DEMO_LOGIN_EMAIL
+nlx --local wrangler secret delete DEMO_LOGIN_CODE
+```
+
+データ（確認用ユーザーと、そのレシピ・在庫）は、不要になったら、スクリプトで入れ直す代わりに、アカウントの削除（ログインして「アカウントの削除」）か、DB で `delete from "user" where email = '<確認用のアドレス>'` で消す（レシピ・在庫は連鎖で消える）。コードごと外すときは、このブランチのマージコミットを `git revert -m 1` する。

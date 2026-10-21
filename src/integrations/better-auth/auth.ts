@@ -31,6 +31,11 @@ import {
 	SEND_CODE_PATH,
 } from "#/integrations/better-auth/auth-rate-limit";
 import {
+	generateDemoLoginCode,
+	isDemoLoginEmail,
+	readDemoLoginConfig,
+} from "#/integrations/demo-login/demo-login";
+import {
 	DELETE_ACCOUNT_LINK_EXPIRES_IN_SECONDS,
 	deleteAccountEmail,
 } from "#/integrations/email/delete-account-email";
@@ -197,9 +202,15 @@ export function createAuth(db: DB) {
 				allowedAttempts: OTP_ALLOWED_ATTEMPTS,
 				// コードは、ハッシュ化して保存する（データベースが漏れても、コードが読めない）。
 				storeOTP: "hashed",
+				// 確認用アカウント（環境変数で有効にしたときだけ）は、固定のコード。ほかのアドレスは、通常のコード。
+				generateOTP: ({ email }) =>
+					generateDemoLoginCode(readDemoLoginConfig(env), email),
 				async sendVerificationOTP({ email, otp, type }) {
 					// このアプリは、ログイン用のコードだけを使う。
 					if (type !== "sign-in") return;
+
+					// 確認用アカウントには、メールを送らない。
+					if (isDemoLoginEmail(readDemoLoginConfig(env), email)) return;
 
 					await getMailer().send(loginCodeEmail(email, otp));
 				},
