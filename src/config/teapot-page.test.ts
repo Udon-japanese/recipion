@@ -28,7 +28,10 @@ describe("418 の急須のページ（/teapot）", () => {
 
 	it("外部のファイルを読み込まず、通信もしない", () => {
 		expect(teapotHtml).not.toMatch(/(src|href)=["']?https?:/iu);
-		expect(teapotHtml).not.toMatch(/<link\b/iu);
+		// <link> は、アイコンだけ（指定しないと /favicon.ico を探しに行き、WAF に止められる）。
+		expect(teapotHtml.match(/<link\b[^>]*>/giu)).toEqual([
+			'<link rel="icon" href="/recipion-icon.svg" type="image/svg+xml">',
+		]);
 		expect(teapotHtml).not.toMatch(/@import|url\(https?:/iu);
 		expect(teapotHtml).not.toMatch(
 			/fetch\(|XMLHttpRequest|sendBeacon|WebSocket/u,
