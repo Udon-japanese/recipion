@@ -30,7 +30,6 @@ export function ProfileForm({ profile, onSave, onChanged }: ProfileFormProps) {
 	const [name, setName] = useState(profile.name);
 	const [handle, setHandle] = useState(profile.handle);
 	const [errors, setErrors] = useState<FieldErrors>({});
-	const [message, setMessage] = useState<string | null>(null);
 	const action = useButtonAction();
 
 	function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
@@ -39,14 +38,11 @@ export function ProfileForm({ profile, onSave, onChanged }: ProfileFormProps) {
 	}
 
 	async function save() {
-		setMessage(null);
-
 		try {
 			const result = await onSave({ name, handle });
 
 			if (result.ok) {
 				setErrors({});
-				setMessage("保存しました。");
 				onChanged?.();
 
 				return true;
@@ -122,7 +118,6 @@ export function ProfileForm({ profile, onSave, onChanged }: ProfileFormProps) {
 						>
 							保存する
 						</Button>
-						{message ? <output>{message}</output> : null}
 					</div>
 				</form>
 			</Card>

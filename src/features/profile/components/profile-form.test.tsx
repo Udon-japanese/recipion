@@ -31,7 +31,10 @@ describe("ProfileForm", () => {
 		await user.click(screen.getByRole("button", { name: "保存する" }));
 
 		expect(onSave).toHaveBeenCalledWith({ name: "たろう", handle: "taro" });
-		expect(await screen.findByText("保存しました。")).toBeTruthy();
+		// ボタンの完了表示と、読み上げ用の出力の2か所に出る。
+		expect((await screen.findAllByText("保存しました")).length).toBeGreaterThan(
+			0,
+		);
 		expect(onChanged).toHaveBeenCalledTimes(1);
 	});
 
