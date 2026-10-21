@@ -1,34 +1,157 @@
 <!doctype html>
-<html lang=en>
-<meta charset=utf-8>
-<meta name=viewport content="width=device-width,initial-scale=1">
-<title>418 I'm a teapot</title>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>418 わたしはティーポットです。</title>
 <style>
-body{margin:0;min-height:100vh;display:grid;place-items:center;background:#fff6d6;color:#4a3b1e;font:16px/1.5 system-ui,sans-serif;text-align:center}
-h1{font-size:56px;margin:0}
-p{margin:4px 0 12px}
-#t{position:absolute;opacity:0}
-label{display:block;width:260px;height:230px;margin:0 auto;position:relative;cursor:pointer}
-label *{position:absolute;box-sizing:border-box}
-.p{left:20px;top:40px;width:130px;height:110px;transition:transform .7s;transform-origin:50% 100%}
-.b{inset:22px 0 0;background:#f4b942;border-radius:50% 50% 42% 42%}
-.l{left:40px;top:6px;width:50px;height:22px;background:#e0a02c;border-radius:50% 50% 0 0}
-.s{right:-30px;top:44px;width:44px;height:16px;background:#f4b942;border-radius:0 12px 12px 0;transform:rotate(-28deg)}
-.h{left:-28px;top:44px;width:36px;height:46px;border:9px solid #f4b942;border-right:0;border-radius:24px 0 0 24px}
-.w{left:184px;top:105px;width:6px;height:0;background:#6fb7e0;transition:height .35s .5s}
-.c{left:150px;top:176px;width:60px;height:46px;background:#fff;border:3px solid #4a3b1e;border-radius:0 0 20px 20px}
-.c:after{content:"";position:absolute;left:0;right:0;bottom:0;height:0;background:#6fb7e0;border-radius:0 0 17px 17px;transition:height 1s 1s}
-#t:checked~label .p{transform:rotate(22deg)}
-#t:checked~label .w{height:70px}
-#t:checked~label .c:after{height:30px}
-#t:focus-visible~label{outline:3px solid #4a3b1e}
-a{color:inherit}
-@media(prefers-reduced-motion:reduce){*,:after{transition:none!important}}
+/* 色・大きさ・時間はここにまとめる */
+:root{
+  --bg:#f7f4ec; --ink:#292720; --sub:#716d63; --white:#fff;
+  --accent:#7a5200; --mascot:#e9a900; --tea:#c98a2b;
+  --fill:3.5s;        /* 満杯までにかかる時間 */
+  --drain:1.6s;       /* 満杯から空に戻るまでの時間 */
+  --tilt:1.2s;        /* ポットがかたむく・戻る時間 */
+  --tilt-deg:30deg;   /* 注ぐときの角度 */
+  --breath:3.6s;      /* 呼吸のぽよぽよ */
+}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:var(--bg);color:var(--ink);
+  font-family:system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;
+  display:grid;place-items:center;padding:24px 16px;line-height:1.7}
+main{width:100%;max-width:520px;text-align:center}
+h1{margin:0;font-size:clamp(64px,22vw,112px);line-height:1;color:var(--accent);letter-spacing:.04em}
+p{margin:8px 0 0;font-size:clamp(17px,4.6vw,20px)}
+svg{display:block;width:100%;height:auto;overflow:visible;margin-top:12px}
+
+/* 絵の色（SVG の色もここの変数から） */
+.m{fill:var(--mascot)} .i{fill:var(--ink)} .w{fill:var(--white)}
+.t{fill:var(--tea)} .a{fill:var(--accent)}
+.o{stroke:var(--accent);stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.spo{fill:none;stroke:var(--accent);stroke-width:10;stroke-linecap:round}
+.spi{fill:none;stroke:var(--white);stroke-width:4;stroke-linecap:round}
+
+#stage{margin:3rem 0;cursor:pointer}
+#stage:focus-visible{outline:3px solid var(--accent);outline-offset:6px;border-radius:12px}
+
+/* れしぽよ：足元を基準にぽよぽよ（ポットも体にくっついて動く） */
+.me{transform-origin:67px 220px;animation:breathe var(--breath) ease-in-out infinite}
+.full .me{animation:hop .7s ease-out}
+@keyframes breathe{50%{transform:scale(1.025,.975)}}
+@keyframes hop{
+  0%{transform:scale(1.1,.85)}
+  45%{transform:translateY(-14px) scale(.92,1.1)}
+  75%{transform:scale(1.06,.92)}
+  100%{transform:none}}
+
+/* ポット：体にくっついたまま、体がわの点を軸にかたむく */
+.pot{transform-origin:99px 162px;transition:transform var(--tilt) ease-in-out}
+.pour .pot{transform:rotate(var(--tilt-deg))}
+
+/* 流れ：かたむき終わってから、上から下へ落ちる。止めるときは下へ切れる */
+.stream{transform-box:fill-box;transform-origin:50% 100%;transform:scaleY(0);transition:transform .1s ease-in}
+.pour .stream{transform-origin:50% 0;transform:scaleY(1);transition:transform .2s ease-in var(--tilt)}
+
+/* 水位：流れがカップに着いたあと（.fill）だけ上がる。止めると、その高さで止まる */
+.tea{transform-box:fill-box;transform-origin:50% 100%;transform:scaleY(0)}
+.on .tea{animation:fill var(--fill) linear both paused}
+.on.fill .tea{animation-play-state:running}
+@keyframes fill{to{transform:scaleY(1)}}
+/* 満杯のあと：水位が、だんだん下がって空になる */
+.drain .tea{animation:drain var(--drain) ease-in-out both}
+@keyframes drain{from{transform:scaleY(1)}to{transform:scaleY(0)}}
+
+a{display:inline-block;margin-top:20px;padding:12px;color:var(--accent)}
+a:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+
+/* 動きを減らす設定：動かさず、押すとすぐ満杯。1.5秒後にすぐ空 */
+@media (prefers-reduced-motion:reduce){
+  .me,.full .me{animation:none}
+  .pot,.pour .pot{transition:none;transform:none}
+  .stream{display:none}
+  .on.pour .tea{animation:fill 1ms linear both}
+  .drain .tea{animation-duration:1ms}
+}
 </style>
+</head>
+<body>
 <main>
-<h1>418</h1>
-<p>I'm a teapot. Click to pour tea.</p>
-<input type=checkbox id=t aria-label="Pour tea">
-<label for=t><i class=p><i class=b></i><i class=l></i><i class=s></i><i class=h></i></i><i class=w></i><i class=c></i></label>
-<p><a href=/>recipion</a></p>
+  <h1>418</h1>
+  <p>わたしはティーポットです。</p>
+
+  <div id="stage" role="button" tabindex="0" aria-label="れしぽよにお茶をいれてもらう">
+    <svg viewBox="0 100 225 135" aria-hidden="true">
+      <clipPath id="c"><path d="M146 198H190L186 217Q168 224 150 217Z"/></clipPath>
+
+      <!-- カップ：うしろ → 水 → ふち（上は開いている） -->
+      <path class="w" d="M146 198H190L186 217Q168 224 150 217Z"/>
+      <g clip-path="url(#c)"><rect class="tea t" x="144" y="200" width="48" height="21"/></g>
+      <path class="o" fill="none" d="M146 198L150 217Q168 224 186 217L190 198"/>
+      <path class="o" fill="none" d="M189 202Q205 203 200 211Q197 216 187 214"/>
+
+      <!-- れしぽよ（腕なし）。ポットは体の横にくっつく -->
+      <g class="me">
+        <path class="m" d="M67.5 130C100 130 115 165 115 192C115 212 100 220 67.5 220C35 220 20 212 20 192C20 165 35 130 67.5 130Z"/>
+        <rect class="i" x="45" y="155" width="13" height="25" rx="6.5"/>
+        <rect class="i" x="77" y="155" width="13" height="25" rx="6.5"/>
+        <g class="pot">
+          <path class="spo" d="M146 164Q158 164 164 154"/>
+          <path class="spi" d="M146 164Q158 164 164 154"/>
+          <ellipse class="w o" cx="125" cy="160" rx="27" ry="23"/>
+          <ellipse class="w o" cx="125" cy="137" rx="14" ry="4.5"/>
+          <circle class="a" cx="125" cy="130" r="3.5"/>
+        </g>
+        <!-- お茶の流れ：ポットのうしろ（注ぎ口の中から出る）、カップの水よりは手前 -->
+        <rect class="stream t" x="161" y="186" width="4" height="32" rx="2"/>
+      </g>
+    </svg>
+    <output class="sr" aria-live="polite" id="out"></output>
+  </div>
+
+  <a href="/">れしぴょんへもどる</a>
 </main>
+
+<script>
+const s=document.getElementById('stage'),o=document.getElementById('out');
+
+function pourTea(){
+  if(s.classList.contains('full'))return;
+
+  s.classList.add('on');
+  s.classList.remove('fill');
+  s.classList.toggle('pour');
+}
+
+s.addEventListener('click', pourTea);
+
+s.addEventListener('keydown',e=>{
+  if(e.key==='Enter' || e.key===' '){
+    e.preventDefault();
+    pourTea();
+  }
+});
+
+s.querySelector('.stream').ontransitionend=()=>{
+  if(s.classList.contains('pour'))s.classList.add('fill');
+};
+
+s.querySelector('.tea').onanimationend=e=>{
+  if(e.animationName==='drain'){
+    s.classList.remove('on','full','drain');
+    return;
+  }
+
+  s.classList.remove('pour','fill');
+  s.classList.add('full');
+  o.textContent='お茶が、いっぱいになりました';
+
+  setTimeout(()=>{
+    s.classList.add('drain');
+    o.textContent='';
+  },1500);
+};
+</script>
+</body>
+</html>
