@@ -24,6 +24,11 @@ export default defineConfig({
 				},
 			},
 			{
+				// 初回（キャッシュなし）に、テストの途中で依存関係が最適化されてページが再読み込みされると、
+				// React が二重に読み込まれて失敗する（CI で起きた）。テストの途中で見つかる依存は、ここに足す。
+				optimizeDeps: {
+					include: ["@vanilla-extract/recipes/createRuntimeFn"],
+				},
 				test: {
 					name: "browser",
 					include: [
