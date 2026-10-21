@@ -21,6 +21,8 @@
     "lint": "biome lint",
     "check": "biome check",
     "check:fix": "biome check --fix",
+    "typecheck": "tsc --noEmit",
+    "gate": "pnpm run check:fix && pnpm run typecheck && pnpm run test && pnpm run build",
     "test": "vitest run",
     "test:unit": "vitest run --project unit",
     "test:browser": "vitest run --project browser",
