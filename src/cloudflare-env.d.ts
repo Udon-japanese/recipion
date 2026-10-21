@@ -11,6 +11,9 @@ declare namespace Cloudflare {
 		CF_ACCESS_TEAM_DOMAIN?: string;
 		// Access のアプリケーションの Audience (AUD) タグ。
 		CF_ACCESS_AUD?: string;
+		// デモ用のアカウント（src/integrations/demo-login）。2つがそろったときだけ有効。不要になったら削除する。
+		DEMO_LOGIN_EMAIL?: string;
+		DEMO_LOGIN_CODE?: string;
 		// Workers AI のバインディング（wrangler.jsonc の `ai`）。公開しようとする文章の審査に使う。
 		AI: Ai;
 		// 他の人のレシピへのリンクのための検索の回数の制限（wrangler.jsonc の `ratelimits`）。
