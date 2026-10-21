@@ -17,6 +17,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as ShoppingRouteImport } from './routes/shopping'
+import { Route as TeapotRouteImport } from './routes/teapot'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminAppealsRouteImport } from './routes/admin/appeals'
@@ -68,6 +69,11 @@ const ProfileRoute = ProfileRouteImport.update({
 const ShoppingRoute = ShoppingRouteImport.update({
   id: '/shopping',
   path: '/shopping',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TeapotRoute = TeapotRouteImport.update({
+  id: '/teapot',
+  path: '/teapot',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TermsRoute = TermsRouteImport.update({
@@ -140,6 +146,7 @@ export interface FileRoutesByFullPath {
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/shopping': typeof ShoppingRoute
+  '/teapot': typeof TeapotRoute
   '/terms': typeof TermsRoute
   '/admin/appeals': typeof AdminAppealsRoute
   '/admin/reports': typeof AdminReportsRoute
@@ -161,6 +168,7 @@ export interface FileRoutesByTo {
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/shopping': typeof ShoppingRoute
+  '/teapot': typeof TeapotRoute
   '/terms': typeof TermsRoute
   '/admin/appeals': typeof AdminAppealsRoute
   '/admin/reports': typeof AdminReportsRoute
@@ -184,6 +192,7 @@ export interface FileRoutesById {
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/shopping': typeof ShoppingRoute
+  '/teapot': typeof TeapotRoute
   '/terms': typeof TermsRoute
   '/admin/appeals': typeof AdminAppealsRoute
   '/admin/reports': typeof AdminReportsRoute
@@ -208,6 +217,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/profile'
     | '/shopping'
+    | '/teapot'
     | '/terms'
     | '/admin/appeals'
     | '/admin/reports'
@@ -229,6 +239,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/profile'
     | '/shopping'
+    | '/teapot'
     | '/terms'
     | '/admin/appeals'
     | '/admin/reports'
@@ -251,6 +262,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/profile'
     | '/shopping'
+    | '/teapot'
     | '/terms'
     | '/admin/appeals'
     | '/admin/reports'
@@ -274,6 +286,7 @@ export interface RootRouteChildren {
   PrivacyRoute: typeof PrivacyRoute
   ProfileRoute: typeof ProfileRoute
   ShoppingRoute: typeof ShoppingRoute
+  TeapotRoute: typeof TeapotRoute
   TermsRoute: typeof TermsRoute
   DevUiRoute: typeof DevUiRoute
   RecipesNewRoute: typeof RecipesNewRoute
@@ -339,6 +352,13 @@ declare module '@tanstack/react-router' {
       path: '/shopping'
       fullPath: '/shopping'
       preLoaderRoute: typeof ShoppingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/teapot': {
+      id: '/teapot'
+      path: '/teapot'
+      fullPath: '/teapot'
+      preLoaderRoute: typeof TeapotRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/terms': {
@@ -455,6 +475,7 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   ProfileRoute: ProfileRoute,
   ShoppingRoute: ShoppingRoute,
+  TeapotRoute: TeapotRoute,
   TermsRoute: TermsRoute,
   DevUiRoute: DevUiRoute,
   RecipesNewRoute: RecipesNewRoute,

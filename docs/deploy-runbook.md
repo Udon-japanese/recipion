@@ -217,24 +217,21 @@ nlx --local wrangler secret delete DEMO_LOGIN_CODE
 
 データ（確認用ユーザーと、そのレシピ・在庫）は、不要になったら、スクリプトで入れ直す代わりに、アカウントの削除（ログインして「アカウントの削除」）か、DB で `delete from "user" where email = '<確認用のアドレス>'` で消す（レシピ・在庫は連鎖で消える）。コードごと外すときは、このブランチのマージコミットを `git revert -m 1` する。
 
-## 15. 未知のパスに 418 I'm a teapot を返す（WAF のカスタムレスポンス）
+## 15. `/teapot` に 418 I'm a teapot を返す
 
-許可リスト以外のパス（ボットのスキャン・打ち間違いの URL・`/teapot` など）には、今は WAF が 403 を返している。これを、**ステータス 418 と急須のページ**に替える。WAF で止めたリクエストは、Worker を起動しない（無料枠を使わない）。アプリのコードは変えない。
+`/teapot` を開くと、ステータス 418 の急須のページが出る（JavaScript なしの CSS だけで、クリックするとお茶が注がれる。トップ（`/`）へ戻るリンクつき）。アプリのルート（`src/routes/teapot.ts`。本文は `src/config/teapot-418.html`）で、`/teapot` を開いた人にだけ Worker が動く。
 
-本文（HTML）は `waf/teapot-418.html`（2 KB 以内。`src/config/teapot-page.test.ts` が固定している。JavaScript なしの CSS だけで、クリックするとお茶が注がれる。トップ（`/`）へ戻るリンクつき）。
+**許可リスト以外のパス（ボットのスキャン・打ち間違いの URL）は、これまでどおり、WAF が 403 で止める**（Worker を起動しない。拒絶の意味で、403 のままにする）。WAF のカスタムレスポンス（ステータスと本文を替える機能）は、Pro プラン以上でしか使えない（公式：https://developers.cloudflare.com/waf/custom-rules/create-dashboard/ ）。Snippets も、Free では使えない。
 
-1. ダッシュボードの「Security → Security rules」で、許可リスト以外を遮断しているカスタムルール（"Block unknown paths"）を開く。式は変えない。
-2. アクションを、`Block` のまま、**カスタムレスポンスを返す**設定にする（WAF の「ブロック」は、ステータスコードを 400〜499 から選び、本文（HTML・テキスト・JSON・XML）を 2 KB まで返せる。公式：https://developers.cloudflare.com/waf/custom-rules/create-dashboard/ ）。
-   - Response type：`Custom HTML`（または、`Content-Type: text/html`）
-   - Response code：`418`
-   - Response body：`waf/teapot-418.html` の中身をそのまま貼る
-3. 保存して、確認する。
+デプロイの手順：
+
+1. `nr waf:allowlist` で式を作り直す（完全一致に `/teapot` が増える）。
+2. ダッシュボードの「Security → Security rules」で、許可リスト以外を遮断しているルール（"Block unknown paths"）の式を、新しい式に貼り替えて保存する（アクションは、`Block` のまま）。
+3. デプロイして、確認する。
    ```sh
-   curl -i https://recipion.app/teapot | /usr/bin/head -12   # HTTP/2 418、content-type: text/html
-   curl -i https://recipion.app/wp-login.php | /usr/bin/head -3   # 同じく 418
-   curl -s -o /dev/null -w '%{http_code}\n' https://recipion.app/   # 200（アプリは変わらない）
+   curl -i https://recipion.app/teapot | /usr/bin/head -8   # HTTP/2 418、content-type: text/html
+   curl -s -o /dev/null -w '%{http_code}\n' https://recipion.app/wp-login.php   # 403（WAF）
    ```
-   ブラウザで `https://recipion.app/teapot` を開き、急須の絵が出て、クリックするとお茶が注がれることを確認する。**`<style>` が効かない（文字だけ出る）ときは、本文を、文字だけの急須に替える。**
-4. `/teapot` は、許可リストに入れない（`nr waf:allowlist` の結果にも出ない）。許可リストにあるパス（`/`・`/login`・`/recipes/…`・`/assets/…` など）は、これまでどおり、アプリが応える。
+   ブラウザで `https://recipion.app/teapot` を開き、急須が出て、クリックするとお茶が注がれることを確認する。
 
-アプリの中の 404（許可リストを通ったが、アプリが見つけられないパス。例：存在しないレシピ）は、これまでどおり、アプリの「見つかりません」の画面になる。急須は、アプリに存在しないパスだけ。開発サーバー・プレビューは、WAF を通らないので、急須は、本番だけで見られる。
+アプリの中の 404（許可リストを通ったが、アプリが見つけられないパス。例：存在しないレシピ）は、これまでどおり、アプリの「見つかりません」の画面になる。
