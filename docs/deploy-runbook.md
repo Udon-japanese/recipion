@@ -235,3 +235,28 @@ nlx --local wrangler secret delete DEMO_LOGIN_CODE
    ブラウザで `https://recipion.app/teapot` を開き、急須が出て、クリックするとお茶が注がれることを確認する。
 
 アプリの中の 404（許可リストを通ったが、アプリが見つけられないパス。例：存在しないレシピ）は、これまでどおり、アプリの「見つかりません」の画面になる。
+
+## 16. 依存関係の脆弱性への自動対応と、メンテ中スイッチ
+
+### 仕組み（`.github/`）
+- **検知**：Dependabot（`dependabot.yml`）が、脆弱性が見つかると PR を作る。毎日 09:00（日本時間）に `audit.yml` が `pnpm audit --prod`（high 以上）を実行し、見つかれば Issue を立てる（通知メールが届く）。
+- **CI**：`ci.yml`（check・typecheck・test・build）。PR と `main` への push で動く。
+- **自動マージ**：Dependabot の PR が patch / minor で、CI が通れば、自動でマージする（`dependabot-auto-merge.yml`）。**major は自動ではマージしない**（人が確認する）。
+- **自動デプロイ**：マージした PR が**セキュリティ更新**のときだけ、`deploy.yml` を動かす（ゲートを再度通してからデプロイ）。通常の更新は、これまでどおり手元で `nr deploy`。
+- **メンテ中のときは、自動デプロイは何もしない**（メンテ中を終わらせないため）。本番の状態が調べられなかったときは、失敗にして知らせる。
+
+### GitHub の初回設定（運営者）
+1. Settings → Advanced Security: **Dependabot alerts** と **Dependabot security updates** を有効にする。
+2. Settings → Actions → General → Workflow permissions: 「Allow GitHub Actions to create and approve pull requests」は不要（`gh pr merge` だけ使う）。「Read and write permissions」でなくてよい（ワークフローごとに権限を指定している）。
+3. Settings → Secrets and variables → Actions: **`CLOUDFLARE_API_TOKEN`**（Workers の編集権限だけのトークン。「Edit Cloudflare Workers」のテンプレートが目安。アカウントを絞る）と **`CLOUDFLARE_ACCOUNT_ID`**。
+4. 通知：GitHub の通知設定で、Actions の失敗と Dependabot alerts のメールを有効にする。
+5. （任意）ブランチ保護で `gate` を必須にすると、人の PR も CI が通るまでマージできなくなる。
+6. 最初の Dependabot の PR で、自動マージが動くことを確認する。**pnpm の `minimumReleaseAge` が、公開直後の修正版の取り込みを止める場合がある**（その PR の CI が失敗する）。その場合は手元で `pnpm update <パッケージ>` し、`pnpm-workspace.yaml` の `minimumReleaseAgeExclude` に追加する。
+
+### メンテ中スイッチ
+- **入れる**：GitHub の Actions → **Maintenance** → Run workflow → `on`。手元なら `nr maintenance:on`（`wrangler login` 済みのとき）。数十秒で反映される。
+- **効果**：アプリの Worker を、**どのパス・どのメソッドにも 503 とメンテ中の画面だけを返す Worker に差し替える**（`src/maintenance/`）。静的な画面（`/shopping`・`/terms` など）も含めて、WAF が止めていないパスは、すべてメンテ中の画面になる。DB・メール・AI へは、一切つながらない。
+- **解除**：Actions → Maintenance → `off`（ゲートを通して、通常のアプリをデプロイし直す）。手元なら `nr maintenance:off`（= `nr deploy`）。
+- **シークレットは消えない**。Hyperdrive・ratelimits・AI のバインディングは、解除のデプロイで戻る。
+- 使いどき：critical の脆弱性が見つかり、修正版の PR がまだない／自動マージできない（major など）／悪用が疑われるとき。**自動では入らない**（誤検知でサービスが止まるリスクのほうが大きいため）。
+- 初回に、`on` → 本番を開いて画面を確認 → `off` で戻ることを、一度確かめておく。

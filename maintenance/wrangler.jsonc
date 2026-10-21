@@ -1,0 +1,14 @@
+{
+	// メンテ中の Worker の設定。アプリと同じ名前・同じドメインに、src/maintenance/worker.ts をデプロイして差し替える。
+	// 名前とルートは、ルートの wrangler.jsonc と同じでなければならない（src/maintenance/maintenance.test.ts が確かめる）。
+	// シークレットは、デプロイで消えない。バインディング（Hyperdrive・AI など）は、通常のデプロイで戻る。
+	"$schema": "../node_modules/wrangler/config-schema.json",
+	"name": "recipion",
+	"routes": [{ "pattern": "recipion.app", "custom_domain": true }],
+	"workers_dev": false,
+	"preview_urls": false,
+	"observability": { "enabled": true },
+	"compatibility_date": "2025-09-02",
+	"main": "../src/maintenance/worker.ts",
+	"vars": { "MAINTENANCE_MODE": "1" }
+}

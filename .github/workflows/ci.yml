@@ -1,0 +1,33 @@
+# ゲート（check・typecheck・test・build）。PR と main への push で動き、
+# 依存関係の自動マージ・自動デプロイからも workflow_call で呼ばれる。
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      # Node.js と pnpm の版は mise.toml を正本にする（手元と同じ版を使う）。
+      - uses: jdx/mise-action@v2
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm run check
+      - run: pnpm run typecheck
+      - run: pnpm run test
+      # ビルドの後工程が vite preview を起動して静的ページを作る。DB には接続しない（Cookie なし）が、
+      # 設定の読み込みに必要なので、ダミーの値を渡す（秘密の値は使わない）。
+      - run: pnpm run build
+        env:
+          CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE: postgres://ci:ci@localhost:5432/ci
+          BETTER_AUTH_SECRET: ci-only-secret-not-used-in-production-0000
+          BETTER_AUTH_URL: http://localhost:4173

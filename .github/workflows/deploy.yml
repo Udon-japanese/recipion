@@ -1,0 +1,68 @@
+# 本番へデプロイする。ゲートを通ってからデプロイする。
+# - セキュリティ更新の自動マージのあとに、自動で動く（dependabot-auto-merge.yml）。
+# - 手動でも動かせる（Actions → Deploy → Run workflow）。
+# - メンテ中のときは、自動のデプロイでメンテ中を終わらせないよう、何もしない。メンテ中を終わらせるときは force。
+#
+# 必要な Secrets（Settings → Secrets and variables → Actions）: CLOUDFLARE_API_TOKEN、CLOUDFLARE_ACCOUNT_ID
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      force:
+        description: メンテ中でもデプロイする（メンテ中を終わらせる）
+        type: boolean
+        default: false
+  workflow_call:
+    inputs:
+      force:
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: jdx/mise-action@v2
+      - run: pnpm install --frozen-lockfile
+      - name: Check maintenance mode
+        id: maintenance
+        if: ${{ !inputs.force }}
+        run: |
+          set +e
+          node scripts/maintenance-status.ts
+          code=$?
+          if [ "$code" = "10" ]; then
+            echo "active=true" >> "$GITHUB_OUTPUT"
+            echo "::warning::メンテ中なので、デプロイしませんでした。終わらせるには、force を付けて Deploy を実行してください。"
+          elif [ "$code" != "0" ]; then
+            # 調べられないときは、メンテ中を終わらせてしまわないよう、失敗にして知らせる。
+            exit 1
+          fi
+      - name: Deploy
+        if: steps.maintenance.outputs.active != 'true'
+        # 本番の設定（Hyperdrive・ratelimits・AI）は wrangler.jsonc、シークレットは Cloudflare 側にある。
+        # ビルドに渡す値は、ダミー（秘密の値はビルドに焼き込まれない）。
+        run: pnpm run deploy
+        env:
+          CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE: postgres://ci:ci@localhost:5432/ci
+          BETTER_AUTH_SECRET: ci-only-secret-not-used-in-production-0000
+          BETTER_AUTH_URL: http://localhost:4173
