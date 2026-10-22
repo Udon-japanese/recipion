@@ -4,12 +4,16 @@ import { execFileSync } from "node:child_process";
 import {
 	MAINTENANCE_REASON_VAR_NAME,
 	normalizeMaintenanceReason,
-} from "../src/maintenance/maintenance.ts";
+} from "../src/maintenance/maintenance-config.ts";
 
 const reason = normalizeMaintenanceReason(process.argv.slice(2).join(" "));
 const args = ["exec", "wrangler", "deploy", "-c", "maintenance/wrangler.jsonc"];
 if (reason !== null) {
 	args.push("--var", `${MAINTENANCE_REASON_VAR_NAME}:${reason}`);
+}
+// 動作の確認用（テスト）。デプロイはしない。
+if (process.env.MAINTENANCE_DRY_RUN) {
+	args.push("--dry-run");
 }
 console.log(reason === null ? "理由なしでメンテ中にします。" : `理由：${reason}`);
 // シェルを通さずに渡す（理由に記号が含まれても、コマンドとして解釈されない）。

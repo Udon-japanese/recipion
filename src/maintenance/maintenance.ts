@@ -2,25 +2,22 @@
 // 解除は、通常のデプロイ（アプリの Worker に戻す）。アプリのコードには手を入れない。
 
 import { APP_DISPLAY_NAME } from "#/config/app";
+import {
+	isMaintenanceActive,
+	MAINTENANCE_REASON_VAR_NAME,
+	MAINTENANCE_VAR_NAME,
+	normalizeMaintenanceReason,
+} from "./maintenance-config";
 // メンテ中の画面（{{APP_NAME}}・{{REASON}} を置き換える）。wrangler は .html を文字列として読み込む。
 import maintenancePage from "./maintenance-page.html";
 
-/** メンテ中の Worker にだけ付く変数。通常のデプロイにはない（デプロイ済みの設定から、いまメンテ中かを調べるため）。 */
-export const MAINTENANCE_VAR_NAME = "MAINTENANCE_MODE";
-
-/** メンテ中の画面に出す理由（任意）。メンテ中にするときに、デプロイの変数として渡す。 */
-export const MAINTENANCE_REASON_VAR_NAME = "MAINTENANCE_REASON";
-
-const MAX_REASON_LENGTH = 200;
-
-/** 理由を、1 行・200 文字までに整える。空なら null（理由は出さない）。 */
-export function normalizeMaintenanceReason(
-	raw: string | null | undefined,
-): string | null {
-	const oneLine = (raw ?? "").replace(/\s+/gu, " ").trim();
-	if (oneLine === "") return null;
-	return Array.from(oneLine).slice(0, MAX_REASON_LENGTH).join("");
-}
+// テストと worker.ts が、ここから読み込めるようにする。
+export {
+	isMaintenanceActive,
+	MAINTENANCE_REASON_VAR_NAME,
+	MAINTENANCE_VAR_NAME,
+	normalizeMaintenanceReason,
+};
 
 function escapeHtml(text: string): string {
 	return text
@@ -29,20 +26,6 @@ function escapeHtml(text: string): string {
 		.replaceAll(">", "&gt;")
 		.replaceAll('"', "&quot;")
 		.replaceAll("'", "&#39;");
-}
-
-type WorkerBinding = { type?: string; name?: string; text?: string };
-
-/** Cloudflare API の「Worker の設定」の応答から、いまメンテ中のコードがデプロイされているかを調べる。 */
-export function isMaintenanceActive(settings: {
-	bindings?: WorkerBinding[];
-}): boolean {
-	return (settings.bindings ?? []).some(
-		(binding) =>
-			binding.type === "plain_text" &&
-			binding.name === MAINTENANCE_VAR_NAME &&
-			binding.text === "1",
-	);
 }
 
 function renderMaintenanceHtml(reason: string | null): string {
