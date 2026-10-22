@@ -9,13 +9,13 @@ function scriptLines(html: string): string[] {
 }
 
 describe("418 の急須のページ（/teapot）", () => {
-	it("ステータス 418 で、HTML を返し、検索エンジンには載せず、長く保存させる", async () => {
+	it("ステータス 418 で、HTML を返し、検索エンジンには載せず、短く保存させる", async () => {
 		const response = createTeapotResponse();
 
 		expect(response.status).toBe(418);
 		expect(response.headers.get("content-type")).toContain("text/html");
 		expect(response.headers.get("x-robots-tag")).toContain("noindex");
-		expect(response.headers.get("cache-control")).toContain("max-age=86400");
+		expect(response.headers.get("cache-control")).toContain("max-age=300");
 		expect(await response.text()).toContain("<title>418 ");
 	});
 
