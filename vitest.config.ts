@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { playwright } from "@vitest/browser-playwright";
 import { vanillaExtractPlugin } from "@vanilla-extract/vite-plugin";
 import viteReact from "@vitejs/plugin-react";
@@ -7,7 +8,20 @@ export default defineConfig({
 	resolve: {
 		tsconfigPaths: true,
 	},
-	plugins: [viteReact(), vanillaExtractPlugin()],
+	plugins: [
+		viteReact(),
+		vanillaExtractPlugin(),
+		// メンテ中の Worker（wrangler は .html を文字列として読み込む）と同じに、.html を文字列として読み込む。
+		{
+			name: "html-as-text",
+			enforce: "pre",
+			load(id) {
+				if (id.endsWith(".html") && !id.includes("?")) {
+					return `export default ${JSON.stringify(readFileSync(id, "utf8"))}`;
+				}
+			},
+		},
+	],
 	test: {
 		projects: [
 			{
