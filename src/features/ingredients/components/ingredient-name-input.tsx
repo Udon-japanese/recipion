@@ -36,14 +36,17 @@ export function IngredientNameInput({
 	const listboxId = useId();
 	const [isOpen, setIsOpen] = useState(false);
 	const [activeIndex, setActiveIndex] = useState(-1);
+	// 日本語の変換中か。
+	const [isComposing, setIsComposing] = useState(false);
 
 	const suggestions = useMemo(() => searchIngredientCatalog(value), [value]);
 
-	// 入力がカタログの名前と一致しているときは、候補を出さない（確定済みとみなす）。
+	// 入力がカタログの名前と完全に一致しているときは、確定済みとみなして、候補を出さない。
+	// ただし、変換中は出す（変換が終わる前に、候補から選べるように）。
 	const isVisible =
 		isOpen &&
 		suggestions.length > 0 &&
-		findIngredientCatalogEntry(value) === undefined;
+		(isComposing || findIngredientCatalogEntry(value) === undefined);
 
 	function select(entry: IngredientCatalogEntry) {
 		onChange(entry.name);
@@ -112,6 +115,8 @@ export function IngredientNameInput({
 					setIsOpen(true);
 					setActiveIndex(-1);
 				}}
+				onCompositionStart={() => setIsComposing(true)}
+				onCompositionEnd={() => setIsComposing(false)}
 				onFocus={() => setIsOpen(true)}
 				onBlur={() => {
 					setIsOpen(false);

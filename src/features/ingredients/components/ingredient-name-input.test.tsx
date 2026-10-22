@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -90,6 +90,25 @@ describe("IngredientNameInput", () => {
 		await user.type(input, "ドラゴンフルーツ");
 		expect(screen.queryByRole("listbox")).toBeNull();
 		expect(input).toHaveValue("ドラゴンフルーツ");
+	});
+
+	it("変換中は、カタログの名前と完全に一致していても、候補に出す。確定したら、出さない", async () => {
+		render(<Harness />);
+
+		const input = screen.getByLabelText("食材名");
+
+		fireEvent.focus(input);
+		fireEvent.compositionStart(input);
+		fireEvent.change(input, { target: { value: "にんにく" } });
+
+		expect(
+			within(await screen.findByRole("listbox")).getAllByRole("option")[0],
+		).toHaveTextContent("にんにく");
+
+		fireEvent.compositionEnd(input);
+
+		expect(screen.queryByRole("listbox")).toBeNull();
+		expect(input).toHaveValue("にんにく");
 	});
 
 	it("Escape で候補を閉じる", async () => {
