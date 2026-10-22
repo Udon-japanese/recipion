@@ -1,7 +1,7 @@
 // いまメンテ中のコードが本番にデプロイされているかを、Cloudflare の API で調べる（自動デプロイが、メンテ中を終わらせないため）。
 // 終了コード: 0 = メンテ中ではない / 10 = メンテ中 / 1 = 調べられなかった
 // 環境変数: CLOUDFLARE_API_TOKEN、CLOUDFLARE_ACCOUNT_ID
-import { isMaintenanceActive } from "../src/maintenance/maintenance.ts";
+import { isMaintenanceActive } from "../src/maintenance/maintenance-config.ts";
 
 const WORKER_NAME = "recipion";
 const token = process.env.CLOUDFLARE_API_TOKEN;
