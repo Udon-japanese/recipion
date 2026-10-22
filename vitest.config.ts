@@ -14,6 +14,8 @@ export default defineConfig({
 				test: {
 					name: "unit",
 					environment: "jsdom",
+					// 画面の部品を描画するテストは、CI の遅い実行環境で 5 秒（既定）を超えることがある。
+					testTimeout: 20_000,
 					setupFiles: ["./src/test/setup.ts"],
 					include: ["src/**/*.test.{ts,tsx}"],
 					exclude: [

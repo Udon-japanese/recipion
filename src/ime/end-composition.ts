@@ -32,7 +32,7 @@ export function restoreFocus(
 	window.setTimeout(() => {
 		focusAt();
 		window.setTimeout(() => {
-			if (document.activeElement !== textarea) {
+			if (textarea.ownerDocument.activeElement !== textarea) {
 				focusAt();
 			}
 		}, retryMs);
