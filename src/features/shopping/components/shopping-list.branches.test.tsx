@@ -64,12 +64,21 @@ describe("ShoppingList の条件つきのメモ", () => {
 				name: `${title}に追加`,
 			});
 
-			await user.type(within(sheet).getByLabelText("買うもの"), name);
+			const input = within(sheet).getByLabelText("買うもの");
+			await user.type(input, name);
+			// 遅い環境で、入力が反映される前に追加を押さないよう、入ったことを確かめる。
+			await waitFor(() => expect(input).toHaveValue(name));
 			await user.click(
 				within(sheet).getByRole("button", { name: "この側に追加" }),
 			);
 			// 追加しても閉じない（続けて入れられる）。次の側のために、完了で閉じる。
 			await user.click(within(sheet).getByRole("button", { name: "完了" }));
+			// 閉じ終わる前に、次の側のボタンを押さない（閉じる途中は、背面の操作が効かないことがある）。
+			await waitFor(() =>
+				expect(
+					screen.queryByRole("dialog", { name: `${title}に追加` }),
+				).not.toBeInTheDocument(),
+			);
 		}
 
 		// 全体のテストを並行して動かすと、描画が遅れることがあるので、待ちを長めにする。
