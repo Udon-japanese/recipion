@@ -3,8 +3,23 @@ import { cdp, page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { ShoppingBulkAdd } from "./shopping-bulk-add";
 
+const MAC_CHROME_USER_AGENT =
+	"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36";
+
 // 画面が低くて、カーソルの上に候補が入りきらなくても、変換中は、候補を縮めて、カーソルの上に置く（下に置くと、OS の変換候補の窓に重なる）。
 it("変換中の候補は、上に余白が足りなくても、カーソルの行より下に出ない", async () => {
+	// 変換中の補完は、Mac・Windows の Chromium 系だけで有効（Linux は確定後）。実行する環境（CI の Linux）によらず、Mac の Chrome として動かす。
+	await cdp().send("Emulation.setUserAgentOverride", {
+		userAgent: MAC_CHROME_USER_AGENT,
+		userAgentMetadata: {
+			brands: [{ brand: "Chromium", version: "140" }],
+			platform: "macOS",
+			platformVersion: "15.0.0",
+			architecture: "arm",
+			model: "",
+			mobile: false,
+		},
+	});
 	await page.viewport(1280, 640);
 	await render(
 		<ShoppingBulkAdd
