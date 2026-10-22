@@ -14,6 +14,10 @@ on:
         type: choice
         options: ["enable", "disable"]
         required: true
+      reason:
+        description: メンテ中の画面に出す理由（任意。1 行・200 文字まで。enable のときだけ使う）
+        type: string
+        required: false
 
 permissions:
   contents: read
@@ -32,7 +36,10 @@ jobs:
           ref: main
       - uses: jdx/mise-action@v4
       - run: pnpm install --frozen-lockfile
-      - run: pnpm run maintenance:on
+      # 理由は、環境変数を経由して渡す（コマンドとして解釈されないように）。
+      - run: pnpm run maintenance:on "$REASON"
+        env:
+          REASON: ${{ inputs.reason }}
 
   disable:
     if: inputs.mode == 'disable'

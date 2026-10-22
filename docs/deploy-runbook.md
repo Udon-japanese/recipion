@@ -254,7 +254,7 @@ nlx --local wrangler secret delete DEMO_LOGIN_CODE
 6. 最初の Dependabot の PR で、自動マージが動くことを確認する。**pnpm の `minimumReleaseAge` が、公開直後の修正版の取り込みを止める場合がある**（その PR の CI が失敗する）。その場合は手元で `pnpm update <パッケージ>` し、`pnpm-workspace.yaml` の `minimumReleaseAgeExclude` に追加する。
 
 ### メンテ中スイッチ
-- **入れる**：GitHub の Actions → **Maintenance** → Run workflow → `enable`。手元なら `nr maintenance:on`（`wrangler login` 済みのとき）。数十秒で反映される。
+- **入れる**：GitHub の Actions → **Maintenance** → Run workflow → `enable`。手元なら `nr maintenance:on`（`wrangler login` 済みのとき）。数十秒で反映される。**理由（任意）**を、メンテ中の画面に出せる：Actions では「reason」の欄、手元では `nr maintenance:on "データベースの作業中です"`（1 行・200 文字まで。空なら出さない）。
 - **効果**：アプリの Worker を、**どのパス・どのメソッドにも 503 とメンテ中の画面だけを返す Worker に差し替える**（`src/maintenance/`）。静的な画面（`/shopping`・`/terms` など）も含めて、WAF が止めていないパスは、すべてメンテ中の画面になる。DB・メール・AI へは、一切つながらない。
 - **解除**：Actions → Maintenance → `disable`（ゲートを通して、通常のアプリをデプロイし直す）。手元なら `nr maintenance:off`（= `nr deploy`）。
 - **シークレットは消えない**。Hyperdrive・ratelimits・AI のバインディングは、解除のデプロイで戻る。
