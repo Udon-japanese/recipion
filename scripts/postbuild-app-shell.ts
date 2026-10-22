@@ -50,6 +50,8 @@ const buildScriptPath = `${clientDir}/sw-build.js`;
 
 type GeneratedOutputs = {
 	shell: string;
+	// ブラウザだけで描画する画面の、そのパスのシェル（ナビの「いまの画面」の印が、そのパスに合う）。
+	shellCopies: { path: string; html: string }[];
 	pages: { path: string; html: string; mustInclude: string }[];
 };
 
@@ -88,7 +90,27 @@ async function generateOutputs(): Promise<GeneratedOutputs> {
 		}
 
 		const shell = await response.text();
+		const shellCopies: GeneratedOutputs["shellCopies"] = [];
 		const pages: GeneratedOutputs["pages"] = [];
+
+		// トップのシェルを複製すると、ナビの「いまの画面」の印が、トップのままになり、
+		// ブラウザの最初の描画と食い違う（ハイドレーションの不一致。React エラー #418）。パスごとに取得する。
+		for (const path of shellCopyPaths) {
+			const copyResponse = await fetch(new URL(path, origin), {
+				headers: {
+					"X-TSS_SHELL": "true",
+					[STATIC_PAGE_REQUEST_HEADER]: "true",
+				},
+			});
+
+			if (!copyResponse.ok) {
+				throw new Error(
+					`シェルの取得に失敗しました: ${path} ${copyResponse.status}`,
+				);
+			}
+
+			shellCopies.push({ path, html: await copyResponse.text() });
+		}
 
 		for (const page of renderedStaticPages) {
 			const pageResponse = await fetch(new URL(page.path, origin), {
@@ -108,7 +130,7 @@ async function generateOutputs(): Promise<GeneratedOutputs> {
 			});
 		}
 
-		return { shell, pages };
+		return { shell, shellCopies, pages };
 	} finally {
 		await server?.close();
 
@@ -120,7 +142,7 @@ async function generateOutputs(): Promise<GeneratedOutputs> {
 	}
 }
 
-const { shell, pages } = await generateOutputs();
+const { shell, shellCopies, pages } = await generateOutputs();
 const problems = findShellProblems(shell);
 
 if (problems.length > 0) {
@@ -152,8 +174,16 @@ for (const page of pages) {
 }
 
 // ブラウザだけで描画する画面は、シェルのコピーを置く。
-for (const path of shellCopyPaths) {
-	writeClientFile(staticPageOutputPath(path), shell);
+for (const copy of shellCopies) {
+	const copyProblems = findShellProblems(copy.html);
+
+	if (copyProblems.length > 0) {
+		throw new Error(
+			`静的シェルを生成できませんでした（${copy.path}）:\n- ${copyProblems.join("\n- ")}`,
+		);
+	}
+
+	writeClientFile(staticPageOutputPath(copy.path), copy.html);
 }
 
 const viteManifest = JSON.parse(
