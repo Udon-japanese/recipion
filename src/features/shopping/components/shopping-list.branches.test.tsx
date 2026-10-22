@@ -65,9 +65,11 @@ describe("ShoppingList の条件つきのメモ", () => {
 			});
 
 			const input = within(sheet).getByLabelText("買うもの");
-			await user.type(input, name);
-			// 遅い環境で、入力が反映される前に追加を押さないよう、入ったことを確かめる。
-			await waitFor(() => expect(input).toHaveValue(name));
+			// 1 文字ずつの打鍵は、CI の遅い環境で、途中の文字が欠けることがあった（「鶏もも」が「鶏」になった）。
+			// このテストの目的は条件つきのメモの動作なので、1 回の入力（貼り付け）で入れる。
+			await user.click(input);
+			await user.paste(name);
+			await waitFor(() => expect(input).toHaveValue(name), { timeout: 5000 });
 			await user.click(
 				within(sheet).getByRole("button", { name: "この側に追加" }),
 			);
