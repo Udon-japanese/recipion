@@ -15,6 +15,7 @@
 			"!**/dist",
 			"!**/src/routeTree.gen.ts",
 			"!**/src/config/teapot-418.html",
+			"!**/src/maintenance/maintenance-page.html",
 			"!**/src/styles.css"
 		]
 	},

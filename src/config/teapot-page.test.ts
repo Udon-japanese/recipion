@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { APP_DISPLAY_NAME } from "./app";
 import teapotHtml from "./teapot-418.html?raw";
 import { createTeapotResponse } from "./teapot-page";
 
@@ -17,6 +18,14 @@ describe("418 の急須のページ（/teapot）", () => {
 		expect(response.headers.get("x-robots-tag")).toContain("noindex");
 		expect(response.headers.get("cache-control")).toContain("max-age=300");
 		expect(await response.text()).toContain("<title>418 ");
+	});
+
+	it("アプリ名が入り、置き換えの印は残らない", async () => {
+		const html = await createTeapotResponse().text();
+
+		expect(html).toContain(`- ${APP_DISPLAY_NAME}</title>`);
+		expect(html).toContain(`${APP_DISPLAY_NAME}へもどる`);
+		expect(html).not.toContain("{{");
 	});
 
 	it("小さく保つ（12 KB 以内、JavaScript は 50 行以内）", () => {

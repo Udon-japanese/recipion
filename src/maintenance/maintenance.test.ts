@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
+import { APP_DISPLAY_NAME } from "#/config/app";
 import {
 	createMaintenanceResponse,
 	isMaintenanceActive,
@@ -21,6 +22,23 @@ describe("メンテ中の応答", () => {
 		expect(response.headers.get("x-robots-tag")).toContain("noindex");
 		expect(response.headers.get("retry-after")).not.toBeNull();
 		expect(await response.text()).toContain("メンテナンス中");
+	});
+});
+
+describe("メンテ中の画面", () => {
+	it("アプリ名が入り、置き換えの印は残らない", async () => {
+		const html = await createMaintenanceResponse("作業中").text();
+
+		expect(html).toContain(
+			`<title>メンテナンス中 - ${APP_DISPLAY_NAME}</title>`,
+		);
+		expect(html).not.toContain("{{");
+	});
+
+	it("理由に `$&` などが含まれても、そのまま出る", async () => {
+		const html = await createMaintenanceResponse("$& $1 $$").text();
+
+		expect(html).toContain("理由：$&amp; $1 $$");
 	});
 });
 
