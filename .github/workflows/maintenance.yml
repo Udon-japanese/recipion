@@ -1,7 +1,8 @@
-# メンテ中スイッチ。Actions → Maintenance → Run workflow で、on / off を選ぶ。
-# - on : アプリ全体を、メンテ中の画面（503）だけを返す Worker に差し替える。数十秒で反映される。
+# メンテ中スイッチ。Actions → Maintenance → Run workflow で、enable（メンテ中にする）/ disable（終わらせる）を選ぶ。
+# （on / off は、YAML で真偽値として読まれ、選択肢が true / false になるため使わない。）
+# - enable : アプリ全体を、メンテ中の画面（503）だけを返す Worker に差し替える。数十秒で反映される。
 #        WAF で止めているパスは、これまでどおり WAF が止める。それ以外は、どのパスもメンテ中の画面になる。
-# - off: ゲートを通して、通常のアプリをデプロイし直す。
+# - disable: ゲートを通して、通常のアプリをデプロイし直す。
 # 手元からは `pnpm run maintenance:on` / `pnpm run maintenance:off`。
 name: Maintenance
 
@@ -9,17 +10,17 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: メンテ中にする（on）／終わらせる（off）
+        description: メンテ中にする（enable）／終わらせる（disable）
         type: choice
-        options: [on, off]
+        options: ["enable", "disable"]
         required: true
 
 permissions:
   contents: read
 
 jobs:
-  on:
-    if: inputs.mode == 'on'
+  enable:
+    if: inputs.mode == 'enable'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
@@ -33,8 +34,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run maintenance:on
 
-  off:
-    if: inputs.mode == 'off'
+  disable:
+    if: inputs.mode == 'disable'
     uses: ./.github/workflows/deploy.yml
     with:
       force: true
