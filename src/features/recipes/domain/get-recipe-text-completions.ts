@@ -280,6 +280,7 @@ function completeHeading(
 	lineStart: number,
 	caret: number,
 	after: string,
+	includeExact: boolean,
 ): RecipeTextCompletion | null {
 	const match = before.match(headingOpenerPattern);
 	// カーソルの後ろは、見出しの文字（と、閉じ括弧）だけのとき。それ以外は、見出しではない。
@@ -294,7 +295,10 @@ function completeHeading(
 	const items = headingKinds
 		.filter((kind) => recipeHeadingLabels[kind].startsWith(typed))
 		// 書き終えた見出し（＜｜材料＞、＜材料｜＞）は、出さない。
-		.filter((kind) => after === "" || recipeHeadingLabels[kind] !== typed)
+		.filter(
+			(kind) =>
+				includeExact || after === "" || recipeHeadingLabels[kind] !== typed,
+		)
 		.map((kind) => ({
 			label: formatHeading(kind),
 			insert: formatHeading(kind),
@@ -310,6 +314,7 @@ function completeIngredientName(
 	before: string,
 	after: string,
 	caret: number,
+	includeExact: boolean,
 ): RecipeTextCompletion | null {
 	// 行頭の箇条書きの印と、グループの印（☆ など）は、材料名ではないので除く。
 	const token = before
@@ -326,7 +331,7 @@ function completeIngredientName(
 	const afterToken = takeWhile(after, (char) => !nameBreakPattern.test(char));
 	const typed = `${token}${afterToken}`;
 	const items = searchIngredientCatalog(typed, maxItems + 1)
-		.filter((entry) => entry.name !== typed)
+		.filter((entry) => includeExact || entry.name !== typed)
 		.slice(0, maxItems)
 		.map((entry) => ({
 			label: entry.name,
@@ -399,6 +404,7 @@ function completeRecipeName(
 	after: string,
 	caret: number,
 	recipeNames: readonly string[],
+	includeExact: boolean,
 ): RecipeTextCompletion | null {
 	const segment = takeWhileEnd(
 		before,
@@ -424,7 +430,7 @@ function completeRecipeName(
 			);
 
 			// 材料名を、書き終えているときは、出さない。
-			if (typed === foldedName) {
+			if (!includeExact && typed === foldedName) {
 				break;
 			}
 
@@ -519,11 +525,17 @@ function mergeCompletions(
 // - ＜材料＞の中の行の先頭では、カタログの食材名（ひらがなでも出る）
 // - ＜下準備＞＜作り方＞の中では、材料の名前とグループ名
 // - どこでも、読み仮名（ほし、すたー など）から、記号
+export type RecipeTextCompletionOptions = {
+	// 打った文字列と完全に一致する候補（書き終えた名前・見出し）も出す。変換中（IME で未確定）は出し、確定したあとは出さない。
+	includeExact?: boolean;
+};
+
 export function getRecipeTextCompletion(
 	text: string,
 	caret: number,
 	recipeNames: readonly string[] = [],
 	linkContext: RecipeLinkContext = emptyLinkContext,
+	{ includeExact = false }: RecipeTextCompletionOptions = {},
 ): RecipeTextCompletion | null {
 	const lineStart = text.lastIndexOf("\n", caret - 1) + 1;
 	const lineEndIndex = text.indexOf("\n", caret);
@@ -542,7 +554,13 @@ export function getRecipeTextCompletion(
 		return completeRecipeLink(before, after, lineStart, caret, linkContext);
 	}
 
-	const headingCompletion = completeHeading(before, lineStart, caret, after);
+	const headingCompletion = completeHeading(
+		before,
+		lineStart,
+		caret,
+		after,
+		includeExact,
+	);
 
 	if (headingCompletion) {
 		return headingCompletion;
@@ -554,13 +572,13 @@ export function getRecipeTextCompletion(
 		case "ingredients":
 			return mergeCompletions(
 				symbolCompletion,
-				completeIngredientName(before, after, caret),
+				completeIngredientName(before, after, caret, includeExact),
 			);
 		case "preparations":
 		case "instructions":
 			return mergeCompletions(
 				symbolCompletion,
-				completeRecipeName(before, after, caret, recipeNames),
+				completeRecipeName(before, after, caret, recipeNames, includeExact),
 			);
 		default:
 			return symbolCompletion;

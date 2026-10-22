@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { expect, test } from "vitest";
-import { page, userEvent } from "vitest/browser";
+import { cdp, page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { measureTextareaCaret } from "#/components/completion-menu/measure-textarea-caret";
 import type { CompositionStrategy } from "#/ime/choose-composition-strategy";
@@ -768,4 +768,36 @@ test("中身が書かれたら、案内は出さない", async () => {
 	await render(<Harness initialValue={"＜材料＞\n卵 1個\n"} />);
 
 	expect(findTips()).toBeUndefined();
+});
+
+// 実際のブラウザの変換（IME）のイベントで、変換中（未確定）は、完全一致の候補も出し続けることを確かめる。
+test("変換中は、カタログの名前と完全に一致しても、候補に出す。確定したら出さない（材料の行）", async () => {
+	await render(<Harness initialValue={"＜材料＞\n"} />);
+
+	const textarea = getTextarea();
+
+	textarea.focus();
+	textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+
+	const labels = () =>
+		[
+			...document.querySelectorAll('[class*="completion-menu_popup"] button'),
+		].map((button) => button.textContent?.trim());
+
+	for (const text of ["に", "にん", "にんに", "にんにく"]) {
+		await cdp().send("Input.imeSetComposition", {
+			text,
+			selectionStart: text.length,
+			selectionEnd: text.length,
+		});
+	}
+
+	// 変換中は、完全一致の「にんにく」も、候補に出る。
+	await expect.poll(labels).toContain("にんにく");
+
+	// 確定すると、完全一致の「にんにく」は出ない。
+	await cdp().send("Input.insertText", { text: "にんにく" });
+
+	await expect.poll(() => textarea.value).toContain("にんにく");
+	await expect.poll(labels).not.toContain("にんにく");
 });

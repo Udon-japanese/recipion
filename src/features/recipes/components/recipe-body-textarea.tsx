@@ -211,14 +211,22 @@ export function RecipeBodyTextarea({
 
 	const completion = useMemo(
 		() =>
-			getRecipeTextCompletion(value, caret, recipeNames, {
-				targets: linkTargets ?? [],
-				links: links ?? [],
-				others: hasOtherLinks
-					? { users: otherUsers, recipes: Object.values(otherRecipes).flat() }
-					: undefined,
-			}),
+			getRecipeTextCompletion(
+				value,
+				caret,
+				recipeNames,
+				{
+					targets: linkTargets ?? [],
+					links: links ?? [],
+					others: hasOtherLinks
+						? { users: otherUsers, recipes: Object.values(otherRecipes).flat() }
+						: undefined,
+				},
+				// 変換中（未確定）は、完全一致の候補も出す。確定したあとは、書き終えたとみなして出さない。
+				{ includeExact: composing.isComposing },
+			),
 		[
+			composing.isComposing,
 			value,
 			caret,
 			recipeNames,
