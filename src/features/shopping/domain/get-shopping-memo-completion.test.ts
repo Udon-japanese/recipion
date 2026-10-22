@@ -41,6 +41,21 @@ describe("getShoppingMemoCompletion", () => {
 
 	it("書き終えた名前（完全一致）は、候補に出さない", () => {
 		expect(labelsAtEnd("イオン")).not.toContain("イオン");
+		expect(labelsAtEnd("にんにく")).not.toContain("にんにく");
+	});
+
+	it("変換中（includeExact）は、完全一致の候補も出す（食材・店・@のあとの店）", () => {
+		function exactLabels(text: string) {
+			return (
+				getShoppingMemoCompletion(text, text.length, stores, {
+					includeExact: true,
+				})?.items.map((item) => item.label) ?? []
+			);
+		}
+
+		expect(exactLabels("にんにく")).toContain("にんにく");
+		expect(exactLabels("イオン")).toContain("イオン");
+		expect(exactLabels("@イオン")).toContain("イオン");
 	});
 
 	it("候補で、書きかけの部分だけを置き換える", () => {

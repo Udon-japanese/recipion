@@ -109,12 +109,15 @@ export function ShoppingBulkAdd({
 		[text, stores, conversionDefaults],
 	);
 	const completion = useMemo(() => {
-		const found = getShoppingMemoCompletion(text, caret, stores);
+		// 変換中（未確定）は、入力と完全に一致する候補も出す。確定したあとは、確定済みとみなして出さない。
+		const found = getShoppingMemoCompletion(text, caret, stores, {
+			includeExact: composing.isComposing,
+		});
 
 		return found && !(closedAt?.text === text && closedAt.caret === caret)
 			? found
 			: null;
-	}, [text, caret, stores, closedAt]);
+	}, [text, caret, stores, closedAt, composing.isComposing]);
 	// 変換中に補完できない環境（iPhone・Firefox など）は、確定したあとに出す。
 	const isMenuOpen =
 		isFocused && completion !== null && composing.canCompleteWhileComposing;

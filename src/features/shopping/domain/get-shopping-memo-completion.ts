@@ -24,10 +24,16 @@ function fold(text: string): string {
 	return text.normalize("NFKC").trim().toLowerCase();
 }
 
+export type ShoppingMemoCompletionOptions = {
+	// 入力と完全に一致する候補も出す。変換中（IME で未確定）は出し、確定したあとは出さない（確定済みとみなす）。
+	includeExact?: boolean;
+};
+
 export function getShoppingMemoCompletion(
 	text: string,
 	caret: number,
 	stores: readonly ShoppingMemoStore[],
+	{ includeExact = false }: ShoppingMemoCompletionOptions = {},
 ): ShoppingMemoCompletion | null {
 	const lineStart = text.lastIndexOf("\n", caret - 1) + 1;
 	const nextBreak = text.indexOf("\n", caret);
@@ -55,7 +61,8 @@ export function getShoppingMemoCompletion(
 		const items = stores
 			.filter(
 				(store) =>
-					fold(store.name) !== folded && fold(store.name).startsWith(folded),
+					(includeExact || fold(store.name) !== folded) &&
+					fold(store.name).startsWith(folded),
 			)
 			.slice(0, maxItems)
 			.map(
@@ -78,7 +85,7 @@ export function getShoppingMemoCompletion(
 	const folded = fold(typedLine);
 	const ingredients = searchIngredientCatalog(typedLine, maxItems + 1)
 		.map((entry) => entry.name)
-		.filter((name) => fold(name) !== folded)
+		.filter((name) => includeExact || fold(name) !== folded)
 		.slice(0, maxItems)
 		.map(
 			(name): ShoppingMemoCompletionItem => ({
@@ -90,7 +97,8 @@ export function getShoppingMemoCompletion(
 	const storeHeadings = stores
 		.filter(
 			(store) =>
-				fold(store.name) !== folded && fold(store.name).startsWith(folded),
+				(includeExact || fold(store.name) !== folded) &&
+				fold(store.name).startsWith(folded),
 		)
 		.map(
 			(store): ShoppingMemoCompletionItem => ({

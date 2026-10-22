@@ -190,6 +190,27 @@ describe("getRecipeTextCompletion（作り方・下準備の中の、材料の�
 		).not.toBeNull();
 	});
 
+	it("変換中（includeExact）は、書き終えた名前でも、候補に出す（材料・作り方の中の材料名・見出し）", () => {
+		function labelsExact(text: string, caret: number, names: string[] = []) {
+			return (
+				getRecipeTextCompletion(text, caret, names, undefined, {
+					includeExact: true,
+				})?.items.map((item) => item.label) ?? []
+			);
+		}
+
+		// 材料の行の、カタログの食材名。確定後（既定）は出さない。
+		expect(labelsExact("＜材料＞\nにんにく", 11)).toContain("にんにく");
+		expect(labelsAtEnd("＜材料＞\nにんにく")).not.toContain("にんにく");
+		// 作り方の中の、材料の名前。
+		expect(
+			labelsExact("＜作り方＞\n最初に、トマトを切る", 11, ["トマト"]),
+		).toContain("トマト");
+		// 書き終えた見出し（括弧の内側にカーソルがあるとき）。
+		expect(getRecipeTextCompletion("＜材料＞", 3)).toBeNull();
+		expect(labelsExact("＜材料＞", 3)).toContain("＜材料＞");
+	});
+
 	it("文章に同じ材料名が書いてあっても、途中まで打った名前には、前後の文字を合わせて出す", () => {
 		const onion = ["玉ねぎ"];
 		const cases: [string, string][] = [
