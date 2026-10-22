@@ -28,6 +28,8 @@ jobs:
         env:
           UPDATE_TYPE: ${{ steps.meta.outputs.update-type }}
           GHSA_ID: ${{ steps.meta.outputs.ghsa-id }}
+          # dependabot.yml の security グループは、セキュリティ更新だけを対象にしている（ghsa-id は、グループの PR では空になる）。
+          DEPENDENCY_GROUP: ${{ steps.meta.outputs.dependency-group }}
           LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
         run: |
           # グループの PR では update-type が空になることがあるので、その場合は major の可能性を残して自動マージしない。
@@ -36,7 +38,7 @@ jobs:
           else
             echo "mergeable=false" >> "$GITHUB_OUTPUT"
           fi
-          if [ -n "$GHSA_ID" ] || echo "$LABELS" | grep -q '"security"'; then
+          if [ -n "$GHSA_ID" ] || [ "$DEPENDENCY_GROUP" = "security" ] || echo "$LABELS" | grep -q '"security"'; then
             echo "security=true" >> "$GITHUB_OUTPUT"
           else
             echo "security=false" >> "$GITHUB_OUTPUT"
