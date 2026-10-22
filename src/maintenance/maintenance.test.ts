@@ -5,6 +5,7 @@ import {
 	createMaintenanceResponse,
 	isMaintenanceActive,
 	MAINTENANCE_VAR_NAME,
+	normalizeMaintenanceReason,
 } from "./maintenance";
 
 function readJsonc(path: string): Record<string, unknown> {
@@ -20,6 +21,33 @@ describe("メンテ中の応答", () => {
 		expect(response.headers.get("x-robots-tag")).toContain("noindex");
 		expect(response.headers.get("retry-after")).not.toBeNull();
 		expect(await response.text()).toContain("メンテナンス中");
+	});
+});
+
+describe("メンテ中の理由", () => {
+	it("1 行・200 文字までに整える。空なら、出さない", () => {
+		expect(normalizeMaintenanceReason("  作業中\n\nです  ")).toBe(
+			"作業中 です",
+		);
+		expect(normalizeMaintenanceReason("   ")).toBeNull();
+		expect(normalizeMaintenanceReason(undefined)).toBeNull();
+		expect(
+			Array.from(normalizeMaintenanceReason("あ".repeat(500)) ?? ""),
+		).toHaveLength(200);
+	});
+
+	it("画面に出す。HTML として解釈されないよう、記号は無害にする", async () => {
+		const html = await createMaintenanceResponse(
+			'<script>alert("x")</script> & 作業中',
+		).text();
+		expect(html).toContain("理由：");
+		expect(html).toContain("&lt;script&gt;");
+		expect(html).toContain("&amp; 作業中");
+		expect(html).not.toContain("<script>");
+	});
+
+	it("理由がなければ、理由の欄を出さない", async () => {
+		expect(await createMaintenanceResponse().text()).not.toContain("理由：");
 	});
 });
 

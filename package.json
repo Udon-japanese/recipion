@@ -12,7 +12,7 @@
     "preview": "vite preview",
     "waf:allowlist": "node scripts/print-waf-allowlist.ts",
     "deploy": "pnpm run build && wrangler deploy",
-    "maintenance:on": "wrangler deploy -c maintenance/wrangler.jsonc",
+    "maintenance:on": "node scripts/maintenance-on.ts",
     "maintenance:off": "pnpm run deploy",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
