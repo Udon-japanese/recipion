@@ -12,6 +12,13 @@ updates:
     # セキュリティ更新には効かない。
     cooldown:
       default-days: 3
+    ignore:
+      # 型は、実際に使う Node の版（mise.toml の LTS）に合わせる。Node を上げるときに、ここも直す。
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+      # TypeScript 7（ネイティブ版）への移行は、別の作業として行う。
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
     groups:
       # 通常の更新（patch と minor）は、1 本の PR にまとめる。
       minor-and-patch:
