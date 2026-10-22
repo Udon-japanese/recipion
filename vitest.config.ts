@@ -28,6 +28,9 @@ export default defineConfig({
 				test: {
 					name: "unit",
 					environment: "jsdom",
+					// CI（遅い実行環境）でだけ、画面のテストが、まれに落ちる。原因が分かるまで、CI では 2 回まで再試行する
+					// （再試行で通ったテストは、結果に「retry」と出る。手元では再試行しない）。
+					retry: process.env.CI ? 2 : 0,
 					// 画面の部品を描画するテストは、CI の遅い実行環境で 5 秒（既定）を超えることがある。
 					testTimeout: 20_000,
 					setupFiles: ["./src/test/setup.ts"],

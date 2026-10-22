@@ -24,6 +24,9 @@ jobs:
       - run: pnpm run check
       - run: pnpm run typecheck
       - run: pnpm run test
+        env:
+          # 失敗したときの DOM の出力が、既定（7,000 文字）では途中で切れて、原因が読めない。
+          DEBUG_PRINT_LIMIT: "200000"
       # ビルドの後工程が vite preview を起動して静的ページを作る。DB には接続しない（Cookie なし）が、
       # 設定の読み込みに必要なので、ダミーの値を渡す（秘密の値は使わない）。
       - run: pnpm run build
