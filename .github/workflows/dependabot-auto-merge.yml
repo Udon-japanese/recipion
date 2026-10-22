@@ -9,6 +9,8 @@ permissions:
   contents: write
   pull-requests: write
   actions: write
+  checks: read
+  statuses: read
 
 jobs:
   inspect:
@@ -49,6 +51,13 @@ jobs:
     needs: [inspect, gate]
     runs-on: ubuntu-latest
     steps:
+      # ブランチ保護で必須にしている CI の gate（別のワークフロー）が終わる前にマージすると、
+      # 「ブランチの規則で禁止されている」と断られる。必須のチェックが終わるのを待つ（失敗なら、ここで止まる）。
+      - name: Wait for required checks
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: gh pr checks "$PR_URL" --required --watch --fail-fast
       - name: Merge
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
