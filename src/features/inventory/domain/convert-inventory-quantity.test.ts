@@ -19,19 +19,22 @@ describe("convertInventoryQuantity", () => {
 	it.each([
 		[150, 2, 300],
 		[200, 2, 400],
-	])("1袋%sグラムの商品を%s袋買うと%sグラムになる", (stockQuantityPerInputUnit, inputQuantity, expectedQuantity) => {
-		expect(
-			convertInventoryQuantity({
-				inputQuantity,
-				inputUnitCode: "bag",
-				stockUnitCode: "g",
-				stockQuantityPerInputUnit,
-			}),
-		).toEqual({
-			quantity: expectedQuantity,
-			unitCode: "g",
-		});
-	});
+	])(
+		"1袋%sグラムの商品を%s袋買うと%sグラムになる",
+		(stockQuantityPerInputUnit, inputQuantity, expectedQuantity) => {
+			expect(
+				convertInventoryQuantity({
+					inputQuantity,
+					inputUnitCode: "bag",
+					stockUnitCode: "g",
+					stockQuantityPerInputUnit,
+				}),
+			).toEqual({
+				quantity: expectedQuantity,
+				unitCode: "g",
+			});
+		},
+	);
 
 	it("同じ単位は内容量1で換算できる", () => {
 		expect(

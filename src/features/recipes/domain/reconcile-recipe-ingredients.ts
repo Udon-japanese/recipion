@@ -195,7 +195,7 @@ export function reconcileRecipeIngredients(
 	): RecipeEditorIngredientItem {
 		const entry = availableItems.get(parsed.rawText)?.shift();
 
-		if (!entry || entry.node.type !== "ingredient") {
+		if (entry?.node.type !== "ingredient") {
 			const id = createId();
 
 			sources.set(id, parsed.rawText);
@@ -245,7 +245,7 @@ export function reconcileRecipeIngredients(
 						)
 		) as RecipeEditorIngredientGroup | undefined;
 
-		if (!previousGroup || previousGroup.type !== "group") {
+		if (previousGroup?.type !== "group") {
 			const id = createId();
 
 			sources.set(id, parsed.rawText);

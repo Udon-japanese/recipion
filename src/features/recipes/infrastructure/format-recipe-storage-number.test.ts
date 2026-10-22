@@ -10,15 +10,12 @@ describe("formatRecipeServings", () => {
 		expect(formatRecipeServings(1.5)).toBe("1.500");
 	});
 
-	it.each([
-		0,
-		-1,
-		Number.NaN,
-		Number.POSITIVE_INFINITY,
-		10_000_000,
-	])("保存できない値を拒否する: %s", (value) => {
-		expect(() => formatRecipeServings(value)).toThrow();
-	});
+	it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY, 10_000_000])(
+		"保存できない値を拒否する: %s",
+		(value) => {
+			expect(() => formatRecipeServings(value)).toThrow();
+		},
+	);
 
 	it("丸めるとゼロになる人数を拒否する", () => {
 		expect(() => formatRecipeServings(0.0001)).toThrow("小さすぎます");

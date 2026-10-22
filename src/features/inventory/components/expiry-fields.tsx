@@ -20,7 +20,7 @@ import {
 } from "../domain/inventory-lot";
 import * as styles from "./expiry-fields.css";
 
-export { emptyExpiryFields, type ExpiryFieldsValue };
+export { type ExpiryFieldsValue, emptyExpiryFields };
 
 type ExpiryFieldsProps = {
 	value: ExpiryFieldsValue;

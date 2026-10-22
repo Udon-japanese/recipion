@@ -16,16 +16,15 @@ describe("getShellLayout", () => {
 		expect(getShellLayout(pathname)).toEqual({ frame: true, bottomNav });
 	});
 
-	it.each([
-		"/login",
-		"/account-deleted",
-		"/dev/ui",
-	])("%s：枠なし", (pathname) => {
-		expect(getShellLayout(pathname)).toEqual({
-			frame: false,
-			bottomNav: false,
-		});
-	});
+	it.each(["/login", "/account-deleted", "/dev/ui"])(
+		"%s：枠なし",
+		(pathname) => {
+			expect(getShellLayout(pathname)).toEqual({
+				frame: false,
+				bottomNav: false,
+			});
+		},
+	);
 
 	it("名前が似ているだけのパスは、別のものとして扱う", () => {
 		expect(getShellLayout("/recipes-old")).toEqual({

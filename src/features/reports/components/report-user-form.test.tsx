@@ -35,20 +35,23 @@ describe("ReportUserForm", () => {
 		["limit", "今日の通報の上限"],
 		["not-found", "通報できません"],
 		["own-profile", "自分は、通報できません"],
-	] as const)("%s のときは、その旨を出し、フォームは開いたまま", async (result, text) => {
-		const user = userEvent.setup();
+	] as const)(
+		"%s のときは、その旨を出し、フォームは開いたまま",
+		async (result, text) => {
+			const user = userEvent.setup();
 
-		render(<ReportUserForm onReport={async () => result} />);
-		await user.click(
-			screen.getByRole("button", { name: "この作者のユーザー名を通報する" }),
-		);
-		await user.click(screen.getByRole("button", { name: "通報する" }));
+			render(<ReportUserForm onReport={async () => result} />);
+			await user.click(
+				screen.getByRole("button", { name: "この作者のユーザー名を通報する" }),
+			);
+			await user.click(screen.getByRole("button", { name: "通報する" }));
 
-		expect(await screen.findByRole("alert")).toHaveTextContent(text);
-		expect(
-			screen.getByRole("button", { name: "通報する" }),
-		).toBeInTheDocument();
-	});
+			expect(await screen.findByRole("alert")).toHaveTextContent(text);
+			expect(
+				screen.getByRole("button", { name: "通報する" }),
+			).toBeInTheDocument();
+		},
+	);
 
 	it("送れなかったときは、エラーを出す", async () => {
 		const user = userEvent.setup();

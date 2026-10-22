@@ -75,15 +75,12 @@ describe("買い物候補のデータ", () => {
 });
 
 describe("買い物候補の正規化", () => {
-	it.each([
-		"milk",
-		"Milk",
-		"MILK",
-		"mILK",
-		"ＭｉＬＫ",
-	])("英字の大文字小文字に関係なく%sを牛乳として扱う", (name) => {
-		expect(inferShoppingCategory(name)).toBe("dairy");
-	});
+	it.each(["milk", "Milk", "MILK", "mILK", "ＭｉＬＫ"])(
+		"英字の大文字小文字に関係なく%sを牛乳として扱う",
+		(name) => {
+			expect(inferShoppingCategory(name)).toBe("dairy");
+		},
+	);
 
 	it("Unicode表現と前後の空白を正規化する", () => {
 		expect(inferShoppingCategory("  タマゴ  ")).toBe("eggs");

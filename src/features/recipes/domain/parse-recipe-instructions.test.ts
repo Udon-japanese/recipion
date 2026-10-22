@@ -80,13 +80,12 @@ describe("parseRecipeInstructions", () => {
 		).toEqual(["玉ねぎを切る", "フライパンで炒める", "卵を加える"]);
 	});
 
-	it.each([
-		"180℃に予熱する",
-		"2等分する",
-		"10分加熱する",
-	])("工程内容に含まれる数値は削除しない: %s", (instruction) => {
-		expect(parseRecipeInstructions(instruction)).toEqual([instruction]);
-	});
+	it.each(["180℃に予熱する", "2等分する", "10分加熱する"])(
+		"工程内容に含まれる数値は削除しない: %s",
+		(instruction) => {
+			expect(parseRecipeInstructions(instruction)).toEqual([instruction]);
+		},
+	);
 
 	it("空行だけなら空配列を返す", () => {
 		expect(parseRecipeInstructions("　\n\n ")).toEqual([]);

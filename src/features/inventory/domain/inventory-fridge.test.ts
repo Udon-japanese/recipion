@@ -40,11 +40,14 @@ describe("assignInventoryZone", () => {
 		["exact", "fridge", false, "fridge"],
 		["exact", null, true, "fridge"],
 		["exact", null, false, "fridge"],
-	] as const)("%s・%s・野菜=%s → %s", (trackingMode, storage, isProduce, zone) => {
-		expect(assignInventoryZone({ trackingMode, storage, isProduce })).toBe(
-			zone,
-		);
-	});
+	] as const)(
+		"%s・%s・野菜=%s → %s",
+		(trackingMode, storage, isProduce, zone) => {
+			expect(assignInventoryZone({ trackingMode, storage, isProduce })).toBe(
+				zone,
+			);
+		},
+	);
 });
 
 describe("getExpiryLevel", () => {
