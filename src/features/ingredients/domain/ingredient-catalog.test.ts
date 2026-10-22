@@ -283,10 +283,13 @@ describe("読み仮名", () => {
 			["なす", "frozen-eggplant-chunks"],
 			["小ねぎ", "frozen-chopped-green-onion"],
 			["ごぼう", "frozen-burdock"],
-		])("「%s」の %s は、形が決まっているので、自動では使わず、別に知らせる", (name, id) => {
-			expect(getStandInCatalogEntryIds(name).has(id)).toBe(false);
-			expect(getFixedShapeStandInCatalogEntryIds(name).has(id)).toBe(true);
-		});
+		])(
+			"「%s」の %s は、形が決まっているので、自動では使わず、別に知らせる",
+			(name, id) => {
+				expect(getStandInCatalogEntryIds(name).has(id)).toBe(false);
+				expect(getFixedShapeStandInCatalogEntryIds(name).has(id)).toBe(true);
+			},
+		);
 
 		it.each([
 			["じゃがいも", "frozen-fries-shoestring"],

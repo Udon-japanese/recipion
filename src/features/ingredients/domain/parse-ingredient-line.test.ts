@@ -18,16 +18,19 @@ describe("parseIngredientLine", () => {
 		["砂糖 小さじ２と1/4", "砂糖", "小さじ2と1/4", 2.25, "小さじ"],
 		["薄力粉 約200g", "薄力粉", "約200g", 200, "g"],
 		["5枚切り食パン 1枚", "5枚切り食パン", "1枚", 1, "枚"],
-	])("%sを食材名と使用量へ分割する", (input, name, amountText, quantity, unitLabel) => {
-		expect(parseIngredientLine(input)).toEqual({
-			status: "parsed",
-			rawText: input,
-			name,
-			amountText,
-			quantity,
-			unitLabel,
-		});
-	});
+	])(
+		"%sを食材名と使用量へ分割する",
+		(input, name, amountText, quantity, unitLabel) => {
+			expect(parseIngredientLine(input)).toEqual({
+				status: "parsed",
+				rawText: input,
+				name,
+				amountText,
+				quantity,
+				unitLabel,
+			});
+		},
+	);
 
 	it.each([
 		["ベーコン 60~70g", "ベーコン", "60~70g", null, "g"],
@@ -46,16 +49,19 @@ describe("parseIngredientLine", () => {
 		["じゃがいも 1キロ", "じゃがいも", "1キロ", 1, "kg"],
 		["小麦粉 1キログラム", "小麦粉", "1キログラム", 1, "kg"],
 		["だし 1リットル", "だし", "1リットル", 1, "l"],
-	])("%sの範囲や「位」付きの使用量を分量として区切る", (input, name, amountText, quantity, unitLabel) => {
-		expect(parseIngredientLine(input)).toEqual({
-			status: "parsed",
-			rawText: input,
-			name,
-			amountText,
-			quantity,
-			unitLabel,
-		});
-	});
+	])(
+		"%sの範囲や「位」付きの使用量を分量として区切る",
+		(input, name, amountText, quantity, unitLabel) => {
+			expect(parseIngredientLine(input)).toEqual({
+				status: "parsed",
+				rawText: input,
+				name,
+				amountText,
+				quantity,
+				unitLabel,
+			});
+		},
+	);
 
 	it.each([
 		["塩 少々", "塩", "少々"],
@@ -88,16 +94,19 @@ describe("parseIngredientLine", () => {
 			null,
 		],
 		["豆腐 1丁(300g)", "豆腐", "1丁(300g)", 1, "丁"],
-	])("分量のあとの括弧つきの補足は、分量の原文に残し、数量には使わない（%s）", (input, name, amountText, quantity, unitLabel) => {
-		expect(parseIngredientLine(input)).toEqual({
-			status: "parsed",
-			rawText: input,
-			name,
-			amountText,
-			quantity,
-			unitLabel,
-		});
-	});
+	])(
+		"分量のあとの括弧つきの補足は、分量の原文に残し、数量には使わない（%s）",
+		(input, name, amountText, quantity, unitLabel) => {
+			expect(parseIngredientLine(input)).toEqual({
+				status: "parsed",
+				rawText: input,
+				name,
+				amountText,
+				quantity,
+				unitLabel,
+			});
+		},
+	);
 
 	it("名前の括弧は、分量がなければ、名前の一部のまま", () => {
 		expect(parseIngredientLine("ソーセージ(ベーコン)")).toMatchObject({

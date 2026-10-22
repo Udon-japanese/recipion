@@ -50,24 +50,22 @@ describe("createManualInventoryAdjustment", () => {
 		);
 	});
 
-	it.each([
-		0,
-		-1,
-		Number.NaN,
-		Number.POSITIVE_INFINITY,
-	])("不正な数量%sを拒否する", (quantity) => {
-		expect(() =>
-			createManualInventoryAdjustment(
-				{
-					inventoryItemId,
-					quantity,
-					stockUnitCode: "count",
-					operation: "increase",
-				},
-				transactionId,
-			),
-		).toThrow();
-	});
+	it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY])(
+		"不正な数量%sを拒否する",
+		(quantity) => {
+			expect(() =>
+				createManualInventoryAdjustment(
+					{
+						inventoryItemId,
+						quantity,
+						stockUnitCode: "count",
+						operation: "increase",
+					},
+					transactionId,
+				),
+			).toThrow();
+		},
+	);
 
 	it("不正な在庫項目IDを拒否する", () => {
 		expect(() =>

@@ -26,17 +26,12 @@ describe("parseQuantityInput", () => {
 		expect(parseQuantityInput(input)).toBe(expected);
 	});
 
-	it.each([
-		"",
-		"  ",
-		"abc",
-		"1/0",
-		"-1",
-		"1/2/3",
-		"1..5",
-	])("「%s」は読めない（null）", (input) => {
-		expect(parseQuantityInput(input)).toBeNull();
-	});
+	it.each(["", "  ", "abc", "1/0", "-1", "1/2/3", "1..5"])(
+		"「%s」は読めない（null）",
+		(input) => {
+			expect(parseQuantityInput(input)).toBeNull();
+		},
+	);
 });
 
 describe("formatQuantity", () => {
