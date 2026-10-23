@@ -223,7 +223,14 @@ describe.skipIf(!isEnabled)("文章の判定の評価", () => {
 					kind: "手元の例",
 					text,
 				})),
-			].slice(0, limit);
+			]
+				// 件数を絞るときは、先頭に偏らないよう、文章から決まる順（毎回同じ）で抜き取る。
+				.sort((a, b) =>
+					Number.isFinite(limit)
+						? hashText(`${a.label}${a.text}`) - hashText(`${b.label}${b.text}`)
+						: 0,
+				)
+				.slice(0, limit);
 
 			// 1文ずつ審査した結果を返す。確定の語は、1文ずつ見て、AI には、残りだけを、まとめて渡す。
 			async function judgeMany(
@@ -344,7 +351,7 @@ describe.skipIf(!isEnabled)("文章の判定の評価", () => {
 
 			if (quotaExhausted) {
 				throw new Error(
-					"Workers AI の1日の無料枠（10,000 Neurons）を使い切っています。リセット（UTC の 0 時＝日本時間の 9 時）のあとに、もう一度、実行してください。結果のファイルは、書きません。",
+					"Workers AI の1日の無料枠（10,000 Neurons）を使い切っています。公式の資料ではリセットは UTC の 0 時（日本時間の 9 時）だが、実際には、そのあとも数時間、断られることがある（2026-10-23 に UTC 2 時台でも断られた）。時間をおいて、もう一度、実行してください。結果のファイルは、書きません。",
 				);
 			}
 

@@ -1,3 +1,8 @@
+import {
+	kanjiNumberSource,
+	replaceKanjiNumbers,
+} from "#/features/quantity/domain/kanji-numeral";
+
 export type ParsedIngredientLine =
 	| {
 			status: "parsed";
@@ -28,6 +33,38 @@ const amountSuffix = "(?:分)?(?:位|くらい|ぐらい|程度)?";
 
 const unitToken =
 	"大さじ|小さじ|カップ|パック|ひとつまみ|個|枚|本|袋|束|株|片|かけ|玉|丁|缶|瓶|切れ|房|合|kg|g|ml|l|cc|cm|つ|キログラム|ミリリットル|センチメートル|センチ|グラム|キロ|ミリ|リットル";
+
+// 行の終わりの分量にある漢数字（「一切れ」「大さじ二」「二〜三本」）。名前の中の漢数字（三つ葉・一味・二十日大根）は、
+// 行の終わりが分量の形のときだけ読むので、対象にならない。
+const kanjiRangeSource = `${kanjiNumberSource}(?:\\s*${rangeSeparator}\\s*${kanjiNumberSource})?`;
+const kanjiAmountPatterns = [
+	new RegExp(
+		String.raw`^(?<head>.*?)(?<amount>(?:約\s*)?(?:大さじ|小さじ|カップ)\s*(?<number>${kanjiRangeSource})${amountSuffix})$`,
+		"u",
+	),
+	new RegExp(
+		String.raw`^(?<head>.*?)(?<amount>(?:約\s*)?(?<number>${kanjiRangeSource})\s*(?:${unitToken})${amountSuffix})$`,
+		"iu",
+	),
+];
+
+// 行の終わりの分量の漢数字だけを、半角の数字にする。読めるものがなければ、そのまま返す。
+function convertKanjiAmount(text: string): string {
+	for (const pattern of kanjiAmountPatterns) {
+		const match = text.match(pattern);
+
+		if (match?.groups) {
+			const { head, amount, number } = match.groups;
+			const converted = replaceKanjiNumbers(number);
+
+			if (converted !== number) {
+				return `${head}${amount.replace(number, converted)}`;
+			}
+		}
+	}
+
+	return text;
+}
 
 const measuredAmountPatterns = [
 	new RegExp(
@@ -106,8 +143,10 @@ function createParsedLine(
 	// 分量のあとの括弧つきの補足（原文のまま分量に残す。数量には使わない）。
 	supplement = "",
 ): ParsedIngredientLine {
-	const quantityMatch = amountText.match(quantityPattern);
-	const unitMatch = amountText.match(unitPattern);
+	// 数量と単位は、漢数字を半角にした形で読む。amountText には原文の表記が残る。
+	const readableAmount = convertKanjiAmount(amountText);
+	const quantityMatch = readableAmount.match(quantityPattern);
+	const unitMatch = readableAmount.match(unitPattern);
 
 	return {
 		status: "parsed",
@@ -116,7 +155,7 @@ function createParsedLine(
 		amountText: `${amountText.trim()}${supplement}`,
 		// 範囲は1つの数値にしない。原文は amountText に残る。
 		quantity:
-			quantityMatch && !rangePattern.test(amountText)
+			quantityMatch && !rangePattern.test(readableAmount)
 				? parseNumericQuantity(quantityMatch[0])
 				: null,
 		unitLabel: unitMatch ? normalizeUnitLabel(unitMatch[0]) : null,
@@ -154,11 +193,20 @@ export function parseIngredientLine(
 		}
 	}
 
+	// 分量の漢数字は、半角にして照合する（分量は行の終わりなので、前の部分は、そのまま同じ位置にある）。
+	const matchText = convertKanjiAmount(normalizedText);
+
 	for (const pattern of measuredAmountPatterns) {
-		const match = normalizedText.match(pattern);
+		const match = matchText.match(pattern);
 
 		if (match?.groups) {
-			return createParsedLine(rawText, match.groups.name, match.groups.amount);
+			const amountStart = matchText.length - match.groups.amount.length;
+
+			return createParsedLine(
+				rawText,
+				match.groups.name,
+				normalizedText.slice(amountStart),
+			);
 		}
 	}
 
