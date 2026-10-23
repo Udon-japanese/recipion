@@ -1,24 +1,11 @@
-import { env } from "cloudflare:workers";
 import { createServerFn } from "@tanstack/react-start";
 import * as v from "valibot";
-import { UserFacingError } from "#/errors/user-facing-error";
 import { requireSession } from "#/integrations/better-auth/require-session";
 import {
 	listPublicRecipesOfUser,
 	searchLinkableUsers,
 } from "../infrastructure/drizzle-linkable-recipes";
-
-// ユーザーの検索の回数の制限（1人あたり、1分に決まった回数）。バインディングがない開発サーバーでは、制限しない。
-async function assertWithinSearchLimit(userId: string): Promise<void> {
-	const limiter = (env as { LINK_SEARCH_LIMITER?: RateLimit })
-		.LINK_SEARCH_LIMITER;
-
-	if (limiter && !(await limiter.limit({ key: userId })).success) {
-		throw new UserFacingError(
-			"検索の回数が多すぎます。少し待ってから、お試しください。",
-		);
-	}
-}
+import { assertWithinSearchLimit } from "./search-rate-limit";
 
 // 他の人のレシピへのリンクのための、ユーザーの検索（全体公開のレシピを持つ人だけ。ハンドルか表示名の前方一致）。
 export const searchLinkableUsersServerFn = createServerFn({ method: "GET" })
