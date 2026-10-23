@@ -195,7 +195,6 @@ export const pocket = style([
 		gap: 6,
 		padding: "0 10px",
 		borderRadius: "6px 6px 16px 16px",
-		borderLeft: "6px solid var(--color-control-border)",
 		"@media": { "(min-width: 768px)": { height: 64 } },
 	},
 ]);

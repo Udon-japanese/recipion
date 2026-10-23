@@ -90,13 +90,7 @@ export const list = style({
 
 export const ingredientBlocks = style({ display: "grid", gap: 12 });
 
-const groupTones = [
-	{ background: "#fff3c4", accent: "#e9a900" },
-	{ background: "#eaf5ee", accent: "#2f7d4a" },
-	{ background: "#e8f0fa", accent: "#3b78b8" },
-	{ background: "#f1ecfa", accent: "#7a5cb5" },
-	{ background: "#fbeaf0", accent: "#c44a7a" },
-];
+const groupTones = ["#fff3c4", "#eaf5ee", "#e8f0fa", "#f1ecfa", "#fbeaf0"];
 
 // グループの囲み。色は data-tone（0〜4）で変える。
 export const groupBox = style({
@@ -104,13 +98,12 @@ export const groupBox = style({
 	gap: 8,
 	padding: "12px 16px",
 	boxSizing: "border-box",
-	borderLeft: "4px solid",
 	borderRadius: 12,
 
 	selectors: Object.fromEntries(
-		groupTones.map(({ background, accent }, index) => [
+		groupTones.map((background, index) => [
 			`&[data-tone="${index}"]`,
-			{ background, borderLeftColor: accent },
+			{ background },
 		]),
 	),
 });
