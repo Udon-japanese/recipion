@@ -1,0 +1,1 @@
+CREATE INDEX "recipe_public_created_idx" ON "recipe" USING btree ("created_at" DESC NULLS LAST,"public_id" DESC NULLS LAST) WHERE "recipe"."visibility" = 'public';

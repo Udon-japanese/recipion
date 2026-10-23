@@ -3,7 +3,7 @@
 import { contactEmail } from "./terms-content";
 
 export const privacyEnactedOn = "2026年10月12日";
-export const privacyUpdatedOn = "2026年10月12日";
+export const privacyUpdatedOn = "2026年10月23日";
 
 export type PrivacySection = {
 	title: string;
@@ -46,6 +46,7 @@ export const privacySections: readonly PrivacySection[] = [
 			"他の利用者に見えるのは、公開を選んだレシピと、作者として表示される表示名・ハンドルだけです。メールアドレスは見えません。",
 			"限定公開のレシピは、パスフレーズを知っているログインした利用者だけに見えます。",
 			"全体公開のレシピを1つでも持っていると、表示名とハンドルが、他の利用者の「ユーザーを探す」（他の人のレシピへのリンクを入力するときの検索）に候補として出ます。公開しているレシピがなければ、出ません。",
+			"全体公開のレシピは、題名・材料の数・作者の表示名とハンドルが、ログインした他の利用者の「みんなのレシピ」の一覧と検索（レシピ名・材料名で探せます）に出ます。非公開・限定公開に戻すと、一覧から消えます。",
 		],
 	},
 	{

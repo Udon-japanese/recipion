@@ -68,6 +68,10 @@ export const recipe = pgTable(
 			sql`(${table.visibility} = 'unlisted') = (${table.unlistedPassphrase} IS NOT NULL)`,
 		),
 		index("recipe_user_id_idx").on(table.userId),
+		// みんなのレシピ（全体公開）を、新しい順に探す。
+		index("recipe_public_created_idx")
+			.on(table.createdAt.desc(), table.publicId.desc())
+			.where(sql`${table.visibility} = 'public'`),
 		check("recipe_name_nonempty", sql`length(trim(${table.name})) > 0`),
 		check("recipe_servings_positive", sql`${table.servings} > 0`),
 	],
