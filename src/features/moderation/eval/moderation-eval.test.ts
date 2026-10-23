@@ -1,11 +1,10 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import type { AiJudge, AiRunner } from "../application/ai-judge";
+import type { AiJudge } from "../application/ai-judge";
 import { createAiJudge } from "../application/ai-judge";
 import { moderateContent } from "../application/moderate-content";
 import type { ModerationResult } from "../domain/moderation-result";
 import { normalizeForModeration } from "../domain/normalize-text";
-import { createOpenRouterRestRunner } from "../infrastructure/openrouter-rest-runner";
 import { createWorkersAiRestRunner } from "../infrastructure/workers-ai-rest-runner";
 import { embedInRecipeContext, generateVariants } from "./mutate-text";
 
@@ -43,10 +42,13 @@ let quotaExhausted = false;
 
 const quotaPattern = /daily free allocation|4006/u;
 
-const isOpenRouter = process.env.MODERATION_EVAL_PROVIDER === "openrouter";
+function createEvalJudge(): AiJudge {
+	if (process.env.MODERATION_EVAL_LEXICON_ONLY === "1") {
+		// 語の一覧だけ：AI は、すべて ok と答えたことにする（一覧に当たらないものが、そのまま通る）。
+		return async (items) =>
+			items.map(() => ({ verdict: "ok", category: "other" }));
+	}
 
-// Workers AI（本番と同じ事業者）で評価する。無料枠は、1日 10,000 Neurons。
-function createWorkersAiEvalRunner(): AiRunner {
 	const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
 	const apiToken = process.env.CLOUDFLARE_API_TOKEN;
 	const model = process.env.MODERATION_EVAL_MODEL;
@@ -57,7 +59,7 @@ function createWorkersAiEvalRunner(): AiRunner {
 		);
 	}
 
-	return createWorkersAiRestRunner({
+	const runner = createWorkersAiRestRunner({
 		accountId,
 		apiToken,
 		model,
@@ -72,32 +74,6 @@ function createWorkersAiEvalRunner(): AiRunner {
 			? { chat_template_kwargs: { enable_thinking: false } }
 			: {},
 	});
-}
-
-// OpenRouter（別の事業者）で評価する。同じモデルでも、結果が少しずれうるので、Workers AI の結果と見比べる。
-function createOpenRouterEvalRunner(): AiRunner {
-	const apiKey = process.env.OPENROUTER_API_KEY;
-	const model = process.env.OPENROUTER_MODEL;
-
-	if (!apiKey || !model) {
-		throw new Error(
-			"OPENROUTER_API_KEY・OPENROUTER_MODEL を、moderation-eval/eval.env.local に書いてください",
-		);
-	}
-
-	return createOpenRouterRestRunner({ apiKey, model });
-}
-
-function createEvalJudge(): AiJudge {
-	if (process.env.MODERATION_EVAL_LEXICON_ONLY === "1") {
-		// 語の一覧だけ：AI は、すべて ok と答えたことにする（一覧に当たらないものが、そのまま通る）。
-		return async (items) =>
-			items.map(() => ({ verdict: "ok", category: "other" }));
-	}
-
-	const runner = isOpenRouter
-		? createOpenRouterEvalRunner()
-		: createWorkersAiEvalRunner();
 
 	// 失敗した理由（と、応答の先頭）を、集計して、結果に出す（判定できなかった理由が、分からなくならないように）。
 	return async (items) => {
@@ -219,12 +195,18 @@ describe.skipIf(!isEnabled)("文章の判定の評価", () => {
 			const random = createRandom(randomSeed);
 
 			// かならず通したい文章：moderation-eval/ok-samples*.txt（複数のファイルを、まとめて読む。重複は除く）。
-			const okSamples = dedupe(
+			const allOkSamples = dedupe(
 				readdirSync("moderation-eval")
 					.filter((name) => /^ok-samples.*\.txt$/u.test(name))
 					.sort()
 					.flatMap((name) => readBlocks(`moderation-eval/${name}`)),
 			);
+			// よい文章も、件数を絞れる（無料枠の回数に収めるため）。無作為に抜き取る。
+			const okLimit = Number(process.env.MODERATION_EVAL_OK_LIMIT ?? "") || 0;
+			const okSamples =
+				okLimit > 0
+					? shuffle(allOkSamples, random).slice(0, okLimit)
+					: allOkSamples;
 			const borderlineSamples = existsSync(
 				"moderation-eval/borderline-samples.txt",
 			)
@@ -470,7 +452,7 @@ describe.skipIf(!isEnabled)("文章の判定の評価", () => {
 				`# 判定の評価（${new Date().toISOString()}）`,
 				`元の語：${seeds.length}件（重複を除く前：${rawSeeds.length}件）／手元の例：${ngDirect.length}件（除く前：${rawDirect.length}件）`,
 				`抜き取りの種：${randomSeed}（MODERATION_EVAL_SEED=${randomSeed} で再現）`,
-				`モデル：${process.env.MODERATION_EVAL_LEXICON_ONLY === "1" ? "（語の一覧だけ）" : isOpenRouter ? `OpenRouter／${process.env.OPENROUTER_MODEL}` : `Workers AI／${process.env.MODERATION_EVAL_MODEL}`}`,
+				`モデル：${process.env.MODERATION_EVAL_LEXICON_ONLY === "1" ? "（語の一覧だけ）" : process.env.MODERATION_EVAL_MODEL}`,
 				"",
 				...(duplicates.length === 0
 					? []

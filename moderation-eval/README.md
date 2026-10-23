@@ -20,7 +20,6 @@
 ```sh
 nr eval:lexicon     # 語の一覧だけ（AI なし・無料枠を使わない）
 nr eval:ai          # AI あり・700件を無作為に抜き取る（無料枠を使う）
-nr eval:openrouter  # OpenRouter で、同じ評価（別の事業者。下の「OpenRouter」を参照）
 nr eval:ai:full     # AI あり・全件（約10k Neurons。1日の枠を使い切る）
 MODERATION_EVAL_LIMIT=300 nr eval:ai          # 件数を変える
 MODERATION_EVAL_SEED=<種> nr eval:ai          # 同じ抜き取りで、もう一度
@@ -42,15 +41,3 @@ Workers AI の無料枠（1日 10,000 Neurons）に収めるため、`MODERATION
 
 - 抜き取りは、実行のたびに変わる。**種は `report.local` の先頭に出る**。同じ抜き取りで、もう一度試したい（プロンプトの前後を比べる、など）ときは、`MODERATION_EVAL_SEED=<種>` を付ける。
 - 例：`RUN_MODERATION_EVAL=1 MODERATION_EVAL_LIMIT=700 MODERATION_EVAL_SEED=2583772388 mise exec -- node --env-file=moderation-eval/eval.env.local node_modules/vitest/vitest.mjs run --project unit src/features/moderation/eval`
-
-## OpenRouter（別の事業者で、同じモデルを試す）
-同じモデルでも、事業者（量子化・実行の設定）が違うと、結果が少しずれうる。Workers AI と OpenRouter の両方で評価し、数字が近いことを確かめる（両方の結果を、`report.local` の「モデル」の行で見分ける。実行のたびに上書きされるので、1回ごとに、別の名前に移しておく）。**ES に載せる主な数字は、本番と同じ Workers AI のもの**。
-
-- `eval.env.local` に足す：
-  ```
-  OPENROUTER_API_KEY=...
-  OPENROUTER_MODEL=google/gemma-4-26b-a4b-it
-  ```
-  末尾に `:free` を付けると無料枠（公式の資料では、1分に20回・1日に50回。10クレジット以上を購入済みなら1日1,000回。**無料枠は、送った文章が学習に使われうる**）。評価は、まとめて10件ずつ送るので、700件なら、悪い文章だけで70回になる（よい文章の分は別）。**50回の枠では足りない**ので、`:free` なしの有料のモデル（少額）にするか、件数を絞る。
-- 429 のときは、`Retry-After` の秒数だけ待って、3回までやり直す。
-- 同じ抜き取りで比べるには、Workers AI の実行の種（`report.local` の先頭）を、`MODERATION_EVAL_SEED=<種> nr eval:openrouter` で、そのまま使う。
