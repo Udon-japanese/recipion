@@ -25,3 +25,9 @@ AI を含む結果（Workers AI の無料枠を使う）：
 RUN_MODERATION_EVAL=1 mise exec -- node --env-file=moderation-eval/eval.env.local node_modules/vitest/vitest.mjs run --project unit src/features/moderation/eval
 ```
 結果は、`moderation-eval/report.local` に出る（誤って弾いたもの・通したものの一覧）。
+
+## 件数を絞る（無作為の抜き取り）
+Workers AI の無料枠（1日 10,000 Neurons）に収めるため、`MODERATION_EVAL_LIMIT=700` のように、悪い文章の件数を絞れる。**全体から無作為に抜き取る**（先頭に偏らない）。元の語ごとの書き換えの選び方（`MODERATION_EVAL_PER_SEED`、既定3件）も無作為。
+
+- 抜き取りは、実行のたびに変わる。**種は `report.local` の先頭に出る**。同じ抜き取りで、もう一度試したい（プロンプトの前後を比べる、など）ときは、`MODERATION_EVAL_SEED=<種>` を付ける。
+- 例：`RUN_MODERATION_EVAL=1 MODERATION_EVAL_LIMIT=700 MODERATION_EVAL_SEED=2583772388 mise exec -- node --env-file=moderation-eval/eval.env.local node_modules/vitest/vitest.mjs run --project unit src/features/moderation/eval`

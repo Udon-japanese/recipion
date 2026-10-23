@@ -126,15 +126,33 @@ async function mapWithConcurrency<T, R>(
 	return results;
 }
 
-// 同じ入力から、いつも同じ標本を選ぶための、簡単なハッシュ。
-function hashText(text: string): number {
-	let hash = 2166136261;
+// 種から決まる乱数（mulberry32）。同じ種なら、同じ抜き取りになる。
+function createRandom(seed: number): () => number {
+	let state = seed >>> 0;
 
-	for (const char of text) {
-		hash = Math.imul(hash ^ (char.codePointAt(0) ?? 0), 16777619);
+	return () => {
+		state = (state + 0x6d2b79f5) >>> 0;
+		let t = state;
+		t = Math.imul(t ^ (t >>> 15), t | 1);
+		t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+
+		return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+	};
+}
+
+// Fisher–Yates。元の配列は変えない。
+function shuffle<T>(items: readonly T[], random: () => number): T[] {
+	const result = [...items];
+
+	for (let index = result.length - 1; index > 0; index -= 1) {
+		const other = Math.floor(random() * (index + 1));
+		const current = result[index] as T;
+
+		result[index] = result[other] as T;
+		result[other] = current;
 	}
 
-	return hash >>> 0;
+	return result;
 }
 
 // 表記の違い（全角半角・ひらがなカタカナ・区切り）を除いて、同じ文章を、1つにまとめる。
@@ -170,6 +188,11 @@ describe.skipIf(!isEnabled)("文章の判定の評価", () => {
 			const limit =
 				Number(process.env.MODERATION_EVAL_LIMIT ?? "") ||
 				Number.POSITIVE_INFINITY;
+			// 抜き取りは無作為。種は毎回変わり、結果の先頭に出す（MODERATION_EVAL_SEED で、同じ抜き取りを再現できる）。
+			const randomSeed =
+				Number(process.env.MODERATION_EVAL_SEED ?? "") ||
+				Math.floor(Math.random() * 2 ** 32);
+			const random = createRandom(randomSeed);
 
 			// かならず通したい文章：moderation-eval/ok-samples*.txt（複数のファイルを、まとめて読む。重複は除く）。
 			const okSamples = dedupe(
@@ -192,18 +215,18 @@ describe.skipIf(!isEnabled)("文章の判定の評価", () => {
 			const seeds = dedupe(rawSeeds);
 			const ngDirect = dedupe(rawDirect);
 
-			const ngSamples = [
+			const allNgSamples = [
 				...seeds.flatMap((seed) => {
 					const variants = generateVariants(seed);
-					// AI の評価：そのまま＋書き換え perSeed 件（元の語ごとに、決まった標本）、作り方の途中だけ。
+					// AI の評価：そのまま＋書き換え perSeed 件（元の語ごとに、無作為の標本）、作り方の途中だけ。
 					const picked = isLexiconOnly
 						? variants
 						: [
 								...variants.filter((variant) => variant.kind === "そのまま"),
-								...variants
-									.filter((variant) => variant.kind !== "そのまま")
-									.sort((a, b) => hashText(a.text) - hashText(b.text))
-									.slice(0, perSeed),
+								...shuffle(
+									variants.filter((variant) => variant.kind !== "そのまま"),
+									random,
+								).slice(0, perSeed),
 							];
 
 					return picked.flatMap((variant) =>
@@ -223,14 +246,11 @@ describe.skipIf(!isEnabled)("文章の判定の評価", () => {
 					kind: "手元の例",
 					text,
 				})),
-			]
-				// 件数を絞るときは、先頭に偏らないよう、文章から決まる順（毎回同じ）で抜き取る。
-				.sort((a, b) =>
-					Number.isFinite(limit)
-						? hashText(`${a.label}${a.text}`) - hashText(`${b.label}${b.text}`)
-						: 0,
-				)
-				.slice(0, limit);
+			];
+			// 件数を絞るときは、全体から無作為に抜き取る（先頭に偏らない）。
+			const ngSamples = Number.isFinite(limit)
+				? shuffle(allNgSamples, random).slice(0, limit)
+				: allNgSamples;
 
 			// 1文ずつ審査した結果を返す。確定の語は、1文ずつ見て、AI には、残りだけを、まとめて渡す。
 			async function judgeMany(
@@ -425,6 +445,7 @@ describe.skipIf(!isEnabled)("文章の判定の評価", () => {
 			const lines = [
 				`# 判定の評価（${new Date().toISOString()}）`,
 				`元の語：${seeds.length}件（重複を除く前：${rawSeeds.length}件）／手元の例：${ngDirect.length}件（除く前：${rawDirect.length}件）`,
+				`抜き取りの種：${randomSeed}（MODERATION_EVAL_SEED=${randomSeed} で再現）`,
 				`モデル：${process.env.MODERATION_EVAL_LEXICON_ONLY === "1" ? "（語の一覧だけ）" : process.env.MODERATION_EVAL_MODEL}`,
 				"",
 				...(duplicates.length === 0
