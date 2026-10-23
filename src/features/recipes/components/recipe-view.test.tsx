@@ -63,7 +63,7 @@ describe("RecipeView", () => {
 		expect(screen.getByText("60~70g")).toBeTruthy();
 
 		// グループの中の材料は、グループの見出しの下に入る
-		const group = screen.getByText("たれ").closest("li");
+		const group = screen.getByText("たれ").closest("section");
 		expect(group).not.toBeNull();
 		if (group) {
 			expect(within(group).getByText("しょうゆ")).toBeTruthy();
@@ -77,6 +77,34 @@ describe("RecipeView", () => {
 		expect(steps).toContain("材料を混ぜる");
 		expect(steps).toContain("フライパンで焼く");
 		expect(screen.getByText("人数を変えるときはたれを調整する")).toBeTruthy();
+	});
+
+	it("人数は「材料」の見出しの横に出し、グループに入っていない材料は枠の外に出す", () => {
+		render(<RecipeView recipe={recipe} />);
+
+		const heading = screen.getByRole("heading", { name: "材料" });
+		expect(
+			within(heading.parentElement as HTMLElement).getByText("2人分"),
+		).toBeTruthy();
+
+		const group = screen.getByText("たれ").closest("section") as HTMLElement;
+		expect(within(group).queryByText("ベーコン")).toBeNull();
+	});
+
+	it("作り方・メモがあるときは、材料と作り方を切り替えるタブを出す", () => {
+		const { unmount } = render(<RecipeView recipe={recipe} />);
+
+		expect(screen.getByRole("button", { name: "そろえる" })).toBeTruthy();
+		expect(screen.getByRole("button", { name: "作りかた" })).toBeTruthy();
+
+		unmount();
+		render(
+			<RecipeView
+				recipe={{ ...recipe, instructions: [], note: "", sourceUrl: null }}
+			/>,
+		);
+
+		expect(screen.queryByRole("button", { name: "作りかた" })).toBeNull();
 	});
 
 	it("引用元URLは別タブで開くリンクとして表示し、なければ見出しを出さない", () => {
@@ -145,11 +173,13 @@ describe("RecipeView", () => {
 
 		render(<RecipeView recipe={withLinks} onOpenLink={onOpenLink} />);
 
-		expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual([
-			"特製ソース",
-			"特製カレー",
-			"特製カレー",
-		]);
+		// 切り替えのタブ（そろえる・作りかた）は、リンクではない
+		expect(
+			screen
+				.getAllByRole("button")
+				.map((b) => b.textContent)
+				.filter((text) => text !== "そろえる" && text !== "作りかた"),
+		).toEqual(["特製ソース", "特製カレー", "特製カレー"]);
 		expect(screen.getByText("（見つからないレシピ）")).toBeTruthy();
 
 		await userEvent.click(screen.getByRole("button", { name: "特製ソース" }));

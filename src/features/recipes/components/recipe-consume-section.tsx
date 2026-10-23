@@ -242,7 +242,7 @@ export function RecipeConsumeSection({
 				pendingLabel="在庫から引いています"
 				onClick={() => void handleMade()}
 			>
-				作った（在庫から引く）
+				つくった！
 			</Button>
 			{errorMessage && !outcome ? (
 				<Note tone="error">{errorMessage}</Note>

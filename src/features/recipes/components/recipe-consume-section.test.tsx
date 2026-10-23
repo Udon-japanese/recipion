@@ -76,14 +76,14 @@ describe("RecipeConsumeSection", () => {
 	it("ゲストには表示しない", () => {
 		setup({ ownerScope: "guest" });
 
-		expect(screen.queryByRole("button", { name: /作った/u })).toBeNull();
+		expect(screen.queryByRole("button", { name: /つくった/u })).toBeNull();
 	});
 
 	it("押すとすぐに在庫から引き、足りない分はある分だけ引き、少々は減らさない", async () => {
 		const user = userEvent.setup();
 		const { consume } = setup();
 
-		await user.click(screen.getByRole("button", { name: /作った/u }));
+		await user.click(screen.getByRole("button", { name: /つくった/u }));
 
 		expect(
 			await screen.findByText("在庫から2件を引きました"),
@@ -120,7 +120,7 @@ describe("RecipeConsumeSection", () => {
 			],
 		});
 
-		await user.click(screen.getByRole("button", { name: /作った/u }));
+		await user.click(screen.getByRole("button", { name: /つくった/u }));
 
 		expect(
 			await screen.findByText(
@@ -171,7 +171,7 @@ describe("RecipeConsumeSection", () => {
 			],
 		});
 
-		await user.click(screen.getByRole("button", { name: /作った/u }));
+		await user.click(screen.getByRole("button", { name: /つくった/u }));
 
 		expect(
 			await screen.findByText(
@@ -190,7 +190,7 @@ describe("RecipeConsumeSection", () => {
 			],
 		});
 
-		await user.click(screen.getByRole("button", { name: /作った/u }));
+		await user.click(screen.getByRole("button", { name: /つくった/u }));
 
 		await screen.findByText(/在庫から1件を引きました/u);
 		expect(
@@ -205,7 +205,7 @@ describe("RecipeConsumeSection", () => {
 		const user = userEvent.setup();
 		const { consume, undo } = setup();
 
-		await user.click(screen.getByRole("button", { name: /作った/u }));
+		await user.click(screen.getByRole("button", { name: /つくった/u }));
 		await user.click(await screen.findByRole("button", { name: "元に戻す" }));
 
 		expect(await screen.findByText("元に戻しました")).toBeInTheDocument();
@@ -237,7 +237,7 @@ describe("RecipeConsumeSection", () => {
 
 		setup({ consume });
 
-		await user.click(screen.getByRole("button", { name: /作った/u }));
+		await user.click(screen.getByRole("button", { name: /つくった/u }));
 
 		expect(
 			await screen.findByText(/卵：引けませんでした/u),
@@ -262,7 +262,7 @@ describe("RecipeConsumeSection", () => {
 			}),
 		});
 
-		await user.click(screen.getByRole("button", { name: /作った/u }));
+		await user.click(screen.getByRole("button", { name: /つくった/u }));
 		await user.click(await screen.findByRole("button", { name: "元に戻す" }));
 
 		expect(await screen.findByRole("alert")).toHaveTextContent(
