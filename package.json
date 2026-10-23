@@ -29,7 +29,11 @@
     "test:unit": "vitest run --project unit",
     "test:browser": "vitest run --project browser",
     "test:watch": "vitest --project unit",
-    "test:browser:watch": "vitest --project browser"
+    "test:browser:watch": "vitest --project browser",
+    "eval:lexicon": "RUN_MODERATION_EVAL=1 MODERATION_EVAL_LEXICON_ONLY=1 vitest run --project unit src/features/moderation/eval",
+    "eval:ai": "RUN_MODERATION_EVAL=1 MODERATION_EVAL_LIMIT=${MODERATION_EVAL_LIMIT:-700} node --env-file=moderation-eval/eval.env.local node_modules/vitest/vitest.mjs run --project unit src/features/moderation/eval",
+    "eval:openrouter": "RUN_MODERATION_EVAL=1 MODERATION_EVAL_PROVIDER=openrouter MODERATION_EVAL_LIMIT=${MODERATION_EVAL_LIMIT:-700} node --env-file=moderation-eval/eval.env.local node_modules/vitest/vitest.mjs run --project unit src/features/moderation/eval",
+    "eval:ai:full": "RUN_MODERATION_EVAL=1 node --env-file=moderation-eval/eval.env.local node_modules/vitest/vitest.mjs run --project unit src/features/moderation/eval"
   },
   "dependencies": {
     "@dnd-kit/react": "^0.5.1",
