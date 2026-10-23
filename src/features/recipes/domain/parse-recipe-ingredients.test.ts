@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { parseRecipeIngredients } from "./parse-recipe-ingredients";
+import {
+	canBeIngredientLine,
+	parseRecipeIngredients,
+} from "./parse-recipe-ingredients";
 
 describe("parseRecipeIngredients", () => {
 	it("1行に書かれた複数の材料を解析する", () => {
@@ -390,5 +393,44 @@ describe("parseRecipeIngredients", () => {
 				],
 			}),
 		]);
+	});
+});
+
+describe("グループにしない行（plainLines）", () => {
+	const text = "オリーブオイル\n塩 少々\nにんにく 1片";
+
+	it("指定しなければ、分量のない行は、グループになる", () => {
+		expect(parseRecipeIngredients(text).map((node) => node.type)).toEqual([
+			"group",
+		]);
+	});
+
+	it("指定した行は、材料として読み、続く行は、グループ外の材料になる", () => {
+		expect(
+			parseRecipeIngredients(text, { plainLines: ["オリーブオイル"] }).map(
+				(node) => [node.type, node.name],
+			),
+		).toEqual([
+			["ingredient", "オリーブオイル"],
+			["ingredient", "塩"],
+			["ingredient", "にんにく"],
+		]);
+	});
+
+	it("別の行を指定しても、影響しない", () => {
+		expect(
+			parseRecipeIngredients(text, { plainLines: ["にんにく 1片"] }).map(
+				(node) => node.type,
+			),
+		).toEqual(["group"]);
+	});
+
+	it.each([
+		["オリーブオイル", true],
+		["A", false],
+		["☆ソース", false],
+		["　", false],
+	])("%s は、材料の行として扱える：%s", (line, expected) => {
+		expect(canBeIngredientLine(line)).toBe(expected);
 	});
 });

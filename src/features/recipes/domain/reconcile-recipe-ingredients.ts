@@ -3,9 +3,10 @@ import {
 	formatIngredientGroupLine,
 	formatIngredientLine,
 } from "./format-recipe-editor-text";
-import type {
-	ParsedRecipeIngredientGroup,
-	ParsedRecipeIngredientNode,
+import {
+	canBeIngredientLine,
+	type ParsedRecipeIngredientGroup,
+	type ParsedRecipeIngredientNode,
 } from "./parse-recipe-ingredients";
 import type {
 	RecipeEditorIngredientGroup,
@@ -22,6 +23,8 @@ export type IngredientSyncState = {
 	edited: ReadonlySet<string>;
 	// プレビューで消した、元の行（入力欄の文章には、まだ残っている行）。解析し直しても、出さない。
 	dismissed: readonly string[];
+	// グループと推定された行を、ユーザーが材料と決めた、元の行。解析し直しても、グループにしない（行を書き換えると、推定に戻る）。
+	plainLines: readonly string[];
 };
 
 type PreviousEntry = {
@@ -337,7 +340,13 @@ export function reconcileRecipeIngredients(
 		edited.add(entry.node.id);
 	}
 
-	return { nodes, sources, edited, dismissed: usedDismissed };
+	return {
+		nodes,
+		sources,
+		edited,
+		dismissed: usedDismissed,
+		plainLines: previous.plainLines,
+	};
 }
 
 // 保存済みのレシピの材料から、同期の状態を作る（元の行は、文章に書き戻した行）。
@@ -376,7 +385,7 @@ export function createIngredientSyncState(
 		register(node);
 	}
 
-	return { nodes: [...nodes], sources, edited, dismissed: [] };
+	return { nodes: [...nodes], sources, edited, dismissed: [], plainLines: [] };
 }
 
 export const emptyIngredientSyncState: IngredientSyncState = {
@@ -384,4 +393,46 @@ export const emptyIngredientSyncState: IngredientSyncState = {
 	sources: new Map(),
 	edited: new Set(),
 	dismissed: [],
+	plainLines: [],
 };
+
+// 「材料にする」ができるグループの ID（本文の、分量のない行から、グループと推定されたもの）。
+export function findGroupsConvertibleToIngredient(
+	state: IngredientSyncState,
+): ReadonlySet<string> {
+	const ids = new Set<string>();
+
+	for (const { node } of flatten(state.nodes, null, [])) {
+		const source = state.sources.get(node.id);
+
+		if (
+			node.type === "group" &&
+			node.inferred &&
+			source !== undefined &&
+			canBeIngredientLine(source) &&
+			parseIngredientLine(source)?.status === "missing-amount"
+		) {
+			ids.add(node.id);
+		}
+	}
+
+	return ids;
+}
+
+// グループと推定された行を、材料として読むと決める。あとで、入力欄の文章から解析し直すと、材料になる。
+export function markGroupAsIngredient(
+	state: IngredientSyncState,
+	groupId: string,
+): IngredientSyncState {
+	const source = state.sources.get(groupId);
+
+	if (
+		source === undefined ||
+		!findGroupsConvertibleToIngredient(state).has(groupId) ||
+		state.plainLines.includes(source)
+	) {
+		return state;
+	}
+
+	return { ...state, plainLines: [...state.plainLines, source] };
+}
