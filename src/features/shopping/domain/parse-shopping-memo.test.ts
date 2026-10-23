@@ -93,3 +93,17 @@ describe("parseShoppingMemo（店）", () => {
 		).toEqual(["aeon"]);
 	});
 });
+
+describe("parseShoppingMemo（漢数字の数量）", () => {
+	it("漢数字の数量と単位を読む", () => {
+		expect(
+			parse("鮭 一切れ\n卵 二個\nキャベツ 半玉").map((line) =>
+				line.slice(0, 3),
+			),
+		).toEqual([
+			["鮭", 1, "切れ"],
+			["卵", 2, "個"],
+			["キャベツ", 0.5, "玉"],
+		]);
+	});
+});

@@ -140,3 +140,90 @@ describe("parseIngredientLine", () => {
 		});
 	});
 });
+
+describe("parseIngredientLine（漢数字の分量）", () => {
+	it.each([
+		["鮭 一切れ", "鮭", "一切れ", 1, "切れ"],
+		["鮭一切れ", "鮭", "一切れ", 1, "切れ"],
+		["卵 二個", "卵", "二個", 2, "個"],
+		["ミニトマト 十二個", "ミニトマト", "十二個", 12, "個"],
+		["ごぼう 二十本", "ごぼう", "二十本", 20, "本"],
+		["米 一合", "米", "一合", 1, "合"],
+		["キャベツ 半玉", "キャベツ", "半玉", 0.5, "玉"],
+		["大根 二分の一本", "大根", "二分の一本", 0.5, "本"],
+		["だし 一と二分の一カップ", "だし", "一と二分の一カップ", 1.5, "カップ"],
+		["しょうゆ 大さじ二", "しょうゆ", "大さじ二", 2, "大さじ"],
+		["砂糖 小さじ二分の一", "砂糖", "小さじ二分の一", 0.5, "小さじ"],
+		["輪切り唐辛子 二本分位", "輪切り唐辛子", "二本分位", 2, "本"],
+		["ミツバ 約三つ", "ミツバ", "約三つ", 3, "つ"],
+	])(
+		"%sを、漢数字のまま分量の原文に残して、数量と単位を読む",
+		(input, name, amountText, quantity, unitLabel) => {
+			expect(parseIngredientLine(input)).toEqual({
+				status: "parsed",
+				rawText: input,
+				name,
+				amountText,
+				quantity,
+				unitLabel,
+			});
+		},
+	);
+
+	it.each([
+		["ベーコン 二〜三枚", "ベーコン", "二〜三枚", "枚"],
+		["醤油 大さじ二〜三", "醤油", "大さじ二〜三", "大さじ"],
+	])(
+		"%sの範囲は、数量にしない（原文は残る）",
+		(input, name, amountText, unitLabel) => {
+			expect(parseIngredientLine(input)).toMatchObject({
+				status: "parsed",
+				name,
+				amountText,
+				quantity: null,
+				unitLabel,
+			});
+		},
+	);
+
+	it("分量のあとの括弧つきの補足も、漢数字の分量と一緒に残す", () => {
+		expect(parseIngredientLine("豆腐 一丁(300g)")).toMatchObject({
+			status: "parsed",
+			name: "豆腐",
+			amountText: "一丁(300g)",
+			quantity: 1,
+			unitLabel: "丁",
+		});
+	});
+
+	it.each([
+		"三つ葉",
+		"一味唐辛子",
+		"七味唐辛子",
+		"二十日大根",
+		"十六穀米",
+		"一番だし",
+		"五目豆",
+	])("名前の中の漢数字（%s）は、分量として読まない", (name) => {
+		expect(parseIngredientLine(name)).toMatchObject({
+			status: "missing-amount",
+			name,
+		});
+	});
+
+	it("名前の中の漢数字があっても、行の終わりの分量だけを読む", () => {
+		expect(parseIngredientLine("三つ葉 一束")).toMatchObject({
+			status: "parsed",
+			name: "三つ葉",
+			amountText: "一束",
+			quantity: 1,
+			unitLabel: "束",
+		});
+		expect(parseIngredientLine("一味唐辛子 小さじ半")).toMatchObject({
+			status: "parsed",
+			name: "一味唐辛子",
+			quantity: 0.5,
+			unitLabel: "小さじ",
+		});
+	});
+});
