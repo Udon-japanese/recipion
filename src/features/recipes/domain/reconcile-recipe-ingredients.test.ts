@@ -6,7 +6,9 @@ import { createRecipeEditorDocument } from "./recipe-editor-document";
 import {
 	createIngredientSyncState,
 	emptyIngredientSyncState,
+	findGroupsConvertibleToIngredient,
 	type IngredientSyncState,
+	markGroupAsIngredient,
 	reconcileRecipeIngredients,
 } from "./reconcile-recipe-ingredients";
 
@@ -251,5 +253,51 @@ describe("createIngredientSyncState", () => {
 		expect(
 			reconcileRecipeIngredients(state, parseRecipeIngredients(text)).nodes[0],
 		).toMatchObject({ amountText: "お好みの量" });
+	});
+});
+
+describe("グループと推定された行を、材料にする", () => {
+	const text = "オリーブオイル\n塩 少々\nにんにく 1片";
+
+	it("分量のない行から推定されたグループだけ、材料にできる", () => {
+		const state = initialState(text);
+		const group = state.nodes[0];
+
+		expect(group.type).toBe("group");
+		expect([...findGroupsConvertibleToIngredient(state)]).toEqual([group.id]);
+
+		// 記号の印の行は、材料の名前として扱わない。
+		expect(
+			findGroupsConvertibleToIngredient(initialState("☆ソース\n塩 少々")).size,
+		).toBe(0);
+	});
+
+	it("材料にすると、行が材料になり、中の材料は、前の ID のまま、グループ外に残る", () => {
+		const state = initialState(text);
+		const group = state.nodes[0];
+		const childIds =
+			group.type === "group" ? group.children.map((child) => child.id) : [];
+		const marked = markGroupAsIngredient(state, group.id);
+
+		expect(marked.plainLines).toEqual(["オリーブオイル"]);
+
+		const result = reconcileRecipeIngredients(
+			marked,
+			parseRecipeIngredients(text, { plainLines: marked.plainLines }),
+		);
+
+		expect(result.nodes.map((node) => [node.type, node.name])).toEqual([
+			["ingredient", "オリーブオイル"],
+			["ingredient", "塩"],
+			["ingredient", "にんにく"],
+		]);
+		expect(result.nodes.slice(1).map((node) => node.id)).toEqual(childIds);
+		expect(result.plainLines).toEqual(["オリーブオイル"]);
+	});
+
+	it("材料にできないグループは、何も変えない", () => {
+		const state = initialState("☆ソース\n塩 少々");
+
+		expect(markGroupAsIngredient(state, state.nodes[0].id)).toBe(state);
 	});
 });

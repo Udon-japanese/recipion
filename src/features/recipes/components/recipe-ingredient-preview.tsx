@@ -44,6 +44,10 @@ type IngredientPreviewNodeProps = {
 	onRenameGroup: (id: string, name: string) => void;
 	// keep：グループだけ消して、中の材料は残す。all：グループと中の材料を消す。
 	onRemoveGroup: (id: string, mode: "keep" | "all") => void;
+	// 本文の分量のない行から、グループと推定されたもの（「材料にする」ができるグループ）の ID。
+	convertibleGroupIds: ReadonlySet<string>;
+	// グループにせず、材料として読む（グループ名は、分量のない材料になる）。
+	onGroupToIngredient: (id: string) => void;
 	onRevert: (id: string) => void;
 	// グループの中に、材料を足す（groupId が null なら、グループ外）。
 	onAdd: (groupId: string | null, name: string, amountText: string) => void;
@@ -86,12 +90,24 @@ export function IngredientPreviewNode({
 	onRemove,
 	onRenameGroup,
 	onRemoveGroup,
+	convertibleGroupIds,
+	onGroupToIngredient,
 	onRevert,
 	onAdd,
 	linkViews,
 	onOpenLink,
 }: IngredientPreviewNodeProps) {
 	if (node.type === "group") {
+		const toIngredientItems = convertibleGroupIds.has(node.id)
+			? [
+					{
+						label: "材料にする（グループにしない）",
+						icon: "list" as const,
+						onSelect: () => onGroupToIngredient(node.id),
+					},
+				]
+			: [];
+
 		return (
 			<li className={styles.groupItem}>
 				<div className={styles.groupHeader}>
@@ -119,6 +135,7 @@ export function IngredientPreviewNode({
 						items={
 							node.children.length === 0
 								? [
+										...toIngredientItems,
 										{
 											label: "グループを削除",
 											icon: "trash",
@@ -127,6 +144,7 @@ export function IngredientPreviewNode({
 										},
 									]
 								: [
+										...toIngredientItems,
 										{
 											label: "グループを削除（材料は残す）",
 											icon: "trash",
@@ -155,6 +173,8 @@ export function IngredientPreviewNode({
 							onRemove={onRemove}
 							onRenameGroup={onRenameGroup}
 							onRemoveGroup={onRemoveGroup}
+							convertibleGroupIds={convertibleGroupIds}
+							onGroupToIngredient={onGroupToIngredient}
 							onRevert={onRevert}
 							onAdd={onAdd}
 							linkViews={linkViews}

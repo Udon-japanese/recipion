@@ -93,6 +93,20 @@ function resolveLines(lines: readonly string[]): ParsedRecipeIngredientItem[] {
 // 「A」「B」「★」のように、ラベルだけの行。行ごとに繰り返されるため、同じ名前なら同じグループにまとめる。
 const groupLabelPattern = /^(?:[A-H1-9]|[☆★◎○●◆◇■□▲△])$/iu;
 
+// 先頭が、グループの印の記号の行（「☆ソース」）。材料の名前としては、読まない。
+const leadingGroupSymbolPattern = /^[☆★◎○●◆◇■□▲△]/u;
+
+// 分量のない行が、材料の行として扱えるか（「A」「☆ソース」のような、グループの印の行は、扱えない）。
+export function canBeIngredientLine(line: string): boolean {
+	const name = line.normalize("NFKC").trim();
+
+	return (
+		name.length > 0 &&
+		!groupLabelPattern.test(name) &&
+		!leadingGroupSymbolPattern.test(name)
+	);
+}
+
 // 他のレシピへのリンク（[[名前]]）は、分量がなくても、見出しではなく、材料（レシピ名だけで書く）。
 function isLinkIngredient(node: ParsedRecipeIngredientNode): boolean {
 	return (
@@ -113,6 +127,7 @@ function isGroupChild(
 
 function groupResolvedNodes(
 	nodes: readonly ParsedRecipeIngredientNode[],
+	plainLines: ReadonlySet<string>,
 ): ParsedRecipeIngredientNode[] {
 	const groupedNodes: ParsedRecipeIngredientNode[] = [];
 
@@ -126,6 +141,7 @@ function groupResolvedNodes(
 			node.type === "ingredient" &&
 			node.status === "missing-amount" &&
 			!isLinkIngredient(node) &&
+			!plainLines.has(node.rawText) &&
 			isGroupChild(nextNode)
 		) {
 			const children: ParsedRecipeIngredientItem[] = [];
@@ -270,13 +286,22 @@ function groupPrefixedItems(
 	return result;
 }
 
+export type ParseRecipeIngredientsOptions = {
+	// グループにせず、材料として読む行（分量のない行を、ユーザーが材料と決めたもの）。
+	plainLines?: readonly string[];
+};
+
 export function parseRecipeIngredients(
 	input: string,
+	options: ParseRecipeIngredientsOptions = {},
 ): ParsedRecipeIngredientNode[] {
 	const lines = input
 		.split(/\r?\n/u)
 		.map((line) => line.trim())
 		.filter((line) => line.length > 0);
 
-	return groupResolvedNodes(groupPrefixedItems(resolveLines(lines)));
+	return groupResolvedNodes(
+		groupPrefixedItems(resolveLines(lines)),
+		new Set(options.plainLines ?? []),
+	);
 }

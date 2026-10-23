@@ -59,7 +59,9 @@ import {
 import {
 	createIngredientSyncState,
 	emptyIngredientSyncState,
+	findGroupsConvertibleToIngredient,
 	type IngredientSyncState,
+	markGroupAsIngredient,
 	normalizeGroupName,
 	reconcileRecipeIngredients,
 } from "../domain/reconcile-recipe-ingredients";
@@ -108,9 +110,16 @@ function reconcileFromText(
 	sync: IngredientSyncState,
 	text: string,
 ): IngredientSyncState {
+	const ingredientText = splitRecipeSections(text).ingredientText;
+	// 材料と決めた行は、本文にまだ残っているものだけ覚える（行を書き換えたら、推定に戻る）。
+	const presentLines = new Set(
+		ingredientText.split(/\r?\n/u).map((line) => line.trim()),
+	);
+	const plainLines = sync.plainLines.filter((line) => presentLines.has(line));
+
 	return reconcileRecipeIngredients(
-		sync,
-		parseRecipeIngredients(splitRecipeSections(text).ingredientText),
+		{ ...sync, plainLines },
+		parseRecipeIngredients(ingredientText, { plainLines }),
 	);
 }
 
@@ -272,6 +281,7 @@ export function RecipeEditor({
 				}
 			: undefined;
 	const groups = listGroupOptions(ingredients);
+	const convertibleGroupIds = findGroupsConvertibleToIngredient(sync);
 	const recipeNames = useMemo(
 		() => collectRecipeNames(ingredients),
 		[ingredients],
@@ -434,6 +444,17 @@ export function RecipeEditor({
 					keepsChildren ? [id] : collectIngredientIds(group),
 				),
 			}),
+		);
+	}
+
+	// グループと推定された行を、材料にする。解析し直して、グループ名の行を材料（分量なし）にし、中の材料はグループ外に残す。
+	function convertGroupToIngredient(id: string) {
+		const group = findIngredientGroup(sync.nodes, id);
+
+		if (!group) return;
+
+		applyDeletion(`「${group.name}」を材料にしました`, (current) =>
+			reconcileFromText(markGroupAsIngredient(current, id), text),
 		);
 	}
 
@@ -754,6 +775,8 @@ export function RecipeEditor({
 										)
 									}
 									onRemoveGroup={removeGroup}
+									convertibleGroupIds={convertibleGroupIds}
+									onGroupToIngredient={convertGroupToIngredient}
 									onRemove={removeIngredient}
 									onRevert={revertEdit}
 									onAdd={addIngredient}

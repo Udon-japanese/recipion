@@ -376,6 +376,68 @@ describe("RecipeEditor", () => {
 		);
 	});
 
+	it("グループと推定された行を「材料にする」と、材料になり、本文を直しても戻らない", async () => {
+		const user = userEvent.setup();
+
+		render(<RecipeEditor onSave={vi.fn()} />);
+
+		await enterTitle(user, "つくね");
+		await writeBody(user, "＜材料＞\nオリーブオイル\n塩 少々\nにんにく 1片");
+
+		await chooseMenuItem(
+			user,
+			"オリーブオイルのグループ",
+			"材料にする（グループにしない）",
+		);
+
+		expect(
+			screen.queryByRole("button", {
+				name: "オリーブオイルのグループ名を編集",
+			}),
+		).toBeNull();
+		expect(
+			screen.getByRole("button", { name: "オリーブオイルの材料名を編集" }),
+		).toBeTruthy();
+		expect(
+			screen.getByRole("button", { name: "にんにくの材料名を編集" }),
+		).toBeTruthy();
+
+		// 別の行を書き足しても、グループには戻らない。
+		const textarea = screen.getByRole("textbox", { name: "レシピの本文" });
+
+		await user.click(textarea);
+		await user.keyboard("{Control>}{End}{/Control}\nしょうが 1片");
+		expect(
+			screen.queryByRole("button", {
+				name: "オリーブオイルのグループ名を編集",
+			}),
+		).toBeNull();
+
+		// 「元に戻す」で、グループに戻る。
+		await user.click(screen.getByRole("button", { name: "元に戻す" }));
+		expect(
+			screen.getByRole("button", { name: "オリーブオイルのグループ名を編集" }),
+		).toBeTruthy();
+	});
+
+	it("記号の印のグループには、「材料にする」を出さない", async () => {
+		const user = userEvent.setup();
+
+		render(<RecipeEditor onSave={vi.fn()} />);
+
+		await enterTitle(user, "つくね");
+		await writeBody(user, "＜材料＞\n☆ソース\nケチャップ 大さじ2");
+
+		await user.click(
+			screen.getByRole("button", { name: "☆ソースのグループのその他" }),
+		);
+		expect(
+			screen.queryByRole("menuitem", {
+				name: "材料にする（グループにしない）",
+			}),
+		).toBeNull();
+	});
+
 	it("グループと中の材料を消せて、「元に戻す」で戻せる", async () => {
 		const user = userEvent.setup();
 
