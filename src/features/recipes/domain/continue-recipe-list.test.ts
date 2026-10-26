@@ -19,6 +19,16 @@ describe("continueRecipeList", () => {
 		expect(enterAtEnd("１．混ぜる")).toBe("１．混ぜる\n2．");
 	});
 
+	it("番号の行の間で Enter を押すと、後ろの番号を1つずつ送る", () => {
+		const text = "1. hoge\n2. piyo\n3. fuga\n\n1. 別の並び";
+		const caret = "1. hoge".length;
+
+		expect(continueRecipeList(text, caret, caret)).toEqual({
+			text: "1. hoge\n2. \n3. piyo\n4. fuga\n\n1. 別の並び",
+			caret: "1. hoge\n2. ".length,
+		});
+	});
+
 	it("中黒などの印の行の次に、同じ印を付ける", () => {
 		expect(enterAtEnd("・玉ねぎを切る")).toBe("・玉ねぎを切る\n・");
 		expect(enterAtEnd("- 玉ねぎを切る")).toBe("- 玉ねぎを切る\n- ");
