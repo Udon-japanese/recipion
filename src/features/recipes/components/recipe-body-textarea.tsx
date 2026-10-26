@@ -26,6 +26,7 @@ import { useTextHistory } from "#/ime/use-text-history";
 import {
 	continueRecipeList,
 	removeRecipeListMarker,
+	renumberRecipeList,
 } from "../domain/continue-recipe-list";
 import {
 	adjustCompletionItem,
@@ -533,6 +534,25 @@ export function RecipeBodyTextarea({
 
 	function handleChange(event: ChangeEvent<HTMLTextAreaElement>) {
 		const textarea = event.target;
+
+		// 番号の行を消したら、残りの番号を連番に振り直す（変換中は、変換が終わるまで待つ）。
+		const renumbered = composing.isActive()
+			? null
+			: renumberRecipeList(value, {
+					text: textarea.value,
+					caret: textarea.selectionStart,
+				});
+
+		if (renumbered) {
+			history.record(
+				{ text: value, caret: caretRef.current },
+				renumbered,
+				editKindOfInput((event.nativeEvent as InputEvent).inputType),
+			);
+			writeText(renumbered);
+
+			return;
+		}
 
 		// 変換中の入力は、変換が終わったときに、まとめて記録する。
 		if (
