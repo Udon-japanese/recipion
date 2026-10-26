@@ -86,7 +86,11 @@ export function renumberRecipeList(
 		return null;
 	}
 
-	if (countNumberedLines(after.text) >= countNumberedLines(before)) {
+	// 番号の行が減った、または、行が減った（空になった行を消した）ときだけ。行の中の文字を消しただけでは、振り直さない。
+	if (
+		countNumberedLines(after.text) >= countNumberedLines(before) &&
+		after.text.split("\n").length >= before.split("\n").length
+	) {
 		return null;
 	}
 
@@ -125,18 +129,14 @@ export function renumberRecipeList(
 		first -= 1;
 	}
 
-	// 先頭の行は、削除の前も同じ位置にあった（消した行か、残った先頭の行）。
+	// 先頭の行は、削除の前も同じ位置にあった（消した行か、残った先頭の行）。番号が消えていた（空の行を消した）ときは、1から。
 	const previousFirst = parseNumberedLine(beforeLines[first]);
-	const start =
-		previousFirst &&
-		previousFirst.indent === anchor.indent &&
-		previousFirst.separator === anchor.separator
+	const start = !previousFirst
+		? 1
+		: previousFirst.indent === anchor.indent &&
+				previousFirst.separator === anchor.separator
 			? previousFirst.value
-			: parseNumberedLine(lines[first])?.value;
-
-	if (start === undefined) {
-		return null;
-	}
+			: (parseNumberedLine(lines[first])?.value ?? 1);
 
 	let caret = after.caret;
 	let offset = 0;

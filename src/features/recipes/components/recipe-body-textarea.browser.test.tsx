@@ -801,3 +801,21 @@ test("変換中は、カタログの名前と完全に一致しても、候補�
 	await expect.poll(() => textarea.value).toContain("にんにく");
 	await expect.poll(labels).not.toContain("にんにく");
 });
+
+// 番号の行を Backspace で消していくと、後ろの番号が詰まる（番号 → 空の行 → 行の削除、の順に消す）。
+test("番号の行を消すと、後ろの番号が連番に詰まる", async () => {
+	await render(
+		<Harness initialValue={"1. 混ぜる\n2. 焼く\n3. 盛る\n4. 食べる"} />,
+	);
+	await focusTextarea();
+
+	const textarea = getTextarea();
+	const caret = textarea.value.indexOf("焼く") + 2;
+
+	textarea.setSelectionRange(caret, caret);
+	await userEvent.keyboard("{Backspace}{Backspace}{Backspace}");
+	expect(textareaValue()).toBe("1. 混ぜる\n\n3. 盛る\n4. 食べる");
+
+	await userEvent.keyboard("{Backspace}");
+	expect(textareaValue()).toBe("1. 混ぜる\n2. 盛る\n3. 食べる");
+});
