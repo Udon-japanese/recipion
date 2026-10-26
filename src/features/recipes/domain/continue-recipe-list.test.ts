@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
 	continueRecipeList,
 	removeRecipeListMarker,
+	renumberRecipeList,
 } from "./continue-recipe-list";
 
 // カーソルが末尾にあるときの、Enter のあとの本文。印を付けない行は null。
@@ -107,5 +108,56 @@ describe("removeRecipeListMarker", () => {
 
 	it("範囲を選んでいるときは、ふつうの削除（null）", () => {
 		expect(removeRecipeListMarker("1. 混ぜる", 0, 3)).toBeNull();
+	});
+});
+
+describe("renumberRecipeList", () => {
+	// 「|」の位置にカーソルがある、削除のあとの本文を、振り直す。
+	function renumber(before: string, marked: string) {
+		const caret = marked.indexOf("|");
+		const text = marked.replace("|", "");
+		const result = renumberRecipeList(before, { text, caret });
+
+		return (
+			result &&
+			`${result.text.slice(0, result.caret)}|${result.text.slice(result.caret)}`
+		);
+	}
+
+	const before = "1. a\n2. b\n3. c\n4. d";
+
+	it("途中の行を消すと、後ろの番号を詰める", () => {
+		expect(renumber(before, "1. a\n|3. c\n4. d")).toBe("1. a\n|2. c\n3. d");
+	});
+
+	it("先頭の行を消すと、1から振り直す", () => {
+		expect(renumber(before, "|2. b\n3. c\n4. d")).toBe("|1. b\n2. c\n3. d");
+	});
+
+	it("末尾の行を消すときは、何もしない", () => {
+		expect(renumber(before, "1. a\n2. b\n3. c|")).toBeNull();
+	});
+
+	it("桁が減るときは、カーソルの位置も合わせる", () => {
+		const long = Array.from({ length: 11 }, (_, i) => `${i + 1}. x`).join("\n");
+		const after = long.replace("1. x\n", "");
+		const result = renumberRecipeList(long, {
+			text: after,
+			caret: after.length,
+		});
+
+		expect(result?.text).toBe(
+			Array.from({ length: 10 }, (_, i) => `${i + 1}. x`).join("\n"),
+		);
+		expect(result?.caret).toBe(result?.text.length);
+	});
+
+	it("別の並び（ほかの区切り・離れた並び）は、触らない", () => {
+		expect(renumber("1. a\n2. b\n3) x\n4) y", "1. a\n|3) x\n4) y")).toBeNull();
+		expect(renumber("1. a\n2. b\n\n5. c", "1. a\n|\n5. c")).toBeNull();
+	});
+
+	it("削除でない編集は、何もしない", () => {
+		expect(renumber("1. a\n3. c", "1. a\n2. |3. c")).toBeNull();
 	});
 });
