@@ -68,10 +68,28 @@ export function continueRecipeList(
 	const tail = text.slice(selectionStart);
 	const inserted = `\n${nextMarker}`;
 
-	return {
+	const continued = {
 		text: `${head}${inserted}${tail}`,
 		caret: head.length + inserted.length,
 	};
+
+	// 番号の行の途中に挿入したときは、後ろの同じ並びの番号も、1つずつ送る（2, 2 にならない）。
+	if (numbered) {
+		const insertedLine = head.split("\n").length;
+		const [, indent, number, separator] = numbered;
+
+		return (
+			renumberRun(
+				continued.text,
+				continued.caret,
+				insertedLine + 1,
+				Number(number.normalize("NFKC")) + 2,
+				{ indent, separator },
+			) ?? continued
+		);
+	}
+
+	return continued;
 }
 
 // 番号の行を削除したあと、同じ並びの番号を、連番に振り直す。
@@ -138,7 +156,19 @@ export function renumberRecipeList(
 			? previousFirst.value
 			: (parseNumberedLine(lines[first])?.value ?? 1);
 
-	let caret = after.caret;
+	return renumberRun(after.text, after.caret, first, start, anchor);
+}
+
+// first 行から続く、同じ字下げ・区切りの番号の行を、start から順に振り直す。変わらなければ null。
+function renumberRun(
+	text: string,
+	selection: number,
+	first: number,
+	start: number,
+	kind: { indent: string; separator: string },
+): ListContinuation | null {
+	const lines = text.split("\n");
+	let caret = selection;
 	let offset = 0;
 	let changed = false;
 	let index = first;
@@ -149,10 +179,14 @@ export function renumberRecipeList(
 		offset += lines[i].length + 1;
 	}
 
-	while (index < lines.length && isSameRun(lines[index])) {
+	while (index < lines.length) {
 		const parsed = parseNumberedLine(lines[index]);
 
-		if (!parsed) {
+		if (
+			!parsed ||
+			parsed.indent !== kind.indent ||
+			parsed.separator !== kind.separator
+		) {
 			break;
 		}
 
@@ -173,7 +207,6 @@ export function renumberRecipeList(
 		}
 
 		offset += lines[index].length + 1;
-
 		expected += 1;
 		index += 1;
 	}
