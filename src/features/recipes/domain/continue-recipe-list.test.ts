@@ -157,6 +157,17 @@ describe("renumberRecipeList", () => {
 		expect(renumber("1. a\n2. b\n\n5. c", "1. a\n|\n5. c")).toBeNull();
 	});
 
+	it("番号を先に消した空の行を、あとで消したときも、詰める", () => {
+		expect(renumber("1. a\n\n3. c\n4. d", "1. a\n|3. c\n4. d")).toBe(
+			"1. a\n|2. c\n3. d",
+		);
+		expect(renumber("\n2. b\n3. c", "|2. b\n3. c")).toBe("|1. b\n2. c");
+	});
+
+	it("行の中の文字を消しただけでは、振り直さない", () => {
+		expect(renumber("1. a\n3. cc", "1. a\n3. c|")).toBeNull();
+	});
+
 	it("削除でない編集は、何もしない", () => {
 		expect(renumber("1. a\n3. c", "1. a\n2. |3. c")).toBeNull();
 	});
