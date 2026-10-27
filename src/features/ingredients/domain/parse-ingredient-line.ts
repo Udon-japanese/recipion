@@ -32,8 +32,9 @@ const rangeToken = String.raw`${numericToken}(?:\s*${rangeSeparator}\s*${numeric
 // 「2本分」「100gくらい」「2本分位」「3cm程度」のような、単位のあとに付く語。
 const amountSuffix = "(?:分)?(?:位|くらい|ぐらい|程度)?";
 
+// 「人分」「倍」「量」は、他のレシピへのリンクの行で、リンク先の何回分を使うか（割合）を表す。
 const unitToken =
-	"大さじ|小さじ|カップ|パック|ひとつまみ|個|枚|本|袋|束|株|片|かけ|玉|丁|缶|瓶|切れ|房|合|kg|g|ml|l|cc|cm|つ|キログラム|ミリリットル|センチメートル|センチ|グラム|キロ|ミリ|リットル";
+	"人分|倍|(?<=\\d)量|大さじ|小さじ|カップ|パック|ひとつまみ|個|枚|本|袋|束|株|片|かけ|玉|丁|缶|瓶|切れ|房|合|kg|g|ml|l|cc|cm|つ|キログラム|ミリリットル|センチメートル|センチ|グラム|キロ|ミリ|リットル";
 
 // 行の終わりの分量にある漢数字（「一切れ」「大さじ二」「二〜三本」）。名前の中の漢数字（三つ葉・一味・二十日大根）は、
 // 行の終わりが分量の形のときだけ読むので、対象にならない。
@@ -77,6 +78,20 @@ const measuredAmountPatterns = [
 		"iu",
 	),
 ];
+
+// 他のレシピへのリンクの行の、割合の言葉（「[[ドレッシング]] 半分」）。「1/2量」は、単位の「量」で読む。
+const ratioWords: Record<string, number> = {
+	半分: 0.5,
+	半量: 0.5,
+	全量: 1,
+	全部: 1,
+};
+
+const ratioWordPattern = /^(?<name>.+?\]\])\s*(?<amount>半分|半量|全量|全部)$/u;
+
+// 単位のない分数（「[[ドレッシング]] 1/3」）。割合として読む。
+// 名前がリンクで終わる行だけ（ふつうの材料の「レタス 1/2」は、単位を補う側で読む）。
+const bareFractionPattern = /^(?<name>.+?\]\])\s*(?<amount>\d+\/\d+)$/u;
 
 // 数値にできない分量（「少々」「少し」「適量」など）。「とても少々」「ほんの少し」のような修飾も、分量に含める。
 const descriptiveAmountPattern =
@@ -209,6 +224,29 @@ export function parseIngredientLine(
 				normalizedText.slice(amountStart),
 			);
 		}
+	}
+
+	const ratioWordMatch = normalizedText.match(ratioWordPattern);
+
+	if (ratioWordMatch?.groups) {
+		return {
+			status: "parsed",
+			rawText,
+			name: ratioWordMatch.groups.name.trim(),
+			amountText: ratioWordMatch.groups.amount,
+			quantity: ratioWords[ratioWordMatch.groups.amount],
+			unitLabel: "量",
+		};
+	}
+
+	const fractionMatch = normalizedText.match(bareFractionPattern);
+
+	if (fractionMatch?.groups) {
+		return createParsedLine(
+			rawText,
+			fractionMatch.groups.name,
+			fractionMatch.groups.amount,
+		);
 	}
 
 	const descriptiveMatch = normalizedText.match(descriptiveAmountPattern);

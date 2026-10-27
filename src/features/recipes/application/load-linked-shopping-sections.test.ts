@@ -23,6 +23,7 @@ function recipe(
 ): RecipeDetail {
 	return {
 		name,
+		servings: 2,
 		ingredients: names.map((n, index) => item(`${name}-${index}`, n)),
 		linkViews,
 	} as unknown as RecipeDetail;
@@ -83,5 +84,90 @@ describe("loadLinkedShoppingSections", () => {
 
 		expect(result.sections).toEqual([]);
 		expect(result.failedNames).toEqual(["X"]);
+	});
+
+	it("リンクの行の割合を、材料の分量に掛ける。入れ子のときは掛け合わせる", async () => {
+		const measured = (
+			id: string,
+			name: string,
+			quantity: number,
+			unit: string,
+		) => ({
+			...item(id, name),
+			status: "parsed",
+			amountText: `${quantity}${unit}`,
+			quantity,
+			unitLabel: unit,
+		});
+		const recipes: Record<string, RecipeDetail> = {
+			a: {
+				name: "A",
+				servings: 4,
+				ingredients: [
+					measured("a-0", "醤油", 100, "ml"),
+					{
+						...item("a-1", "[[B]]"),
+						status: "parsed",
+						quantity: 0.5,
+						unitLabel: "量",
+						amountText: "半分",
+					},
+				],
+				linkViews: [{ label: "B", target: { publicId: "b", name: "B" } }],
+			} as unknown as RecipeDetail,
+			b: {
+				name: "B",
+				servings: 2,
+				ingredients: [measured("b-0", "酢", 40, "ml")],
+				linkViews: [],
+			} as unknown as RecipeDetail,
+		};
+		const load = async (publicId: string) => recipes[publicId] ?? null;
+		const halfOfA: RecipeShoppingNeed = {
+			...linkNeed("a", "A"),
+			quantity: 2,
+			unitLabel: "人分",
+		};
+
+		const { sections } = await loadLinkedShoppingSections([halfOfA], load);
+
+		// A は 2人分÷4人＝0.5、B は 0.5×0.5＝0.25
+		expect(
+			sections.map((s) => [s.title, s.needs.map((n) => [n.name, n.quantity])]),
+		).toEqual([
+			["Aの材料", [["醤油", 50]]],
+			["Bの材料", [["酢", 10]]],
+		]);
+	});
+
+	it("同じレシピに2回リンクしたときは、割合を足して、1つのまとまりにする", async () => {
+		const a = {
+			name: "A",
+			servings: 2,
+			ingredients: [
+				{
+					...item("a-0", "醤油"),
+					status: "parsed",
+					quantity: 10,
+					unitLabel: "ml",
+					amountText: "10ml",
+				},
+			],
+			linkViews: [],
+		} as unknown as RecipeDetail;
+		const half = (id: string): RecipeShoppingNeed => ({
+			...linkNeed("a", "A"),
+			id,
+			quantity: 0.5,
+			unitLabel: "量",
+		});
+
+		const { sections } = await loadLinkedShoppingSections(
+			[half("1"), half("2")],
+			async () => a,
+		);
+
+		expect(sections).toHaveLength(1);
+		expect(sections[0]?.needs[0]?.quantity).toBe(10);
 	});
 });
