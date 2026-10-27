@@ -12,6 +12,7 @@
     "preview": "vite preview",
     "waf:allowlist": "node scripts/print-waf-allowlist.ts",
     "lighthouse": "node scripts/lighthouse.ts",
+    "lighthouse:logged-in": "node scripts/lighthouse-logged-in.ts",
     "e2e": "playwright test",
     "e2e:update": "playwright test --update-snapshots",
     "e2e:report": "playwright show-report",
