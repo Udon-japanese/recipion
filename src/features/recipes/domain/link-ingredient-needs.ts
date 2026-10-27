@@ -52,3 +52,28 @@ export function resolveIngredientLinks(
 		return [name === "" ? need : { ...need, name }];
 	});
 }
+
+// リンク先のレシピの、何回分を使うか（割合）。
+// - 単位のない分数、「量」「倍」：その数（半分＝0.5、2倍＝2）
+// - 「人分」：人数÷リンク先のレシピの人数
+// - 数量がない、ほかの単位（g など。リンク先のできあがりの量が分からない）：1回分
+export function linkedRecipeRatio(
+	need: Pick<RecipeShoppingNeed, "quantity" | "unitLabel">,
+	servings: number,
+): number {
+	const { quantity, unitLabel } = need;
+
+	if (quantity === null || !Number.isFinite(quantity) || quantity <= 0) {
+		return 1;
+	}
+
+	if (unitLabel === null || unitLabel === "量" || unitLabel === "倍") {
+		return quantity;
+	}
+
+	if (unitLabel === "人分" && servings > 0) {
+		return quantity / servings;
+	}
+
+	return 1;
+}

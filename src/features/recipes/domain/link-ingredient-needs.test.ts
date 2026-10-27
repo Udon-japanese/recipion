@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { resolveIngredientLinks } from "./link-ingredient-needs";
+import {
+	linkedRecipeRatio,
+	resolveIngredientLinks,
+} from "./link-ingredient-needs";
 import type { RecipeShoppingNeed } from "./plan-shopping-from-recipe";
 
 function need(id: string, name: string): RecipeShoppingNeed {
@@ -55,5 +58,19 @@ describe("resolveIngredientLinks", () => {
 
 		expect(result?.name).toBe("かける 和風ドレッシング");
 		expect(result?.linkedRecipe).toBeUndefined();
+	});
+});
+
+describe("linkedRecipeRatio", () => {
+	it("量・倍・単位なしは、その数。人分は、人数÷リンク先の人数。それ以外は1回分", () => {
+		expect(linkedRecipeRatio({ quantity: 0.5, unitLabel: "量" }, 4)).toBe(0.5);
+		expect(linkedRecipeRatio({ quantity: 2, unitLabel: "倍" }, 4)).toBe(2);
+		expect(
+			linkedRecipeRatio({ quantity: 1 / 3, unitLabel: null }, 4),
+		).toBeCloseTo(1 / 3);
+		expect(linkedRecipeRatio({ quantity: 2, unitLabel: "人分" }, 4)).toBe(0.5);
+		expect(linkedRecipeRatio({ quantity: 50, unitLabel: "g" }, 4)).toBe(1);
+		expect(linkedRecipeRatio({ quantity: null, unitLabel: null }, 4)).toBe(1);
+		expect(linkedRecipeRatio({ quantity: 2, unitLabel: "人分" }, 0)).toBe(1);
 	});
 });

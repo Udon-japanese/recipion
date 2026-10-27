@@ -101,7 +101,10 @@ function sumLines(lines: readonly RecipeShoppingNeed[]): {
 // 計量の単位は、数量の前に置く（「大さじ1と1/2」）。それ以外は、あとに置く（「200g」「2個」）。
 const leadingUnits = new Set(["大さじ", "小さじ", "カップ"]);
 
-function describeAmount(quantity: number, unitLabel: string | null): string {
+export function describeAmount(
+	quantity: number,
+	unitLabel: string | null,
+): string {
 	const text = formatQuantity(quantity, {
 		grouping: false,
 		allowFractions: unitLabel === null || !(unitLabel in massUnitGrams),

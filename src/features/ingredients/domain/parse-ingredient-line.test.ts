@@ -252,3 +252,32 @@ describe("parseIngredientLine（名前の中のハイフン）", () => {
 		},
 	);
 });
+
+describe("parseIngredientLine（リンク先の割合）", () => {
+	it.each([
+		["[[ドレッシング]] 半分", "[[ドレッシング]]", "半分", 0.5, "量"],
+		["[[ドレッシング]]半分", "[[ドレッシング]]", "半分", 0.5, "量"],
+		["[[ドレッシング]] 全量", "[[ドレッシング]]", "全量", 1, "量"],
+		["[[ドレッシング]] 半量", "[[ドレッシング]]", "半量", 0.5, "量"],
+		["[[ドレッシング]] 1/3量", "[[ドレッシング]]", "1/3量", 1 / 3, "量"],
+		["[[ドレッシング]] 1/3", "[[ドレッシング]]", "1/3", 1 / 3, null],
+		["[[ドレッシング]] 2倍", "[[ドレッシング]]", "2倍", 2, "倍"],
+		["[[カレー]] 1.5倍", "[[カレー]]", "1.5倍", 1.5, "倍"],
+		["[[カレー]] 2人分", "[[カレー]]", "2人分", 2, "人分"],
+		["[[カレー]] 二倍", "[[カレー]]", "二倍", 2, "倍"],
+	])("%sを、割合として読む", (input, name, amountText, quantity, unitLabel) => {
+		expect(parseIngredientLine(input)).toEqual({
+			status: "parsed",
+			rawText: input,
+			name,
+			amountText,
+			quantity,
+			unitLabel,
+		});
+	});
+
+	it("単位のない整数や、名前の中の「半分」は、分量にしない", () => {
+		expect(parseIngredientLine("牛乳 2")?.status).toBe("missing-amount");
+		expect(parseIngredientLine("半分")?.status).toBe("missing-amount");
+	});
+});
