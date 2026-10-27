@@ -2,6 +2,7 @@ import {
 	linkedRecipeRatio,
 	resolveIngredientLinks,
 } from "../domain/link-ingredient-needs";
+import type { MadeRecipeUse } from "../domain/made-recipe-stock";
 import {
 	flattenRecipeIngredients,
 	type RecipeShoppingNeed,
@@ -18,9 +19,15 @@ export type LinkedShoppingSection = {
 
 export type LinkedShoppingSections = {
 	sections: LinkedShoppingSection[];
+	// 在庫のできあがり（作り置き）から使う分。この分の材料は、sections に含めない。
+	madeUses: MadeRecipeUse[];
 	// 読み込めなかった、リンク先のレシピの名前。
 	failedNames: string[];
 };
+
+function round(value: number): number {
+	return Number(value.toFixed(6));
+}
 
 // リンクをたどる深さの上限（リンクが輪になっていても、止まるように、たどっている途中のレシピは展開しない）。
 const maxDepth = 3;
@@ -30,11 +37,16 @@ const maxDepth = 3;
  * - リンク先の中にあるリンクも、たどる。リンク先が見つからないレシピは、含めない。
  * - リンクの行の分量は、リンク先の何回分を使うかの割合（半分・2倍・2人分など）。材料の分量に掛ける。入れ子のときは掛け合わせる。
  * - 同じレシピに複数のリンクがあるときは、割合を足して、1つのまとまりにする。
+ * - 在庫に、リンク先のできあがり（作り置き。madeStock：元のレシピの publicId → 回分）があれば、その分を先に使い、
+ *   材料の展開は、足りない分だけにする（全部まかなえるなら、そのレシピの材料は含めない）。
  */
 export async function loadLinkedShoppingSections(
 	needs: readonly RecipeShoppingNeed[],
 	loadRecipe: (publicId: string) => Promise<RecipeDetail | null>,
+	madeStock: ReadonlyMap<string, number> = new Map(),
 ): Promise<LinkedShoppingSections> {
+	const remainingMade = new Map(madeStock);
+	const madeUses = new Map<string, MadeRecipeUse>();
 	const failedNames: string[] = [];
 	const failedPublicIds = new Set<string>();
 	// 出てきた順。割合は、リンクをたどった道すじごとの割合の合計。
@@ -94,7 +106,28 @@ export async function loadLinkedShoppingSections(
 				entries.set(target.publicId, entry);
 			}
 
-			const ratio = scale * linkedRecipeRatio(need, entry.recipe.servings);
+			const wanted = scale * linkedRecipeRatio(need, entry.recipe.servings);
+
+			// 在庫のできあがりを先に使い、足りない分だけ、材料を展開する。
+			const available = remainingMade.get(target.publicId) ?? 0;
+			const used = round(Math.min(available, wanted));
+
+			if (used > 0) {
+				remainingMade.set(target.publicId, round(available - used));
+				madeUses.set(target.publicId, {
+					publicId: target.publicId,
+					name: entry.recipe.name,
+					quantity: round(
+						(madeUses.get(target.publicId)?.quantity ?? 0) + used,
+					),
+				});
+			}
+
+			const ratio = round(wanted - used);
+
+			if (ratio <= 0) {
+				continue;
+			}
 
 			entry.ratio += ratio;
 
@@ -114,8 +147,10 @@ export async function loadLinkedShoppingSections(
 		new Set(),
 	);
 
-	const sections = [...entries].map(
-		([publicId, { recipe, resolved, ratio }]) => ({
+	// 全部を在庫のできあがりでまかなったレシピは、材料を含めない。
+	const sections = [...entries]
+		.filter(([, { ratio }]) => ratio > 0)
+		.map(([publicId, { recipe, resolved, ratio }]) => ({
 			publicId,
 			title: `${recipe.name}の材料`,
 			needs: resolved
@@ -125,8 +160,7 @@ export async function loadLinkedShoppingSections(
 					id: `${publicId}/${item.id}`,
 					sectionTitle: `${recipe.name}の材料`,
 				})),
-		}),
-	);
+		}));
 
-	return { sections, failedNames };
+	return { sections, madeUses: [...madeUses.values()], failedNames };
 }

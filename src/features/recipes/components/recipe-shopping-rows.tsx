@@ -4,7 +4,10 @@ import { Checkbox } from "#/components/checkbox/checkbox";
 import { Icon } from "#/components/icon/icon";
 import { Note } from "#/components/note/note";
 import { RadioList } from "#/components/radio-list/radio-list";
-import { formatQuantityForUnit } from "#/features/quantity/domain/format-quantity";
+import {
+	formatQuantityForUnit,
+	formatStockAmount,
+} from "#/features/quantity/domain/format-quantity";
 import type {
 	DuplicateMode,
 	RecipeShoppingRow,
@@ -126,6 +129,12 @@ export function RecipeShoppingRows({
 			</p>
 
 			{plan.isLoading ? <p className={styles.hint}>読み込んでいます…</p> : null}
+
+			{plan.madeUses.map((use) => (
+				<p className={styles.hint} key={use.publicId}>
+					{`在庫の${use.name}を${formatStockAmount(use.quantity, "count")}回分、使います。その分の材料は、入れません。`}
+				</p>
+			))}
 
 			<RadioList
 				legend="メモに同じものがあるとき"
