@@ -289,7 +289,8 @@ function nearestExpiryDate(lots: readonly InventoryLot[]): string | null {
 		lot.quantity > 0 && lot.expiresOn !== null ? [lot.expiresOn] : [],
 	);
 
-	return dates.length > 0 ? dates.reduce((a, b) => (a < b ? a : b)) : null;
+	// 日付の文字列（YYYY-MM-DD）は、辞書順がそのまま日付の順。
+	return dates.sort()[0] ?? null;
 }
 
 /**

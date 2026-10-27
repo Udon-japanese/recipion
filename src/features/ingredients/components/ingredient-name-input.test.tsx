@@ -20,6 +20,21 @@ function Harness({ onSelectEntry }: { onSelectEntry?: (id: string) => void }) {
 	);
 }
 
+function Form({
+	onSubmit,
+}: {
+	onSubmit: (event: { preventDefault: () => void }) => void;
+}) {
+	const [value, setValue] = useState("");
+
+	return (
+		<form onSubmit={onSubmit}>
+			<label htmlFor="name">食材名</label>
+			<IngredientNameInput id="name" value={value} onChange={setValue} />
+		</form>
+	);
+}
+
 describe("IngredientNameInput", () => {
 	it("入力に合う食材の候補を出し、選ぶと入力に反映する", async () => {
 		const user = userEvent.setup();
@@ -58,18 +73,7 @@ describe("IngredientNameInput", () => {
 			event.preventDefault(),
 		);
 
-		function Form() {
-			const [value, setValue] = useState("");
-
-			return (
-				<form onSubmit={onSubmit}>
-					<label htmlFor="name">食材名</label>
-					<IngredientNameInput id="name" value={value} onChange={setValue} />
-				</form>
-			);
-		}
-
-		render(<Form />);
+		render(<Form onSubmit={onSubmit} />);
 
 		await user.type(screen.getByLabelText("食材名"), "しょう{Enter}");
 

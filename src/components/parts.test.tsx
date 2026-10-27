@@ -29,26 +29,26 @@ describe("IconButton", () => {
 	});
 });
 
+function Demo() {
+	const [value, setValue] = useState("3日");
+
+	return (
+		<ChipGroup label="期限">
+			{["3日", "1週間"].map((label) => (
+				<Chip
+					key={label}
+					pressed={value === label}
+					onClick={() => setValue(label)}
+				>
+					{label}
+				</Chip>
+			))}
+		</ChipGroup>
+	);
+}
+
 describe("Chip", () => {
 	it("選べるチップは、選ばれているかを aria-pressed で伝える", async () => {
-		function Demo() {
-			const [value, setValue] = useState("3日");
-
-			return (
-				<ChipGroup label="期限">
-					{["3日", "1週間"].map((label) => (
-						<Chip
-							key={label}
-							pressed={value === label}
-							onClick={() => setValue(label)}
-						>
-							{label}
-						</Chip>
-					))}
-				</ChipGroup>
-			);
-		}
-
 		render(<Demo />);
 
 		expect(screen.getByRole("button", { name: "3日" })).toHaveAttribute(
