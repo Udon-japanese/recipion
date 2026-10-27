@@ -34,12 +34,21 @@ export type UndoRecipeConsumptionResult = {
 		quantity: number;
 		lots: InventoryLot[];
 	}[];
+	// 入れたできあがり（作り置き）のうち、すでに使っていて、取り消せなかった量（回分）。なければ 0。
+	unreturnedProduction: number;
 };
 
 export interface InventoryAdjustmentRepository {
 	applyAdjustment(
 		command: InventoryAdjustmentCommand,
 	): Promise<InventoryAdjustmentRepositoryResult>;
+}
+
+export interface MadeRecipeStockRepository {
+	// 「作った」で在庫に入れる、できあがりの食材（なければ作る）の ID。自分のレシピだけ。
+	ensureMadeRecipeItem(
+		recipePublicId: string,
+	): Promise<{ inventoryItemId: string }>;
 }
 
 export interface RecipeConsumptionUndoRepository {

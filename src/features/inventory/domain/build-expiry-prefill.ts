@@ -67,14 +67,18 @@ export function buildExpiryPrefill(
 }
 
 // 在庫の食材の一覧から、名前（別名を含む）が同じ食材を探す。
-export function findInventoryItemByName<T extends { name: string }>(
-	items: readonly T[],
-	ingredientName: string,
-): T | undefined {
+// 「作った」で入れたできあがり（作り置き）は、同じ名前の材料とは別物なので、探さない。
+export function findInventoryItemByName<
+	T extends { name: string; sourceRecipePublicId?: string },
+>(items: readonly T[], ingredientName: string): T | undefined {
 	const catalogId = findIngredientCatalogEntry(ingredientName)?.id;
 	const normalizedName = normalizeIngredientName(ingredientName);
 
 	return items.find((item) => {
+		if (item.sourceRecipePublicId !== undefined) {
+			return false;
+		}
+
 		const itemCatalogId = findIngredientCatalogEntry(item.name)?.id;
 
 		return catalogId !== undefined && itemCatalogId !== undefined

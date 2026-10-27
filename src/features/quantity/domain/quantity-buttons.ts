@@ -24,6 +24,8 @@ const buttonsByUnit: Record<string, readonly QuantityButton[]> = {
 	本: fractionSets.stick.map((value) => ({ kind: "set", value })),
 	個: fractionSets.piece.map((value) => ({ kind: "set", value })),
 	丁: fractionSets.piece.map((value) => ({ kind: "set", value })),
+	// 作り置きのできあがり（レシピ1回分）。半分や1/3を使うことが多い。
+	回分: fractionSets.wholeVegetable.map((value) => ({ kind: "set", value })),
 	カップ: fractionSets.measure.map((value) => ({ kind: "set", value })),
 	g: [10, 50, 100, 200, 500].map((amount) => ({ kind: "add", amount })),
 	ml: [50, 100, 200, 500].map((amount) => ({ kind: "add", amount })),

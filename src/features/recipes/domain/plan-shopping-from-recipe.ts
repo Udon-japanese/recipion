@@ -37,6 +37,8 @@ export type RecipeShoppingStockItem = {
 	stockUnitLabel: string;
 	// 省略は、数量を追う管理。
 	trackingMode?: InventoryTrackingMode;
+	// 「作った」で入れたできあがり（作り置き）の元のレシピ。ある食材は、名前での突き合わせの対象にしない。
+	sourceRecipePublicId?: string;
 };
 
 // 買い物メモにある項目（未購入だけを渡す）。
@@ -190,7 +192,12 @@ export function findStandInItems<T extends RecipeShoppingStockItem>(
 	return stockItems.filter((item) => {
 		const id = findIngredientCatalogEntry(item.name)?.id;
 
-		return id !== undefined && standInIds.has(id) && item.quantity > 0;
+		return (
+			item.sourceRecipePublicId === undefined &&
+			id !== undefined &&
+			standInIds.has(id) &&
+			item.quantity > 0
+		);
 	});
 }
 
@@ -217,7 +224,12 @@ export function findFixedShapeStandInItems<T extends RecipeShoppingStockItem>(
 	return stockItems.filter((item) => {
 		const id = findIngredientCatalogEntry(item.name)?.id;
 
-		return id !== undefined && ids.has(id) && item.quantity > 0;
+		return (
+			item.sourceRecipePublicId === undefined &&
+			id !== undefined &&
+			ids.has(id) &&
+			item.quantity > 0
+		);
 	});
 }
 

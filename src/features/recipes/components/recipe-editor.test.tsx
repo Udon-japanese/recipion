@@ -53,6 +53,29 @@ async function writeBody(user: User, body: string) {
 }
 
 describe("RecipeEditor", () => {
+	it("作り置きのチェックを入れて保存すると、作り置きとして送る", async () => {
+		const user = userEvent.setup();
+		const onSave = vi.fn(async (_document: RecipeEditorDocument) => ({
+			publicId: "recipe-1",
+		}));
+
+		render(<RecipeEditor onSave={onSave} />);
+
+		await enterTitle(user, "和風ドレッシング");
+		await writeBody(user, "＜材料＞\n醤油 大さじ2\n酢 大さじ1");
+		await user.click(
+			screen.getByRole("checkbox", {
+				name: "作り置きのレシピ（「つくった」で、できあがりを在庫に入れるのを、初めから選んでおく）",
+			}),
+		);
+		await user.click(screen.getByRole("button", { name: "レシピを保存" }));
+		await screen.findByText("保存しました", { selector: "output" });
+
+		expect(onSave).toHaveBeenCalledWith(
+			expect.objectContaining({ stocksWhenMade: true }),
+		);
+	});
+
 	it("取り込んだ材料を既存グループへ移して保存できる", async () => {
 		const user = userEvent.setup();
 		const onSave = vi.fn(async (_document: RecipeEditorDocument) => ({

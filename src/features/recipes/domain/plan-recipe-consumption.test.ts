@@ -161,4 +161,15 @@ describe("planRecipeConsumption", () => {
 			["partial", 1],
 		]);
 	});
+
+	it("作り置きのできあがりは、同じ名前の材料の在庫として引かない", () => {
+		const made = {
+			...stock("卵焼き", 2, "count", "回分"),
+			sourceRecipePublicId: "tamagoyaki-id",
+		};
+		const [row] = planRecipeConsumption([need("卵焼き", 1, "個")], [made]);
+
+		expect(row?.status).toBe("no-stock");
+		expect(row?.deduct).toBeNull();
+	});
 });

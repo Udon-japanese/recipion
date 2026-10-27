@@ -168,6 +168,7 @@ describe("undoRecipeConsumptionWithCache", () => {
 			async () => ({
 				status: "undone",
 				items: [{ inventoryItemId: "inv-1", quantity: 6, lots: [] }],
+				unreturnedProduction: 0,
 			}),
 			cache,
 		);

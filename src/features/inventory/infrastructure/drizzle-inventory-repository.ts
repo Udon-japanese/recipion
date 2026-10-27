@@ -9,10 +9,12 @@ import {
 	ingredient,
 	ingredientAlias,
 } from "#/features/ingredients/infrastructure/ingredient.sql";
+import { recipe } from "#/features/recipes/infrastructure/recipe.sql";
 import { createIngredientRegistration } from "../application/create-ingredient-registration";
 import type {
 	InventoryAdjustmentCommand,
 	InventoryAdjustmentRepository,
+	MadeRecipeStockRepository,
 	RecipeConsumptionUndoRepository,
 } from "../application/inventory-adjustment-repository";
 import type {
@@ -79,6 +81,18 @@ function parseTrackingMode(value: string): InventoryTrackingMode {
 
 function parseInventoryUnitCode(value: string): InventoryUnitCode {
 	return v.parse(inventoryUnitCodeSchema, value);
+}
+
+// 「作った」で入れるできあがり（作り置き）の、在庫の単位の呼び名。数量は、レシピ1回分が 1。
+const madeRecipeUnitLabel = "回分";
+
+// できあがりの食材の別名（内部用。利用者が打ち込む名前とぶつからない）。
+function madeRecipeAliasKey(recipePublicId: string): string {
+	return `recipe:${recipePublicId}`;
+}
+
+function round6(value: number): number {
+	return Number(value.toFixed(6));
 }
 
 function toNumeric(value: number): string {
@@ -176,6 +190,7 @@ export function createDrizzleInventoryRepository(
 	db: DB,
 	userId: string,
 ): InventoryAdjustmentRepository &
+	MadeRecipeStockRepository &
 	RecipeConsumptionUndoRepository &
 	InventoryTrackingModeRepository &
 	InventoryItemManagementRepository &
@@ -201,6 +216,7 @@ export function createDrizzleInventoryRepository(
 					trackingMode: inventoryItem.trackingMode,
 					capacity: inventoryItem.capacity,
 					updatedAt: inventoryItem.updatedAt,
+					sourceRecipePublicId: recipe.publicId,
 				})
 				.from(inventoryItem)
 				.innerJoin(
@@ -210,6 +226,7 @@ export function createDrizzleInventoryRepository(
 						eq(ingredient.userId, inventoryItem.userId),
 					),
 				)
+				.leftJoin(recipe, eq(recipe.id, inventoryItem.sourceRecipeId))
 				.where(
 					and(
 						eq(inventoryItem.userId, userId),
@@ -267,6 +284,9 @@ export function createDrizzleInventoryRepository(
 					stockUnitCode: parseInventoryUnitCode(row.stockUnitCode),
 					stockUnitLabel: row.stockUnitLabel,
 					trackingMode: parseTrackingMode(row.trackingMode),
+					...(row.sourceRecipePublicId === null
+						? {}
+						: { sourceRecipePublicId: row.sourceRecipePublicId }),
 					defaultExpiryKind: parseOptionalValue<InventoryExpiryKind>(
 						row.defaultExpiryKind,
 						["use-by", "best-before", "none"],
@@ -470,6 +490,103 @@ export function createDrizzleInventoryRepository(
 				};
 			});
 		},
+		async ensureMadeRecipeItem(recipePublicId: string) {
+			return db.transaction(async (transaction) => {
+				// 同じレシピのできあがりの食材を、同時に作らないよう、直列にする。
+				await transaction.execute(
+					sql`select pg_advisory_xact_lock(hashtext(${`${userId}:made:${recipePublicId}`}))`,
+				);
+
+				const [madeRecipe] = await transaction
+					.select({
+						id: recipe.id,
+						name: recipe.name,
+					})
+					.from(recipe)
+					.where(
+						and(eq(recipe.publicId, recipePublicId), eq(recipe.userId, userId)),
+					)
+					.limit(1);
+
+				if (!madeRecipe) {
+					throw new UserFacingError("レシピが見つかりません");
+				}
+
+				const [existingItem] = await transaction
+					.select({ id: inventoryItem.id })
+					.from(inventoryItem)
+					.where(
+						and(
+							eq(inventoryItem.userId, userId),
+							eq(inventoryItem.sourceRecipeId, madeRecipe.id),
+						),
+					)
+					.limit(1);
+
+				if (existingItem) {
+					return { inventoryItemId: existingItem.id };
+				}
+
+				// 利用者が打ち込む名前とぶつからないよう、別名は、レシピの ID から作る内部用の値にする。
+				const aliasKey = madeRecipeAliasKey(recipePublicId);
+				const [existingAlias] = await transaction
+					.select({ ingredientId: ingredientAlias.ingredientId })
+					.from(ingredientAlias)
+					.where(
+						and(
+							eq(ingredientAlias.userId, userId),
+							eq(ingredientAlias.normalizedName, aliasKey),
+						),
+					)
+					.limit(1);
+
+				let ingredientId = existingAlias?.ingredientId;
+
+				if (!ingredientId) {
+					const [createdIngredient] = await transaction
+						.insert(ingredient)
+						.values({
+							userId,
+							name: madeRecipe.name,
+							stockUnitCode: "count",
+							stockUnitLabel: madeRecipeUnitLabel,
+							defaultStorage: "fridge",
+						})
+						.returning({ id: ingredient.id });
+
+					if (!createdIngredient) {
+						throw new Error("食材を作成できませんでした");
+					}
+
+					ingredientId = createdIngredient.id;
+
+					await transaction.insert(ingredientAlias).values({
+						userId,
+						ingredientId,
+						name: madeRecipe.name,
+						normalizedName: aliasKey,
+						isPrimary: true,
+					});
+				}
+
+				const [createdItem] = await transaction
+					.insert(inventoryItem)
+					.values({
+						userId,
+						ingredientId,
+						trackingMode: "exact",
+						sourceRecipeId: madeRecipe.id,
+					})
+					.returning({ id: inventoryItem.id });
+
+				if (!createdItem) {
+					throw new Error("在庫項目を作成できませんでした");
+				}
+
+				return { inventoryItemId: createdItem.id };
+			});
+		},
+
 		async applyAdjustment(command: InventoryAdjustmentCommand) {
 			return db.transaction(async (transaction) => {
 				const findExistingTransaction = async () => {
@@ -751,18 +868,27 @@ export function createDrizzleInventoryRepository(
 						inventoryLotId: inventoryTransaction.inventoryLotId,
 						quantityDelta: inventoryTransaction.quantityDelta,
 						stockUnitCode: inventoryTransaction.stockUnitCode,
+						reason: inventoryTransaction.reason,
 					})
 					.from(inventoryTransaction)
 					.where(
 						and(
 							eq(inventoryTransaction.userId, userId),
-							eq(inventoryTransaction.reason, "recipe-consumption"),
+							// 引いた分と、できあがり（作り置き）として入れた分。
+							inArray(inventoryTransaction.reason, [
+								"recipe-consumption",
+								"recipe-production",
+							]),
 							eq(inventoryTransaction.sourceId, sourceId),
 						),
 					);
 
 				if (consumed.length === 0) {
-					return { status: "nothing-to-undo" as const, items: [] };
+					return {
+						status: "nothing-to-undo" as const,
+						items: [],
+						unreturnedProduction: 0,
+					};
 				}
 
 				// 食材の行を、順番を決めてロックする（同時に、別の操作と入れ違いにならないように）。
@@ -804,7 +930,10 @@ export function createDrizzleInventoryRepository(
 					.where(
 						and(
 							eq(inventoryTransaction.userId, userId),
-							eq(inventoryTransaction.reason, "recipe-consumption-undo"),
+							inArray(inventoryTransaction.reason, [
+								"recipe-consumption-undo",
+								"recipe-production-undo",
+							]),
 							eq(inventoryTransaction.sourceId, sourceId),
 						),
 					)
@@ -814,6 +943,7 @@ export function createDrizzleInventoryRepository(
 					return {
 						status: "already-undone" as const,
 						items: await loadItems(),
+						unreturnedProduction: 0,
 					};
 				}
 
@@ -844,8 +974,72 @@ export function createDrizzleInventoryRepository(
 					).map((row) => [row.id, row.stockUnitCode]),
 				);
 
+				let unreturnedProduction = 0;
+
 				for (const row of consumed) {
 					if (currentUnits.get(row.inventoryItemId) !== row.stockUnitCode) {
+						continue;
+					}
+
+					if (row.reason === "recipe-production") {
+						// 入れたできあがりは、ロットに残っている分だけ減らす（使った分は、戻せない）。
+						const produced = Math.abs(Number(row.quantityDelta));
+
+						if (row.inventoryLotId === null) {
+							unreturnedProduction += produced;
+							continue;
+						}
+
+						const [producedLot] = await transaction
+							.select({ quantity: inventoryLot.quantity })
+							.from(inventoryLot)
+							.where(
+								and(
+									eq(inventoryLot.id, row.inventoryLotId),
+									eq(inventoryLot.userId, userId),
+								),
+							);
+
+						const removable = Math.min(
+							produced,
+							producedLot ? Number(producedLot.quantity) : 0,
+						);
+
+						unreturnedProduction += produced - removable;
+
+						if (removable > 0) {
+							const [reducedLot] = await transaction
+								.update(inventoryLot)
+								.set({
+									quantity: sql`${inventoryLot.quantity} - ${toNumeric(removable)}`,
+								})
+								.where(
+									and(
+										eq(inventoryLot.id, row.inventoryLotId),
+										eq(inventoryLot.userId, userId),
+									),
+								)
+								.returning({ quantity: inventoryLot.quantity });
+
+							if (reducedLot) {
+								await transaction.insert(inventoryTransaction).values({
+									userId,
+									inventoryItemId: row.inventoryItemId,
+									inventoryLotId: row.inventoryLotId,
+									inputQuantity: toNumeric(removable),
+									inputUnitCode: row.stockUnitCode,
+									requestedQuantityDelta: toNumeric(-removable),
+									quantityDelta: toNumeric(-removable),
+									resultingQuantity: reducedLot.quantity,
+									stockUnitCode: row.stockUnitCode,
+									reason: "recipe-production-undo",
+									sourceType: "recipe",
+									sourceId,
+									occurredAt: now,
+								});
+							}
+						}
+
 						continue;
 					}
 
@@ -898,7 +1092,11 @@ export function createDrizzleInventoryRepository(
 					await raiseCapacity(transaction, userId, itemId);
 				}
 
-				return { status: "undone" as const, items: await loadItems() };
+				return {
+					status: "undone" as const,
+					items: await loadItems(),
+					unreturnedProduction: round6(unreturnedProduction),
+				};
 			});
 		},
 

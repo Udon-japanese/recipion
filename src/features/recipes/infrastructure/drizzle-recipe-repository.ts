@@ -4,6 +4,11 @@ import * as v from "valibot";
 
 import type { DB } from "#/db/client";
 import { UserFacingError } from "#/errors/user-facing-error";
+import {
+	ingredient,
+	ingredientAlias,
+} from "#/features/ingredients/infrastructure/ingredient.sql";
+import { inventoryItem } from "#/features/inventory/infrastructure/inventory.sql";
 import { user } from "#/integrations/better-auth/auth.sql";
 import type {
 	CreateRecipeCommand,
@@ -245,6 +250,7 @@ export async function loadRecipeDetail(
 		note: found.note,
 		sourceUrl: found.sourceUrl,
 		visibility: parseRecipeVisibility(found.visibility),
+		stocksWhenMade: found.stocksWhenMade,
 		ingredients: restoreRecipeIngredients(
 			ingredientRows.map((row) => ({
 				id: row.id,
@@ -316,6 +322,7 @@ export function createDrizzleRecipeRepository(
 						note: command.note,
 						sourceUrl: command.sourceUrl,
 						visibility: command.visibility,
+						stocksWhenMade: command.stocksWhenMade,
 						unlistedPassphrase: command.passphraseCipher ?? null,
 					})
 					.returning({ id: recipe.id, publicId: recipe.publicId });
@@ -360,12 +367,47 @@ export function createDrizzleRecipeRepository(
 						note: command.note,
 						sourceUrl: command.sourceUrl,
 						visibility: command.visibility,
+						stocksWhenMade: command.stocksWhenMade,
 						// undefined は、いまのまま。変えるときは、これまでに開けた人の記録を消す。
 						...(command.passphraseCipher === undefined
 							? {}
 							: { unlistedPassphrase: command.passphraseCipher }),
 					})
 					.where(eq(recipe.id, existing.id));
+
+				// 作り置きのできあがり（在庫の食材）がすでにあれば、レシピの名前の変更に合わせる。
+				const [madeItem] = await transaction
+					.select({ ingredientId: inventoryItem.ingredientId })
+					.from(inventoryItem)
+					.where(
+						and(
+							eq(inventoryItem.userId, userId),
+							eq(inventoryItem.sourceRecipeId, existing.id),
+						),
+					)
+					.limit(1);
+
+				if (madeItem) {
+					await transaction
+						.update(ingredient)
+						.set({ name: command.name })
+						.where(
+							and(
+								eq(ingredient.id, madeItem.ingredientId),
+								eq(ingredient.userId, userId),
+							),
+						);
+					await transaction
+						.update(ingredientAlias)
+						.set({ name: command.name })
+						.where(
+							and(
+								eq(ingredientAlias.ingredientId, madeItem.ingredientId),
+								eq(ingredientAlias.userId, userId),
+								eq(ingredientAlias.isPrimary, true),
+							),
+						);
+				}
 
 				if (command.passphraseCipher !== undefined) {
 					await transaction

@@ -55,7 +55,11 @@ function setup(
 				.filter((entry) => !onlyNeedIds || onlyNeedIds.has(entry.needId))
 				.map((entry) => ({ needId: entry.needId, ok: true as const })),
 	);
-	const undo = vi.fn(async () => ({ status: "undone" as const, items: [] }));
+	const undo = vi.fn(async () => ({
+		status: "undone" as const,
+		items: [],
+		unreturnedProduction: 0,
+	}));
 
 	render(
 		<RecipeConsumeSection
@@ -269,5 +273,125 @@ describe("RecipeConsumeSection", () => {
 			"元に戻せませんでした",
 		);
 		expect(screen.getByRole("button", { name: "元に戻す" })).toBeEnabled();
+	});
+
+	it("作り置きのレシピは、引いたあとで、できあがりを在庫に入れる。元に戻すと、使い済みの分は戻せないと知らせる", async () => {
+		const user = userEvent.setup();
+		const produce = vi.fn(
+			async (_input: { sourceId: string; transactionId: string }) => {},
+		);
+		const { undo } = setup({
+			madeRecipe: { name: "和風ドレッシング", defaultChecked: true, produce },
+		});
+
+		undo.mockResolvedValueOnce({
+			status: "undone" as const,
+			items: [],
+			unreturnedProduction: 0.5,
+		});
+
+		await user.click(screen.getByRole("button", { name: /つくった/u }));
+
+		expect(
+			await screen.findByText("和風ドレッシング：1回分を、在庫に入れました"),
+		).toBeInTheDocument();
+		expect(produce).toHaveBeenCalledTimes(1);
+		expect(produce.mock.calls[0]?.[0].sourceId).toMatch(/^recipe-1:/u);
+
+		await user.click(screen.getByRole("button", { name: "元に戻す" }));
+
+		expect(
+			await screen.findByText(/回分は、在庫から減らせませんでした/u),
+		).toBeInTheDocument();
+	});
+
+	it("できあがりを在庫に入れられなかったときは、知らせて、同じ操作でやり直せる（二重には入らない）", async () => {
+		const user = userEvent.setup();
+		const produce = vi
+			.fn<
+				(input: { sourceId: string; transactionId: string }) => Promise<void>
+			>()
+			.mockRejectedValueOnce(new Error("network"))
+			.mockResolvedValueOnce(undefined);
+
+		setup({
+			madeRecipe: { name: "和風ドレッシング", defaultChecked: true, produce },
+		});
+
+		await user.click(screen.getByRole("button", { name: /つくった/u }));
+
+		expect(
+			await screen.findByText("和風ドレッシング：在庫に入れられませんでした"),
+		).toBeInTheDocument();
+
+		await user.click(
+			screen.getByRole("button", { name: "在庫に入れる分をやり直す" }),
+		);
+
+		expect(
+			await screen.findByText("和風ドレッシング：1回分を、在庫に入れました"),
+		).toBeInTheDocument();
+		expect(produce.mock.calls[0]?.[0].transactionId).toBe(
+			produce.mock.calls[1]?.[0].transactionId,
+		);
+	});
+
+	it("作り置きでないレシピは、在庫に入れない", async () => {
+		const user = userEvent.setup();
+
+		setup();
+
+		await user.click(screen.getByRole("button", { name: /つくった/u }));
+
+		expect(await screen.findAllByText(/を引きました/u)).not.toHaveLength(0);
+		expect(
+			screen.queryByText(/在庫に入れました|在庫に入れられません/u),
+		).toBeNull();
+	});
+
+	it("在庫に入れるかどうかは、押す前に決められる（初期値は、レシピの作り置きの設定）", async () => {
+		const user = userEvent.setup();
+		const produce = vi.fn(
+			async (_input: { sourceId: string; transactionId: string }) => {},
+		);
+
+		setup({
+			madeRecipe: { name: "和風ドレッシング", defaultChecked: false, produce },
+		});
+
+		const checkbox = screen.getByRole("checkbox", {
+			name: "できあがりを、在庫に入れる",
+		});
+
+		expect(checkbox).not.toBeChecked();
+
+		await user.click(screen.getByRole("button", { name: /つくった/u }));
+		await screen.findAllByText(/を引きました/u);
+
+		expect(produce).not.toHaveBeenCalled();
+		expect(
+			screen.queryByText(/在庫に入れました|在庫に入れられません/u),
+		).toBeNull();
+	});
+
+	it("初期値が入れないでも、チェックすれば、できあがりを在庫に入れる", async () => {
+		const user = userEvent.setup();
+		const produce = vi.fn(
+			async (_input: { sourceId: string; transactionId: string }) => {},
+		);
+
+		setup({
+			madeRecipe: { name: "和風ドレッシング", defaultChecked: false, produce },
+		});
+
+		await user.click(
+			screen.getByRole("checkbox", { name: "できあがりを、在庫に入れる" }),
+		);
+		await user.click(screen.getByRole("button", { name: /つくった/u }));
+
+		expect(
+			await screen.findByText("和風ドレッシング：1回分を、在庫に入れました"),
+		).toBeInTheDocument();
+		expect(produce).toHaveBeenCalledTimes(1);
 	});
 });

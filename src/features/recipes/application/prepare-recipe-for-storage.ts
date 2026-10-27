@@ -29,6 +29,7 @@ export type PreparedRecipeForStorage = {
 	note: string;
 	sourceUrl: string | null;
 	visibility: RecipeVisibility;
+	stocksWhenMade: boolean;
 	ingredients: StoredRecipeIngredientNode[];
 	preparations: {
 		id: string;
@@ -128,6 +129,7 @@ export function prepareRecipeForStorage(
 		note: document.note,
 		sourceUrl: document.sourceUrl,
 		visibility: document.visibility ?? "private",
+		stocksWhenMade: document.stocksWhenMade ?? false,
 		ingredients,
 		preparations: document.preparations.map((preparation, sortOrder) => ({
 			id: preparation.id,
