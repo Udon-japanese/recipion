@@ -18,3 +18,7 @@ CLAUDE.md
 docs/*
 !docs/deploy-runbook.md
 !docs/incident-response.md
+# Playwright（e2e）
+e2e/.auth
+playwright-report
+test-results
