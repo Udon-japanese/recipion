@@ -6,6 +6,7 @@ import { useButtonAction } from "#/components/button/use-button-action";
 import { Card } from "#/components/card/card";
 import { Checkbox } from "#/components/checkbox/checkbox";
 import { Chip, ChipGroup, ChipUnit } from "#/components/chip/chip";
+import { CornerSheet } from "#/components/corner-sheet/corner-sheet";
 import {
 	Field,
 	SelectBox,
@@ -589,6 +590,9 @@ function SheetGallery() {
 	const [double, setDouble] = useState(false);
 	const [panel, setPanel] = useState(false);
 	const [floating, setFloating] = useState(false);
+	const [cornerShort, setCornerShort] = useState(false);
+	const [cornerLong, setCornerLong] = useState(false);
+	const [cornerPending, setCornerPending] = useState(false);
 	const [radio, setRadio] = useState<"max" | "sum" | "skip">("max");
 
 	const longBody = (
@@ -620,7 +624,74 @@ function SheetGallery() {
 				<Button variant="secondary" onClick={() => setFloating(true)}>
 					浮いたパネル（暗幕なし）
 				</Button>
+				<Button variant="secondary" onClick={() => setCornerShort(true)}>
+					上のシート＋角のボタン（短い）
+				</Button>
+				<Button variant="secondary" onClick={() => setCornerLong(true)}>
+					上のシート＋角のボタン（長い）
+				</Button>
 			</div>
+
+			<CornerSheet
+				open={cornerShort}
+				onDismiss={() => setCornerShort(false)}
+				eyebrow="「つくった」を記録しました"
+				title="在庫から3件を引きました"
+				left={{
+					label: "元に戻す",
+					icon: "undo",
+					pending: cornerPending,
+					onClick: () => {
+						setCornerPending(true);
+						void wait(3000).then(() => {
+							setCornerPending(false);
+							setCornerShort(false);
+						});
+					},
+				}}
+				right={{
+					label: "閉じる",
+					icon: "check",
+					onClick: () => setCornerShort(false),
+				}}
+			>
+				<ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
+					{[
+						"玉ねぎ：1個を引きました",
+						"鶏むね肉：250gを引きました",
+						"しょうゆ：在庫にないため、引いていません",
+					].map((line) => (
+						<li
+							key={line}
+							style={{
+								padding: "12px 0",
+								borderBottom: "1px solid var(--color-border)",
+								fontSize: 14,
+							}}
+						>
+							{line}
+						</li>
+					))}
+				</ul>
+			</CornerSheet>
+
+			<CornerSheet
+				open={cornerLong}
+				onDismiss={() => setCornerLong(false)}
+				title="在庫から24件を引きました"
+				left={{
+					label: "元に戻す",
+					icon: "undo",
+					onClick: () => setCornerLong(false),
+				}}
+				right={{
+					label: "閉じる",
+					icon: "check",
+					onClick: () => setCornerLong(false),
+				}}
+			>
+				{longBody}
+			</CornerSheet>
 
 			<RadioList
 				legend="メモに同じものがあるとき"

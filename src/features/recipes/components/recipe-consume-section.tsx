@@ -1,9 +1,8 @@
 import { useId, useMemo, useState } from "react";
 import { Button } from "#/components/button/button";
 import { Checkbox } from "#/components/checkbox/checkbox";
+import { CornerSheet } from "#/components/corner-sheet/corner-sheet";
 import { Note } from "#/components/note/note";
-import { Sheet } from "#/components/sheet/sheet";
-import { useMediaQuery } from "#/components/use-media-query";
 import type { UndoRecipeConsumptionResult } from "#/features/inventory/application/inventory-adjustment-repository";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import type { InventoryListItem } from "#/features/inventory/application/inventory-query-repository";
@@ -115,8 +114,8 @@ export function RecipeConsumeSection({
 	undo,
 	madeRecipe,
 }: RecipeConsumeSectionProps) {
-	const isRight = useMediaQuery("(min-width: 1024px)");
 	const [isWorking, setIsWorking] = useState(false);
+	const [isUndoing, setIsUndoing] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [outcome, setOutcome] = useState<Outcome | null>(null);
 	const [putInStock, setPutInStock] = useState(
@@ -297,6 +296,7 @@ export function RecipeConsumeSection({
 		}
 
 		setIsWorking(true);
+		setIsUndoing(true);
 		setErrorMessage(null);
 
 		try {
@@ -314,6 +314,7 @@ export function RecipeConsumeSection({
 			);
 		} finally {
 			setIsWorking(false);
+			setIsUndoing(false);
 		}
 	}
 
@@ -368,60 +369,36 @@ export function RecipeConsumeSection({
 				<Note tone="error">{errorMessage}</Note>
 			) : null}
 
-			<Sheet
+			<CornerSheet
 				open={outcome !== null}
-				onOpenChange={(open) => {
-					if (!open && !isWorking) {
+				onDismiss={() => {
+					if (!isWorking) {
 						setOutcome(null);
 					}
 				}}
+				eyebrow={outcome?.isUndone ? undefined : "「つくった」を記録しました"}
 				title={
 					outcome?.isUndone
 						? "元に戻しました"
 						: `在庫から${consumedCount}件を引きました`
 				}
-				placement={isRight ? "right" : "bottom"}
-				snapPoints={isRight ? [0.92] : [0.7, 0.92]}
-				footer={
-					outcome ? (
-						<div className={styles.footer}>
-							{!outcome.isUndone &&
-							(outcome.failedNeedIds.size > 0 || hasPendingProduction) ? (
-								<Button
-									variant="secondary"
-									size="lg"
-									fullWidth
-									disabled={isWorking}
-									onClick={() => void handleRetry()}
-								>
-									{hasPendingProduction && outcome.failedNeedIds.size === 0
-										? "在庫に入れる分をやり直す"
-										: "引けなかった分をやり直す"}
-								</Button>
-							) : null}
-							{!outcome.isUndone && hasUndoableWork ? (
-								<Button
-									variant="secondary"
-									size="lg"
-									fullWidth
-									status={isWorking ? "pending" : "idle"}
-									pendingLabel="戻しています"
-									onClick={() => void handleUndo()}
-								>
-									元に戻す
-								</Button>
-							) : null}
-							<Button
-								size="lg"
-								fullWidth
-								disabled={isWorking}
-								onClick={() => setOutcome(null)}
-							>
-								閉じる
-							</Button>
-						</div>
-					) : undefined
+				left={
+					outcome && !outcome.isUndone && hasUndoableWork
+						? {
+								label: "元に戻す",
+								icon: "undo",
+								disabled: isWorking,
+								pending: isUndoing,
+								onClick: () => void handleUndo(),
+							}
+						: undefined
 				}
+				right={{
+					label: "閉じる",
+					icon: "check",
+					disabled: isWorking,
+					onClick: () => setOutcome(null),
+				}}
 			>
 				{outcome ? (
 					<div className={styles.sheetBody}>
@@ -437,43 +414,60 @@ export function RecipeConsumeSection({
 								) : null}
 							</>
 						) : (
-							<ul className={styles.list}>
-								{outcome.production && madeRecipe ? (
-									<li className={styles.row}>
-										<span className={styles.status}>
-											{outcome.production.isDone
-												? `${madeRecipe.name}：1回分を、在庫に入れました`
-												: `${madeRecipe.name}：在庫に入れられませんでした`}
-										</span>
-									</li>
+							<>
+								{outcome.failedNeedIds.size > 0 || hasPendingProduction ? (
+									<Button
+										variant="secondary"
+										fullWidth
+										disabled={isWorking}
+										onClick={() => void handleRetry()}
+									>
+										{hasPendingProduction && outcome.failedNeedIds.size === 0
+											? "在庫に入れる分をやり直す"
+											: "引けなかった分をやり直す"}
+									</Button>
 								) : null}
-								{outcome.rows.map((row) => (
-									<li className={styles.row} key={row.need.id}>
-										<span className={styles.status}>
-											{describeRow(row, outcome.failedNeedIds.has(row.need.id))}
-										</span>
-										{row.alternatives.map((alternative) => (
-											<Button
-												variant="secondary"
-												size="sm"
-												key={alternative.inventoryItemId}
-												disabled={isWorking}
-												onClick={() =>
-													void handleUseAlternative(row, alternative)
-												}
-											>
-												{`${alternative.name}を引く（${formatStockAmount(alternative.deduct, alternative.stockUnitCode)}${alternative.stockUnitLabel}）`}
-											</Button>
-										))}
-									</li>
-								))}
-							</ul>
+								<ul className={styles.list}>
+									{outcome.production && madeRecipe ? (
+										<li className={styles.row}>
+											<span className={styles.status}>
+												{outcome.production.isDone
+													? `${madeRecipe.name}：1回分を、在庫に入れました`
+													: `${madeRecipe.name}：在庫に入れられませんでした`}
+											</span>
+										</li>
+									) : null}
+									{outcome.rows.map((row) => (
+										<li className={styles.row} key={row.need.id}>
+											<span className={styles.status}>
+												{describeRow(
+													row,
+													outcome.failedNeedIds.has(row.need.id),
+												)}
+											</span>
+											{row.alternatives.map((alternative) => (
+												<Button
+													variant="secondary"
+													size="sm"
+													key={alternative.inventoryItemId}
+													disabled={isWorking}
+													onClick={() =>
+														void handleUseAlternative(row, alternative)
+													}
+												>
+													{`${alternative.name}を引く（${formatStockAmount(alternative.deduct, alternative.stockUnitCode)}${alternative.stockUnitLabel}）`}
+												</Button>
+											))}
+										</li>
+									))}
+								</ul>
+							</>
 						)}
 
 						{errorMessage ? <Note tone="error">{errorMessage}</Note> : null}
 					</div>
 				) : null}
-			</Sheet>
+			</CornerSheet>
 		</section>
 	);
 }
