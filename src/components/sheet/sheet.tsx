@@ -98,6 +98,7 @@ export function Sheet({
 	const panelRef = useRef<HTMLElement>(null);
 	const scrimRef = useRef<HTMLDivElement>(null);
 	const scrollerRef = useRef<HTMLDivElement>(null);
+	const footerRef = useRef<HTMLDivElement>(null);
 
 	const viewport = useVisualViewport(mounted);
 	const snaps = useMemo(
@@ -157,6 +158,19 @@ export function Sheet({
 				: "none";
 			panel.style.transform = `translate3d(0, ${sheetHeight - visible}px, 0)`;
 			panel.style.opacity = reduced && visible <= 0 ? "0" : "1";
+
+			// パネルは、最大の高さのまま下へずらしているので、低い位置で止まると、一番下の操作バーが画面の外に出る。
+			// 最も低い位置までは、ずらした分だけ、操作バーを引き上げて、見える範囲の下に置く。
+			// それより下（閉じるとき）は、パネルといっしょに動く。
+			const footer = footerRef.current;
+
+			if (footer) {
+				const hidden = Math.max(0, sheetHeight - Math.max(visible, lowestSnap));
+
+				footer.style.transition =
+					animate && !reduced ? `transform ${transition}` : "none";
+				footer.style.transform = `translate3d(0, ${-hidden}px, 0)`;
+			}
 		} else {
 			// 右のパネル：幅いっぱいを、横に動かす。
 			const shift = visible <= 0 ? 100 : 0;
@@ -591,7 +605,11 @@ export function Sheet({
 					{children}
 				</div>
 
-				{footer ? <div className={styles.footer}>{footer}</div> : null}
+				{footer ? (
+					<div className={styles.footer} ref={footerRef}>
+						{footer}
+					</div>
+				) : null}
 			</section>
 		</div>,
 		document.body,

@@ -273,3 +273,34 @@ it("暗幕を押すと閉じ、ボタンの操作（閉じる）でも閉じる"
 
 	expect(onChange).toHaveBeenLastCalledWith(false);
 });
+
+it("低い位置で止まっているときも、下に固定の操作バー（footer）が、画面の中に見える", async () => {
+	await page.viewport(400, 800);
+
+	render(
+		<Sheet
+			open
+			onOpenChange={() => {}}
+			title="在庫から2件を引きました"
+			snapPoints={[0.5, 0.92]}
+			footer={<button type="button">元に戻す</button>}
+		>
+			<p>本文</p>
+		</Sheet>,
+	);
+
+	await sleep(500);
+
+	const target = Array.from(document.querySelectorAll("button")).find(
+		(element) => element.textContent === "元に戻す",
+	);
+
+	if (!target) {
+		throw new Error("操作バーのボタンがありません");
+	}
+
+	const rect = target.getBoundingClientRect();
+
+	expect(rect.bottom).toBeLessThanOrEqual(window.innerHeight);
+	expect(rect.top).toBeGreaterThan(window.innerHeight * 0.4);
+});
