@@ -53,9 +53,7 @@ export default defineConfig({
 				storageState: "e2e/.auth/user.json",
 			},
 			dependencies: ["setup"],
-			// 「つくった」のシートは、モバイルでは下から出て、初期の高さだと「元に戻す」が画面の外にある。
-			// 操作の確認はデスクトップだけで行う（モバイルの見た目は、スクリーンショットで見る）。
-			testIgnore: [/login\.setup\.ts/, /recipe-made\.spec\.ts/],
+			testIgnore: /login\.setup\.ts/,
 		},
 	],
 	webServer: {
