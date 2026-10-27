@@ -13,6 +13,8 @@
 			"**/index.html",
 			"**/vite.config.ts",
 			"!**/dist",
+			"!**/playwright-report",
+			"!**/test-results",
 			"!**/src/routeTree.gen.ts",
 			"!**/src/config/teapot-418.html",
 			"!**/src/maintenance/maintenance-page.html",
