@@ -170,6 +170,7 @@ export function RecipeEditor({
 	loadUserRecipes,
 }: RecipeEditorProps) {
 	const templateCheckboxId = useId();
+	const stocksWhenMadeCheckboxId = useId();
 	const isEditing = initialDocument !== undefined;
 	const [initialState] = useState(() => createInitialState(initialDocument));
 	const [title, setTitle] = useState(initialDocument?.name ?? "");
@@ -182,6 +183,9 @@ export function RecipeEditor({
 	const [sourceUrl, setSourceUrl] = useState(initialDocument?.sourceUrl ?? "");
 	const [visibility, setVisibility] = useState<RecipeVisibility>(
 		initialDocument?.visibility ?? "private",
+	);
+	const [stocksWhenMade, setStocksWhenMade] = useState(
+		initialDocument?.stocksWhenMade ?? false,
 	);
 	const [text, setText] = useState(initialState.text);
 	const [sync, setSync] = useState(initialState.sync);
@@ -535,6 +539,7 @@ export function RecipeEditor({
 					note: sections.note,
 					sourceUrl,
 					visibility,
+					stocksWhenMade,
 					// 本文に出てくるラベルのリンクだけを送る（本文から消したリンクは、送らない）。
 					links: links.filter((link) =>
 						linkedLabels.some(({ label }) => label === link.label),
@@ -843,6 +848,18 @@ export function RecipeEditor({
 					}}
 					hasSourceUrl={sourceUrl.trim() !== ""}
 				/>
+
+				<div className={styles.checkRow}>
+					<Checkbox
+						id={stocksWhenMadeCheckboxId}
+						label="作り置きのレシピ（「つくった」で、できあがりを在庫に入れるのを、初めから選んでおく）"
+						checked={stocksWhenMade}
+						onChange={(event) => setStocksWhenMade(event.target.checked)}
+					/>
+					<label htmlFor={stocksWhenMadeCheckboxId} aria-hidden="true">
+						作り置きのレシピ（「つくった」で、できあがりを在庫に入れるのを、初めから選んでおく）
+					</label>
+				</div>
 
 				<Button
 					type="submit"

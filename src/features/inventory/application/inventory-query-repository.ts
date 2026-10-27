@@ -25,6 +25,8 @@ export type InventoryListItem = {
 	// ユーザーが決めた、この食材の期限の種類と初期の保存方法（空は、決めていない）。
 	defaultExpiryKind: InventoryExpiryKind | null;
 	defaultStorage: InventoryStorage | null;
+	// 「作った」で入れた、できあがり（作り置き）の元のレシピ。ふつうの食材は、なし。名前での突き合わせの対象にしない。
+	sourceRecipePublicId?: string;
 	updatedAt: string;
 };
 

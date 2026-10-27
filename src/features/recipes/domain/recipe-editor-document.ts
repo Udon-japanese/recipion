@@ -49,6 +49,8 @@ export type RecipeEditorDocument = {
 	links: RecipeLinkReference[];
 	// 公開範囲。省略は private（自分だけ）。
 	visibility?: RecipeVisibility;
+	// 「作った」で、できあがりを在庫に入れる（作り置き）。省略は false。
+	stocksWhenMade?: boolean;
 };
 
 export type CreateRecipeEditorDocumentInput = {
@@ -61,6 +63,7 @@ export type CreateRecipeEditorDocumentInput = {
 	sourceUrl?: string;
 	links?: RecipeLinkReference[];
 	visibility?: RecipeVisibility;
+	stocksWhenMade?: boolean;
 };
 
 type CreateId = () => string;
@@ -114,5 +117,6 @@ export function createRecipeEditorDocument(
 		sourceUrl: input.sourceUrl?.trim() || null,
 		links: input.links ? [...input.links] : [],
 		visibility: input.visibility ?? "private",
+		stocksWhenMade: input.stocksWhenMade ?? false,
 	};
 }

@@ -13,6 +13,9 @@ export type InventoryOperation = "increase" | "decrease";
 export type InventoryTransactionReason =
 	| "purchase"
 	| "recipe-consumption"
+	// 「作った」で、できあがり（作り置き）を在庫に入れた履歴と、その取り消し。
+	| "recipe-production"
+	| "recipe-production-undo"
 	// 「作った」で引いた分を、取り消して戻したときの履歴（元の履歴は消さずに、戻した分を足す）。
 	| "recipe-consumption-undo"
 	| "manual-adjustment";
@@ -41,7 +44,12 @@ const adjustmentInputSchema = v.object({
 	stockUnitCode: v.string(),
 	stockQuantityPerInputUnit: v.number(),
 	operation: v.picklist(["increase", "decrease"]),
-	reason: v.picklist(["purchase", "recipe-consumption", "manual-adjustment"]),
+	reason: v.picklist([
+		"purchase",
+		"recipe-consumption",
+		"recipe-production",
+		"manual-adjustment",
+	]),
 	sourceType: v.optional(v.picklist(["shopping-item", "recipe"])),
 	sourceId: v.optional(v.string()),
 });

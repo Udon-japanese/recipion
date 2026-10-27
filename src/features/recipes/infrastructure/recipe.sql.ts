@@ -38,6 +38,8 @@ export const recipe = pgTable(
 		visibility: text("visibility").default("private").notNull(),
 		// 限定公開のパスフレーズ（暗号化したもの。作者が、画面でいつでも確認できるように、ハッシュではなく暗号化して保存する）。限定公開のときだけ入る。
 		unlistedPassphrase: text("unlisted_passphrase"),
+		// 「作った」で、できあがりを在庫に入れる（作り置き。他のレシピから材料としてリンクされるものなど）。
+		stocksWhenMade: boolean("stocks_when_made").default(false).notNull(),
 		createdAt: timestamp("created_at", { withTimezone: true })
 			.defaultNow()
 			.notNull(),

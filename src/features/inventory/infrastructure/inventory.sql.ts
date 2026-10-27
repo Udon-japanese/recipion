@@ -13,6 +13,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { ingredient } from "#/features/ingredients/infrastructure/ingredient.sql";
+import { recipe } from "#/features/recipes/infrastructure/recipe.sql";
 import { user } from "#/integrations/better-auth/auth.sql";
 
 export const inventoryItem = pgTable(
@@ -28,6 +29,10 @@ export const inventoryItem = pgTable(
 		trackingMode: text("tracking_mode").default("estimated").notNull(),
 		// 在庫の一覧に出す、ユーザーが付けた呼び名（空は、食材の名前のまま）。レシピとの突き合わせには使わない。
 		displayName: text("display_name"),
+		// 「作った」で在庫に入れた、できあがりの元のレシピ（作り置き）。レシピを消すと、ふつうの食材として残る。
+		sourceRecipeId: uuid("source_recipe_id").references(() => recipe.id, {
+			onDelete: "set null",
+		}),
 		// 満タンの量（これまでの合計の最大値。食材の在庫の単位）。冷蔵庫のタイルの水位の基準。
 		capacity: numeric("capacity", {
 			precision: 18,
@@ -62,6 +67,10 @@ export const inventoryItem = pgTable(
 			table.ingredientId,
 		),
 		index("inventory_item_user_id_idx").on(table.userId),
+		unique("inventory_item_user_source_recipe_unique").on(
+			table.userId,
+			table.sourceRecipeId,
+		),
 		check(
 			"inventory_item_display_name_valid",
 			sql`${table.displayName} is null or char_length(btrim(${table.displayName})) between 1 and 50`,

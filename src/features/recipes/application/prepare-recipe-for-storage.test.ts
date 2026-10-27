@@ -46,3 +46,18 @@ describe("prepareRecipeForStorage（リンク）", () => {
 		expect(prepareRecipeForStorage(document).links).toEqual([]);
 	});
 });
+
+describe("prepareRecipeForStorage（作り置き）", () => {
+	it("作り置きのスイッチを保存する。省略は、オフ", () => {
+		const base = { name: "ドレッシング", instructionText: "1. 混ぜる" };
+
+		expect(
+			prepareRecipeForStorage(
+				createRecipeEditorDocument({ ...base, stocksWhenMade: true }),
+			).stocksWhenMade,
+		).toBe(true);
+		expect(
+			prepareRecipeForStorage(createRecipeEditorDocument(base)).stocksWhenMade,
+		).toBe(false);
+	});
+});

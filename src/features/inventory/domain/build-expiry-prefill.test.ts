@@ -77,6 +77,14 @@ describe("findInventoryItemByName", () => {
 		expect(findInventoryItemByName(items, "しょうゆ")).toBe(items[0]);
 	});
 
+	it("「作った」で入れたできあがり（作り置き）は、同じ名前の材料として探さない", () => {
+		const made = { name: "カレー", sourceRecipePublicId: "curry-id" };
+		const ordinary = { name: "カレー" };
+
+		expect(findInventoryItemByName([made], "カレー")).toBeUndefined();
+		expect(findInventoryItemByName([made, ordinary], "カレー")).toBe(ordinary);
+	});
+
 	it("カタログにない食材は、正規化した名前で探す", () => {
 		expect(findInventoryItemByName(items, "ミニ　トマト")).toBe(items[1]);
 		expect(findInventoryItemByName(items, "牛乳")).toBeUndefined();

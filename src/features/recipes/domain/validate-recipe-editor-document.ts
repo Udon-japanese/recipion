@@ -72,6 +72,7 @@ const documentSchema = v.object({
 		v.picklist(["private", "unlisted", "public"]),
 		"private",
 	),
+	stocksWhenMade: v.optional(v.boolean(), false),
 	// 古い画面（links を送らない）からの保存も受け付ける。
 	links: v.optional(
 		v.pipe(

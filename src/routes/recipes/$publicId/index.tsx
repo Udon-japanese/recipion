@@ -17,6 +17,7 @@ import { createDexieInventoryCacheRepository } from "#/features/inventory/infras
 import { adjustInventory as adjustInventoryServerFn } from "#/features/inventory/server/adjust-inventory";
 import { listInventoryItemsServerFn } from "#/features/inventory/server/list-inventory-items";
 import { registerInventoryItemServerFn } from "#/features/inventory/server/register-inventory-item";
+import { stockMadeRecipeServerFn } from "#/features/inventory/server/stock-made-recipe";
 import { undoRecipeConsumptionServerFn } from "#/features/inventory/server/undo-recipe-consumption";
 import type {
 	RecipeConsumptionEntryResult,
@@ -169,6 +170,16 @@ function useRecipeViewSupport(recipe: RecipeDetail) {
 		[ownerScope],
 	);
 
+	// 作り置きのレシピ：「作った」で、できあがりを在庫に入れる（一覧は、次に開くときに、サーバーから取り直す）。
+	const produce = useCallback(
+		async (input: { sourceId: string; transactionId: string }) => {
+			await stockMadeRecipeServerFn({
+				data: { recipePublicId: recipe.publicId, ...input },
+			});
+		},
+		[recipe.publicId],
+	);
+
 	return {
 		ownerScope,
 		loadLinkedRecipe,
@@ -179,6 +190,7 @@ function useRecipeViewSupport(recipe: RecipeDetail) {
 		registerAvailable,
 		consume,
 		undoConsumption,
+		produce,
 	};
 }
 
@@ -194,6 +206,7 @@ function OwnRecipePage({ recipe }: { recipe: RecipeDetail }) {
 		registerAvailable,
 		consume,
 		undoConsumption,
+		produce,
 	} = useRecipeViewSupport(recipe);
 
 	return (
@@ -244,6 +257,11 @@ function OwnRecipePage({ recipe }: { recipe: RecipeDetail }) {
 				loadInventoryItems={loadInventoryItems}
 				consume={consume}
 				undo={undoConsumption}
+				madeRecipe={{
+					name: recipe.name,
+					defaultChecked: recipe.stocksWhenMade ?? false,
+					produce,
+				}}
 			/>
 			<RecipeOwnerActions
 				publicId={recipe.publicId}

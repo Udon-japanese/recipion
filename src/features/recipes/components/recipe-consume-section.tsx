@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { Button } from "#/components/button/button";
+import { Checkbox } from "#/components/checkbox/checkbox";
 import { Note } from "#/components/note/note";
 import { Sheet } from "#/components/sheet/sheet";
 import { useMediaQuery } from "#/components/use-media-query";
@@ -43,6 +44,16 @@ type RecipeConsumeSectionProps = {
 		onlyNeedIds?: ReadonlySet<string>,
 	) => Promise<RecipeConsumptionEntryResult[]>;
 	undo: (sourceId: string) => Promise<UndoRecipeConsumptionResult>;
+	// 自分のレシピのとき、できあがりを在庫に入れる入口（押すときに、入れるかどうかを決める）。
+	// defaultChecked は、レシピの「作り置き」の設定（入れるかどうかの初期値）。
+	madeRecipe?: {
+		name: string;
+		defaultChecked: boolean;
+		produce: (input: {
+			sourceId: string;
+			transactionId: string;
+		}) => Promise<void>;
+	};
 };
 
 type Outcome = {
@@ -50,6 +61,10 @@ type Outcome = {
 	operation: RecipeConsumptionOperation;
 	failedNeedIds: ReadonlySet<string>;
 	isUndone: boolean;
+	// できあがりを在庫に入れる操作（作り置きでなければ、なし）。transactionId は、再送しても二重に入らないための印。
+	production: { transactionId: string; isDone: boolean } | null;
+	// 元に戻したとき、すでに使っていて戻せなかった、できあがりの量（回分）。
+	unreturnedProduction: number;
 };
 
 const noLinkViews: readonly RecipeLinkView[] = [];
@@ -88,11 +103,16 @@ export function RecipeConsumeSection({
 	loadInventoryItems,
 	consume,
 	undo,
+	madeRecipe,
 }: RecipeConsumeSectionProps) {
 	const isRight = useMediaQuery("(min-width: 1024px)");
 	const [isWorking, setIsWorking] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [outcome, setOutcome] = useState<Outcome | null>(null);
+	const [putInStock, setPutInStock] = useState(
+		madeRecipe?.defaultChecked ?? false,
+	);
+	const putInStockId = useId();
 
 	const resolvedNeeds = useMemo(
 		() =>
@@ -123,6 +143,24 @@ export function RecipeConsumeSection({
 		]);
 	}
 
+	// できあがりを在庫に入れる（再送しても、二重には入らない）。入れられなければ false。
+	async function produceOnce(
+		sourceId: string,
+		transactionId: string,
+	): Promise<boolean> {
+		if (!madeRecipe) {
+			return true;
+		}
+
+		try {
+			await madeRecipe.produce({ sourceId, transactionId });
+
+			return true;
+		} catch {
+			return false;
+		}
+	}
+
 	async function handleMade() {
 		setIsWorking(true);
 		setErrorMessage(null);
@@ -136,6 +174,7 @@ export function RecipeConsumeSection({
 			const rows = planRecipeConsumption(needs, stockItems);
 			const operation = startRecipeConsumption(recipePublicId, rows);
 			const results = await consume(operation);
+			const productionId = crypto.randomUUID();
 
 			setOutcome({
 				rows,
@@ -144,6 +183,14 @@ export function RecipeConsumeSection({
 					results.filter((result) => !result.ok).map((result) => result.needId),
 				),
 				isUndone: false,
+				production:
+					madeRecipe && putInStock
+						? {
+								transactionId: productionId,
+								isDone: await produceOnce(operation.sourceId, productionId),
+							}
+						: null,
+				unreturnedProduction: 0,
 			});
 		} catch {
 			setErrorMessage("在庫から引けませんでした。通信を確認してください");
@@ -162,9 +209,20 @@ export function RecipeConsumeSection({
 
 		try {
 			const results = await consume(outcome.operation, outcome.failedNeedIds);
+			const production =
+				outcome.production && !outcome.production.isDone
+					? {
+							...outcome.production,
+							isDone: await produceOnce(
+								outcome.operation.sourceId,
+								outcome.production.transactionId,
+							),
+						}
+					: outcome.production;
 
 			setOutcome({
 				...outcome,
+				production,
 				failedNeedIds: new Set(
 					results.filter((result) => !result.ok).map((result) => result.needId),
 				),
@@ -219,8 +277,14 @@ export function RecipeConsumeSection({
 		setErrorMessage(null);
 
 		try {
-			await undo(outcome.operation.sourceId);
-			setOutcome({ ...outcome, isUndone: true, failedNeedIds: new Set() });
+			const result = await undo(outcome.operation.sourceId);
+
+			setOutcome({
+				...outcome,
+				isUndone: true,
+				failedNeedIds: new Set(),
+				unreturnedProduction: result.unreturnedProduction,
+			});
 		} catch {
 			setErrorMessage(
 				"元に戻せませんでした。通信を確認して、もう一度お試しください",
@@ -233,9 +297,27 @@ export function RecipeConsumeSection({
 	const consumedCount = outcome
 		? outcome.operation.entries.length - outcome.failedNeedIds.size
 		: 0;
+	const hasPendingProduction =
+		outcome?.production !== null && outcome?.production?.isDone === false;
+	const hasUndoableWork =
+		consumedCount > 0 || outcome?.production?.isDone === true;
 
 	return (
 		<section className={styles.container} aria-label="作った">
+			{madeRecipe ? (
+				<div className={styles.checkRow}>
+					<Checkbox
+						id={putInStockId}
+						label="できあがりを、在庫に入れる"
+						checked={putInStock}
+						disabled={isWorking}
+						onChange={(event) => setPutInStock(event.target.checked)}
+					/>
+					<label htmlFor={putInStockId} aria-hidden="true">
+						できあがりを、在庫に入れる
+					</label>
+				</div>
+			) : null}
 			<Button
 				fullWidth
 				status={isWorking && !outcome ? "pending" : "idle"}
@@ -265,7 +347,8 @@ export function RecipeConsumeSection({
 				footer={
 					outcome ? (
 						<div className={styles.footer}>
-							{!outcome.isUndone && outcome.failedNeedIds.size > 0 ? (
+							{!outcome.isUndone &&
+							(outcome.failedNeedIds.size > 0 || hasPendingProduction) ? (
 								<Button
 									variant="secondary"
 									size="lg"
@@ -273,10 +356,12 @@ export function RecipeConsumeSection({
 									disabled={isWorking}
 									onClick={() => void handleRetry()}
 								>
-									引けなかった分をやり直す
+									{hasPendingProduction && outcome.failedNeedIds.size === 0
+										? "在庫に入れる分をやり直す"
+										: "引けなかった分をやり直す"}
 								</Button>
 							) : null}
-							{!outcome.isUndone && consumedCount > 0 ? (
+							{!outcome.isUndone && hasUndoableWork ? (
 								<Button
 									variant="secondary"
 									size="lg"
@@ -303,9 +388,27 @@ export function RecipeConsumeSection({
 				{outcome ? (
 					<div className={styles.sheetBody}>
 						{outcome.isUndone ? (
-							<p className={styles.hint}>在庫を、引く前の状態に戻しました。</p>
+							<>
+								<p className={styles.hint}>
+									在庫を、引く前の状態に戻しました。
+								</p>
+								{outcome.unreturnedProduction > 0 ? (
+									<Note tone="warn">
+										{`${madeRecipe?.name ?? "できあがり"}は、すでに使っていたため、${formatStockAmount(outcome.unreturnedProduction, "count")}回分は、在庫から減らせませんでした。`}
+									</Note>
+								) : null}
+							</>
 						) : (
 							<ul className={styles.list}>
+								{outcome.production && madeRecipe ? (
+									<li className={styles.row}>
+										<span className={styles.status}>
+											{outcome.production.isDone
+												? `${madeRecipe.name}：1回分を、在庫に入れました`
+												: `${madeRecipe.name}：在庫に入れられませんでした`}
+										</span>
+									</li>
+								) : null}
 								{outcome.rows.map((row) => (
 									<li className={styles.row} key={row.need.id}>
 										<span className={styles.status}>

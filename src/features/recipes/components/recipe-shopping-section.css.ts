@@ -9,6 +9,12 @@ export const container = style({
 	color: "var(--color-text)",
 });
 
+export const checkRow = style({
+	display: "flex",
+	alignItems: "center",
+	gap: 8,
+});
+
 export const hint = style({
 	margin: 0,
 	color: "var(--color-text-muted)",

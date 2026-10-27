@@ -103,6 +103,7 @@ describe("createRecipeEditorDocument", () => {
 			sourceUrl: "https://example.com/recipe",
 			links: [],
 			visibility: "private",
+			stocksWhenMade: false,
 		});
 	});
 
@@ -118,6 +119,7 @@ describe("createRecipeEditorDocument", () => {
 				sourceUrl: null,
 				links: [],
 				visibility: "private",
+				stocksWhenMade: false,
 			},
 		);
 	});
