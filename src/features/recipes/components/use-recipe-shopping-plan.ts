@@ -13,6 +13,7 @@ import {
 } from "../application/load-linked-shopping-sections";
 import type { RecipeDetail } from "../application/recipe-repository";
 import { resolveIngredientLinks } from "../domain/link-ingredient-needs";
+import { collectMadeRecipeStock } from "../domain/made-recipe-stock";
 import { mergeRecipeNeeds } from "../domain/merge-recipe-needs";
 import {
 	type DuplicateMode,
@@ -26,6 +27,7 @@ import type { RecipeLinkView } from "../domain/recipe-links";
 const noLinkViews: readonly RecipeLinkView[] = [];
 const noLinkedSections: LinkedShoppingSections = {
 	sections: [],
+	madeUses: [],
 	failedNames: [],
 };
 
@@ -154,9 +156,12 @@ export function useRecipeShoppingPlan({
 			setErrorMessage("買い物メモを読み込めませんでした");
 		}
 
+		let loadedStock: InventoryListItem[] | null = null;
+
 		if (ownerScope && ownerScope !== "guest" && loadInventoryItems) {
 			try {
-				setStockItems(await loadInventoryItems());
+				loadedStock = await loadInventoryItems();
+				setStockItems(loadedStock);
 			} catch {
 				setStockItems(null);
 				setErrorMessage(
@@ -168,9 +173,11 @@ export function useRecipeShoppingPlan({
 		}
 
 		if (loadLinkedRecipe && resolvedNeeds.some((need) => need.linkedRecipe)) {
+			// 在庫に、リンク先のできあがり（作り置き）があれば、その分は、材料を数えない。
 			const result = await loadLinkedShoppingSections(
 				resolvedNeeds,
 				loadLinkedRecipe,
+				collectMadeRecipeStock(loadedStock ?? []),
 			);
 
 			setLinkedSections(result);
@@ -291,6 +298,7 @@ export function useRecipeShoppingPlan({
 	return {
 		needsCount: resolvedNeeds.length,
 		rows,
+		madeUses: linkedSections.madeUses,
 		isChecked,
 		setChecked,
 		selectedCount: selectedNeedIds.size,

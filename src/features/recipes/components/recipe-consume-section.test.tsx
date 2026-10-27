@@ -394,4 +394,134 @@ describe("RecipeConsumeSection", () => {
 		).toBeInTheDocument();
 		expect(produce).toHaveBeenCalledTimes(1);
 	});
+
+	describe("リンク先のできあがり（作り置き）", () => {
+		const dressing = {
+			publicId: "dressing-id",
+			name: "和風ドレッシング",
+			servings: 2,
+			ingredients: [ingredient("d-0", "醤油", 100, "ml")],
+			linkViews: [],
+		} as unknown as Awaited<
+			ReturnType<
+				NonNullable<
+					Parameters<typeof RecipeConsumeSection>[0]["loadLinkedRecipe"]
+				>
+			>
+		>;
+		const linkIngredient = {
+			...ingredient("l1", "[[和風ドレッシング]]", 0.5, "量"),
+			amountText: "半分",
+		} as RecipeEditorIngredientNode;
+		const linkViews = [
+			{
+				label: "和風ドレッシング",
+				target: { publicId: "dressing-id", name: "和風ドレッシング" },
+			},
+		];
+		const soy = buildInventoryListItem({
+			inventoryItemId: "inv-soy",
+			name: "醤油",
+			quantity: 500,
+			stockUnitCode: "ml",
+			stockUnitLabel: "ml",
+		});
+
+		it("在庫にあるできあがりを先に引き、その分の材料は引かない", async () => {
+			const user = userEvent.setup();
+			const { consume } = setup({
+				ingredients: [linkIngredient],
+				linkViews,
+				loadLinkedRecipe: async () => dressing,
+				loadInventoryItems: async () => [
+					soy,
+					buildInventoryListItem({
+						inventoryItemId: "inv-dressing",
+						name: "和風ドレッシング",
+						quantity: 1,
+						stockUnitLabel: "回分",
+						sourceRecipePublicId: "dressing-id",
+					}),
+				],
+			});
+
+			await user.click(screen.getByRole("button", { name: /つくった/u }));
+
+			expect(
+				await screen.findByText(
+					/和風ドレッシング：在庫のできあがりを、.+回分引きました（材料は引いていません）/u,
+				),
+			).toBeInTheDocument();
+			expect(
+				consume.mock.calls[0]?.[0].entries.map((entry) => [
+					entry.inventoryItemId,
+					entry.quantity,
+				]),
+			).toEqual([["inv-dressing", 0.5]]);
+		});
+
+		it("チェックを外すと、できあがりの在庫があっても、材料から引く", async () => {
+			const user = userEvent.setup();
+			const { consume } = setup({
+				ingredients: [linkIngredient],
+				linkViews,
+				loadLinkedRecipe: async () => dressing,
+				loadInventoryItems: async () => [
+					soy,
+					buildInventoryListItem({
+						inventoryItemId: "inv-dressing",
+						name: "和風ドレッシング",
+						quantity: 1,
+						stockUnitLabel: "回分",
+						sourceRecipePublicId: "dressing-id",
+					}),
+				],
+			});
+
+			await user.click(
+				screen.getByRole("checkbox", {
+					name: "リンク先のレシピは、在庫のできあがりから使う",
+				}),
+			);
+			await user.click(screen.getByRole("button", { name: /つくった/u }));
+			await screen.findAllByText(/を引きました/u);
+
+			expect(
+				consume.mock.calls[0]?.[0].entries.map((entry) => [
+					entry.inventoryItemId,
+					entry.quantity,
+				]),
+			).toEqual([["inv-soy", 50]]);
+		});
+
+		it("リンクのないレシピには、このチェックを出さない", () => {
+			setup();
+
+			expect(
+				screen.queryByRole("checkbox", {
+					name: "リンク先のレシピは、在庫のできあがりから使う",
+				}),
+			).toBeNull();
+		});
+
+		it("できあがりの在庫がなければ、材料を引く", async () => {
+			const user = userEvent.setup();
+			const { consume } = setup({
+				ingredients: [linkIngredient],
+				linkViews,
+				loadLinkedRecipe: async () => dressing,
+				loadInventoryItems: async () => [soy],
+			});
+
+			await user.click(screen.getByRole("button", { name: /つくった/u }));
+			await screen.findAllByText(/を引きました/u);
+
+			expect(
+				consume.mock.calls[0]?.[0].entries.map((entry) => [
+					entry.inventoryItemId,
+					entry.quantity,
+				]),
+			).toEqual([["inv-soy", 50]]);
+		});
+	});
 });

@@ -170,4 +170,76 @@ describe("loadLinkedShoppingSections", () => {
 		expect(sections).toHaveLength(1);
 		expect(sections[0]?.needs[0]?.quantity).toBe(10);
 	});
+
+	describe("在庫のできあがり（作り置き）", () => {
+		const measured = (id: string, name: string, quantity: number) => ({
+			...item(id, name),
+			status: "parsed",
+			amountText: `${quantity}ml`,
+			quantity,
+			unitLabel: "ml",
+		});
+		const dressing = {
+			name: "和風ドレッシング",
+			servings: 2,
+			ingredients: [measured("d-0", "醤油", 100)],
+			linkViews: [],
+		} as unknown as RecipeDetail;
+		const load = async () => dressing;
+		const half: RecipeShoppingNeed = {
+			...linkNeed("d", "和風ドレッシング"),
+			quantity: 0.5,
+			unitLabel: "量",
+		};
+
+		it("全部をまかなえるときは、材料を含めず、使う分を返す", async () => {
+			const { sections, madeUses } = await loadLinkedShoppingSections(
+				[half],
+				load,
+				new Map([["d", 1]]),
+			);
+
+			expect(sections).toEqual([]);
+			expect(madeUses).toEqual([
+				{ publicId: "d", name: "和風ドレッシング", quantity: 0.5 },
+			]);
+		});
+
+		it("足りないときは、ある分を先に使い、残りの割合だけ材料を展開する", async () => {
+			const { sections, madeUses } = await loadLinkedShoppingSections(
+				[{ ...half, quantity: 1 }],
+				load,
+				new Map([["d", 0.25]]),
+			);
+
+			expect(madeUses[0]?.quantity).toBe(0.25);
+			expect(sections[0]?.needs.map((n) => [n.name, n.quantity])).toEqual([
+				["醤油", 75],
+			]);
+		});
+
+		it("在庫がなければ、これまでどおり材料を展開する", async () => {
+			const { sections, madeUses } = await loadLinkedShoppingSections(
+				[half],
+				load,
+			);
+
+			expect(madeUses).toEqual([]);
+			expect(sections[0]?.needs[0]?.quantity).toBe(50);
+		});
+
+		it("同じレシピに2回リンクしても、在庫は二重に使わない", async () => {
+			const { sections, madeUses } = await loadLinkedShoppingSections(
+				[
+					{ ...half, id: "1" },
+					{ ...half, id: "2" },
+				],
+				load,
+				new Map([["d", 0.5]]),
+			);
+
+			expect(madeUses[0]?.quantity).toBe(0.5);
+			expect(sections[0]?.needs[0]?.quantity).toBe(50);
+		});
+	});
 });

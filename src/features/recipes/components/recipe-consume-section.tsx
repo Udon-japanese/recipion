@@ -17,6 +17,12 @@ import {
 import { loadLinkedShoppingSections } from "../application/load-linked-shopping-sections";
 import type { RecipeDetail } from "../application/recipe-repository";
 import { resolveIngredientLinks } from "../domain/link-ingredient-needs";
+import {
+	collectMadeRecipeStock,
+	type MadeRecipeUse,
+	madeRecipeNeedIdPrefix,
+	planMadeRecipeConsumption,
+} from "../domain/made-recipe-stock";
 import { mergeRecipeNeeds } from "../domain/merge-recipe-needs";
 import {
 	planRecipeConsumption,
@@ -79,6 +85,10 @@ function describeRow(row: RecipeConsumptionRow, isFailed: boolean): string {
 
 	switch (row.status) {
 		case "consume":
+			if (row.need.id.startsWith(madeRecipeNeedIdPrefix)) {
+				return `${name}：在庫のできあがりを、${formatStockAmount(row.deduct ?? 0, "count")}${unit}引きました（材料は引いていません）`;
+			}
+
 			return `${name}：${formatStockAmount(row.deduct ?? 0, row.target?.stockUnitCode ?? "count")}${unit}を引きました${row.viaStandIn && row.target ? `（${row.target.name}から）` : ""}`;
 		case "partial":
 			return `${name}：在庫が足りず、${formatStockAmount(row.deduct ?? 0, row.target?.stockUnitCode ?? "count")}${unit}だけ引きました（必要な量は${formatStockAmount(row.required ?? 0, row.target?.stockUnitCode ?? "count")}${unit}）`;
@@ -113,6 +123,9 @@ export function RecipeConsumeSection({
 		madeRecipe?.defaultChecked ?? false,
 	);
 	const putInStockId = useId();
+	// リンク先のレシピは、在庫のできあがり（作り置き）があれば、先にそれから使う（初期値）。材料から作るときは、外す。
+	const [useMadeStock, setUseMadeStock] = useState(true);
+	const useMadeStockId = useId();
 
 	const resolvedNeeds = useMemo(
 		() =>
@@ -124,23 +137,31 @@ export function RecipeConsumeSection({
 		return null;
 	}
 
-	async function loadNeeds(): Promise<RecipeShoppingNeed[]> {
+	// 引く材料と、在庫のできあがり（作り置き）から使う分（リンク先のレシピ）。
+	async function loadNeeds(stockItems: readonly InventoryListItem[]): Promise<{
+		needs: RecipeShoppingNeed[];
+		madeUses: MadeRecipeUse[];
+	}> {
 		const own = resolvedNeeds.filter((need) => !need.linkedRecipe);
 
 		if (!loadLinkedRecipe || !resolvedNeeds.some((need) => need.linkedRecipe)) {
-			return mergeRecipeNeeds(own);
+			return { needs: mergeRecipeNeeds(own), madeUses: [] };
 		}
 
 		const linked = await loadLinkedShoppingSections(
 			resolvedNeeds,
 			loadLinkedRecipe,
+			useMadeStock ? collectMadeRecipeStock(stockItems) : new Map(),
 		);
 
 		// 同じ食材の行は、1行にまとめる（引き算が1回になる）。
-		return mergeRecipeNeeds([
-			...own,
-			...linked.sections.flatMap((section) => section.needs),
-		]);
+		return {
+			needs: mergeRecipeNeeds([
+				...own,
+				...linked.sections.flatMap((section) => section.needs),
+			]),
+			madeUses: linked.madeUses,
+		};
 	}
 
 	// できあがりを在庫に入れる（再送しても、二重には入らない）。入れられなければ false。
@@ -167,11 +188,13 @@ export function RecipeConsumeSection({
 		setOutcome(null);
 
 		try {
-			const [needs, stockItems] = await Promise.all([
-				loadNeeds(),
-				loadInventoryItems(),
-			]);
-			const rows = planRecipeConsumption(needs, stockItems);
+			const stockItems = await loadInventoryItems();
+			const { needs, madeUses } = await loadNeeds(stockItems);
+			// 在庫のできあがり（作り置き）を先に引く。その分の材料は、needs に含まれない。
+			const rows = [
+				...planMadeRecipeConsumption(madeUses, stockItems),
+				...planRecipeConsumption(needs, stockItems),
+			];
 			const operation = startRecipeConsumption(recipePublicId, rows);
 			const results = await consume(operation);
 			const productionId = crypto.randomUUID();
@@ -299,11 +322,26 @@ export function RecipeConsumeSection({
 		: 0;
 	const hasPendingProduction =
 		outcome?.production !== null && outcome?.production?.isDone === false;
+	const hasLinkedRecipes = resolvedNeeds.some((need) => need.linkedRecipe);
 	const hasUndoableWork =
 		consumedCount > 0 || outcome?.production?.isDone === true;
 
 	return (
 		<section className={styles.container} aria-label="作った">
+			{hasLinkedRecipes ? (
+				<div className={styles.checkRow}>
+					<Checkbox
+						id={useMadeStockId}
+						label="リンク先のレシピは、在庫のできあがりから使う"
+						checked={useMadeStock}
+						disabled={isWorking}
+						onChange={(event) => setUseMadeStock(event.target.checked)}
+					/>
+					<label htmlFor={useMadeStockId} aria-hidden="true">
+						リンク先のレシピは、在庫のできあがりから使う
+					</label>
+				</div>
+			) : null}
 			{madeRecipe ? (
 				<div className={styles.checkRow}>
 					<Checkbox
