@@ -162,7 +162,8 @@ export const mark = style({
 });
 
 // 処理中は、文字もアイコンもなくし、マスコットだけにする（アイコン＋文字と同じ高さの真ん中）。
-export const markPending = style({ height: 46 });
+// マスコットの舞台（22px の体で、約 60px 四方）と同じ大きさにして、舞台の中心を、置きたい場所に合わせる。
+export const markPending = style({ width: 60, height: 60 });
 
 // 黄色い右のボタンでは、黄色い体が見えないので、白くする。
 export const markOnPrimary = style({
@@ -234,4 +235,17 @@ export const label = style({
 export const labelLeft = style({ left: `calc(${radius} + ${radius} * 0.06)` });
 export const labelRight = style({
 	right: `calc(${radius} + ${radius} * 0.06)`,
+});
+
+// 処理中：見えている四分の円の重心（角から、半径の 0.424 の位置）に、マスコットの体の中心を置く。
+// 動き回るのは、その近く（マスコットの roam で、範囲を小さくしている）。
+export const labelPending = style({
+	top: 0,
+	height: radius,
+	// 重心の高さ（半径の 0.576）に合わせる。体は足元より上にあるので、少し下へ。
+	paddingTop: `calc(${radius} * 0.152 + 16px)`,
+	boxSizing: "border-box",
+	justifyContent: "center",
+	// 重心の横の位置（半径の 0.424）が、真ん中になる幅。
+	width: `calc(${radius} * 0.728)`,
 });

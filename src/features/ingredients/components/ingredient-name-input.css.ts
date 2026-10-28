@@ -12,7 +12,8 @@ export const list = style({
 	left: 0,
 	right: 0,
 	display: "grid",
-	maxHeight: 280,
+	// 見える範囲（キーボードが出ていても）から、はみ出さないようにする。
+	maxHeight: "min(280px, 40dvh)",
 	marginTop: 6,
 	padding: 4,
 	overflowY: "auto",
@@ -20,6 +21,19 @@ export const list = style({
 	border: "1px solid var(--color-border)",
 	borderRadius: 16,
 	boxShadow: "var(--shadow-md)",
+	"@media": {
+		// PC：変換中は、IME の変換候補が入力欄の真下に出るので、重ならないよう、上に出す。
+		"(min-width: 768px)": {
+			selectors: {
+				'&[data-above="true"]': {
+					top: "auto",
+					bottom: "100%",
+					marginTop: 0,
+					marginBottom: 6,
+				},
+			},
+		},
+	},
 });
 
 export const option = style({

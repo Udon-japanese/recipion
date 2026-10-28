@@ -8,6 +8,8 @@ type MascotProps = {
 	size?: number;
 	// tap（既定）：止まっていて、押すと1回だけ跳ねる／loop：跳ね続ける（読み込み中）／still：止まったまま。
 	motion?: MascotMotion;
+	// 動き回る範囲の倍率（既定は 1。小さいほど、中心の近くだけを動く）。
+	roam?: number;
 };
 
 // アプリのマスコット（表示名は config/app.ts の MASCOT_DISPLAY_NAME）。
@@ -16,11 +18,12 @@ type MascotProps = {
 export function Mascot({
 	size = MASCOT_BASE_WIDTH,
 	motion = "tap",
+	roam,
 }: MascotProps) {
 	const bodyRef = useRef<HTMLSpanElement>(null);
 	const scale = size / MASCOT_BASE_WIDTH;
 
-	const hop = useMascotPhysics(bodyRef, { motion, scale });
+	const hop = useMascotPhysics(bodyRef, { motion, scale, roam });
 
 	return (
 		<span

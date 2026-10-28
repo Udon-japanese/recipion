@@ -20,7 +20,8 @@ export type CompletionMenuItem = {
 };
 
 type CompletionMenuProps = {
-	textareaRef: RefObject<HTMLTextAreaElement | null>;
+	// 1行の入力欄でも使える（その場合は、keyboard-bar だけ）。
+	textareaRef: RefObject<HTMLTextAreaElement | HTMLInputElement | null>;
 	layout: CompletionLayout;
 	open: boolean;
 	// カーソルの位置（本文の index）。メニューを、ここの近くに置く。
@@ -87,7 +88,12 @@ export function CompletionMenu({
 		const textarea = textareaRef.current;
 		const popup = popupRef.current;
 
-		if (!open || layout !== "caret" || !textarea || !popup) {
+		if (
+			!open ||
+			layout !== "caret" ||
+			!(textarea instanceof HTMLTextAreaElement) ||
+			!popup
+		) {
 			setPosition((current) => (current === null ? current : null));
 
 			return;
