@@ -33,9 +33,19 @@ import { SegmentedControl } from "#/components/segmented-control/segmented-contr
 import { Sheet } from "#/components/sheet/sheet";
 import { Tag } from "#/components/tag/tag";
 import { Toast } from "#/components/toast/toast";
+import { Toggle } from "#/components/toggle/toggle";
 import type { InventoryListItem } from "#/features/inventory/application/inventory-query-repository";
 import { RecipeConsumeSection } from "#/features/recipes/components/recipe-consume-section";
 import type { RecipeEditorIngredientNode } from "#/features/recipes/domain/recipe-editor-document";
+import {
+	type BranchCardSide,
+	type BranchCardView,
+	ShoppingBranchCard,
+} from "#/features/shopping/components/shopping-branch-card";
+import {
+	type BranchConditionValue,
+	ShoppingBranchConditionEditor,
+} from "#/features/shopping/components/shopping-branch-condition-editor";
 
 // 開発中だけの、部品の確認用ページの中身（/dev/ui。本番では、404）。
 // 部品を足したら、ここに並べる。デザインの依頼の、スクリーンショットにも使う。
@@ -369,6 +379,7 @@ export function UiGallery() {
 			<PartsGallery />
 
 			<SheetGallery />
+			<BranchGallery />
 
 			<Section title="れしぽよの大きさ">
 				<div style={row}>
@@ -393,6 +404,7 @@ function PartsGallery() {
 	const [view, setView] = useState<"list" | "store">("list");
 	const [pressed, setPressed] = useState("1週間");
 	const [checked, setChecked] = useState(false);
+	const [toggled, setToggled] = useState(true);
 	const [text, setText] = useState("");
 
 	return (
@@ -561,6 +573,26 @@ function PartsGallery() {
 				</div>
 			</Section>
 
+			<Section
+				title="トグル"
+				description="すぐに効く設定の切り替え（「保存」を押す入力には、チェックボックス）。"
+			>
+				<div style={row}>
+					<Toggle
+						label="調理中は、画面を消さない"
+						checked={toggled}
+						onChange={setToggled}
+					/>
+					<Toggle
+						label="使えない（切）"
+						checked={false}
+						disabled
+						onChange={() => {}}
+					/>
+					<Toggle label="使えない（入）" checked disabled onChange={() => {}} />
+				</div>
+			</Section>
+
 			<Section title="部品（第1弾）：お知らせ・カード・トースト">
 				<div style={{ display: "grid", gap: 12, maxWidth: 420 }}>
 					<Note tone="info" spinning>
@@ -636,6 +668,95 @@ const consumeStock: InventoryListItem[] = [
 	defaultStorage: null,
 	updatedAt: "2026-09-23T00:00:00.000Z",
 }));
+
+const galleryStores = [
+	{ id: "aeon", name: "イオン" },
+	{ id: "seiyu", name: "西友" },
+];
+
+// 条件つきのメモの、見た目の確認用（偽のデータ）。
+function BranchGallery() {
+	const [branch, setBranch] = useState<BranchCardView>({
+		condition: "イオンに合い挽き肉 1パックが売っていたら",
+		ifTrue: {
+			label: "ハンバーグ",
+			items: [
+				{ id: "t1", name: "卵", amount: "10個" },
+				{ id: "t2", name: "にんにくチューブ", amount: "1本" },
+			],
+		},
+		ifFalse: {
+			label: "生姜焼き",
+			items: [
+				{ id: "e1", name: "豚バラ肉", amount: "1パック" },
+				{ id: "e2", name: "アボカド", amount: "1個" },
+				{ id: "e3", name: "しょうが", amount: "1パック" },
+			],
+		},
+	});
+	const [isEditing, setIsEditing] = useState(false);
+	const [message, setMessage] = useState("");
+	const [value, setValue] = useState<BranchConditionValue>({
+		storeId: "aeon",
+		name: "合い挽き肉",
+		quantity: "1",
+		unitLabel: "パック",
+		condition: "売っていたら",
+		thenLabel: "ハンバーグ",
+		elseLabel: "生姜焼き",
+	});
+
+	function removeItem(side: BranchCardSide, itemId: string) {
+		const key = side === "then" ? "ifTrue" : "ifFalse";
+
+		setBranch({
+			...branch,
+			[key]: {
+				...branch[key],
+				items: branch[key].items.filter((item) => item.id !== itemId),
+			},
+		});
+	}
+
+	return (
+		<Section
+			title="条件つきのメモ"
+			description="ふだんは1枚にたたむ。「中身を見る」でタブ、右上の「…」から条件を直す・削除。"
+		>
+			<div style={{ maxWidth: 480 }}>
+				<ShoppingBranchCard
+					branch={branch}
+					onDecide={(side) =>
+						setMessage(
+							`「${side === "then" ? "そうだった" : "ちがった"}」を押しました`,
+						)
+					}
+					onEdit={() => setIsEditing(true)}
+					onRemove={() => setMessage("削除の確認を出します")}
+					onRemoveItem={removeItem}
+					onAdd={() => setMessage("追加のシートを開きます")}
+					onBulkAdd={() => setMessage("まとめて追加を開きます")}
+					onAddFromRecipe={() => setMessage("レシピから入れるを開きます")}
+				/>
+			</div>
+			{message ? <p style={note}>{message}</p> : null}
+
+			<ShoppingBranchConditionEditor
+				open={isEditing}
+				value={value}
+				stores={galleryStores}
+				onCancel={() => setIsEditing(false)}
+				onSave={async (next) => {
+					await wait(1500);
+					setValue(next);
+					setIsEditing(false);
+
+					return true;
+				}}
+			/>
+		</Section>
+	);
+}
 
 function SheetGallery() {
 	const [single, setSingle] = useState(false);
