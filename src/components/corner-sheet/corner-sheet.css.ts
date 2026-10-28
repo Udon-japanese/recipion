@@ -13,7 +13,8 @@ const fadeIn = keyframes({ from: { opacity: 0 }, to: { opacity: 1 } });
 export const root = style({
 	position: "fixed",
 	inset: 0,
-	zIndex: 20,
+	// 確認は、下のシートの上にも出る。
+	zIndex: 30,
 	display: "flex",
 	justifyContent: "center",
 	vars: { [radius]: "104px" },
@@ -34,6 +35,8 @@ export const stage = style({
 	height: "100%",
 	// 暗幕を押せるように、枠そのものは、クリックを通す。
 	pointerEvents: "none",
+	// フォーカスを受ける枠（輪郭は出さない）。
+	outline: "none",
 });
 
 export const card = style({
@@ -158,6 +161,9 @@ export const mark = style({
 	height: 24,
 });
 
+// 処理中は、文字もアイコンもなくし、マスコットだけにする（アイコン＋文字と同じ高さの真ん中）。
+export const markPending = style({ height: 46 });
+
 // 黄色い右のボタンでは、黄色い体が見えないので、白くする。
 export const markOnPrimary = style({
 	vars: { "--color-mascot": "var(--color-surface)" },
@@ -192,11 +198,25 @@ export const right = style({
 	},
 });
 
+export const rightDanger = style({
+	right: `calc(${radius} * -1)`,
+	background: "var(--color-error)",
+	color: "var(--color-on-error)",
+	boxShadow: "0 -6px 28px rgba(200, 59, 50, 0.35)",
+
+	selectors: {
+		'&:disabled[aria-busy="true"]': {
+			background: "var(--color-error)",
+			color: "var(--color-on-error)",
+		},
+	},
+});
+
 // 見えている四分の一の中に置く。
 export const label = style({
 	position: "absolute",
 	top: `calc(${radius} * 0.3)`,
-	width: `calc(${radius} * 0.74)`,
+	width: `calc(${radius} * 0.8)`,
 	display: "flex",
 	flexDirection: "column",
 	alignItems: "center",
@@ -204,7 +224,11 @@ export const label = style({
 	fontSize: "var(--font-size-sm)",
 	fontWeight: "var(--font-weight-bold)",
 	lineHeight: 1.2,
-	whiteSpace: "nowrap",
+	// 長いラベル（「すべて削除する」など）は、折り返す。
+	textAlign: "center",
+	overflowWrap: "anywhere",
+	// 1文字だけ残らないよう、行の長さをそろえる。
+	textWrap: "balance",
 });
 
 export const labelLeft = style({ left: `calc(${radius} + ${radius} * 0.06)` });

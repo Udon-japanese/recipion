@@ -16,11 +16,15 @@ type CornerAction = {
 	disabled?: boolean;
 	// 処理中（押せない。マスコットが跳ねる。読み上げには、処理中と伝える）。
 	pending?: boolean;
+	// 取り消せない操作（削除など）は、赤にする（右のボタンだけ）。
+	danger?: boolean;
 };
 
 type CornerSheetProps = {
 	open: boolean;
 	title: string;
+	// 確認（やめる／実行）は alertdialog。
+	role?: "dialog" | "alertdialog";
 	// 見出しの上の、小さな添え書き。
 	eyebrow?: string;
 	// 左下：やめる・戻す側（暗い色）。出さないときは省略。
@@ -43,7 +47,7 @@ function Corner({
 	return (
 		<button
 			type="button"
-			className={`${styles.corner} ${side === "left" ? styles.left : styles.right}`}
+			className={`${styles.corner} ${side === "left" ? styles.left : action.danger ? styles.rightDanger : styles.right}`}
 			disabled={action.disabled || action.pending}
 			aria-busy={action.pending || undefined}
 			aria-label={action.label}
@@ -53,15 +57,15 @@ function Corner({
 				className={`${styles.label} ${side === "left" ? styles.labelLeft : styles.labelRight}`}
 			>
 				<span
-					className={`${styles.mark} ${action.pending && side === "right" ? styles.markOnPrimary : ""}`}
+					className={`${styles.mark} ${action.pending ? styles.markPending : ""} ${action.pending && side === "right" ? styles.markOnPrimary : ""}`}
 				>
 					{action.pending ? (
-						<Mascot size={19} motion="loop" />
+						<Mascot size={22} motion="loop" />
 					) : (
 						<Icon name={action.icon} size={24} />
 					)}
 				</span>
-				{action.label}
+				{action.pending ? null : action.label}
 			</span>
 		</button>
 	);
@@ -73,6 +77,7 @@ function Corner({
 export function CornerSheet({
 	open,
 	title,
+	role = "dialog",
 	eyebrow,
 	left,
 	right,
@@ -83,7 +88,7 @@ export function CornerSheet({
 	const layout = isDesktop ? "desktop" : "mobile";
 	const titleId = useId();
 	const portalRef = useRef<HTMLDivElement>(null);
-	const cardRef = useRef<HTMLElement>(null);
+	const cardRef = useRef<HTMLDivElement>(null);
 	const onDismissRef = useRef(onDismiss);
 	onDismissRef.current = onDismiss;
 
@@ -97,13 +102,15 @@ export function CornerSheet({
 
 		function handleKeyDown(event: KeyboardEvent) {
 			if (event.key === "Escape") {
+				// 下のシートまで閉じないよう、ここで止める（シートより先に受ける）。
+				event.stopImmediatePropagation();
 				onDismissRef.current?.();
 			}
 		}
 
-		document.addEventListener("keydown", handleKeyDown);
+		document.addEventListener("keydown", handleKeyDown, true);
 
-		return () => document.removeEventListener("keydown", handleKeyDown);
+		return () => document.removeEventListener("keydown", handleKeyDown, true);
 	}, [open]);
 
 	if (!open || typeof document === "undefined") {
@@ -117,16 +124,17 @@ export function CornerSheet({
 				aria-hidden="true"
 				onClick={() => onDismissRef.current?.()}
 			/>
-			<div className={styles.stage} data-layout={layout}>
-				<section
-					className={styles.card}
-					data-layout={layout}
-					ref={cardRef}
-					role="dialog"
-					aria-modal="true"
-					aria-labelledby={titleId}
-					tabIndex={-1}
-				>
+			{/* biome-ignore lint/a11y/useAriaPropsSupportedByRole: role は、dialog か alertdialog（どちらも aria-modal に対応） */}
+			<div
+				className={styles.stage}
+				data-layout={layout}
+				ref={cardRef}
+				role={role}
+				aria-modal="true"
+				aria-labelledby={titleId}
+				tabIndex={-1}
+			>
+				<section className={styles.card} data-layout={layout}>
 					<div className={styles.header}>
 						{eyebrow ? <p className={styles.eyebrow}>{eyebrow}</p> : null}
 						<h2 className={styles.title} id={titleId}>
@@ -150,6 +158,7 @@ export function CornerSheet({
 								</Button>
 							) : null}
 							<Button
+								variant={right.danger ? "danger" : "primary"}
 								size="lg"
 								leadingIcon={<Icon name={right.icon} size={20} />}
 								status={right.pending ? "pending" : "idle"}

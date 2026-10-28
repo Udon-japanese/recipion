@@ -102,11 +102,15 @@ describe("RecipeConsumeSection", () => {
 			["inv-onion", 2],
 			["inv-egg", 4],
 		]);
-		expect(screen.getByText(/玉ねぎ：2個を引きました/u)).toBeInTheDocument();
+		const deducted = screen.getByRole("list", { name: "引いたもの" });
+
+		expect(deducted).toHaveTextContent("玉ねぎ2個");
+		expect(deducted).toHaveTextContent(
+			"卵4個在庫が足りず、ある分だけ（必要な量は6個）",
+		);
 		expect(
-			screen.getByText(/卵：在庫が足りず、4個だけ引きました（必要な量は6個）/u),
-		).toBeInTheDocument();
-		expect(screen.getByText(/塩：.*減らしていません/u)).toBeInTheDocument();
+			screen.getByRole("region", { name: /減らしていません/u }),
+		).toHaveTextContent("塩");
 	});
 
 	it("形が決まっている冷凍（みじん切り）は、自動では引かず、ボタンで選んだときだけ、同じ操作に足して引く", async () => {
@@ -140,10 +144,8 @@ describe("RecipeConsumeSection", () => {
 		);
 
 		expect(
-			await screen.findByText(
-				/玉ねぎ：100gを引きました（冷凍玉ねぎ\(みじん切り\)から）/u,
-			),
-		).toBeInTheDocument();
+			await screen.findByRole("list", { name: "引いたもの" }),
+		).toHaveTextContent("玉ねぎ100g冷凍玉ねぎ(みじん切り)から");
 		expect(screen.getByText("在庫から1件を引きました")).toBeInTheDocument();
 
 		const [operation, only] = consume.mock.calls[1] ?? [];
@@ -178,10 +180,10 @@ describe("RecipeConsumeSection", () => {
 		await user.click(screen.getByRole("button", { name: /つくった/u }));
 
 		expect(
-			await screen.findByText(
-				/オリーブオイル：「ある」で管理しているため、減らしていません/u,
-			),
-		).toBeInTheDocument();
+			await screen.findByRole("region", {
+				name: /「ある」で管理しているため、減らしていません/u,
+			}),
+		).toHaveTextContent("オリーブオイル");
 		expect(consume.mock.calls[0]?.[0].entries).toEqual([]);
 	});
 
@@ -447,11 +449,12 @@ describe("RecipeConsumeSection", () => {
 
 			await user.click(screen.getByRole("button", { name: /つくった/u }));
 
-			expect(
-				await screen.findByText(
-					/和風ドレッシング：在庫のできあがりを、.+回分引きました（材料は引いていません）/u,
-				),
-			).toBeInTheDocument();
+			const deducted = await screen.findByRole("list", { name: "引いたもの" });
+
+			expect(deducted).toHaveTextContent("和風ドレッシング");
+			expect(deducted).toHaveTextContent(
+				"在庫のできあがりから（材料は引いていません）",
+			);
 			expect(
 				consume.mock.calls[0]?.[0].entries.map((entry) => [
 					entry.inventoryItemId,
