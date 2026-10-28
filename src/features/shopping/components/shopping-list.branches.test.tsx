@@ -22,6 +22,17 @@ afterEach(() => {
 	localStorage.clear();
 });
 
+// カードの「その他」メニューから、項目を選ぶ。
+async function chooseFromMenu(
+	user: ReturnType<typeof userEvent.setup>,
+	scope: HTMLElement,
+	triggerName: RegExp | string,
+	itemName: string,
+) {
+	await user.click(within(scope).getByRole("button", { name: triggerName }));
+	await user.click(await screen.findByRole("menuitem", { name: itemName }));
+}
+
 describe("ShoppingList の条件つきのメモ", () => {
 	it("条件つきのメモに入れた項目は一覧に出ず、チェックもできず、決めると選んだ側だけが一覧に出る", async () => {
 		const user = userEvent.setup();
@@ -49,7 +60,10 @@ describe("ShoppingList の条件つきのメモ", () => {
 
 		const card = (
 			await screen.findByRole("heading", { name: /合い挽きが売っていたら/ })
-		).closest("div") as HTMLElement;
+		).closest("section") as HTMLElement;
+
+		// ふだんはたたんである。中身を開いて、タブで側を切り替えながら入れる。
+		await user.click(within(card).getByRole("button", { name: /中身を見る/ }));
 
 		// 「そうなら」の側に玉ねぎ、「そうでなければ」の側に鶏ももを入れる。
 		for (const [title, name] of [
@@ -57,8 +71,11 @@ describe("ShoppingList の条件つきのメモ", () => {
 			["そうでなければ", "鶏もも"],
 		] as const) {
 			await user.click(
-				within(card).getByRole("button", { name: `${title}に追加` }),
+				within(card).getByRole("button", {
+					name: new RegExp(`^${title} \\d+$`),
+				}),
 			);
+			await chooseFromMenu(user, card, `${title}に追加`, "1つ追加");
 
 			const sheet = await screen.findByRole("dialog", {
 				name: `${title}に追加`,
@@ -84,13 +101,18 @@ describe("ShoppingList の条件つきのメモ", () => {
 		}
 
 		// 全体のテストを並行して動かすと、描画が遅れることがあるので、待ちを長めにする。
+		// 側ごとに、タブで切り替えて見る（「そうでなければ」を見ているあいだは、玉ねぎは出ない）。
 		await waitFor(
-			() => {
-				expect(within(card).getByText(/玉ねぎ/)).toBeInTheDocument();
-				expect(within(card).getByText(/鶏もも/)).toBeInTheDocument();
-			},
+			() => expect(within(card).getByText(/鶏もも/)).toBeInTheDocument(),
 			{ timeout: 5000 },
 		);
+		expect(within(card).queryByText(/玉ねぎ/)).not.toBeInTheDocument();
+
+		await user.click(
+			within(card).getByRole("button", { name: /^そうなら \d+$/ }),
+		);
+
+		expect(await within(card).findByText(/玉ねぎ/)).toBeInTheDocument();
 
 		// 通常の一覧には出ず、チェックの欄もない。
 		expect(
@@ -133,11 +155,11 @@ describe("ShoppingList の条件つきのメモ", () => {
 
 		render(<ShoppingList repository={dexieShoppingRepository} />);
 
-		await user.click(
-			await screen.findByRole("button", {
-				name: "合い挽きの条件つきのメモを削除",
-			}),
-		);
+		const card = (
+			await screen.findByRole("heading", { name: /合い挽き.*が売っていたら/ })
+		).closest("section") as HTMLElement;
+
+		await chooseFromMenu(user, card, /のその他/, "削除する");
 
 		const dialog = screen.getByRole("alertdialog", {
 			name: "条件つきのメモを削除",
@@ -149,9 +171,7 @@ describe("ShoppingList の条件つきのメモ", () => {
 			screen.getByRole("heading", { name: /合い挽き.*が売っていたら/ }),
 		).toBeInTheDocument();
 
-		await user.click(
-			screen.getByRole("button", { name: "合い挽きの条件つきのメモを削除" }),
-		);
+		await chooseFromMenu(user, card, /のその他/, "削除する");
 		await user.click(
 			within(screen.getByRole("alertdialog")).getByRole("button", {
 				name: "削除する",
@@ -191,20 +211,28 @@ describe("ShoppingList の条件つきのメモ", () => {
 		await seedBranch(null);
 		render(<ShoppingList repository={dexieShoppingRepository} />);
 
+		const card = (
+			await screen.findByRole("heading", { name: /合い挽きが売っていたら/ })
+		).closest("section") as HTMLElement;
+
+		await chooseFromMenu(user, card, /のその他/, "条件を直す");
+
+		const dialog = await screen.findByRole("dialog", { name: "条件を直す" });
+
+		// 直したい部分を押すと、その入力だけが開く。
 		await user.click(
-			await screen.findByRole("button", { name: "合い挽きの条件を編集" }),
+			within(dialog).getByRole("button", { name: "売っていたら" }),
 		);
 
-		const dialog = await screen.findByRole("dialog", { name: "条件を編集" });
 		const condition = within(dialog).getByLabelText("どんな時に");
-		const name = within(dialog).getByLabelText("商品名");
 
 		await user.clear(condition);
 		await user.type(condition, "安ければ");
-		await user.type(
-			within(dialog).getByLabelText(/「そうなら」の呼び名/),
-			"ハンバーグ",
-		);
+		await user.type(within(dialog).getByLabelText("そうなら"), "ハンバーグ");
+		await user.click(within(dialog).getByRole("button", { name: "合い挽き" }));
+
+		const name = within(dialog).getByLabelText("材料");
+
 		await user.clear(name);
 		await user.type(name, "牛ひき");
 		await user.click(within(dialog).getByRole("button", { name: "保存" }));
@@ -212,7 +240,7 @@ describe("ShoppingList の条件つきのメモ", () => {
 		expect(
 			await screen.findByRole("heading", { name: /牛ひきが安ければ/ }),
 		).toBeInTheDocument();
-		expect(screen.getByText("そうなら（ハンバーグ）")).toBeInTheDocument();
+		expect(screen.getByText("ハンバーグ 0件")).toBeInTheDocument();
 		await expect(
 			getLocalDatabase().shoppingBranches.get("branch-1"),
 		).resolves.toMatchObject({
@@ -227,14 +255,20 @@ describe("ShoppingList の条件つきのメモ", () => {
 		await seedBranch(null);
 		render(<ShoppingList repository={dexieShoppingRepository} />);
 
+		const card = (
+			await screen.findByRole("heading", { name: /合い挽きが売っていたら/ })
+		).closest("section") as HTMLElement;
+
+		await chooseFromMenu(user, card, /のその他/, "条件を直す");
+
+		const dialog = await screen.findByRole("dialog", { name: "条件を直す" });
+
 		await user.click(
-			await screen.findByRole("button", { name: "合い挽きの条件を編集" }),
+			within(dialog).getByRole("button", { name: "売っていたら" }),
 		);
-
-		const dialog = await screen.findByRole("dialog", { name: "条件を編集" });
-
 		await user.clear(within(dialog).getByLabelText("どんな時に"));
-		await user.click(within(dialog).getByRole("button", { name: "保存" }));
+
+		expect(within(dialog).getByRole("button", { name: "保存" })).toBeDisabled();
 
 		// 保存されず、元の条件のまま。
 		await expect(
@@ -248,11 +282,12 @@ describe("ShoppingList の条件つきのメモ", () => {
 		await seedBranch(null);
 		render(<ShoppingList repository={dexieShoppingRepository} />);
 
-		await user.click(
-			await screen.findByRole("button", {
-				name: "そうならにまとめて追加",
-			}),
-		);
+		const card = (
+			await screen.findByRole("heading", { name: /合い挽きが売っていたら/ })
+		).closest("section") as HTMLElement;
+
+		await user.click(within(card).getByRole("button", { name: /中身を見る/ }));
+		await chooseFromMenu(user, card, "そうならに追加", "まとめて追加");
 
 		const sheet = await screen.findByRole("dialog", {
 			name: "そうならにまとめて追加",

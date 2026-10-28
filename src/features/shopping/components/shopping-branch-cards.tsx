@@ -1,18 +1,13 @@
-import { type ReactNode, useState } from "react";
+import { useState } from "react";
 import { Button } from "#/components/button/button";
 import { ConfirmDialog } from "#/components/dialog/confirm-dialog";
-import { Field, TextInput } from "#/components/field/field";
-import { Icon } from "#/components/icon/icon";
-import { IconButton } from "#/components/icon-button/icon-button";
-import {
-	ListRow,
-	ListRowMeta,
-	ListRowName,
-} from "#/components/list-row/list-row";
 import { Sheet } from "#/components/sheet/sheet";
-import { Tag } from "#/components/tag/tag";
 import { useMediaQuery } from "#/components/use-media-query";
-import { formatQuantityForUnit } from "#/features/quantity/domain/format-quantity";
+import {
+	formatQuantity,
+	formatQuantityForUnit,
+} from "#/features/quantity/domain/format-quantity";
+import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
 import type { ShoppingRepository } from "../application/shopping-repository";
 import type { ParsedShoppingMemoLine } from "../domain/parse-shopping-memo";
 import type { CreateShoppingBranchInput } from "../domain/shopping-branch";
@@ -30,8 +25,16 @@ import type {
 } from "../domain/shopping-item";
 import type { ShoppingStore } from "../domain/shopping-store";
 import type { RenderRecipePicker } from "./recipe-picker-slot";
+import {
+	type BranchCardSide,
+	type BranchCardView,
+	ShoppingBranchCard,
+} from "./shopping-branch-card";
+import {
+	type BranchConditionValue,
+	ShoppingBranchConditionEditor,
+} from "./shopping-branch-condition-editor";
 import { ShoppingBulkAdd } from "./shopping-bulk-add";
-import { ShoppingItemEditForm } from "./shopping-item-edit-form";
 import { ShoppingItemForm } from "./shopping-item-form";
 import * as styles from "./shopping-page.css";
 
@@ -111,14 +114,26 @@ function describeCondition(
 	return `${storeName ? `${storeName}に` : ""}${item.name}${quantity}が${condition}`;
 }
 
-// 分類のカードの中に置く、条件つきのメモのブロック（条件・2 つの側・決める・削除）。
+function sideAddTitle(branch: ShoppingBranch, side: BranchCardSide): string {
+	return `${
+		side === "then"
+			? sideTitle(branch.thenLabel, "そうなら")
+			: sideTitle(branch.elseLabel, "そうでなければ")
+	}`;
+}
+
+// 分類のカードの中に置く、条件つきのメモ（1つ1枚のカード）。
+// ふだんはたたんで、条件・2つの側の件数・「そうだった／ちがった」。中身は、開いてタブで1側ずつ。
 export function ShoppingBranchCards({
 	branches,
 	context,
 }: ShoppingBranchCardsProps) {
 	const isRight = useMediaQuery("(min-width: 1024px)");
-	// 「レシピから入れる」を開いている側（分岐の ID と側）。
-	const [pickingKey, setPickingKey] = useState<string | null>(null);
+	// 「レシピから入れる」を開いている側。
+	const [pickTarget, setPickTarget] = useState<{
+		branch: ShoppingBranch;
+		side: ShoppingBranchSide;
+	} | null>(null);
 	// 「追加」のシートを開いている側。
 	const [addTarget, setAddTarget] = useState<{
 		branch: ShoppingBranch;
@@ -141,190 +156,87 @@ export function ShoppingBranchCards({
 		context.stores.map((store) => [store.id, store.name]),
 	);
 
-	function renderSide(branch: ShoppingBranch, side: ShoppingBranchSide) {
-		const sideItems = getShoppingBranchSideItems(
+	function toSideView(branch: ShoppingBranch, side: ShoppingBranchSide) {
+		return {
+			label: side === "then" ? branch.thenLabel : branch.elseLabel,
+			items: getShoppingBranchSideItems(context.items, branch.id, side).map(
+				(item) => ({
+					id: item.id,
+					name: item.name,
+					amount: `${formatQuantityForUnit(item.quantity, item.unitLabel)}${item.unitLabel ?? ""}`,
+					storeName: item.storeId
+						? storeNamesById.get(item.storeId)
+						: undefined,
+				}),
+			),
+		};
+	}
+
+	function toCardView(branch: ShoppingBranch): BranchCardView {
+		const conditionItem = getShoppingBranchConditionItem(
 			context.items,
 			branch.id,
-			side,
 		);
-		const title =
-			side === "then"
-				? sideTitle(branch.thenLabel, "そうなら")
-				: sideTitle(branch.elseLabel, "そうでなければ");
-		const key = `${branch.id}:${side}`;
-		let picker: ReactNode = null;
+		const conditionStore = conditionItem?.storeId
+			? storeNamesById.get(conditionItem.storeId)
+			: undefined;
 
-		if (context.renderRecipePicker && context.repository) {
-			picker = (
-				<>
-					<Button
-						variant="secondary"
-						size="sm"
-						leadingIcon={<Icon name="book" size={20} />}
-						aria-label={`${title}にレシピから入れる`}
-						onClick={() => setPickingKey(key)}
-					>
-						レシピから入れる
-					</Button>
-
-					{pickingKey === key
-						? context.renderRecipePicker({
-								repository: context.repository,
-								destination: { branchId: branch.id, side },
-								onClose: () => setPickingKey(null),
-								onApplied: (recipeName) =>
-									context.onRecipeApplied?.(branch, side, recipeName),
-							})
-						: null}
-				</>
-			);
-		}
-
-		return (
-			<div className={styles.branchSide} data-side={side} key={side}>
-				<h3 className={styles.branchSideTitle}>
-					<Tag icon={side === "then" ? "check-circle" : "ban-circle"}>
-						{title}
-					</Tag>
-				</h3>
-
-				{sideItems.length === 0 ? (
-					<p className={styles.branchSideEmpty}>まだありません。</p>
-				) : (
-					<ul className={styles.branchSideRows}>
-						{sideItems.map((item) => {
-							const storeName = item.storeId
-								? storeNamesById.get(item.storeId)
-								: undefined;
-
-							return (
-								<ListRow
-									key={item.id}
-									actions={
-										<IconButton
-											icon="trash"
-											label={`${item.name}を削除（${title}）`}
-											tone="plain"
-											onClick={() => void context.onRemoveItem(item.id)}
-										/>
-									}
-								>
-									<ListRowName>{item.name}</ListRowName>
-
-									<ListRowMeta>
-										<span>
-											{formatQuantityForUnit(item.quantity, item.unitLabel)}
-											{item.unitLabel}
-										</span>
-
-										{storeName ? <Tag icon="store">{storeName}</Tag> : null}
-									</ListRowMeta>
-								</ListRow>
-							);
-						})}
-					</ul>
-				)}
-
-				<div className={styles.branchSideActions}>
-					{picker}
-
-					<Button
-						variant="secondary"
-						size="sm"
-						leadingIcon={<Icon name="plus" size={20} />}
-						aria-label={`${title}に追加`}
-						onClick={() => setAddTarget({ branch, side })}
-					>
-						追加
-					</Button>
-
-					<Button
-						variant="secondary"
-						size="sm"
-						leadingIcon={<Icon name="rows" size={20} />}
-						aria-label={`${title}にまとめて追加`}
-						onClick={() => setBulkTarget({ branch, side })}
-					>
-						まとめて追加
-					</Button>
-				</div>
-			</div>
-		);
+		return {
+			condition: describeCondition(
+				conditionItem,
+				conditionStore,
+				branch.condition,
+			),
+			ifTrue: toSideView(branch, "then"),
+			ifFalse: toSideView(branch, "else"),
+		};
 	}
 
 	const addTitle = addTarget
-		? `${
-				addTarget.side === "then"
-					? sideTitle(addTarget.branch.thenLabel, "そうなら")
-					: sideTitle(addTarget.branch.elseLabel, "そうでなければ")
-			}に追加`
+		? `${sideAddTitle(addTarget.branch, addTarget.side)}に追加`
 		: "";
 	const addFormId = "shopping-branch-side-form";
+	const editingItem = editingBranch
+		? getShoppingBranchConditionItem(context.items, editingBranch.id)
+		: undefined;
 
 	return (
 		<>
-			{branches.map((branch) => {
-				const conditionItem = getShoppingBranchConditionItem(
-					context.items,
-					branch.id,
-				);
-				const conditionStore = conditionItem?.storeId
-					? storeNamesById.get(conditionItem.storeId)
-					: undefined;
+			{branches.map((branch) => (
+				<div className={styles.branchSlot} key={branch.id}>
+					<ShoppingBranchCard
+						branch={toCardView(branch)}
+						onDecide={(side) => void context.onDecide(branch, side)}
+						onEdit={() => setEditingBranch(branch)}
+						onRemove={() => setRemovingBranch(branch)}
+						onRemoveItem={(_side, itemId) => void context.onRemoveItem(itemId)}
+						onAdd={(side) => setAddTarget({ branch, side })}
+						onBulkAdd={(side) => setBulkTarget({ branch, side })}
+						onAddFromRecipe={
+							context.renderRecipePicker && context.repository
+								? (side) => setPickTarget({ branch, side })
+								: undefined
+						}
+					/>
+				</div>
+			))}
 
-				return (
-					<div className={styles.branchBlock} key={branch.id}>
-						<h2 className={styles.branchCondition}>
-							<span className={styles.branchConditionText}>
-								{describeCondition(
-									conditionItem,
-									conditionStore,
-									branch.condition,
-								)}
-							</span>
-
-							<IconButton
-								icon="edit"
-								label={`${conditionItem?.name ?? branch.condition}の条件を編集`}
-								tone="plain"
-								onClick={() => setEditingBranch(branch)}
-							/>
-						</h2>
-
-						{renderSide(branch, "then")}
-						{renderSide(branch, "else")}
-
-						<div className={styles.branchFooter}>
-							<div className={styles.branchDecide}>
-								<Button
-									variant="secondary"
-									leadingIcon={<Icon name="check" size={20} />}
-									onClick={() => void context.onDecide(branch, "then")}
-								>
-									そうだった
-								</Button>
-
-								<Button
-									variant="secondary"
-									leadingIcon={<Icon name="close" size={20} />}
-									onClick={() => void context.onDecide(branch, "else")}
-								>
-									ちがった
-								</Button>
-							</div>
-
-							<Button
-								variant="danger"
-								leadingIcon={<Icon name="trash" size={20} />}
-								aria-label={`${conditionItem?.name ?? branch.condition}の条件つきのメモを削除`}
-								onClick={() => setRemovingBranch(branch)}
-							>
-								条件つきのメモを削除
-							</Button>
-						</div>
-					</div>
-				);
-			})}
+			{pickTarget && context.renderRecipePicker && context.repository
+				? context.renderRecipePicker({
+						repository: context.repository,
+						destination: {
+							branchId: pickTarget.branch.id,
+							side: pickTarget.side,
+						},
+						onClose: () => setPickTarget(null),
+						onApplied: (recipeName) =>
+							context.onRecipeApplied?.(
+								pickTarget.branch,
+								pickTarget.side,
+								recipeName,
+							),
+					})
+				: null}
 
 			<Sheet
 				open={addTarget !== null}
@@ -374,11 +286,7 @@ export function ShoppingBranchCards({
 
 			{bulkTarget ? (
 				<ShoppingBulkAdd
-					title={`${
-						bulkTarget.side === "then"
-							? sideTitle(bulkTarget.branch.thenLabel, "そうなら")
-							: sideTitle(bulkTarget.branch.elseLabel, "そうでなければ")
-					}にまとめて追加`}
+					title={`${sideAddTitle(bulkTarget.branch, bulkTarget.side)}にまとめて追加`}
 					stores={context.stores}
 					conversionDefaults={context.conversionDefaults}
 					onClose={() => setBulkTarget(null)}
@@ -389,16 +297,47 @@ export function ShoppingBranchCards({
 				/>
 			) : null}
 
-			{editingBranch ? (
-				<BranchEditSheet
-					branch={editingBranch}
-					conditionItem={getShoppingBranchConditionItem(
-						context.items,
-						editingBranch.id,
-					)}
-					context={context}
-					isRight={isRight}
-					onClose={() => setEditingBranch(null)}
+			{editingBranch && editingItem ? (
+				<ShoppingBranchConditionEditor
+					value={{
+						storeId: editingItem.storeId,
+						name: editingItem.name,
+						quantity: formatQuantity(editingItem.quantity, {
+							grouping: false,
+						}),
+						unitLabel: editingItem.unitLabel ?? "",
+						categoryId: editingItem.categoryId ?? "",
+						isCategoryManual: editingItem.categoryAssignment === "manual",
+						presetConversion: null,
+						condition: editingBranch.condition,
+						thenLabel: editingBranch.thenLabel ?? "",
+						elseLabel: editingBranch.elseLabel ?? "",
+					}}
+					stores={context.stores}
+					onCreateStore={context.onCreateStore}
+					onCancel={() => setEditingBranch(null)}
+					onSave={async (draft) => {
+						const isBranchSaved = await context.onUpdateBranch(editingBranch, {
+							condition: draft.condition,
+							thenLabel: draft.thenLabel,
+							elseLabel: draft.elseLabel,
+						});
+
+						if (!isBranchSaved) {
+							return false;
+						}
+
+						const updated = await context.onUpdateItem(
+							editingItem,
+							toItemInput(draft),
+						);
+
+						if (updated) {
+							setEditingBranch(null);
+						}
+
+						return updated !== null;
+					}}
 				/>
 			) : null}
 
@@ -431,100 +370,19 @@ export function ShoppingBranchCards({
 	);
 }
 
-type BranchEditSheetProps = {
-	branch: ShoppingBranch;
-	conditionItem: ShoppingItem | undefined;
-	context: ShoppingBranchCardsContext;
-	isRight: boolean;
-	onClose: () => void;
-};
-
-// 条件の編集：条件の材料（名前・数量・単位・カテゴリ・店）と、どんな時に、側の呼び名を、まとめて直す。
-function BranchEditSheet({
-	branch,
-	conditionItem,
-	context,
-	isRight,
-	onClose,
-}: BranchEditSheetProps) {
-	const [condition, setCondition] = useState(branch.condition);
-	const [thenLabel, setThenLabel] = useState(branch.thenLabel ?? "");
-	const [elseLabel, setElseLabel] = useState(branch.elseLabel ?? "");
-
-	return (
-		<Sheet
-			open
-			onOpenChange={(open) => {
-				if (!open) {
-					onClose();
-				}
-			}}
-			title="条件を編集"
-			placement={isRight ? "right" : "bottom"}
-			snapPoints={isRight ? [0.92] : [0.7, 0.92]}
-		>
-			{conditionItem ? (
-				<ShoppingItemEditForm
-					item={conditionItem}
-					stores={context.stores}
-					onCreateStore={context.onCreateStore}
-					onCancel={onClose}
-					onSave={async (item, input) => {
-						const isBranchSaved = await context.onUpdateBranch(branch, {
-							condition,
-							thenLabel,
-							elseLabel,
-						});
-
-						if (!isBranchSaved) {
-							return false;
-						}
-
-						const updated = await context.onUpdateItem(item, input);
-
-						if (updated) {
-							onClose();
-						}
-
-						return updated !== null;
-					}}
-				>
-					<Field label="どんな時に" hint="例：売っていたら、安ければ">
-						{(control) => (
-							<TextInput
-								{...control}
-								value={condition}
-								onChange={(event) => setCondition(event.target.value)}
-								autoComplete="off"
-							/>
-						)}
-					</Field>
-
-					<Field label="「そうなら」の呼び名（省略できます）">
-						{(control) => (
-							<TextInput
-								{...control}
-								value={thenLabel}
-								onChange={(event) => setThenLabel(event.target.value)}
-								placeholder="例：ハンバーグ"
-								autoComplete="off"
-							/>
-						)}
-					</Field>
-
-					<Field label="「そうでなければ」の呼び名（省略できます）">
-						{(control) => (
-							<TextInput
-								{...control}
-								value={elseLabel}
-								onChange={(event) => setElseLabel(event.target.value)}
-								placeholder="例：チキン南蛮"
-								autoComplete="off"
-							/>
-						)}
-					</Field>
-				</ShoppingItemEditForm>
-			) : null}
-		</Sheet>
-	);
+// 編集した内容を、条件の材料の更新の入力にする（数量が読めなければ NaN にして、検証で止める）。
+function toItemInput(draft: BranchConditionValue): UpdateShoppingItemInput {
+	return {
+		name: draft.name,
+		quantity: parseQuantityInput(draft.quantity) ?? Number.NaN,
+		unitLabel: draft.unitLabel,
+		inventoryConversion: draft.presetConversion ?? undefined,
+		categoryId: draft.categoryId || null,
+		categoryAssignment: draft.categoryId
+			? draft.isCategoryManual
+				? "manual"
+				: "automatic"
+			: null,
+		storeId: draft.storeId,
+	};
 }

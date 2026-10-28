@@ -117,10 +117,14 @@ describe("ShoppingList の「レシピから入れる」", () => {
 
 		const card = (
 			await screen.findByRole("heading", { name: /合い挽き.*が売っていたら/ })
-		).closest("div") as HTMLElement;
+		).closest("section") as HTMLElement;
 
+		await user.click(within(card).getByRole("button", { name: /中身を見る/ }));
 		await user.click(
-			within(card).getByRole("button", { name: "そうならにレシピから入れる" }),
+			within(card).getByRole("button", { name: "そうならに追加" }),
+		);
+		await user.click(
+			await screen.findByRole("menuitem", { name: "レシピから入れる" }),
 		);
 		await user.click(
 			screen.getByRole("button", { name: "カレーの材料を入れる" }),
@@ -129,20 +133,15 @@ describe("ShoppingList の「レシピから入れる」", () => {
 		await waitFor(() => {
 			expect(within(card).getByText(/じゃがいも/)).toBeInTheDocument();
 		});
+		// 呼び名が空だった側は、レシピの名前になる（件数のタグに出る）。
 		await waitFor(() => {
-			expect(
-				within(card).getByRole("heading", { name: "そうなら（カレー）" }),
-			).toBeInTheDocument();
+			expect(within(card).getByText(/^カレー \d+件$/)).toBeInTheDocument();
 		});
 		// 通常の一覧には出ない。
 		expect(
 			screen.queryByRole("checkbox", { name: "じゃがいもをチェック" }),
 		).toBeNull();
 		// もう一方の側の呼び名は、そのまま。
-		expect(
-			within(card).getByRole("heading", {
-				name: "そうでなければ（チキン南蛮）",
-			}),
-		).toBeInTheDocument();
+		expect(within(card).getByText("チキン南蛮 0件")).toBeInTheDocument();
 	});
 });

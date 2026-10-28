@@ -29,6 +29,7 @@ import {
 } from "#/features/recipes/application/consume-recipe-ingredients";
 import type { RecipeDetail } from "#/features/recipes/application/recipe-repository";
 import { RecipeConsumeSection } from "#/features/recipes/components/recipe-consume-section";
+import { RecipeKeepAwake } from "#/features/recipes/components/recipe-keep-awake";
 import { RecipeOwnerActions } from "#/features/recipes/components/recipe-owner-actions";
 import { RecipePassphraseSection } from "#/features/recipes/components/recipe-passphrase-section";
 import { RecipeRouteError } from "#/features/recipes/components/recipe-route-error";
@@ -211,6 +212,7 @@ function OwnRecipePage({ recipe }: { recipe: RecipeDetail }) {
 
 	return (
 		<>
+			<RecipeKeepAwake />
 			{/* 別のレシピへ移ったとき、開いているプレビューを、閉じる（key で、状態を作り直す）。 */}
 			<RecipeViewWithLinks
 				key={recipe.publicId}
@@ -293,6 +295,7 @@ function SharedRecipePage({
 
 	return (
 		<>
+			<RecipeKeepAwake />
 			<RecipeViewWithLinks
 				key={recipe.publicId}
 				recipe={recipe}
