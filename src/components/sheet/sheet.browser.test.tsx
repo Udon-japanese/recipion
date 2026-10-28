@@ -181,7 +181,7 @@ it("上へ引いても、いちばん高い位置を超えて動くのは、わ�
 	expect(translateY()).toBeCloseTo(rest, 0);
 });
 
-it("2段：上へはじくと、高い位置へ。下へはじくと、低い位置へ", async () => {
+it("2段：上へ引くと、高い位置へ。下へゆっくり引くと、低い位置へ", async () => {
 	const onChange = vi.fn();
 
 	await render(<Harness onChange={onChange} snapPoints={[0.5, 0.9]} />);
@@ -202,12 +202,14 @@ it("2段：上へはじくと、高い位置へ。下へはじくと、低い位
 	expect(high).toBeLessThan(low - 100);
 	expect(onChange).not.toHaveBeenCalled();
 
+	// ゆっくり、大きく下へ引いて離す（低い位置のほうが近い）。
 	start = grabPoint();
 	await mouse("mousePressed", start.x, start.y);
-	await mouse("mouseMoved", start.x, start.y + 40);
-	await mouse("mouseMoved", start.x, start.y + 90);
-	await mouse("mouseMoved", start.x, start.y + 140);
-	await mouse("mouseReleased", start.x, start.y + 140);
+	await mouse("mouseMoved", start.x, start.y + 100);
+	await mouse("mouseMoved", start.x, start.y + 200);
+	await mouse("mouseMoved", start.x, start.y + 300);
+	await sleep(200);
+	await mouse("mouseReleased", start.x, start.y + 300);
 	await sleep(700);
 
 	expect(translateY()).toBeCloseTo(low, 0);
@@ -303,4 +305,71 @@ it("低い位置で止まっているときも、下に固定の操作バー（f
 
 	expect(rect.bottom).toBeLessThanOrEqual(window.innerHeight);
 	expect(rect.top).toBeGreaterThan(window.innerHeight * 0.4);
+});
+
+// いま画面に見えている位置（アニメーションの途中の値）。
+function visibleTranslateY(): number {
+	return new DOMMatrix(getComputedStyle(panel()).transform).m42;
+}
+
+it("開くときは、止まる位置へ、動きながら上がってくる（パッと出ない）", async () => {
+	await render(<Harness onChange={vi.fn()} />);
+	await sleep(80);
+
+	const midway = visibleTranslateY();
+
+	// 止まる位置（style の値）まで、まだ届いていない。
+	expect(midway).toBeGreaterThan(translateY() + 20);
+
+	await sleep(700);
+
+	expect(visibleTranslateY()).toBeCloseTo(translateY(), 0);
+});
+
+it("指を離したあとの、止まる位置への移動は、動きを付けて行う（その場で跳ばない）", async () => {
+	await render(<Harness onChange={vi.fn()} snapPoints={[0.5, 0.9]} />);
+	await sleep(700);
+
+	const start = grabPoint();
+
+	await mouse("mousePressed", start.x, start.y);
+	await mouse("mouseMoved", start.x, start.y - 40);
+	await mouse("mouseMoved", start.x, start.y - 90);
+	await mouse("mouseMoved", start.x, start.y - 140);
+	await sleep(200);
+	await mouse("mouseReleased", start.x, start.y - 140);
+	await sleep(60);
+
+	// 離した直後は、まだ、最終の位置に着いていない。
+	expect(Math.abs(visibleTranslateY() - translateY())).toBeGreaterThan(5);
+
+	await sleep(700);
+
+	expect(visibleTranslateY()).toBeCloseTo(translateY(), 0);
+});
+
+it("勢いよく下へはじくと、2段のシートでも、いっぺんに閉じる", async () => {
+	const onChange = vi.fn();
+
+	await render(<Harness onChange={onChange} snapPoints={[0.5, 0.9]} />);
+	await sleep(700);
+
+	// 高い位置へ上げる。
+	let start = grabPoint();
+
+	await mouse("mousePressed", start.x, start.y);
+	await mouse("mouseMoved", start.x, start.y - 60);
+	await mouse("mouseMoved", start.x, start.y - 140);
+	await sleep(200);
+	await mouse("mouseReleased", start.x, start.y - 140);
+	await sleep(700);
+
+	// 速く、下へはじく（短い時間に、大きく動かす）。
+	start = grabPoint();
+	await mouse("mousePressed", start.x, start.y);
+	await mouse("mouseMoved", start.x, start.y + 60);
+	await mouse("mouseMoved", start.x, start.y + 140);
+	await mouse("mouseReleased", start.x, start.y + 140);
+
+	expect(onChange).toHaveBeenLastCalledWith(false);
 });

@@ -119,8 +119,8 @@ export function RecipeToShoppingPicker({
 			placement={isRight ? "right" : "bottom"}
 			// 浮いたパネル：後ろのメモを見ながら、続けて入れられる。
 			modal={false}
-			snapPoints={isRight ? [0.92] : [0.1, 0.7, 0.92]}
-			defaultSnapIndex={isRight ? 0 : 1}
+			snapPoints={isRight ? [0.92] : [0.7, 0.92]}
+			defaultSnapIndex={0}
 			headerLeading={
 				selected ? (
 					<IconButton

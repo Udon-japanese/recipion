@@ -82,6 +82,20 @@ describe("resolveRelease", () => {
 		).toEqual({ type: "dismiss" });
 	});
 
+	it("勢いよく下へはじくと、どの位置からでも閉じる（閉じられないシートは、最も低い位置へ）", () => {
+		expect(
+			resolveRelease({ visible: 780, velocity: 1.2, snaps, dismissible: true }),
+		).toEqual({ type: "dismiss" });
+		expect(
+			resolveRelease({
+				visible: 780,
+				velocity: 1.2,
+				snaps,
+				dismissible: false,
+			}),
+		).toEqual({ type: "snap", index: 0 });
+	});
+
 	it("閉じられないシートは、下へはじいても、最も低い位置に止まる", () => {
 		expect(
 			resolveRelease({

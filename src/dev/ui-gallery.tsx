@@ -939,8 +939,7 @@ function SheetGallery() {
 				onOpenChange={setFloating}
 				title="在庫に追加（浮いたパネル）"
 				modal={false}
-				snapPoints={[0.1, 0.6, 0.92]}
-				defaultSnapIndex={1}
+				snapPoints={[0.6, 0.92]}
 				footer={<Button size="lg">追加</Button>}
 			>
 				{longBody}
