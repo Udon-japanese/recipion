@@ -6,10 +6,13 @@ test("買い物メモに追加でき、読み込み直しても残る（ブラ�
 	await page.goto("/shopping");
 	await expect(page.getByText("買うものはまだありません。")).toBeVisible();
 
+	await page.getByRole("button", { name: "買うものを入れる" }).click();
+
 	const input = page.getByRole("combobox", { name: "買うもの" });
 
 	await input.fill("牛乳");
 	await input.press("Enter");
+	await page.getByRole("button", { name: "完了" }).click();
 	await expect(page.getByText("買うものはまだありません。")).toHaveCount(0);
 
 	await page.reload();

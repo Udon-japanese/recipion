@@ -70,7 +70,7 @@ describe("ShoppingList", () => {
 		render(<ShoppingList repository={createFakeShoppingRepository()} />);
 
 		await screen.findByText("買うものはまだありません。");
-		await user.click(screen.getByLabelText("買うもの"));
+		await user.click(screen.getByRole("button", { name: "買うものを入れる" }));
 		await user.type(screen.getByLabelText("単位"), "本");
 		await user.click(screen.getByRole("button", { name: "1/3にする" }));
 
@@ -117,7 +117,7 @@ describe("ShoppingList", () => {
 		await screen.findByText("買うものはまだありません。");
 		// 追加ボタンは、入力欄に触れて、フォームが開いてから、右下に出る。
 		expect(screen.queryByRole("button", { name: "追加" })).toBeNull();
-		await user.click(screen.getByLabelText("買うもの"));
+		await user.click(screen.getByRole("button", { name: "買うものを入れる" }));
 		await user.click(screen.getByRole("button", { name: "追加" }));
 
 		expect(await screen.findByRole("alert")).toHaveTextContent(
@@ -137,6 +137,7 @@ describe("ShoppingList", () => {
 		render(<ShoppingList repository={repository} />);
 
 		await screen.findByText("買うものはまだありません。");
+		await user.click(screen.getByRole("button", { name: "買うものを入れる" }));
 		await user.type(screen.getByLabelText("買うもの"), "卵");
 		await user.clear(screen.getByLabelText("数量"));
 		await user.type(screen.getByLabelText("数量"), "6");
@@ -163,7 +164,9 @@ describe("ShoppingList", () => {
 		expect(screen.getByLabelText("買うもの")).toHaveValue("");
 		expect(screen.getByLabelText("数量")).toHaveValue("1");
 		expect(screen.getByLabelText("単位")).toHaveValue("");
-		expect(screen.getByLabelText("カテゴリ")).toHaveValue("");
+		expect(screen.getByText("未設定")).toBeInTheDocument();
+		// 入れたものが、シートに残る（続けて入れている手応え）。
+		expect(screen.getByText(/卵 6個/)).toBeInTheDocument();
 	});
 
 	it("買い物項目のチェック状態を切り替える", async () => {
@@ -229,6 +232,7 @@ describe("ShoppingList", () => {
 		render(<ShoppingList repository={repository} />);
 
 		await screen.findByText("買うものはまだありません。");
+		await user.click(screen.getByRole("button", { name: "買うものを入れる" }));
 		await user.type(screen.getByLabelText("買うもの"), "牛乳");
 		await user.clear(screen.getByLabelText("数量"));
 		await user.type(screen.getByLabelText("数量"), "0");
@@ -247,6 +251,7 @@ describe("ShoppingList", () => {
 		render(<ShoppingList repository={repository} />);
 
 		await screen.findByText("買うものはまだありません。");
+		await user.click(screen.getByRole("button", { name: "買うものを入れる" }));
 		await user.type(screen.getByLabelText("買うもの"), "卵");
 
 		const sixEggsButton = screen.getByRole("button", {
@@ -293,6 +298,7 @@ describe("ShoppingList", () => {
 
 		await screen.findByText("買うものはまだありません。");
 
+		await user.click(screen.getByRole("button", { name: "買うものを入れる" }));
 		await user.type(screen.getByLabelText("買うもの"), "ホケミ");
 
 		await user.click(
@@ -393,9 +399,11 @@ describe("ShoppingList", () => {
 		render(<ShoppingList repository={repository} />);
 
 		await screen.findByText("買うものはまだありません。");
+		await user.click(screen.getByRole("button", { name: "買うものを入れる" }));
 		await user.type(screen.getByLabelText("買うもの"), "タマゴ");
 
-		expect(screen.getByLabelText("カテゴリ")).toHaveValue("eggs");
+		// 名前から、カテゴリが自動で決まる。
+		expect(screen.getByText("自動")).toBeInTheDocument();
 
 		await user.click(
 			screen.getByRole("button", {
@@ -421,11 +429,13 @@ describe("ShoppingList", () => {
 
 		await screen.findByText("買うものはまだありません。");
 
-		await user.click(screen.getByLabelText("買うもの"));
+		await user.click(screen.getByRole("button", { name: "買うものを入れる" }));
+		await user.click(screen.getByRole("button", { name: "選ぶ" }));
 		await user.selectOptions(screen.getByLabelText("カテゴリ"), "pantry");
 		await user.type(screen.getByLabelText("買うもの"), "卵");
 
 		expect(screen.getByLabelText("カテゴリ")).toHaveValue("pantry");
+		expect(screen.queryByText("自動")).toBeNull();
 	});
 
 	it("買い物項目を標準的な売り場順に並べる", async () => {
@@ -590,6 +600,7 @@ describe("ShoppingList", () => {
 		render(<ShoppingList repository={repository} />);
 
 		await screen.findByText("買うものはまだありません。");
+		await user.click(screen.getByRole("button", { name: "買うものを入れる" }));
 		await user.type(screen.getByLabelText("買うもの"), "HM");
 		await user.click(
 			screen.getByRole("button", {
