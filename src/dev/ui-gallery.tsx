@@ -865,7 +865,6 @@ function SheetGallery() {
 			<CornerSheet
 				open={cornerShort}
 				onDismiss={() => setCornerShort(false)}
-				eyebrow="「つくった」を記録しました"
 				title="在庫から3件を引きました"
 				left={{
 					label: "元に戻す",

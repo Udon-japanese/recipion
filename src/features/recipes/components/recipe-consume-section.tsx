@@ -393,7 +393,6 @@ export function RecipeConsumeSection({
 						setOutcome(null);
 					}
 				}}
-				eyebrow={outcome?.isUndone ? undefined : "「つくった」を記録しました"}
 				title={
 					outcome?.isUndone
 						? "元に戻しました"

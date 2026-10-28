@@ -25,8 +25,6 @@ type CornerSheetProps = {
 	title: string;
 	// 確認（やめる／実行）は alertdialog。
 	role?: "dialog" | "alertdialog";
-	// 見出しの上の、小さな添え書き。
-	eyebrow?: string;
 	// 左下：やめる・戻す側（暗い色）。出さないときは省略。
 	left?: CornerAction;
 	// 右下：進む・終える側（主役の色）。
@@ -78,7 +76,6 @@ export function CornerSheet({
 	open,
 	title,
 	role = "dialog",
-	eyebrow,
 	left,
 	right,
 	onDismiss,
@@ -136,7 +133,6 @@ export function CornerSheet({
 			>
 				<section className={styles.card} data-layout={layout}>
 					<div className={styles.header}>
-						{eyebrow ? <p className={styles.eyebrow}>{eyebrow}</p> : null}
 						<h2 className={styles.title} id={titleId}>
 							{title}
 						</h2>

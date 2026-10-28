@@ -89,13 +89,6 @@ export const header = style({
 	padding: "20px 20px 8px",
 });
 
-export const eyebrow = style({
-	margin: "0 0 4px",
-	fontSize: "var(--font-size-xs)",
-	color: "var(--color-text-muted)",
-	letterSpacing: "0.06em",
-});
-
 export const title = style({
 	margin: 0,
 	fontSize: "var(--font-size-lg)",

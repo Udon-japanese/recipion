@@ -165,7 +165,6 @@ export function ShoppingAddSheet({
 	return (
 		<CornerSheet
 			open
-			eyebrow="買い物メモ"
 			title={title}
 			// 打ちかけの入力を、うっかり消さないよう、空のときだけ、Esc と暗幕で閉じる。
 			onDismiss={name === "" && !isSubmitting ? onClose : undefined}
