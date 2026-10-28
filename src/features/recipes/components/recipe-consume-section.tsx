@@ -34,6 +34,10 @@ import {
 } from "../domain/plan-shopping-from-recipe";
 import type { RecipeEditorIngredientNode } from "../domain/recipe-editor-document";
 import type { RecipeLinkView } from "../domain/recipe-links";
+import {
+	type SkippedReason,
+	summarizeConsumptionRows,
+} from "../domain/summarize-consumption-rows";
 import * as styles from "./recipe-shopping-section.css";
 
 type RecipeConsumeSectionProps = {
@@ -74,32 +78,41 @@ type Outcome = {
 
 const noLinkViews: readonly RecipeLinkView[] = [];
 
-function describeRow(row: RecipeConsumptionRow, isFailed: boolean): string {
+const skippedLabels: Record<SkippedReason, string> = {
+	"no-stock": "在庫にないため、引いていません",
+	unmeasurable:
+		"量が決まっていない（または換算できない）ため、減らしていません",
+	"presence-only": "「ある」で管理しているため、減らしていません",
+};
+
+// 引いた行を、材料（左）と数量（右）、補足（あれば）に分ける。
+function describeDeducted(row: RecipeConsumptionRow): {
+	amount: string;
+	note: string | null;
+} {
 	const unit = row.target?.stockUnitLabel ?? "";
-	const name = row.need.name;
+	const code = row.target?.stockUnitCode ?? "count";
 
-	if (isFailed) {
-		return `${name}：引けませんでした`;
+	if (row.need.id.startsWith(madeRecipeNeedIdPrefix)) {
+		return {
+			amount: `${formatStockAmount(row.deduct ?? 0, "count")}${unit}`,
+			note: "在庫のできあがりから（材料は引いていません）",
+		};
 	}
 
-	switch (row.status) {
-		case "consume":
-			if (row.need.id.startsWith(madeRecipeNeedIdPrefix)) {
-				return `${name}：在庫のできあがりを、${formatStockAmount(row.deduct ?? 0, "count")}${unit}引きました（材料は引いていません）`;
-			}
+	const amount = `${formatStockAmount(row.deduct ?? 0, code)}${unit}`;
 
-			return `${name}：${formatStockAmount(row.deduct ?? 0, row.target?.stockUnitCode ?? "count")}${unit}を引きました${row.viaStandIn && row.target ? `（${row.target.name}から）` : ""}`;
-		case "partial":
-			return `${name}：在庫が足りず、${formatStockAmount(row.deduct ?? 0, row.target?.stockUnitCode ?? "count")}${unit}だけ引きました（必要な量は${formatStockAmount(row.required ?? 0, row.target?.stockUnitCode ?? "count")}${unit}）`;
-		case "presence-only":
-			return `${name}：「ある」で管理しているため、減らしていません`;
-		case "unmeasurable":
-			return `${name}：量が決まっていない（または換算できない）ため、減らしていません`;
-		case "no-stock":
-			return row.alternatives.length > 0
-				? `${name}：在庫にないため、引いていません（${row.alternatives.map((alternative) => alternative.name).join("、")}の在庫があります）`
-				: `${name}：在庫にないため、引いていません`;
+	if (row.status === "partial") {
+		return {
+			amount,
+			note: `在庫が足りず、ある分だけ（必要な量は${formatStockAmount(row.required ?? 0, code)}${unit}）`,
+		};
 	}
+
+	return {
+		amount,
+		note: row.viaStandIn && row.target ? `${row.target.name}から` : null,
+	};
 }
 
 // 「作った」を押すと、在庫から使った分を、すぐに引く。あとから「元に戻す」で、引く前に戻せる。
@@ -323,6 +336,10 @@ export function RecipeConsumeSection({
 		: 0;
 	const hasPendingProduction =
 		outcome?.production !== null && outcome?.production?.isDone === false;
+	const summary = summarizeConsumptionRows(
+		outcome?.rows ?? [],
+		outcome?.failedNeedIds ?? new Set(),
+	);
 	const hasLinkedRecipes = resolvedNeeds.some((need) => need.linkedRecipe);
 	const hasUndoableWork =
 		consumedCount > 0 || outcome?.production?.isDone === true;
@@ -427,40 +444,79 @@ export function RecipeConsumeSection({
 											: "引けなかった分をやり直す"}
 									</Button>
 								) : null}
-								<ul className={styles.list}>
-									{outcome.production && madeRecipe ? (
-										<li className={styles.row}>
-											<span className={styles.status}>
-												{outcome.production.isDone
-													? `${madeRecipe.name}：1回分を、在庫に入れました`
-													: `${madeRecipe.name}：在庫に入れられませんでした`}
-											</span>
-										</li>
-									) : null}
-									{outcome.rows.map((row) => (
-										<li className={styles.row} key={row.need.id}>
-											<span className={styles.status}>
-												{describeRow(
-													row,
-													outcome.failedNeedIds.has(row.need.id),
-												)}
-											</span>
-											{row.alternatives.map((alternative) => (
-												<Button
-													variant="secondary"
-													size="sm"
-													key={alternative.inventoryItemId}
-													disabled={isWorking}
-													onClick={() =>
-														void handleUseAlternative(row, alternative)
-													}
-												>
-													{`${alternative.name}を引く（${formatStockAmount(alternative.deduct, alternative.stockUnitCode)}${alternative.stockUnitLabel}）`}
-												</Button>
-											))}
-										</li>
-									))}
-								</ul>
+								{outcome.production && madeRecipe ? (
+									<p className={styles.status}>
+										{outcome.production.isDone
+											? `${madeRecipe.name}：1回分を、在庫に入れました`
+											: `${madeRecipe.name}：在庫に入れられませんでした`}
+									</p>
+								) : null}
+								{summary.failed.length > 0 ? (
+									<ul className={styles.list}>
+										{summary.failed.map((row) => (
+											<li className={styles.row} key={row.need.id}>
+												<span className={styles.status}>
+													{`${row.need.name}：引けませんでした`}
+												</span>
+											</li>
+										))}
+									</ul>
+								) : null}
+								{summary.hasAlternatives.length > 0 ? (
+									<ul className={styles.list}>
+										{summary.hasAlternatives.map((row) => (
+											<li className={styles.row} key={row.need.id}>
+												<span className={styles.status}>
+													{`${row.need.name}：在庫にないため、引いていません（${row.alternatives.map((alternative) => alternative.name).join("、")}の在庫があります）`}
+												</span>
+												{row.alternatives.map((alternative) => (
+													<Button
+														variant="secondary"
+														size="sm"
+														key={alternative.inventoryItemId}
+														disabled={isWorking}
+														onClick={() =>
+															void handleUseAlternative(row, alternative)
+														}
+													>
+														{`${alternative.name}を引く（${formatStockAmount(alternative.deduct, alternative.stockUnitCode)}${alternative.stockUnitLabel}）`}
+													</Button>
+												))}
+											</li>
+										))}
+									</ul>
+								) : null}
+								{summary.deducted.length > 0 ? (
+									<ul className={styles.list} aria-label="引いたもの">
+										{summary.deducted.map((row) => {
+											const { amount, note } = describeDeducted(row);
+
+											return (
+												<li className={styles.amountRow} key={row.need.id}>
+													<span>{row.need.name}</span>
+													<span className={styles.amount}>{amount}</span>
+													{note ? (
+														<span className={styles.note}>{note}</span>
+													) : null}
+												</li>
+											);
+										})}
+									</ul>
+								) : null}
+								{summary.skipped.map((group) => (
+									<section
+										className={styles.skippedGroup}
+										key={group.reason}
+										aria-label={skippedLabels[group.reason]}
+									>
+										<p className={styles.skippedLabel}>
+											{`${skippedLabels[group.reason]}（${group.names.length}件）`}
+										</p>
+										<p className={styles.skippedNames}>
+											{group.names.join("、")}
+										</p>
+									</section>
+								))}
 							</>
 						)}
 
