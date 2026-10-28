@@ -87,24 +87,26 @@ export function ShoppingStoreChips({
 						autoComplete="off"
 					/>
 
-					<Button
-						size="sm"
-						disabled={isSaving || newName.trim() === ""}
-						onClick={() => void handleCreate()}
-					>
-						この店を追加
-					</Button>
+					<div className={styles.newStoreButtons}>
+						<Button
+							size="sm"
+							disabled={isSaving || newName.trim() === ""}
+							onClick={() => void handleCreate()}
+						>
+							この店を追加
+						</Button>
 
-					<Button
-						size="sm"
-						variant="secondary"
-						onClick={() => {
-							setIsCreating(false);
-							setNewName("");
-						}}
-					>
-						やめる
-					</Button>
+						<Button
+							size="sm"
+							variant="secondary"
+							onClick={() => {
+								setIsCreating(false);
+								setNewName("");
+							}}
+						>
+							やめる
+						</Button>
+					</div>
 				</div>
 			) : null}
 		</fieldset>

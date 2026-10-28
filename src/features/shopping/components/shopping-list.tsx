@@ -7,9 +7,10 @@ import { Field, SelectBox } from "#/components/field/field";
 import { Icon } from "#/components/icon/icon";
 import { IconButton } from "#/components/icon-button/icon-button";
 import { Mascot } from "#/components/mascot/mascot";
-import { Menu } from "#/components/menu/menu";
+import { Menu, type MenuItem } from "#/components/menu/menu";
 import { SegmentedControl } from "#/components/segmented-control/segmented-control";
 import { Tag } from "#/components/tag/tag";
+import { useMediaQuery } from "#/components/use-media-query";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import { useStorageItem } from "#/local-storage/use-storage-item";
 import type { ShoppingBranchRepository } from "../application/shopping-branch-repository";
@@ -103,6 +104,7 @@ export function ShoppingList({
 	const [view, setView] = useStorageItem(shoppingViewStorage);
 	const [isPickingRecipe, setIsPickingRecipe] = useState(false);
 	const [isBulkAdding, setIsBulkAdding] = useState(false);
+	const isDesktop = useMediaQuery("(min-width: 768px)");
 	const [isAddingItem, setIsAddingItem] = useState(false);
 	const [isCreatingBranch, setIsCreatingBranch] = useState(false);
 	// 数量だけを直すシートの項目。
@@ -328,10 +330,63 @@ export function ShoppingList({
 		stores,
 	);
 
+	// 「いつもの1つ追加」ではない、特別な入れ方。
+	const otherWays: MenuItem[] = [
+		{
+			label: "まとめて追加",
+			icon: "rows",
+			onSelect: () => setIsBulkAdding(true),
+		},
+		...(renderRecipePicker
+			? [
+					{
+						label: "レシピから入れる",
+						icon: "book" as const,
+						onSelect: () => setIsPickingRecipe(true),
+					},
+				]
+			: []),
+		{
+			label: "条件つきのメモを追加",
+			icon: "branch-arrow",
+			onSelect: () => setIsCreatingBranch(true),
+		},
+	];
+
 	return (
 		<main className={styles.page}>
 			<div className={styles.titleRow}>
 				<h1 className={styles.title}>買い物メモ</h1>
+
+				{/* PC：マウスが届きやすい、右上。短い文字つきのボタン。 */}
+				{isDesktop ? (
+					<div className={styles.headActions}>
+						<Menu
+							label="ほかの入れ方"
+							icon="plus-stack"
+							disabled={isLoading}
+							items={otherWays}
+							trigger={(props) => (
+								<button
+									{...props}
+									type="button"
+									className={styles.headMenuButton}
+									disabled={isLoading}
+								>
+									<Icon name="plus-stack" size={20} />
+									ほかの入れ方
+								</button>
+							)}
+						/>
+
+						<Button
+							leadingIcon={<Icon name="plus" size={20} />}
+							onClick={() => setIsAddingItem(true)}
+						>
+							追加
+						</Button>
+					</div>
+				) : null}
 
 				<div className={styles.toolbar}>
 					<div className={styles.toolbarSegment}>
@@ -656,60 +711,42 @@ export function ShoppingList({
 				</div>
 			) : null}
 
-			{/* 買うものを入れる：いつも画面の隅に出る、丸い「＋」。似た動きの「ほかの入れ方」は、その真上。
-			    購入確定のバーがあるときは、まとめて、その上。 */}
-			<div
-				className={styles.fabGroup}
-				data-lifted={purchase.checkedItemCount > 0 && !isLoading}
-			>
-				<Menu
-					label="ほかの入れ方"
-					icon="plus-stack"
-					placement="above"
-					disabled={isLoading}
-					items={[
-						{
-							label: "まとめて追加",
-							icon: "rows",
-							onSelect: () => setIsBulkAdding(true),
-						},
-						...(renderRecipePicker
-							? [
-									{
-										label: "レシピから入れる",
-										icon: "book" as const,
-										onSelect: () => setIsPickingRecipe(true),
-									},
-								]
-							: []),
-						{
-							label: "条件つきのメモを追加",
-							icon: "branch-arrow",
-							onSelect: () => setIsCreatingBranch(true),
-						},
-					]}
-					trigger={(props) => (
-						<span className={styles.fabSub}>
-							<IconButton
-								{...props}
-								icon="plus-stack"
-								label="ほかの入れ方"
-								size="std"
-								disabled={isLoading}
-							/>
-						</span>
-					)}
-				/>
-
-				<button
-					type="button"
-					className={styles.fab}
-					aria-label="買うものを入れる"
-					onClick={() => setIsAddingItem(true)}
+			{/* スマホ：買うものを入れる、いつも画面の隅に出る、丸い「＋」。似た動きの「ほかの入れ方」は、その真上。
+			    購入確定のバーがあるときは、まとめて、その上。（PC は、上のボタン） */}
+			{isDesktop ? null : (
+				<div
+					className={styles.fabGroup}
+					data-lifted={purchase.checkedItemCount > 0 && !isLoading}
 				>
-					<Icon name="plus" size={24} />
-				</button>
-			</div>
+					<Menu
+						label="ほかの入れ方"
+						icon="plus-stack"
+						placement="above"
+						disabled={isLoading}
+						items={otherWays}
+						trigger={(props) => (
+							<span className={styles.fabSub}>
+								<IconButton
+									{...props}
+									icon="plus-stack"
+									label="ほかの入れ方"
+									size="std"
+									disabled={isLoading}
+								/>
+							</span>
+						)}
+					/>
+
+					<button
+						type="button"
+						className={styles.fab}
+						aria-label="買うものを入れる"
+						onClick={() => setIsAddingItem(true)}
+					>
+						<Icon name="plus" size={24} />
+					</button>
+				</div>
+			)}
 
 			{conversionEditItem ? (
 				<ShoppingItemInventoryConversionForm
