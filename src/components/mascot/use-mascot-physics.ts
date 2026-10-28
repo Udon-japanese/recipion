@@ -17,6 +17,8 @@ type Options = {
 	motion: MascotMotion;
 	// 基準の大きさに対する、表示の倍率。
 	scale: number;
+	// 動き回る範囲の倍率（既定は 1。小さいほど、中心の近くだけを動く）。
+	roam?: number;
 };
 
 function applyPose(element: HTMLElement, pose: MascotPose, scale: number) {
@@ -44,7 +46,7 @@ function prefersReducedMotion() {
 // 返す関数は、tap のときに、跳ねさせる（それ以外では、何もしない）。
 export function useMascotPhysics(
 	ref: RefObject<HTMLElement | null>,
-	{ motion, scale }: Options,
+	{ motion, scale, roam = 1 }: Options,
 ): () => void {
 	const hopRef = useRef<() => void>(() => {});
 
@@ -65,6 +67,7 @@ export function useMascotPhysics(
 		const physics: MascotPhysics = createMascotPhysics(
 			random,
 			motion === "loop",
+			roam,
 		);
 		let frame = 0;
 		let last = performance.now();
@@ -107,7 +110,7 @@ export function useMascotPhysics(
 			cancelAnimationFrame(frame);
 			hopRef.current = () => {};
 		};
-	}, [ref, motion, scale]);
+	}, [ref, motion, scale, roam]);
 
 	return useCallback(() => hopRef.current(), []);
 }

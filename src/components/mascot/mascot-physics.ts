@@ -22,6 +22,8 @@ type Phase = "idle" | "anticipate" | "air";
 export type MascotPhysics = {
 	// true：自分で次々に跳ねる。false：startMascotHop で、1回だけ跳ねる。
 	loop: boolean;
+	// 動き回る範囲の倍率（1 が基準。小さいほど、中心の近くだけを動く）。
+	roam: number;
 	x: number;
 	y: number;
 	lift: number;
@@ -57,8 +59,12 @@ export type MascotPose = {
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
 const range = (random: Random, a: number, b: number) => a + random() * (b - a);
 
-function inArea(x: number, y: number) {
-	return (x / AREA_RX) ** 2 + ((y - AREA_CY) / AREA_RY) ** 2 <= 1;
+function inArea(x: number, y: number, roam: number) {
+	return (
+		(x / (AREA_RX * roam)) ** 2 +
+			((y - AREA_CY * roam) / (AREA_RY * roam)) ** 2 <=
+		1
+	);
 }
 
 function stepSpring(
@@ -72,35 +78,39 @@ function stepSpring(
 	s.x += s.v * dt;
 }
 
-function pickTarget(from: Point, random: Random): Target {
+function pickTarget(from: Point, random: Random, roam: number): Target {
 	for (let i = 0; i < 24; i++) {
-		const dist = range(random, 9, 15);
+		const dist = range(random, 9 * roam, 15 * roam);
 		const angle = range(random, 0, Math.PI * 2);
 		const x = from.x + Math.cos(angle) * dist;
 		const y = from.y + Math.sin(angle) * dist * 0.7;
 
-		if (inArea(x, y)) {
+		if (inArea(x, y, roam)) {
 			return { x, y, dist: Math.hypot(x - from.x, y - from.y) || 1 };
 		}
 	}
 
-	return { x: 0, y: AREA_CY, dist: Math.hypot(from.x, AREA_CY - from.y) || 1 };
+	const centerY = AREA_CY * roam;
+
+	return { x: 0, y: centerY, dist: Math.hypot(from.x, centerY - from.y) || 1 };
 }
 
 export function createMascotPhysics(
 	random: Random,
 	loop = true,
+	roam = 1,
 ): MascotPhysics {
 	return {
 		loop,
+		roam,
 		x: 0,
-		y: AREA_CY,
+		y: AREA_CY * roam,
 		lift: 0,
 		phase: "idle",
 		t: 0,
 		wait: 150,
 		antic: 130,
-		from: { x: 0, y: AREA_CY },
+		from: { x: 0, y: AREA_CY * roam },
 		to: null,
 		dur: 0,
 		arc: 0,
@@ -145,7 +155,7 @@ export function stepMascotPhysics(
 			s.phase = "anticipate";
 			s.t = 0;
 			s.antic = 140;
-			s.to = pickTarget({ x: s.x, y: s.y }, random);
+			s.to = pickTarget({ x: s.x, y: s.y }, random, s.roam);
 		}
 	} else if (s.phase === "anticipate") {
 		dTarget = -0.3;

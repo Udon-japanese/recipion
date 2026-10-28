@@ -1,4 +1,13 @@
-import { type KeyboardEvent, useId, useMemo, useState } from "react";
+import {
+	type KeyboardEvent,
+	useId,
+	useLayoutEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
+import { CompletionMenu } from "#/components/completion-menu/completion-menu";
+import { useCompletionLayout } from "#/components/completion-menu/use-completion-layout";
 import {
 	findIngredientCatalogEntry,
 	type IngredientCatalogEntry,
@@ -38,6 +47,13 @@ export function IngredientNameInput({
 	const [activeIndex, setActiveIndex] = useState(-1);
 	// 日本語の変換中か。
 	const [isComposing, setIsComposing] = useState(false);
+	// 変換中に、一覧を入力欄の上に出せるか（上に、一覧が入る余白があるとき）。
+	const [hasRoomAbove, setHasRoomAbove] = useState(false);
+	const inputRef = useRef<HTMLInputElement>(null);
+	const containerRef = useRef<HTMLDivElement>(null);
+	const listRef = useRef<HTMLDivElement>(null);
+	// スマホ（タッチ）は、キーボードの上の帯に出す（レシピの本文の補完と同じ）。
+	const layout = useCompletionLayout();
 
 	const suggestions = useMemo(() => searchIngredientCatalog(value), [value]);
 
@@ -47,6 +63,20 @@ export function IngredientNameInput({
 		isOpen &&
 		suggestions.length > 0 &&
 		(isComposing || findIngredientCatalogEntry(value) === undefined);
+
+	// 変換中は、上に出す。ただし、上に入りきらないときは、下のまま（画面からはみ出さない）。
+	useLayoutEffect(() => {
+		const container = containerRef.current;
+		const list = listRef.current;
+
+		if (!isVisible || !isComposing || !container || !list) {
+			return;
+		}
+
+		const next = container.getBoundingClientRect().top >= list.offsetHeight + 6;
+
+		setHasRoomAbove((current) => (current === next ? current : next));
+	});
 
 	function select(entry: IngredientCatalogEntry) {
 		onChange(entry.name);
@@ -92,8 +122,9 @@ export function IngredientNameInput({
 	}
 
 	return (
-		<div className={styles.container}>
+		<div className={styles.container} ref={containerRef}>
 			<input
+				ref={inputRef}
 				className={className}
 				id={id}
 				name={name}
@@ -103,7 +134,9 @@ export function IngredientNameInput({
 				autoComplete="off"
 				role="combobox"
 				aria-expanded={isVisible}
-				aria-controls={isVisible ? listboxId : undefined}
+				aria-controls={
+					isVisible && layout !== "keyboard-bar" ? listboxId : undefined
+				}
 				aria-autocomplete="list"
 				aria-activedescendant={
 					isVisible && activeIndex >= 0
@@ -125,8 +158,36 @@ export function IngredientNameInput({
 				onKeyDown={handleKeyDown}
 			/>
 
-			{isVisible ? (
-				<div className={styles.list} role="listbox" id={listboxId}>
+			{isVisible && layout === "keyboard-bar" ? (
+				<CompletionMenu
+					textareaRef={inputRef}
+					layout="keyboard-bar"
+					open
+					caret={0}
+					items={suggestions.map((entry) => ({
+						key: entry.id,
+						label: entry.name,
+						badge: describeEntry?.(entry),
+					}))}
+					activeIndex={activeIndex >= 0 ? activeIndex : null}
+					onAccept={(index) => {
+						const entry = suggestions[index];
+
+						if (entry) {
+							select(entry);
+						}
+					}}
+				/>
+			) : null}
+
+			{isVisible && layout !== "keyboard-bar" ? (
+				<div
+					className={styles.list}
+					role="listbox"
+					id={listboxId}
+					ref={listRef}
+					data-above={isComposing && hasRoomAbove}
+				>
 					{suggestions.map((entry, index) => (
 						<button
 							className={styles.option}

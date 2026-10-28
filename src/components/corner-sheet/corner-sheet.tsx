@@ -54,13 +54,13 @@ function Corner({
 			onClick={action.onClick}
 		>
 			<span
-				className={`${styles.label} ${side === "left" ? styles.labelLeft : styles.labelRight}`}
+				className={`${styles.label} ${side === "left" ? styles.labelLeft : styles.labelRight} ${action.pending ? styles.labelPending : ""}`}
 			>
 				<span
 					className={`${styles.mark} ${action.pending ? styles.markPending : ""} ${action.pending && side === "right" ? styles.markOnPrimary : ""}`}
 				>
 					{action.pending ? (
-						<Mascot size={22} motion="loop" />
+						<Mascot size={22} motion="loop" roam={0.55} />
 					) : (
 						<Icon name={action.icon} size={24} />
 					)}
