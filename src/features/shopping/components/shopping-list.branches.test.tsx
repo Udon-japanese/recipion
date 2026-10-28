@@ -83,9 +83,7 @@ describe("ShoppingList の条件つきのメモ", () => {
 			await user.click(input);
 			await user.paste(name);
 			await waitFor(() => expect(input).toHaveValue(name), { timeout: 5000 });
-			await user.click(
-				within(sheet).getByRole("button", { name: "この側に追加" }),
-			);
+			await user.click(within(sheet).getByRole("button", { name: "追加" }));
 			// 追加しても閉じない（続けて入れられる）。次の側のために、完了で閉じる。
 			await user.click(within(sheet).getByRole("button", { name: "完了" }));
 			// 閉じ終わる前に、次の側のボタンを押さない（閉じる途中は、背面の操作が効かないことがある）。

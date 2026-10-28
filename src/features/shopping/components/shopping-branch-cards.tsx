@@ -1,8 +1,5 @@
 import { useState } from "react";
-import { Button } from "#/components/button/button";
 import { ConfirmDialog } from "#/components/dialog/confirm-dialog";
-import { Sheet } from "#/components/sheet/sheet";
-import { useMediaQuery } from "#/components/use-media-query";
 import {
 	formatQuantity,
 	formatQuantityForUnit,
@@ -24,6 +21,7 @@ import type {
 } from "../domain/shopping-item";
 import type { ShoppingStore } from "../domain/shopping-store";
 import type { RenderRecipePicker } from "./recipe-picker-slot";
+import { ShoppingAddSheet } from "./shopping-add-sheet";
 import {
 	type BranchCardSide,
 	type BranchCardView,
@@ -34,7 +32,6 @@ import {
 	toConditionItemInput,
 } from "./shopping-branch-condition-editor";
 import { ShoppingBulkAdd } from "./shopping-bulk-add";
-import { ShoppingItemForm } from "./shopping-item-form";
 import * as styles from "./shopping-page.css";
 
 // 条件つきのメモを扱う操作と、まわりの情報（一覧の画面から渡す）。
@@ -127,7 +124,6 @@ export function ShoppingBranchCards({
 	branches,
 	context,
 }: ShoppingBranchCardsProps) {
-	const isRight = useMediaQuery("(min-width: 1024px)");
 	// 「レシピから入れる」を開いている側。
 	const [pickTarget, setPickTarget] = useState<{
 		branch: ShoppingBranch;
@@ -194,7 +190,6 @@ export function ShoppingBranchCards({
 	const addTitle = addTarget
 		? `${sideAddTitle(addTarget.branch, addTarget.side)}に追加`
 		: "";
-	const addFormId = "shopping-branch-side-form";
 	const editingItem = editingBranch
 		? getShoppingBranchConditionItem(context.items, editingBranch.id)
 		: undefined;
@@ -237,51 +232,18 @@ export function ShoppingBranchCards({
 					})
 				: null}
 
-			<Sheet
-				open={addTarget !== null}
-				onOpenChange={(open) => {
-					if (!open) {
-						setAddTarget(null);
+			{addTarget ? (
+				<ShoppingAddSheet
+					title={addTitle}
+					stores={context.stores}
+					defaultStoreIdFor={context.defaultStoreIdFor}
+					onCreateStore={context.onCreateStore}
+					onAdd={(input) =>
+						context.onAddItem(addTarget.branch, addTarget.side, input)
 					}
-				}}
-				title={addTitle}
-				placement={isRight ? "right" : "bottom"}
-				// 浮いたパネル：後ろのメモを見ながら、続けて入れられる（追加しても閉じない）。
-				modal={false}
-				snapPoints={isRight ? [0.92] : [0.1, 0.7, 0.92]}
-				defaultSnapIndex={isRight ? 0 : 1}
-				footer={
-					<div className={styles.sheetFooter}>
-						<Button
-							variant="secondary"
-							size="lg"
-							fullWidth
-							onClick={() => setAddTarget(null)}
-						>
-							完了
-						</Button>
-
-						<Button size="lg" fullWidth type="submit" form={addFormId}>
-							この側に追加
-						</Button>
-					</div>
-				}
-			>
-				{addTarget ? (
-					<ShoppingItemForm
-						alwaysExpanded
-						hideSubmitButton
-						formId={addFormId}
-						errorMessage={null}
-						stores={context.stores}
-						defaultStoreIdFor={context.defaultStoreIdFor}
-						onCreateStore={context.onCreateStore}
-						onAdd={(input) =>
-							context.onAddItem(addTarget.branch, addTarget.side, input)
-						}
-					/>
-				) : null}
-			</Sheet>
+					onClose={() => setAddTarget(null)}
+				/>
+			) : null}
 
 			{bulkTarget ? (
 				<ShoppingBulkAdd

@@ -26,16 +26,17 @@ describe("ShoppingList の店", () => {
 		render(<ShoppingList repository={repository} />);
 
 		await screen.findByText("買うものはまだありません。");
+		await user.click(screen.getByRole("button", { name: "買うものを入れる" }));
 		await user.type(screen.getByLabelText("買うもの"), "卵");
-		await user.selectOptions(
-			screen.getByLabelText("買う店"),
-			"＋ 新しい店を追加…",
-		);
+		await user.click(screen.getByRole("button", { name: "店を足す" }));
 		await user.type(screen.getByLabelText("新しい店の名前"), "スーパーA");
 		await user.click(screen.getByRole("button", { name: "この店を追加" }));
 
 		await waitFor(() => {
-			expect(screen.getByLabelText("買う店")).toHaveDisplayValue("スーパーA");
+			expect(screen.getByRole("button", { name: "スーパーA" })).toHaveAttribute(
+				"aria-pressed",
+				"true",
+			);
 		});
 
 		await user.click(screen.getByRole("button", { name: "追加" }));
@@ -56,8 +57,13 @@ describe("ShoppingList の店", () => {
 			).resolves.toBe(1);
 		});
 		await user.type(screen.getByLabelText("買うもの"), "卵");
-		expect(screen.getByLabelText("買う店")).toHaveDisplayValue("スーパーA");
+		expect(screen.getByRole("button", { name: "スーパーA" })).toHaveAttribute(
+			"aria-pressed",
+			"true",
+		);
 
+		await user.clear(screen.getByLabelText("買うもの"));
+		await user.click(screen.getByRole("button", { name: "完了" }));
 		await user.click(screen.getByRole("button", { name: "店ごと" }));
 
 		const heading = screen.getByRole("heading", { name: "スーパーA" });

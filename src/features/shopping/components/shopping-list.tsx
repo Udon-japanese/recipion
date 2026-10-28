@@ -42,6 +42,7 @@ import { dexieShoppingStoreRepository } from "../infrastructure/dexie-shopping-s
 import { shoppingViewStorage } from "../infrastructure/shopping-view-storage";
 import { PurchaseExpiryReview } from "./purchase-expiry-review";
 import type { RenderRecipePicker } from "./recipe-picker-slot";
+import { ShoppingAddSheet } from "./shopping-add-sheet";
 import {
 	ShoppingBranchCards,
 	type ShoppingBranchCardsContext,
@@ -49,7 +50,6 @@ import {
 import { ShoppingBranchCreate } from "./shopping-branch-create";
 import { ShoppingBulkAdd } from "./shopping-bulk-add";
 import { ShoppingItemEditForm } from "./shopping-item-edit-form";
-import { ShoppingItemForm } from "./shopping-item-form";
 import { ShoppingItemInventoryConversionForm } from "./shopping-item-inventory-conversion-form";
 import { ShoppingItemRow } from "./shopping-item-row";
 import * as styles from "./shopping-page.css";
@@ -103,6 +103,7 @@ export function ShoppingList({
 	const [view, setView] = useStorageItem(shoppingViewStorage);
 	const [isPickingRecipe, setIsPickingRecipe] = useState(false);
 	const [isBulkAdding, setIsBulkAdding] = useState(false);
+	const [isAddingItem, setIsAddingItem] = useState(false);
 	// 数量だけを直すシートの項目。
 	const [quantityItem, setQuantityItem] = useState<ShoppingItem | null>(null);
 	// 在庫への換算を直している項目（行の換算を押したとき）。
@@ -375,21 +376,23 @@ export function ShoppingList({
 
 			{notices ? <div className={styles.notices}>{notices}</div> : null}
 
-			<ShoppingItemForm
-				onAdd={async (input) => {
-					const added = await shopping.addItem(input);
+			{/* 追加のシートを開いているときは、シートの中に出す。 */}
+			{errorMessage && !isAddingItem ? (
+				<p className={styles.formError} role="alert">
+					<Icon name="alert-triangle" size={20} />
+					{errorMessage}
+				</p>
+			) : null}
 
-					if (added) {
-						await storeState.rememberStore(input.name, input.storeId ?? null);
-					}
-
-					return added;
-				}}
-				errorMessage={errorMessage}
-				stores={stores}
-				defaultStoreIdFor={storeState.defaultStoreIdFor}
-				onCreateStore={storeState.addStore}
-			/>
+			<Button
+				size="lg"
+				fullWidth
+				align="start"
+				leadingIcon={<Icon name="plus" size={20} />}
+				onClick={() => setIsAddingItem(true)}
+			>
+				買うものを入れる
+			</Button>
 
 			<div className={styles.entryRow}>
 				<Button
@@ -422,6 +425,26 @@ export function ShoppingList({
 					/>
 				)}
 			</div>
+
+			{isAddingItem ? (
+				<ShoppingAddSheet
+					title="買うものを入れる"
+					errorMessage={errorMessage}
+					stores={stores}
+					defaultStoreIdFor={storeState.defaultStoreIdFor}
+					onCreateStore={storeState.addStore}
+					onClose={() => setIsAddingItem(false)}
+					onAdd={async (input) => {
+						const added = await shopping.addItem(input);
+
+						if (added) {
+							await storeState.rememberStore(input.name, input.storeId ?? null);
+						}
+
+						return added;
+					}}
+				/>
+			) : null}
 
 			{isBulkAdding ? (
 				<ShoppingBulkAdd
