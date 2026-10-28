@@ -18,6 +18,15 @@ afterEach(() => {
 	localStorage.clear();
 });
 
+// 「ほかの入れ方」のメニューから、項目を選ぶ。
+async function chooseOtherWay(
+	user: ReturnType<typeof userEvent.setup>,
+	name: string,
+) {
+	await user.click(screen.getByRole("button", { name: "ほかの入れ方" }));
+	await user.click(await screen.findByRole("menuitem", { name }));
+}
+
 describe("ShoppingList の店", () => {
 	it("その場で店を作って項目に付け、次に同じ食材を入れると、その店が初期値になり、店ごとの表示に出る", async () => {
 		const user = userEvent.setup();
@@ -85,7 +94,7 @@ describe("ShoppingList の店", () => {
 		render(<ShoppingList repository={repository} />);
 
 		await screen.findByText("買うものはまだありません。");
-		await user.click(screen.getByRole("button", { name: "まとめて追加" }));
+		await chooseOtherWay(user, "まとめて追加");
 
 		const memo = await screen.findByRole("textbox", {
 			name: "買うもの（1行に1つ）",
@@ -144,7 +153,7 @@ describe("ShoppingList の店", () => {
 		render(<ShoppingList repository={repository} />);
 
 		await screen.findByText("買うものはまだありません。");
-		await user.click(screen.getByRole("button", { name: "まとめて追加" }));
+		await chooseOtherWay(user, "まとめて追加");
 
 		const memo = await screen.findByRole("textbox", {
 			name: "買うもの（1行に1つ）",
@@ -172,7 +181,7 @@ describe("ShoppingList の店", () => {
 		render(<ShoppingList repository={repository} />);
 
 		await screen.findByText("買うものはまだありません。");
-		await user.click(screen.getByRole("button", { name: "まとめて追加" }));
+		await chooseOtherWay(user, "まとめて追加");
 		await user.click(
 			await screen.findByRole("textbox", { name: "買うもの（1行に1つ）" }),
 		);

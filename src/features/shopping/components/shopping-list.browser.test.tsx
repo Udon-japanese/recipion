@@ -138,7 +138,8 @@ test("まとめて追加は、広い画面では左右に並べ、狭い画面�
 	await page.viewport(1280, 900);
 	await render(<ShoppingList repository={repository} />);
 
-	await page.getByRole("button", { name: "まとめて追加" }).click();
+	await page.getByRole("button", { name: "ほかの入れ方" }).click();
+	await page.getByRole("menuitem", { name: "まとめて追加" }).click();
 	await page
 		.getByRole("textbox", { name: "買うもの（1行に1つ）" })
 		.fill("卵 2\nたまねぎ");

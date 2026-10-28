@@ -171,6 +171,13 @@ export const iconDefinitions = {
 		style: "outline",
 		content: (<path d="M12 5v14M5 12h14" />) as ReactNode,
 	},
+	// 重なったカードに「＋」：いつもの1つ追加ではない、特別な入れ方（まとめて・レシピから・条件つき）。
+	"plus-stack": {
+		style: "outline",
+		content: (
+			<path d="M8 8V5h12v12h-3M4 8h12v12H4zM10 11v6M7 14h6" />
+		) as ReactNode,
+	},
 	refresh: {
 		style: "outline",
 		content: (<path d="M20 11a8 8 0 10-2 6M20 5v6h-6" />) as ReactNode,

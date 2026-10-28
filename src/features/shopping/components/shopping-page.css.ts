@@ -6,8 +6,6 @@ export const page = style({
 	display: "grid",
 	alignContent: "start",
 	gap: 16,
-	// スマホ：購入確定のバーが、画面の下（ナビの上）にそろうよう、高さを確保する。
-	minHeight: "calc(100dvh - 56px - 64px - 32px)",
 	maxWidth: 720,
 	marginInline: "auto",
 	minWidth: 0,
@@ -246,28 +244,86 @@ export const draggingHandle = style({
 	cursor: "grab",
 });
 
-// 購入確定のバー。スマホは下のナビの上に、PC は画面の下に貼り付く。
+// 購入確定のバー（チェックが入っているときだけ出る）。スマホは、下のナビの上に、いつも貼り付く（内容の量に関係なく）。
+// PC は、画面の下に貼り付く。
 export const purchaseBar = style({
-	alignSelf: "end",
-	position: "sticky",
+	position: "fixed",
+	left: 0,
+	right: 0,
 	bottom: "calc(64px + env(safe-area-inset-bottom))",
 	zIndex: 5,
-	margin: "0 -16px -16px",
 	padding: "12px 16px",
-	background: "var(--color-surface)",
+	// 買ったものを確定できることを、色でも伝える。
+	background: "var(--color-primary-soft)",
 	borderTop: "1px solid var(--color-border)",
 	boxShadow: "var(--shadow-sheet)",
-	selectors: {
-		// 買ったものにチェックが入ったら、薄い黄色にして、確定できることを目立たせる。
-		"&[data-ready]": { background: "var(--color-primary-soft)" },
-	},
 	"@media": {
 		[PC]: {
+			position: "sticky",
+			left: "auto",
+			right: "auto",
 			bottom: 16,
-			margin: "8px 0 0",
+			marginTop: 8,
 			borderTop: 0,
 			borderRadius: "var(--radius-card)",
 			boxShadow: "var(--shadow-md)",
+		},
+	},
+});
+
+// 買うものを入れる「＋」と、その真上の「ほかの入れ方」。いつも画面の隅にある。購入確定のバーが出ているときは、その上。
+export const fabGroup = style({
+	position: "fixed",
+	right: 16,
+	bottom: "calc(64px + env(safe-area-inset-bottom) + 16px)",
+	zIndex: 6,
+	display: "grid",
+	justifyItems: "center",
+	gap: 12,
+	transition: "bottom var(--duration-normal) var(--ease-standard)",
+	selectors: {
+		'&[data-lifted="true"]': {
+			bottom: "calc(64px + env(safe-area-inset-bottom) + 16px + 76px)",
+		},
+	},
+	"@media": {
+		[PC]: {
+			right: 24,
+			bottom: 24,
+			selectors: {
+				'&[data-lifted="true"]': { bottom: "calc(24px + 76px)" },
+			},
+		},
+	},
+});
+
+// 「＋」の上の、小さな丸（白い地と影で、後ろの内容から浮かせる）。
+export const fabSub = style({
+	display: "grid",
+	background: "var(--color-surface)",
+	borderRadius: "50%",
+	boxShadow: "var(--shadow-md)",
+});
+
+export const fab = style({
+	display: "grid",
+	placeItems: "center",
+	width: 56,
+	height: 56,
+	padding: 0,
+	border: 0,
+	borderRadius: "50%",
+	background: "var(--color-primary)",
+	color: "var(--color-on-primary)",
+	boxShadow: "0 6px 20px rgba(233, 169, 0, 0.45)",
+	cursor: "pointer",
+	WebkitTapHighlightColor: "transparent",
+	selectors: {
+		"&:hover": { background: "var(--color-primary-hover)" },
+		"&:active": { transform: "scale(0.94)" },
+		"&:focus-visible": {
+			outline: "3px solid var(--color-text)",
+			outlineOffset: 3,
 		},
 	},
 });
@@ -435,13 +491,6 @@ export const bulkQuantity = style({
 export const bulkError = style({
 	margin: 0,
 	color: "var(--color-error)",
-});
-
-// 入力の入口（まとめて追加・レシピから入れる）を、横に並べる。
-export const entryRow = style({
-	display: "flex",
-	flexWrap: "wrap",
-	gap: 8,
 });
 
 // 登録のない店を、店に追加する案内。

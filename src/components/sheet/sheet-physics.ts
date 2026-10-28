@@ -14,7 +14,7 @@ export const PROJECTION_MS = 120;
 export const VELOCITY_WINDOW_MS = 100;
 // 上限を超えて引いたときの、ゴムの強さ（大きいほど、遠くまで伸びる）。
 const RUBBER_BAND_LIMIT = 120;
-const RUBBER_BAND_COEFFICIENT = 0.55;
+const RUBBER_BAND_COEFFICIENT = 0.275;
 
 export type Sample = { y: number; t: number };
 

@@ -28,6 +28,8 @@ type MenuProps = {
 	icon: IconName;
 	items: readonly MenuItem[];
 	disabled?: boolean;
+	// 出す向きの希望（入らなければ、反対側）。画面の下の隅にあるボタンは、above。
+	placement?: "below" | "above";
 	// 開くボタンの代わりに出すもの（省略すると、アイコンボタン）。
 	trigger?: (props: {
 		ref: (element: HTMLButtonElement | null) => void;
@@ -43,27 +45,35 @@ const ITEM_HEIGHT = 48;
 const GAP = 6;
 const EDGE = 12;
 
-// ボタンの右端にそろえ、画面の端に収まる位置に置く。下に入らなければ、上に出す。
+// ボタンの右端にそろえ、画面の端に収まる位置に置く。下に入らなければ、上に出す（prefer が above なら、逆）。
 function placeMenu(
 	anchor: { right: number; top: number; bottom: number },
 	size: { width: number; height: number },
+	prefer: "below" | "above",
 ) {
 	const left = Math.min(
 		Math.max(EDGE, anchor.right - size.width),
 		window.innerWidth - size.width - EDGE,
 	);
 	const below = anchor.bottom + GAP;
-	const top =
-		below + size.height > window.innerHeight - EDGE
-			? Math.max(EDGE, anchor.top - GAP - size.height)
-			: below;
+	const above = anchor.top - GAP - size.height;
+	const fitsBelow = below + size.height <= window.innerHeight - EDGE;
+	const fitsAbove = above >= EDGE;
+	const useAbove = prefer === "above" ? fitsAbove || !fitsBelow : !fitsBelow;
 
-	return { left, top };
+	return { left, top: useAbove ? Math.max(EDGE, above) : below };
 }
 
 // 押すと出る、短い操作の一覧（行の「その他」・並べ替え など）。
 // 矢印で選び、Esc で閉じてボタンへ戻る。外を押す・Tab でも閉じる。
-export function Menu({ label, icon, items, disabled, trigger }: MenuProps) {
+export function Menu({
+	label,
+	icon,
+	items,
+	disabled,
+	placement = "below",
+	trigger,
+}: MenuProps) {
 	const menuId = useId();
 	const triggerRef = useRef<HTMLButtonElement | null>(null);
 	const popupRef = useRef<HTMLDivElement>(null);
@@ -94,10 +104,14 @@ export function Menu({ label, icon, items, disabled, trigger }: MenuProps) {
 		};
 
 		// 大きさは、まだ分からないので、仮の値で置く（直後に、実際の大きさで置き直す）。
-		const placed = placeMenu(anchorRef.current, {
-			width: WIDTH,
-			height: items.length * ITEM_HEIGHT + 8,
-		});
+		const placed = placeMenu(
+			anchorRef.current,
+			{
+				width: WIDTH,
+				height: items.length * ITEM_HEIGHT + 8,
+			},
+			placement,
+		);
 
 		setPosition(placed);
 	}
@@ -121,17 +135,21 @@ export function Menu({ label, icon, items, disabled, trigger }: MenuProps) {
 			return;
 		}
 
-		const placed = placeMenu(anchor, {
-			width: popup.offsetWidth,
-			height: popup.offsetHeight,
-		});
+		const placed = placeMenu(
+			anchor,
+			{
+				width: popup.offsetWidth,
+				height: popup.offsetHeight,
+			},
+			placement,
+		);
 
 		setPosition((current) =>
 			current && current.left === placed.left && current.top === placed.top
 				? current
 				: placed,
 		);
-	}, [isOpen]);
+	}, [isOpen, placement]);
 
 	useEffect(() => {
 		if (!isOpen) {

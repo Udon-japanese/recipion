@@ -54,14 +54,28 @@ const renderPicker: RenderRecipePicker = ({
 	</div>
 );
 
+// 「ほかの入れ方」のメニューから、項目を選ぶ。
+async function chooseOtherWay(
+	user: ReturnType<typeof userEvent.setup>,
+	name: string,
+) {
+	await user.click(screen.getByRole("button", { name: "ほかの入れ方" }));
+	await user.click(await screen.findByRole("menuitem", { name }));
+}
+
 describe("ShoppingList の「レシピから入れる」", () => {
 	it("部品が渡されなければ（ゲスト）、ボタンを出さない", async () => {
 		render(<ShoppingList repository={dexieShoppingRepository} />);
 
 		await screen.findByText("買うものはまだありません。");
 
+		await userEvent.click(screen.getByRole("button", { name: "ほかの入れ方" }));
+
 		expect(
-			screen.queryByRole("button", { name: "レシピから入れる" }),
+			await screen.findByRole("menuitem", { name: "まとめて追加" }),
+		).toBeInTheDocument();
+		expect(
+			screen.queryByRole("menuitem", { name: "レシピから入れる" }),
 		).toBeNull();
 	});
 
@@ -76,7 +90,7 @@ describe("ShoppingList の「レシピから入れる」", () => {
 		);
 
 		await screen.findByText("買うものはまだありません。");
-		await user.click(screen.getByRole("button", { name: "レシピから入れる" }));
+		await chooseOtherWay(user, "レシピから入れる");
 		await user.click(
 			screen.getByRole("button", { name: "カレーの材料を入れる" }),
 		);
@@ -88,7 +102,7 @@ describe("ShoppingList の「レシピから入れる」", () => {
 		await user.click(screen.getByRole("button", { name: "ピッカーを閉じる" }));
 
 		expect(
-			screen.getByRole("button", { name: "レシピから入れる" }),
+			screen.getByRole("button", { name: "ほかの入れ方" }),
 		).toBeInTheDocument();
 	});
 
