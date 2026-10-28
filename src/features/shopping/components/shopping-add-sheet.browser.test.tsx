@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { cdp } from "vitest/browser";
+import { cdp, page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { ShoppingAddSheet } from "./shopping-add-sheet";
 
@@ -35,4 +35,41 @@ it("変換中は、カタログの名前と完全に一致しても、候補が�
 			`「${text}」で候補が出る（入力欄の値：${input.value}）`,
 		).not.toBeNull();
 	}
+});
+
+// 店を足す欄は、狭いスマホの幅でも、入力欄とボタンが重ならない。
+it("狭い幅でも、新しい店の入力欄とボタンが重ならない", async () => {
+	await page.viewport(320, 700);
+	await render(
+		<ShoppingAddSheet
+			title="買うものを入れる"
+			stores={[]}
+			defaultStoreIdFor={() => null}
+			onCreateStore={async () => null}
+			onAdd={async () => true}
+			onClose={() => undefined}
+		/>,
+	);
+	await new Promise((resolve) => setTimeout(resolve, 600));
+
+	const open = [...document.querySelectorAll("button")].find((button) =>
+		button.textContent?.includes("店を足す"),
+	);
+
+	open?.click();
+	await new Promise((resolve) => setTimeout(resolve, 200));
+
+	const input = document
+		.querySelector('input[aria-label="新しい店の名前"]')
+		?.getBoundingClientRect();
+	const buttons = [...document.querySelectorAll("button")]
+		.filter((button) => /この店を追加|やめる/.test(button.textContent ?? ""))
+		.map((button) => button.getBoundingClientRect());
+
+	expect(buttons).toHaveLength(2);
+	expect(input?.bottom).toBeLessThanOrEqual(
+		Math.min(...buttons.map((rect) => rect.top)),
+	);
+	// 2つのボタンどうしも、重ならない。
+	expect(buttons[0]?.right).toBeLessThanOrEqual(buttons[1]?.left ?? 0);
 });

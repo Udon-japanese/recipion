@@ -27,9 +27,14 @@ export const chips = style({
 	gap: 8,
 });
 
+// 入力欄は1行を使い、ボタンは、その下に並べる（スマホの狭い幅で、重ならない）。
 export const newStore = style({
+	display: "grid",
+	gap: 8,
+});
+
+export const newStoreButtons = style({
 	display: "flex",
-	alignItems: "center",
 	gap: 8,
 });
 

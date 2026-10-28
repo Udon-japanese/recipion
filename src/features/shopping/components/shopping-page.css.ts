@@ -20,6 +20,7 @@ export const titleRow = style({
 });
 
 export const title = style({
+	flex: "1 1 auto",
 	margin: 0,
 	fontSize: "var(--font-size-xl)",
 	fontWeight: "var(--font-weight-extrabold)",
@@ -45,7 +46,40 @@ export const toolbar = style({
 	flex: 1,
 	minWidth: 0,
 	"@media": {
-		[PC]: { flex: "none", width: 320 },
+		// PC：見出しと右上のボタンの下の段に、1行で置く。
+		[PC]: { flex: "1 1 100%", maxWidth: 320 },
+	},
+});
+
+// PC：右上の、追加まわりのボタン。
+export const headActions = style({
+	display: "flex",
+	alignItems: "center",
+	gap: 8,
+});
+
+// 「ほかの入れ方」（短い文字＋アイコンのボタン。白地に枠）。
+export const headMenuButton = style({
+	boxSizing: "border-box",
+	display: "inline-flex",
+	alignItems: "center",
+	gap: 8,
+	minHeight: 44,
+	padding: "0 18px",
+	color: "var(--color-text)",
+	font: "inherit",
+	fontWeight: "var(--font-weight-bold)",
+	background: "var(--color-surface)",
+	border: "1.5px solid var(--color-control-border)",
+	borderRadius: 9999,
+	cursor: "pointer",
+	selectors: {
+		"&:hover:not(:disabled)": { background: "var(--color-surface-muted)" },
+		"&:focus-visible": {
+			outline: "3px solid var(--color-focus)",
+			outlineOffset: 2,
+		},
+		"&:disabled": { color: "var(--color-text-disabled)", cursor: "default" },
 	},
 });
 
@@ -284,15 +318,6 @@ export const fabGroup = style({
 	selectors: {
 		'&[data-lifted="true"]': {
 			bottom: "calc(64px + env(safe-area-inset-bottom) + 16px + 76px)",
-		},
-	},
-	"@media": {
-		[PC]: {
-			right: 24,
-			bottom: 24,
-			selectors: {
-				'&[data-lifted="true"]': { bottom: "calc(24px + 76px)" },
-			},
 		},
 	},
 });
