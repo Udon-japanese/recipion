@@ -257,6 +257,10 @@ export const purchaseBar = style({
 	background: "var(--color-surface)",
 	borderTop: "1px solid var(--color-border)",
 	boxShadow: "var(--shadow-sheet)",
+	selectors: {
+		// 買ったものにチェックが入ったら、薄い黄色にして、確定できることを目立たせる。
+		"&[data-ready]": { background: "var(--color-primary-soft)" },
+	},
 	"@media": {
 		[PC]: {
 			bottom: 16,
@@ -362,6 +366,15 @@ export const purchasedToggle = style({
 			outlineOffset: 2,
 		},
 	},
+});
+
+// 購入済みの一覧は、白いカードではなく、薄いベージュ（済んだもの）。
+export const purchasedList = style({
+	margin: 0,
+	padding: "0 12px 0 8px",
+	listStyle: "none",
+	background: "var(--color-surface-muted)",
+	borderRadius: "var(--radius-card)",
 });
 
 export const purchasedChevron = style({

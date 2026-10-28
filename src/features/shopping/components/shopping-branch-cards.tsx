@@ -7,7 +7,6 @@ import {
 	formatQuantity,
 	formatQuantityForUnit,
 } from "#/features/quantity/domain/format-quantity";
-import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
 import type { ShoppingRepository } from "../application/shopping-repository";
 import type { ParsedShoppingMemoLine } from "../domain/parse-shopping-memo";
 import type { CreateShoppingBranchInput } from "../domain/shopping-branch";
@@ -31,8 +30,8 @@ import {
 	ShoppingBranchCard,
 } from "./shopping-branch-card";
 import {
-	type BranchConditionValue,
 	ShoppingBranchConditionEditor,
+	toConditionItemInput,
 } from "./shopping-branch-condition-editor";
 import { ShoppingBulkAdd } from "./shopping-bulk-add";
 import { ShoppingItemForm } from "./shopping-item-form";
@@ -329,7 +328,7 @@ export function ShoppingBranchCards({
 
 						const updated = await context.onUpdateItem(
 							editingItem,
-							toItemInput(draft),
+							toConditionItemInput(draft),
 						);
 
 						if (updated) {
@@ -368,21 +367,4 @@ export function ShoppingBranchCards({
 			</ConfirmDialog>
 		</>
 	);
-}
-
-// 編集した内容を、条件の材料の更新の入力にする（数量が読めなければ NaN にして、検証で止める）。
-function toItemInput(draft: BranchConditionValue): UpdateShoppingItemInput {
-	return {
-		name: draft.name,
-		quantity: parseQuantityInput(draft.quantity) ?? Number.NaN,
-		unitLabel: draft.unitLabel,
-		inventoryConversion: draft.presetConversion ?? undefined,
-		categoryId: draft.categoryId || null,
-		categoryAssignment: draft.categoryId
-			? draft.isCategoryManual
-				? "manual"
-				: "automatic"
-			: null,
-		storeId: draft.storeId,
-	};
 }

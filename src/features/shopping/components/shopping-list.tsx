@@ -413,6 +413,14 @@ export function ShoppingList({
 						レシピから入れる
 					</Button>
 				) : null}
+
+				{isLoading ? null : (
+					<ShoppingBranchCreate
+						stores={stores}
+						onCreateStore={storeState.addStore}
+						onAddBranch={branchState.addBranch}
+					/>
+				)}
 			</div>
 
 			{isBulkAdding ? (
@@ -638,16 +646,10 @@ export function ShoppingList({
 				/>
 			)}
 
-			{isLoading ? null : (
-				<ShoppingBranchCreate
-					stores={stores}
-					defaultStoreIdFor={storeState.defaultStoreIdFor}
-					onCreateStore={storeState.addStore}
-					onAddBranch={branchState.addBranch}
-				/>
-			)}
-
-			<div className={styles.purchaseBar}>
+			<div
+				className={styles.purchaseBar}
+				data-ready={purchase.checkedItemCount > 0 || undefined}
+			>
 				<Button
 					size="lg"
 					fullWidth

@@ -11,6 +11,12 @@ export const row = style({
 
 	selectors: {
 		"&:first-child": { borderTop: 0 },
+		// チェックを入れた（買った）行は、薄い緑（色で、済んだことが分かる）。
+		"&[data-checked]": {
+			background: "var(--color-success-soft)",
+			borderRadius: 12,
+			borderTopColor: "transparent",
+		},
 		// 持ち上げて動かしているとき。
 		"&[data-dragging]": {
 			background: "var(--color-surface)",

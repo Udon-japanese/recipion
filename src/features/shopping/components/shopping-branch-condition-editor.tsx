@@ -4,7 +4,9 @@ import { CornerSheet } from "#/components/corner-sheet/corner-sheet";
 import { Field, TextInput } from "#/components/field/field";
 import { Icon } from "#/components/icon/icon";
 import { formatQuantity } from "#/features/quantity/domain/format-quantity";
+import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
 import {
+	defaultShoppingBranchCondition,
 	maxShoppingBranchConditionLength,
 	maxShoppingBranchLabelLength,
 } from "../domain/shopping-branch";
@@ -12,7 +14,10 @@ import {
 	isShoppingCategoryId,
 	type ShoppingCategoryId,
 } from "../domain/shopping-category";
-import type { ShoppingItemInventoryConversion } from "../domain/shopping-item";
+import type {
+	CreateShoppingItemInput,
+	ShoppingItemInventoryConversion,
+} from "../domain/shopping-item";
 import {
 	getShoppingItemPresets,
 	inferShoppingCategory,
@@ -47,7 +52,40 @@ export type BranchConditionValue = {
 
 type ConditionPart = "store" | "name" | "amount" | "condition";
 
+// 何も入れていない、作りはじめの値。
+export const emptyBranchConditionValue: BranchConditionValue = {
+	storeId: null,
+	name: "",
+	quantity: "1",
+	unitLabel: "",
+	categoryId: "",
+	isCategoryManual: false,
+	presetConversion: null,
+	condition: defaultShoppingBranchCondition,
+	thenLabel: "",
+	elseLabel: "",
+};
+
+// 入力を、条件の材料の入力にする（数量が読めなければ NaN にして、検証で止める）。
+export function toConditionItemInput(draft: BranchConditionValue) {
+	return {
+		name: draft.name,
+		quantity: parseQuantityInput(draft.quantity) ?? Number.NaN,
+		unitLabel: draft.unitLabel,
+		inventoryConversion: draft.presetConversion ?? undefined,
+		categoryId: draft.categoryId || null,
+		categoryAssignment: draft.categoryId
+			? draft.isCategoryManual
+				? "manual"
+				: "automatic"
+			: null,
+		storeId: draft.storeId,
+	} satisfies CreateShoppingItemInput;
+}
+
 type ShoppingBranchConditionEditorProps = {
+	// 新しく作るか、直すか（見出し・保存のボタン・最初に開く入力が変わる）。
+	mode?: "create" | "edit";
 	// 開くたびに、新しく作る（開いていないときは、描画しない）。
 	value: BranchConditionValue;
 	stores: readonly ShoppingStore[];
@@ -60,6 +98,7 @@ type ShoppingBranchConditionEditorProps = {
 // 条件を直す：いまの設定を文章で見せ、直したい部分（店・材料・数量・どんな時に）を押すと、その入力だけが開く。
 // 上のカード＋角のボタン（キャンセル／保存）。
 export function ShoppingBranchConditionEditor({
+	mode = "edit",
 	value,
 	stores,
 	onCreateStore,
@@ -67,10 +106,14 @@ export function ShoppingBranchConditionEditor({
 	onSave,
 }: ShoppingBranchConditionEditorProps) {
 	const [draft, setDraft] = useState(value);
-	const [part, setPart] = useState<ConditionPart | null>(null);
+	// 作るときは、まず材料から入れる。
+	const [part, setPart] = useState<ConditionPart | null>(
+		mode === "create" ? "name" : null,
+	);
 	const [isSaving, setIsSaving] = useState(false);
 	const storeName = stores.find((store) => store.id === draft.storeId)?.name;
 	const amount = `${draft.quantity}${draft.unitLabel}`.trim();
+	const isCreate = mode === "create";
 	const presets = getShoppingItemPresets(draft.name);
 	const isValid = draft.name.trim() !== "" && draft.condition.trim() !== "";
 
@@ -105,7 +148,7 @@ export function ShoppingBranchConditionEditor({
 		<CornerSheet
 			open
 			eyebrow="条件つきのメモ"
-			title="条件を直す"
+			title={isCreate ? "条件つきのメモを作る" : "条件を直す"}
 			onDismiss={isSaving ? undefined : onCancel}
 			left={{
 				label: "キャンセル",
@@ -114,7 +157,7 @@ export function ShoppingBranchConditionEditor({
 				onClick: onCancel,
 			}}
 			right={{
-				label: "保存",
+				label: isCreate ? "作る" : "保存",
 				icon: "check",
 				disabled: !isValid,
 				pending: isSaving,
@@ -124,7 +167,7 @@ export function ShoppingBranchConditionEditor({
 			<div className={styles.preview} aria-live="polite">
 				<p className={styles.previewTitle}>こう動きます</p>
 				<p className={styles.previewCondition}>
-					{`${storeName ? `${storeName}に` : ""}${draft.name}${amount ? ` ${amount}` : ""}が${draft.condition}…`}
+					{`${storeName ? `${storeName}に` : ""}${draft.name || "（材料）"}${amount ? ` ${amount}` : ""}が${draft.condition}…`}
 				</p>
 				<p className={styles.previewSide}>
 					<Icon name="check-circle" size={16} />
@@ -258,7 +301,11 @@ export function ShoppingBranchConditionEditor({
 						) : null}
 					</div>
 				) : (
-					<p className={styles.joshi}>直したい部分を押してください。</p>
+					<p className={styles.joshi}>
+						{isCreate
+							? "入れたい部分を押してください。"
+							: "直したい部分を押してください。"}
+					</p>
 				)}
 			</fieldset>
 
