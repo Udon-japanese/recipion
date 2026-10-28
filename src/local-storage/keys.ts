@@ -15,6 +15,8 @@ export const storageKeys = {
 	shoppingView: "shopping-view",
 	// レシピの入力：新規登録で、見出しの雛形を最初から入れるか。
 	recipeEditorTemplate: "recipe-editor-template",
+	// レシピの参照：見ているあいだ、画面を消灯させないか。
+	recipeKeepAwake: "recipe-keep-awake",
 } as const;
 
 export type StorageKey = (typeof storageKeys)[keyof typeof storageKeys];
