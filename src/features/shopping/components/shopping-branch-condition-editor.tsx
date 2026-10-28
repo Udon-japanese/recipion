@@ -147,6 +147,8 @@ export function ShoppingBranchConditionEditor({
 	return (
 		<CornerSheet
 			open
+			// 入力欄があるので、ボタンは、キーボードの下に隠れない、カードの中に置く。
+			actions="inline"
 			title={isCreate ? "条件つきのメモを作る" : "条件を直す"}
 			onDismiss={isSaving ? undefined : onCancel}
 			left={{

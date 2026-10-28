@@ -3,6 +3,7 @@ import { cdp, page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import "../../styles.css";
 import { useState } from "react";
+import { CornerSheet } from "../corner-sheet/corner-sheet";
 import { Sheet } from "./sheet";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -372,4 +373,40 @@ it("勢いよく下へはじくと、2段のシートでも、いっぺんに閉
 	await mouse("mouseReleased", start.x, start.y + 140);
 
 	expect(onChange).toHaveBeenLastCalledWith(false);
+});
+
+it("あとから開いたシートは、先に開いている上のシート（コーナーシート）より、手前に出る", async () => {
+	await render(
+		<>
+			<CornerSheet
+				open
+				title="買うものを入れる"
+				right={{ label: "追加", icon: "plus", onClick: () => undefined }}
+			>
+				<p>本文</p>
+			</CornerSheet>
+			<Sheet open onOpenChange={() => undefined} title="カテゴリ">
+				<p>選択肢</p>
+			</Sheet>
+		</>,
+	);
+	await sleep(600);
+
+	const roots = [
+		...document.querySelectorAll<HTMLElement>('[role="dialog"]'),
+	].map((dialog) => {
+		const root = dialog.parentElement as HTMLElement;
+
+		return {
+			title: dialog.getAttribute("aria-label") ?? dialog.textContent,
+			zIndex: Number(getComputedStyle(root).zIndex),
+			position: [...document.body.children].indexOf(root),
+		};
+	});
+	const corner = roots.find((root) => root.title?.includes("買うものを入れる"));
+	const sheet = roots.find((root) => root.title === "カテゴリ");
+
+	// 重なりの順は、同じ高さのとき、あとから開いたほうが手前（ページの後ろにある）。
+	expect(sheet?.zIndex).toBe(corner?.zIndex);
+	expect(sheet?.position).toBeGreaterThan(corner?.position ?? Number.NaN);
 });

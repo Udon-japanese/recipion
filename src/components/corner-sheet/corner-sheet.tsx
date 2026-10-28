@@ -6,6 +6,7 @@ import type { IconName } from "../icon/icon-definitions";
 import { Mascot } from "../mascot/mascot";
 import { useBodyScrollLock } from "../sheet/use-body-scroll-lock";
 import { useModalFocus } from "../sheet/use-modal-focus";
+import { useVisualViewport } from "../sheet/use-visual-viewport";
 import { useMediaQuery } from "../use-media-query";
 import * as styles from "./corner-sheet.css";
 
@@ -29,6 +30,9 @@ type CornerSheetProps = {
 	left?: CornerAction;
 	// 右下：進む・終える側（主役の色）。
 	right: CornerAction;
+	// ボタンの置き場所。corner（既定）：画面の下の角（スマホ）。inline：カードの中の下端。
+	// 入力欄があるときは inline（角のボタンは、キーボードの下に隠れるため）。PC は、いつも、カードの下。
+	actions?: "corner" | "inline";
 	// Esc と、暗幕を押したとき。安全な動き（ただ閉じる など）を渡す。省略すると、どちらも何も起きない
 	// （必ず選んでほしい場面）。
 	onDismiss?: () => void;
@@ -78,11 +82,15 @@ export function CornerSheet({
 	role = "dialog",
 	left,
 	right,
+	actions = "corner",
 	onDismiss,
 	children,
 }: CornerSheetProps) {
 	const isDesktop = useMediaQuery("(min-width: 768px)");
 	const layout = isDesktop ? "desktop" : "mobile";
+	const hasFooter = isDesktop || actions === "inline";
+	// カードの中にボタンを置くときは、キーボードを除いた見える範囲に、カードを収める（ボタンが隠れない）。
+	const viewport = useVisualViewport(open && hasFooter && !isDesktop);
 	const titleId = useId();
 	const portalRef = useRef<HTMLDivElement>(null);
 	const cardRef = useRef<HTMLDivElement>(null);
@@ -131,19 +139,30 @@ export function CornerSheet({
 				aria-labelledby={titleId}
 				tabIndex={-1}
 			>
-				<section className={styles.card} data-layout={layout}>
+				<section
+					className={styles.card}
+					data-layout={layout}
+					style={
+						hasFooter && !isDesktop
+							? {
+									maxHeight: `calc(${viewport.height}px - 24px - env(safe-area-inset-top, 0px))`,
+								}
+							: undefined
+					}
+				>
 					<div className={styles.header}>
 						<h2 className={styles.title} id={titleId}>
 							{title}
 						</h2>
 					</div>
 					<div className={styles.body}>{children}</div>
-					{isDesktop ? (
-						<div className={styles.footer}>
+					{hasFooter ? (
+						<div className={styles.footer} data-layout={layout}>
 							{left ? (
 								<Button
 									variant="secondary"
 									size="lg"
+									fullWidth={!isDesktop}
 									leadingIcon={<Icon name={left.icon} size={20} />}
 									status={left.pending ? "pending" : "idle"}
 									pendingLabel={left.label}
@@ -156,6 +175,7 @@ export function CornerSheet({
 							<Button
 								variant={right.danger ? "danger" : "primary"}
 								size="lg"
+								fullWidth={!isDesktop}
 								leadingIcon={<Icon name={right.icon} size={20} />}
 								status={right.pending ? "pending" : "idle"}
 								pendingLabel={right.label}
@@ -168,7 +188,7 @@ export function CornerSheet({
 						</div>
 					) : null}
 				</section>
-				{isDesktop ? null : (
+				{hasFooter ? null : (
 					<div className={styles.corners}>
 						{left ? <Corner action={left} side="left" /> : null}
 						<Corner action={right} side="right" />
