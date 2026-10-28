@@ -147,7 +147,6 @@ export function ShoppingBranchConditionEditor({
 	return (
 		<CornerSheet
 			open
-			eyebrow="条件つきのメモ"
 			title={isCreate ? "条件つきのメモを作る" : "条件を直す"}
 			onDismiss={isSaving ? undefined : onCancel}
 			left={{
