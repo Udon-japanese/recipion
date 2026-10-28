@@ -7,6 +7,7 @@ import { Card } from "#/components/card/card";
 import { Checkbox } from "#/components/checkbox/checkbox";
 import { Chip, ChipGroup, ChipUnit } from "#/components/chip/chip";
 import { CornerSheet } from "#/components/corner-sheet/corner-sheet";
+import { ConfirmDialog } from "#/components/dialog/confirm-dialog";
 import {
 	Field,
 	SelectBox,
@@ -32,6 +33,9 @@ import { SegmentedControl } from "#/components/segmented-control/segmented-contr
 import { Sheet } from "#/components/sheet/sheet";
 import { Tag } from "#/components/tag/tag";
 import { Toast } from "#/components/toast/toast";
+import type { InventoryListItem } from "#/features/inventory/application/inventory-query-repository";
+import { RecipeConsumeSection } from "#/features/recipes/components/recipe-consume-section";
+import type { RecipeEditorIngredientNode } from "#/features/recipes/domain/recipe-editor-document";
 
 // 開発中だけの、部品の確認用ページの中身（/dev/ui。本番では、404）。
 // 部品を足したら、ここに並べる。デザインの依頼の、スクリーンショットにも使う。
@@ -585,6 +589,54 @@ function PartsGallery() {
 	);
 }
 
+// 「つくった」の結果の、見た目の確認用（偽のデータ。実物の部品を動かす）。
+const consumeIngredients = [
+	["ホケミ", 200, "g"],
+	["卵", 2, "個"],
+	["牛乳", 100, "ml"],
+	["オリーブオイル", 10, "ml"],
+	["粉チーズ", 10, "g"],
+	["マヨネーズ", 20, "g"],
+	["胡椒", null, null],
+	["塩胡椒", null, null],
+	["ベーコン", null, null],
+	["たまねぎ", 1, "個"],
+	["ほうれん草", 1, "束"],
+	["パプリカ(赤)", null, null],
+	["塩", 3, "g"],
+].map(
+	([name, quantity, unitLabel], index) =>
+		({
+			type: "ingredient",
+			id: `gallery-${index}`,
+			status: "parsed",
+			rawText: String(name),
+			name,
+			amountText: quantity === null ? "少々" : `${quantity}${unitLabel}`,
+			quantity,
+			unitLabel,
+		}) as unknown as RecipeEditorIngredientNode,
+);
+
+const consumeStock: InventoryListItem[] = [
+	["ホケミ", 500, "g", "g", "exact"],
+	["塩", 1, "個", "count", "presence"],
+].map(([name, quantity, unitLabel, stockUnitCode, trackingMode]) => ({
+	inventoryItemId: `gallery-stock-${name}`,
+	ingredientId: `gallery-ingredient-${name}`,
+	name: String(name),
+	displayName: null,
+	quantity: Number(quantity),
+	capacity: Number(quantity),
+	lots: [],
+	stockUnitCode: stockUnitCode as InventoryListItem["stockUnitCode"],
+	stockUnitLabel: String(unitLabel),
+	trackingMode: trackingMode as InventoryListItem["trackingMode"],
+	defaultExpiryKind: null,
+	defaultStorage: null,
+	updatedAt: "2026-09-23T00:00:00.000Z",
+}));
+
 function SheetGallery() {
 	const [single, setSingle] = useState(false);
 	const [double, setDouble] = useState(false);
@@ -593,6 +645,8 @@ function SheetGallery() {
 	const [cornerShort, setCornerShort] = useState(false);
 	const [cornerLong, setCornerLong] = useState(false);
 	const [cornerPending, setCornerPending] = useState(false);
+	const [confirmDanger, setConfirmDanger] = useState(false);
+	const [confirmPending, setConfirmPending] = useState(false);
 	const [radio, setRadio] = useState<"max" | "sum" | "skip">("max");
 
 	const longBody = (
@@ -630,7 +684,47 @@ function SheetGallery() {
 				<Button variant="secondary" onClick={() => setCornerLong(true)}>
 					上のシート＋角のボタン（長い）
 				</Button>
+				<Button variant="secondary" onClick={() => setConfirmDanger(true)}>
+					確認ダイアログ（削除）
+				</Button>
 			</div>
+
+			<RecipeConsumeSection
+				recipePublicId="gallery-recipe"
+				ingredients={consumeIngredients}
+				ownerScope="user:gallery"
+				loadInventoryItems={async () => consumeStock}
+				consume={async (operation) =>
+					operation.entries.map((entry) => ({
+						needId: entry.needId,
+						ok: true as const,
+					}))
+				}
+				undo={async () => ({
+					status: "undone" as const,
+					items: [],
+					unreturnedProduction: 0,
+				})}
+			/>
+
+			<ConfirmDialog
+				open={confirmDanger}
+				title="購入済みをすべて削除しますか？"
+				cancelLabel="やめる"
+				confirmLabel="すべて削除する"
+				danger
+				pending={confirmPending}
+				onCancel={() => setConfirmDanger(false)}
+				onConfirm={() => {
+					setConfirmPending(true);
+					void wait(3000).then(() => {
+						setConfirmPending(false);
+						setConfirmDanger(false);
+					});
+				}}
+			>
+				購入済みの3件を、買い物メモから削除します。在庫には影響しません。
+			</ConfirmDialog>
 
 			<CornerSheet
 				open={cornerShort}

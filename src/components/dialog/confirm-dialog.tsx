@@ -1,7 +1,5 @@
-import { type ReactNode, useEffect, useId, useRef } from "react";
-import { createPortal } from "react-dom";
-import { Button } from "../button/button";
-import { useModalFocus } from "../sheet/use-modal-focus";
+import type { ReactNode } from "react";
+import { CornerSheet } from "../corner-sheet/corner-sheet";
 import * as styles from "./confirm-dialog.css";
 
 type ConfirmDialogProps = {
@@ -18,6 +16,7 @@ type ConfirmDialogProps = {
 };
 
 // 確認のダイアログ（1ステップ）。やめる／実行の2つ。Esc・暗幕でやめる。
+// 見た目は、上のカード＋下の角のボタン（スマホ）／カードの下の右寄せのボタン（PC）。
 export function ConfirmDialog({
 	open,
 	title,
@@ -29,64 +28,27 @@ export function ConfirmDialog({
 	onCancel,
 	onConfirm,
 }: ConfirmDialogProps) {
-	const titleId = useId();
-	const portalRef = useRef<HTMLDivElement>(null);
-	const dialogRef = useRef<HTMLDivElement>(null);
-
-	useModalFocus(open, dialogRef, portalRef);
-
-	useEffect(() => {
-		if (!open) {
-			return;
-		}
-
-		function handleKeyDown(event: KeyboardEvent) {
-			if (event.key === "Escape") {
-				// 下のシートまで閉じないよう、ここで止める。
-				event.stopImmediatePropagation();
-				onCancel();
-			}
-		}
-
-		// シートより先に受ける（キャプチャ）。
-		document.addEventListener("keydown", handleKeyDown, true);
-
-		return () => document.removeEventListener("keydown", handleKeyDown, true);
-	}, [open, onCancel]);
-
-	if (!open || typeof document === "undefined") {
-		return null;
-	}
-
-	return createPortal(
-		<div className={styles.root} ref={portalRef}>
-			<div className={styles.scrim} aria-hidden onClick={onCancel} />
-			<div
-				className={styles.dialog}
-				ref={dialogRef}
-				role="alertdialog"
-				aria-modal="true"
-				aria-labelledby={titleId}
-				tabIndex={-1}
-			>
-				<h2 className={styles.title} id={titleId}>
-					{title}
-				</h2>
-				{children ? <p className={styles.message}>{children}</p> : null}
-				<div className={styles.actions}>
-					<Button variant="secondary" onClick={onCancel} disabled={pending}>
-						{cancelLabel}
-					</Button>
-					<Button
-						variant={danger ? "danger" : "primary"}
-						status={pending ? "pending" : "idle"}
-						onClick={onConfirm}
-					>
-						{confirmLabel}
-					</Button>
-				</div>
-			</div>
-		</div>,
-		document.body,
+	return (
+		<CornerSheet
+			open={open}
+			role="alertdialog"
+			title={title}
+			onDismiss={pending ? undefined : onCancel}
+			left={{
+				label: cancelLabel,
+				icon: "close",
+				disabled: pending,
+				onClick: onCancel,
+			}}
+			right={{
+				label: confirmLabel,
+				icon: danger ? "trash" : "check",
+				danger,
+				pending,
+				onClick: onConfirm,
+			}}
+		>
+			{children ? <p className={styles.message}>{children}</p> : null}
+		</CornerSheet>
 	);
 }
