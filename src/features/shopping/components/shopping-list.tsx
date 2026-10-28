@@ -104,6 +104,7 @@ export function ShoppingList({
 	const [isPickingRecipe, setIsPickingRecipe] = useState(false);
 	const [isBulkAdding, setIsBulkAdding] = useState(false);
 	const [isAddingItem, setIsAddingItem] = useState(false);
+	const [isCreatingBranch, setIsCreatingBranch] = useState(false);
 	// 数量だけを直すシートの項目。
 	const [quantityItem, setQuantityItem] = useState<ShoppingItem | null>(null);
 	// 在庫への換算を直している項目（行の換算を押したとき）。
@@ -384,48 +385,6 @@ export function ShoppingList({
 				</p>
 			) : null}
 
-			<Button
-				size="lg"
-				fullWidth
-				align="start"
-				leadingIcon={<Icon name="plus" size={20} />}
-				onClick={() => setIsAddingItem(true)}
-			>
-				買うものを入れる
-			</Button>
-
-			<div className={styles.entryRow}>
-				<Button
-					variant="secondary"
-					size="sm"
-					align="start"
-					leadingIcon={<Icon name="rows" size={20} />}
-					onClick={() => setIsBulkAdding(true)}
-				>
-					まとめて追加
-				</Button>
-
-				{renderRecipePicker ? (
-					<Button
-						variant="secondary"
-						size="sm"
-						align="start"
-						leadingIcon={<Icon name="book" size={20} />}
-						onClick={() => setIsPickingRecipe(true)}
-					>
-						レシピから入れる
-					</Button>
-				) : null}
-
-				{isLoading ? null : (
-					<ShoppingBranchCreate
-						stores={stores}
-						onCreateStore={storeState.addStore}
-						onAddBranch={branchState.addBranch}
-					/>
-				)}
-			</div>
-
 			{isAddingItem ? (
 				<ShoppingAddSheet
 					title="買うものを入れる"
@@ -443,6 +402,15 @@ export function ShoppingList({
 
 						return added;
 					}}
+				/>
+			) : null}
+
+			{isCreatingBranch ? (
+				<ShoppingBranchCreate
+					stores={stores}
+					onCreateStore={storeState.addStore}
+					onAddBranch={branchState.addBranch}
+					onClose={() => setIsCreatingBranch(false)}
 				/>
 			) : null}
 
@@ -669,31 +637,78 @@ export function ShoppingList({
 				/>
 			)}
 
+			{purchase.checkedItemCount > 0 && !isLoading ? (
+				<div className={styles.purchaseBar}>
+					<Button
+						size="lg"
+						fullWidth
+						status={purchase.isConfirmingPurchase ? "pending" : "idle"}
+						pendingLabel="購入確定中"
+						aria-label={`購入を確定（${purchase.checkedItemCount}件）`}
+						disabled={ownerScope === null}
+						onClick={purchase.requestPurchase}
+					>
+						購入を確定
+						<span className={styles.purchaseCount}>
+							{purchase.checkedItemCount}
+						</span>
+					</Button>
+				</div>
+			) : null}
+
+			{/* 買うものを入れる：いつも画面の隅に出る、丸い「＋」。似た動きの「ほかの入れ方」は、その真上。
+			    購入確定のバーがあるときは、まとめて、その上。 */}
 			<div
-				className={styles.purchaseBar}
-				data-ready={purchase.checkedItemCount > 0 || undefined}
+				className={styles.fabGroup}
+				data-lifted={purchase.checkedItemCount > 0 && !isLoading}
 			>
-				<Button
-					size="lg"
-					fullWidth
-					status={purchase.isConfirmingPurchase ? "pending" : "idle"}
-					pendingLabel="購入確定中"
-					aria-label={`購入を確定（${purchase.checkedItemCount}件）`}
-					disabled={
-						purchase.checkedItemCount === 0 || isLoading || ownerScope === null
-					}
-					disabledReason={
-						purchase.checkedItemCount === 0
-							? "買ったものにチェックを入れてください"
-							: undefined
-					}
-					onClick={purchase.requestPurchase}
+				<Menu
+					label="ほかの入れ方"
+					icon="plus-stack"
+					placement="above"
+					disabled={isLoading}
+					items={[
+						{
+							label: "まとめて追加",
+							icon: "rows",
+							onSelect: () => setIsBulkAdding(true),
+						},
+						...(renderRecipePicker
+							? [
+									{
+										label: "レシピから入れる",
+										icon: "book" as const,
+										onSelect: () => setIsPickingRecipe(true),
+									},
+								]
+							: []),
+						{
+							label: "条件つきのメモを追加",
+							icon: "branch-arrow",
+							onSelect: () => setIsCreatingBranch(true),
+						},
+					]}
+					trigger={(props) => (
+						<span className={styles.fabSub}>
+							<IconButton
+								{...props}
+								icon="plus-stack"
+								label="ほかの入れ方"
+								size="std"
+								disabled={isLoading}
+							/>
+						</span>
+					)}
+				/>
+
+				<button
+					type="button"
+					className={styles.fab}
+					aria-label="買うものを入れる"
+					onClick={() => setIsAddingItem(true)}
 				>
-					購入を確定
-					<span className={styles.purchaseCount}>
-						{purchase.checkedItemCount}
-					</span>
-				</Button>
+					<Icon name="plus" size={24} />
+				</button>
 			</div>
 
 			{conversionEditItem ? (

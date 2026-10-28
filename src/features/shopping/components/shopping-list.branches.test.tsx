@@ -33,6 +33,15 @@ async function chooseFromMenu(
 	await user.click(await screen.findByRole("menuitem", { name: itemName }));
 }
 
+// 「ほかの入れ方」のメニューから、項目を選ぶ。
+async function chooseOtherWay(
+	user: ReturnType<typeof userEvent.setup>,
+	name: string,
+) {
+	await user.click(screen.getByRole("button", { name: "ほかの入れ方" }));
+	await user.click(await screen.findByRole("menuitem", { name }));
+}
+
 describe("ShoppingList の条件つきのメモ", () => {
 	it("条件つきのメモに入れた項目は一覧に出ず、チェックもできず、決めると選んだ側だけが一覧に出る", async () => {
 		const user = userEvent.setup();
@@ -40,9 +49,7 @@ describe("ShoppingList の条件つきのメモ", () => {
 		render(<ShoppingList repository={dexieShoppingRepository} />);
 
 		await screen.findByText("買うものはまだありません。");
-		await user.click(
-			screen.getByRole("button", { name: "条件つきのメモを追加" }),
-		);
+		await chooseOtherWay(user, "条件つきのメモを追加");
 
 		// 条件になる材料を入れる（「どんな時に」は初期値の「売っていたら」のまま）。
 		const creation = screen.getByRole("dialog", {

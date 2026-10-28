@@ -17,6 +17,8 @@ describe("rubberBand", () => {
 		expect(rubberBand(50)).toBeGreaterThan(0);
 		expect(rubberBand(50)).toBeLessThan(rubberBand(200));
 		expect(rubberBand(100000)).toBeLessThan(120);
+		// 重く感じるよう、100px 引いても、25px ほどしか、動かない。
+		expect(rubberBand(100)).toBeLessThan(25);
 	});
 
 	it("引いた量より、いつも小さい（重く感じる）", () => {
