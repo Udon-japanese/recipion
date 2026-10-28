@@ -67,7 +67,7 @@ export function ShoppingPurchasedSection({
 			</div>
 
 			{isOpen ? (
-				<ul className={styles.listCard} id={listId}>
+				<ul className={styles.purchasedList} id={listId}>
 					{items.map((item) => renderItem(item))}
 				</ul>
 			) : null}

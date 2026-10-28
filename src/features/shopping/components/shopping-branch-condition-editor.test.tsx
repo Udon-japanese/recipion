@@ -3,7 +3,9 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import {
 	type BranchConditionValue,
+	emptyBranchConditionValue,
 	ShoppingBranchConditionEditor,
+	toConditionItemInput,
 } from "./shopping-branch-condition-editor";
 
 const value: BranchConditionValue = {
@@ -107,5 +109,33 @@ describe("ShoppingBranchConditionEditor", () => {
 
 		expect(onCancel).toHaveBeenCalledTimes(1);
 		expect(onSave).not.toHaveBeenCalled();
+	});
+
+	it("作るときは、材料の入力が開いていて、入れると作れる", async () => {
+		const user = userEvent.setup();
+		const onSave = vi.fn(async () => true);
+
+		render(
+			<ShoppingBranchConditionEditor
+				mode="create"
+				value={emptyBranchConditionValue}
+				stores={[]}
+				onCreateStore={async () => null}
+				onCancel={() => undefined}
+				onSave={onSave}
+			/>,
+		);
+
+		expect(screen.getByRole("button", { name: "作る" })).toBeDisabled();
+
+		await user.type(screen.getByLabelText("材料"), "牛乳");
+		await user.click(screen.getByRole("button", { name: "作る" }));
+
+		expect(onSave).toHaveBeenCalledWith(
+			expect.objectContaining({ name: "牛乳", condition: "売っていたら" }),
+		);
+		expect(
+			toConditionItemInput({ ...emptyBranchConditionValue, name: "牛乳" }),
+		).toMatchObject({ name: "牛乳", quantity: 1, categoryId: null });
 	});
 });

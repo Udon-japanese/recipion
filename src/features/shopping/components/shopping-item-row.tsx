@@ -95,6 +95,7 @@ export function ShoppingItemRow({
 		<ListRow
 			ref={rowRef}
 			dragging={isDragging}
+			data-checked={isChecked || undefined}
 			leading={
 				<Checkbox
 					label={`${item.name}をチェック`}

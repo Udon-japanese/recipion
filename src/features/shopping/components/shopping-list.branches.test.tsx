@@ -44,19 +44,15 @@ describe("ShoppingList の条件つきのメモ", () => {
 			screen.getByRole("button", { name: "条件つきのメモを追加" }),
 		);
 
-		// 条件になる材料を、通常のメモと同じ欄に入れ、「どんな時に」は初期値（売っていたら）のままにする。
+		// 条件になる材料を入れる（「どんな時に」は初期値の「売っていたら」のまま）。
 		const creation = screen.getByRole("dialog", {
-			name: "条件つきのメモを追加",
+			name: "条件つきのメモを作る",
 		});
 
-		expect(within(creation).getByLabelText(/どんな時に/)).toHaveValue(
-			"売っていたら",
-		);
+		expect(within(creation).getByText(/が売っていたら…/)).toBeInTheDocument();
 
-		await user.type(within(creation).getByLabelText("買うもの"), "合い挽き");
-		await user.click(
-			within(creation).getByRole("button", { name: "条件つきのメモを作る" }),
-		);
+		await user.type(within(creation).getByLabelText("材料"), "合い挽き");
+		await user.click(within(creation).getByRole("button", { name: "作る" }));
 
 		const card = (
 			await screen.findByRole("heading", { name: /合い挽きが売っていたら/ })
