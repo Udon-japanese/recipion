@@ -3,7 +3,7 @@ import { style } from "@vanilla-extract/css";
 export const root = style({
 	position: "fixed",
 	inset: 0,
-	zIndex: 20,
+	zIndex: 30,
 	// 背景の操作は、暗幕が受ける。
 	pointerEvents: "none",
 });

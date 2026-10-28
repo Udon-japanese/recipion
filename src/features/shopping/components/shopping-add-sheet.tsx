@@ -166,6 +166,8 @@ export function ShoppingAddSheet({
 		<CornerSheet
 			open
 			title={title}
+			// 入力欄があるので、ボタンは、キーボードの下に隠れない、カードの中に置く。
+			actions="inline"
 			// 打ちかけの入力を、うっかり消さないよう、空のときだけ、Esc と暗幕で閉じる。
 			onDismiss={name === "" && !isSubmitting ? onClose : undefined}
 			left={{

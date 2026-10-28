@@ -82,6 +82,11 @@ export const footer = style({
 	gap: 12,
 	padding: "12px 20px 16px",
 	borderTop: "1px solid var(--color-border)",
+
+	selectors: {
+		// スマホ：カードの中で、2つを横に並べる（親指で押しやすい幅）。
+		'&[data-layout="mobile"]': { gap: 8, padding: "12px 16px 12px" },
+	},
 });
 
 export const header = style({
