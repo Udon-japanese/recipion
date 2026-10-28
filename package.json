@@ -45,7 +45,7 @@
     "@tanstack/react-start": "^1.169.4",
     "@vanilla-extract/css": "^1.21.3",
     "@vanilla-extract/recipes": "^0.5.7",
-    "better-auth": "^1.7.12",
+    "better-auth": "^1.7.13",
     "clsx": "^2.1.1",
     "destyle.css": "^4.0.1",
     "dexie": "^4.4.7",
