@@ -12,7 +12,13 @@ export type BranchCardSide = "then" | "else";
 export type BranchCardSideView = {
 	// 呼び名（ハンバーグ など）。なければ、「そうなら」「そうでなければ」。
 	label: string | null;
-	items: readonly { id: string; name: string; amount: string }[];
+	items: readonly {
+		id: string;
+		name: string;
+		amount: string;
+		// 買う店（決まっていれば）。
+		storeName?: string;
+	}[];
 };
 
 export type BranchCardView = {
@@ -97,6 +103,7 @@ export function ShoppingBranchCard({
 			<div className={styles.decide}>
 				<Button
 					size="lg"
+					fullWidth
 					leadingIcon={<Icon name="check" size={20} />}
 					onClick={() => onDecide("then")}
 				>
@@ -105,6 +112,7 @@ export function ShoppingBranchCard({
 				<Button
 					variant="secondary"
 					size="lg"
+					fullWidth
 					leadingIcon={<Icon name="close" size={20} />}
 					onClick={() => onDecide("else")}
 				>
@@ -135,12 +143,10 @@ export function ShoppingBranchCard({
 							options={[
 								{
 									value: "then",
-									icon: "check-circle",
 									label: `${sideName(branch.ifTrue, "then")} ${branch.ifTrue.items.length}`,
 								},
 								{
 									value: "else",
-									icon: "ban-circle",
 									label: `${sideName(branch.ifFalse, "else")} ${branch.ifFalse.items.length}`,
 								},
 							]}
@@ -155,6 +161,9 @@ export function ShoppingBranchCard({
 								<li className={styles.row} key={item.id}>
 									<span className={styles.rowName}>{item.name}</span>
 									<span className={styles.rowAmount}>{item.amount}</span>
+									{item.storeName ? (
+										<Tag icon="store">{item.storeName}</Tag>
+									) : null}
 									<IconButton
 										icon="trash"
 										label={`${item.name}を削除（${sideName(view, side)}）`}

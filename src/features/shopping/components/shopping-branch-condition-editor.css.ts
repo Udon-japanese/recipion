@@ -110,3 +110,23 @@ export const pair = style({
 	gridTemplateColumns: "1fr 1fr",
 	gap: 12,
 });
+
+export const presets = style({
+	display: "grid",
+	gap: 8,
+	margin: 0,
+	padding: 0,
+	border: 0,
+});
+
+export const chips = style({ display: "flex", flexWrap: "wrap", gap: 8 });
+
+export const advanced = style({
+	marginBottom: 8,
+	color: "var(--color-text-muted)",
+	fontSize: "var(--font-size-sm)",
+});
+
+export const advancedSummary = style({ cursor: "pointer", padding: "6px 0" });
+
+export const advancedBody = style({ paddingTop: 8 });

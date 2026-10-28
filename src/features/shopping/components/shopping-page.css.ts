@@ -299,86 +299,8 @@ export const rowList = style({
 	},
 });
 
-// 条件つきのメモ 1 つ分のブロック。
-export const branchBlock = style({
-	boxSizing: "border-box",
-	display: "grid",
-	selectors: {
-		"& + &": { borderTop: "1px solid var(--color-border)" },
-		"&:has(+ ul)": { borderBottom: "1px solid var(--color-border)" },
-	},
-});
-
-export const branchCondition = style({
-	display: "flex",
-	alignItems: "center",
-	gap: 8,
-	margin: 0,
-	padding: "12px 16px",
-	fontSize: "var(--font-size-md)",
-	fontWeight: "var(--font-weight-semibold)",
-	lineHeight: "var(--line-height-tight)",
-});
-
-export const branchConditionText = style({ flex: 1, minWidth: 0 });
-
-export const branchSide = style({
-	position: "relative",
-	display: "grid",
-	gap: 8,
-	padding: "12px 12px 12px 20px",
-	borderTop: "1px solid var(--color-border)",
-	selectors: {
-		"&::before": {
-			content: '""',
-			position: "absolute",
-			left: 0,
-			top: 12,
-			bottom: 12,
-			width: 4,
-			borderRadius: "0 4px 4px 0",
-			background: "var(--color-control-border)",
-		},
-		'&[data-side="then"]::before': { background: "var(--color-primary)" },
-	},
-});
-
-export const branchSideTitle = style({
-	display: "flex",
-	margin: 0,
-	fontSize: "var(--font-size-sm)",
-});
-
-export const branchSideRows = style({
-	margin: 0,
-	padding: 0,
-	listStyle: "none",
-});
-
-export const branchSideEmpty = style({
-	margin: 0,
-	padding: "8px 0",
-	color: "var(--color-text-muted)",
-	fontSize: "var(--font-size-sm)",
-});
-
-export const branchSideActions = style({
-	display: "flex",
-	flexWrap: "wrap",
-	gap: 8,
-});
-
-export const branchFooter = style({
-	display: "grid",
-	gap: 12,
-	padding: "12px 16px",
-	borderTop: "1px solid var(--color-border)",
-});
-
-export const branchDecide = style({
-	display: "flex",
-	gap: 8,
-});
+// 条件つきのメモのカードを、分類のカードの中に置く余白。
+export const branchSlot = style({ padding: 8 });
 
 export const sheetFields = style({
 	display: "grid",

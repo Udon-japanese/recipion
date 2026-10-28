@@ -1,15 +1,43 @@
 import { useState } from "react";
+import { Chip } from "#/components/chip/chip";
 import { CornerSheet } from "#/components/corner-sheet/corner-sheet";
-import { Field, SelectBox, TextInput } from "#/components/field/field";
+import { Field, TextInput } from "#/components/field/field";
 import { Icon } from "#/components/icon/icon";
+import { formatQuantity } from "#/features/quantity/domain/format-quantity";
+import {
+	maxShoppingBranchConditionLength,
+	maxShoppingBranchLabelLength,
+} from "../domain/shopping-branch";
+import {
+	isShoppingCategoryId,
+	type ShoppingCategoryId,
+} from "../domain/shopping-category";
+import type { ShoppingItemInventoryConversion } from "../domain/shopping-item";
+import {
+	getShoppingItemPresets,
+	inferShoppingCategory,
+	isShoppingItemPresetSelected,
+} from "../domain/shopping-item-suggestion";
+import type { ShoppingStore } from "../domain/shopping-store";
 import * as styles from "./shopping-branch-condition-editor.css";
+import {
+	ShoppingCategoryField,
+	ShoppingNameField,
+	ShoppingQuantityUnitFields,
+	ShoppingStoreField,
+} from "./shopping-item-fields";
 
 export type BranchConditionValue = {
-	// 買う店（なければ空）。
-	storeId: string;
+	storeId: string | null;
 	name: string;
+	// 入力中の文字（数量は、入力のまま持つ）。
 	quantity: string;
 	unitLabel: string;
+	categoryId: ShoppingCategoryId | "";
+	// カテゴリを、自分で選んだか（選んでいなければ、名前から自動で決める）。
+	isCategoryManual: boolean;
+	// 「よく使う数量」を選んだときだけ（在庫への換算つき）。選ばなければ、null。
+	presetConversion: ShoppingItemInventoryConversion | null;
 	// どんな時に（売っていたら・安ければ）。
 	condition: string;
 	// 「そうなら」「そうでなければ」の呼び名（省略できる）。
@@ -20,24 +48,21 @@ export type BranchConditionValue = {
 type ConditionPart = "store" | "name" | "amount" | "condition";
 
 type ShoppingBranchConditionEditorProps = {
-	open: boolean;
+	// 開くたびに、新しく作る（開いていないときは、描画しない）。
 	value: BranchConditionValue;
-	stores: readonly { id: string; name: string }[];
+	stores: readonly ShoppingStore[];
+	onCreateStore: (name: string) => Promise<ShoppingStore | null>;
 	onCancel: () => void;
 	// 保存できたら true（閉じるのは、呼ぶ側）。
 	onSave: (value: BranchConditionValue) => Promise<boolean>;
 };
 
-function describeAmount(value: BranchConditionValue): string {
-	return `${value.quantity}${value.unitLabel}`.trim();
-}
-
 // 条件を直す：いまの設定を文章で見せ、直したい部分（店・材料・数量・どんな時に）を押すと、その入力だけが開く。
 // 上のカード＋角のボタン（キャンセル／保存）。
 export function ShoppingBranchConditionEditor({
-	open,
 	value,
 	stores,
+	onCreateStore,
 	onCancel,
 	onSave,
 }: ShoppingBranchConditionEditorProps) {
@@ -45,11 +70,21 @@ export function ShoppingBranchConditionEditor({
 	const [part, setPart] = useState<ConditionPart | null>(null);
 	const [isSaving, setIsSaving] = useState(false);
 	const storeName = stores.find((store) => store.id === draft.storeId)?.name;
-	const amount = describeAmount(draft);
+	const amount = `${draft.quantity}${draft.unitLabel}`.trim();
+	const presets = getShoppingItemPresets(draft.name);
 	const isValid = draft.name.trim() !== "" && draft.condition.trim() !== "";
 
 	function update(patch: Partial<BranchConditionValue>) {
 		setDraft({ ...draft, ...patch });
+	}
+
+	function handleNameChange(name: string) {
+		update({
+			name,
+			categoryId: draft.isCategoryManual
+				? draft.categoryId
+				: (inferShoppingCategory(name) ?? ""),
+		});
 	}
 
 	function togglePart(next: ConditionPart) {
@@ -68,7 +103,7 @@ export function ShoppingBranchConditionEditor({
 
 	return (
 		<CornerSheet
-			open={open}
+			open
 			eyebrow="条件つきのメモ"
 			title="条件を直す"
 			onDismiss={isSaving ? undefined : onCancel}
@@ -152,65 +187,59 @@ export function ShoppingBranchConditionEditor({
 				{part ? (
 					<div className={styles.editor}>
 						{part === "store" ? (
-							<Field label="買う店" hint="決めなくてもかまいません。">
-								{(control) => (
-									<SelectBox
-										{...control}
-										value={draft.storeId}
-										onChange={(event) =>
-											update({ storeId: event.target.value })
-										}
-									>
-										<option value="">決めない</option>
-										{stores.map((store) => (
-											<option value={store.id} key={store.id}>
-												{store.name}
-											</option>
-										))}
-									</SelectBox>
-								)}
-							</Field>
+							<ShoppingStoreField
+								stores={stores}
+								value={draft.storeId}
+								onChange={(storeId) => update({ storeId })}
+								onCreateStore={onCreateStore}
+							/>
 						) : null}
 						{part === "name" ? (
-							<Field label="材料">
-								{(control) => (
-									<TextInput
-										{...control}
-										value={draft.name}
-										onChange={(event) => update({ name: event.target.value })}
-										autoComplete="off"
-									/>
-								)}
-							</Field>
+							<ShoppingNameField
+								label="材料"
+								value={draft.name}
+								onChange={handleNameChange}
+							/>
 						) : null}
 						{part === "amount" ? (
-							<div className={styles.pair}>
-								<Field label="数量">
-									{(control) => (
-										<TextInput
-											{...control}
-											inputMode="decimal"
-											value={draft.quantity}
-											onChange={(event) =>
-												update({ quantity: event.target.value })
-											}
-											autoComplete="off"
-										/>
-									)}
-								</Field>
-								<Field label="単位">
-									{(control) => (
-										<TextInput
-											{...control}
-											value={draft.unitLabel}
-											onChange={(event) =>
-												update({ unitLabel: event.target.value })
-											}
-											autoComplete="off"
-										/>
-									)}
-								</Field>
-							</div>
+							<>
+								<ShoppingQuantityUnitFields
+									quantity={draft.quantity}
+									onQuantityChange={(quantity) => update({ quantity })}
+									unitLabel={draft.unitLabel}
+									onUnitChange={(unitLabel) =>
+										update({ unitLabel, presetConversion: null })
+									}
+								/>
+								{presets.length > 0 ? (
+									<fieldset className={styles.presets}>
+										<legend className={styles.groupLabel}>よく使う数量</legend>
+										<div className={styles.chips}>
+											{presets.map((preset) => (
+												<Chip
+													key={preset.label}
+													pressed={isShoppingItemPresetSelected(preset, {
+														quantity: draft.quantity,
+														unitLabel: draft.unitLabel,
+														inventoryConversion: draft.presetConversion,
+													})}
+													onClick={() =>
+														update({
+															quantity: formatQuantity(preset.quantity, {
+																grouping: false,
+															}),
+															unitLabel: preset.unitLabel,
+															presetConversion: preset.inventoryConversion,
+														})
+													}
+												>
+													{preset.label}
+												</Chip>
+											))}
+										</div>
+									</fieldset>
+								) : null}
+							</>
 						) : null}
 						{part === "condition" ? (
 							<Field label="どんな時に" hint="例：売っていたら、安ければ">
@@ -218,6 +247,7 @@ export function ShoppingBranchConditionEditor({
 									<TextInput
 										{...control}
 										value={draft.condition}
+										maxLength={maxShoppingBranchConditionLength}
 										onChange={(event) =>
 											update({ condition: event.target.value })
 										}
@@ -242,6 +272,7 @@ export function ShoppingBranchConditionEditor({
 							<TextInput
 								{...control}
 								value={draft.thenLabel}
+								maxLength={maxShoppingBranchLabelLength}
 								placeholder="例：ハンバーグ"
 								onChange={(event) => update({ thenLabel: event.target.value })}
 								autoComplete="off"
@@ -253,6 +284,7 @@ export function ShoppingBranchConditionEditor({
 							<TextInput
 								{...control}
 								value={draft.elseLabel}
+								maxLength={maxShoppingBranchLabelLength}
 								placeholder="例：生姜焼き"
 								onChange={(event) => update({ elseLabel: event.target.value })}
 								autoComplete="off"
@@ -261,6 +293,24 @@ export function ShoppingBranchConditionEditor({
 					</Field>
 				</div>
 			</fieldset>
+
+			<details className={styles.advanced}>
+				<summary className={styles.advancedSummary}>
+					くわしい設定（カテゴリ）
+				</summary>
+				<div className={styles.advancedBody}>
+					<ShoppingCategoryField
+						label="カテゴリ"
+						value={draft.categoryId}
+						onChange={(next) =>
+							update({
+								categoryId: isShoppingCategoryId(next) ? next : "",
+								isCategoryManual: true,
+							})
+						}
+					/>
+				</div>
+			</details>
 		</CornerSheet>
 	);
 }

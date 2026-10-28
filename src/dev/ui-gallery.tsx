@@ -670,8 +670,18 @@ const consumeStock: InventoryListItem[] = [
 }));
 
 const galleryStores = [
-	{ id: "aeon", name: "イオン" },
-	{ id: "seiyu", name: "西友" },
+	{
+		id: "aeon",
+		name: "イオン",
+		sortOrder: 0,
+		createdAt: "2026-10-01T00:00:00.000Z",
+	},
+	{
+		id: "seiyu",
+		name: "西友",
+		sortOrder: 1,
+		createdAt: "2026-10-01T00:00:00.000Z",
+	},
 ];
 
 // 条件つきのメモの、見た目の確認用（偽のデータ）。
@@ -701,6 +711,9 @@ function BranchGallery() {
 		name: "合い挽き肉",
 		quantity: "1",
 		unitLabel: "パック",
+		categoryId: "meat",
+		isCategoryManual: false,
+		presetConversion: null,
 		condition: "売っていたら",
 		thenLabel: "ハンバーグ",
 		elseLabel: "生姜焼き",
@@ -741,19 +754,21 @@ function BranchGallery() {
 			</div>
 			{message ? <p style={note}>{message}</p> : null}
 
-			<ShoppingBranchConditionEditor
-				open={isEditing}
-				value={value}
-				stores={galleryStores}
-				onCancel={() => setIsEditing(false)}
-				onSave={async (next) => {
-					await wait(1500);
-					setValue(next);
-					setIsEditing(false);
+			{isEditing ? (
+				<ShoppingBranchConditionEditor
+					value={value}
+					stores={galleryStores}
+					onCreateStore={async () => null}
+					onCancel={() => setIsEditing(false)}
+					onSave={async (next) => {
+						await wait(1500);
+						setValue(next);
+						setIsEditing(false);
 
-					return true;
-				}}
-			/>
+						return true;
+					}}
+				/>
+			) : null}
 		</Section>
 	);
 }

@@ -11,6 +11,9 @@ const value: BranchConditionValue = {
 	name: "合い挽き肉",
 	quantity: "1",
 	unitLabel: "パック",
+	categoryId: "meat",
+	isCategoryManual: false,
+	presetConversion: null,
 	condition: "売っていたら",
 	thenLabel: "ハンバーグ",
 	elseLabel: "生姜焼き",
@@ -22,9 +25,16 @@ function setup() {
 
 	render(
 		<ShoppingBranchConditionEditor
-			open
 			value={value}
-			stores={[{ id: "aeon", name: "イオン" }]}
+			stores={[
+				{
+					id: "aeon",
+					name: "イオン",
+					sortOrder: 0,
+					createdAt: "2026-10-01T00:00:00.000Z",
+				},
+			]}
+			onCreateStore={async () => null}
 			onCancel={onCancel}
 			onSave={onSave}
 		/>,
