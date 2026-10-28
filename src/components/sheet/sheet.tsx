@@ -94,6 +94,8 @@ export function Sheet({
 	const [activeIndex, setActiveIndex] = useState(defaultSnapIndex);
 	const [isDragging, setIsDragging] = useState(false);
 
+	// 最後に置いた、止まる位置の組（画面の大きさの変化を見分ける）。
+	const placedSnapsKey = useRef<string | null>(null);
 	const portalRef = useRef<HTMLDivElement>(null);
 	const panelRef = useRef<HTMLElement>(null);
 	const scrimRef = useRef<HTMLDivElement>(null);
@@ -198,14 +200,21 @@ export function Sheet({
 			return;
 		}
 
-		const { snaps: currentSnaps, activeIndex: index } = latest.current;
-		const rest = currentSnaps[index] ?? 0;
+		const { snaps: currentSnaps } = latest.current;
 
 		if (open) {
+			// 開くたびに、最初の位置から始める。
+			const startIndex = Math.min(
+				defaultSnapIndex,
+				Math.max(0, currentSnaps.length - 1),
+			);
+
+			setActiveIndex(startIndex);
+			placedSnapsKey.current = currentSnaps.join(",");
 			// 閉じた位置から始めて、次の描画で、開く位置へ動かす。
 			place(0, false);
 			void panelRef.current?.offsetHeight;
-			place(rest, true);
+			place(currentSnaps[startIndex] ?? 0, true);
 
 			return;
 		}
@@ -217,7 +226,7 @@ export function Sheet({
 		);
 
 		return () => window.clearTimeout(timer);
-	}, [open, mounted, place]);
+	}, [open, mounted, place, defaultSnapIndex]);
 
 	useEffect(() => {
 		if (open) {
@@ -225,19 +234,22 @@ export function Sheet({
 		}
 	}, [open]);
 
-	// 画面の大きさ（キーボードの出入りを含む）が変わったら、止まる位置を置き直す。
-	useLayoutEffect(() => {
-		if (mounted && open && !isDragging) {
-			place(snaps[latest.current.activeIndex] ?? 0, false);
-		}
-	}, [mounted, open, isDragging, place, snaps]);
+	// 画面の大きさ（キーボードの出入りを含む）が変わって、止まる位置が変わったときだけ、置き直す。
+	// 開くとき・指を離したときは、それぞれが動きを付けて動かすので、ここでは触らない（動きを打ち消してしまう）。
+	const snapsKey = snaps.join(",");
 
-	// 開くたびに、最初の位置へ戻す。
-	useEffect(() => {
-		if (open) {
-			setActiveIndex(Math.min(defaultSnapIndex, Math.max(0, lastIndex)));
+	useLayoutEffect(() => {
+		if (!mounted || !open || drag.current) {
+			return;
 		}
-	}, [open, defaultSnapIndex, lastIndex]);
+
+		if (placedSnapsKey.current === snapsKey) {
+			return;
+		}
+
+		placedSnapsKey.current = snapsKey;
+		place(snaps[latest.current.activeIndex] ?? 0, false);
+	}, [mounted, open, snapsKey, snaps, place]);
 
 	// 浮いたパネルは、開いたときに、パネルへフォーカスを移す（閉じたら、元の場所へ戻す）。
 	useEffect(() => {

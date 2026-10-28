@@ -331,8 +331,8 @@ export function InventoryRegistrationPanel({
 			placement={isRight ? "right" : "bottom"}
 			// 浮いたパネル：後ろの在庫を見ながら、続けて登録できる。スマホは、見出しだけの低い位置（0.1）・半分・ほぼ全面に止まる。
 			modal={false}
-			snapPoints={isRight ? [0.92] : [0.1, 0.6, 0.92]}
-			defaultSnapIndex={isRight ? 0 : 1}
+			snapPoints={isRight ? [0.92] : [0.6, 0.92]}
+			defaultSnapIndex={0}
 			headerTrailing={
 				registration.addedCount > 0 ? (
 					<Tag tone="success" icon="check">

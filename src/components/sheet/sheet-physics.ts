@@ -4,6 +4,8 @@
 
 // この速さ以上の動きは、「はじいた」（フリック）とみなす。
 export const FLICK_VELOCITY = 0.4;
+// この速さ以上の、勢いのよい下向きのはじきは、どの位置からでも、閉じる。
+export const DISMISS_VELOCITY = 1;
 // 最も低い止まり位置から、この割合より多く下げて離すと、閉じる。
 export const CLOSE_THRESHOLD = 0.25;
 // 離したあと、勢いが続くとみなす時間。
@@ -81,6 +83,11 @@ export function resolveRelease(input: {
 	const { visible, velocity, snaps, dismissible } = input;
 	const lowest = snaps[0] ?? 0;
 	const lastIndex = snaps.length - 1;
+
+	// 0. 勢いよく下へはじいた：どの位置からでも、閉じる（閉じられないシートは、最も低い位置へ）。
+	if (velocity >= DISMISS_VELOCITY) {
+		return dismissible ? { type: "dismiss" } : { type: "snap", index: 0 };
+	}
 
 	// 1. はじいた：方向で、次の止まり位置（または閉じる）へ。
 	if (Math.abs(velocity) >= FLICK_VELOCITY) {
