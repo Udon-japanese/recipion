@@ -62,6 +62,18 @@ function ShapeView({ shape, tint }: { shape: DishShape; tint: string }) {
 			);
 		case "path":
 			return <path d={shape.d} {...common} />;
+		case "stroke":
+			return (
+				<path
+					d={shape.d}
+					fill="none"
+					stroke={common.fill}
+					strokeWidth={shape.width}
+					strokeLinecap="round"
+					strokeLinejoin="round"
+					opacity={shape.opacity}
+				/>
+			);
 	}
 }
 

@@ -46,6 +46,19 @@ const breakfast: readonly DishPlacement[] = [
 	{ partId: "mug", x: 78, y: 62, scale: 0.55, tint: "#d9573f" },
 ];
 
+const karaageSet: readonly DishPlacement[] = [
+	{ partId: "plate", x: 50, y: 62, scale: 0.95, tint: "#e6dfcb" },
+	{ partId: "karaage", x: 44, y: 52, scale: 0.55 },
+	{ partId: "greens", x: 72, y: 50, scale: 0.32 },
+];
+
+const eggBreakfast: readonly DishPlacement[] = [
+	{ partId: "plate", x: 50, y: 62, scale: 0.95, tint: "#3f6fa3" },
+	{ partId: "fried-egg", x: 40, y: 54, scale: 0.5 },
+	{ partId: "sausage", x: 66, y: 48, scale: 0.4, rotate: -20 },
+	{ partId: "sausage", x: 68, y: 60, scale: 0.4, rotate: -8 },
+];
+
 // 料理の絵の部品の試作（図形だけで描く）。
 export function DishPartsGallery() {
 	return (
@@ -85,6 +98,14 @@ export function DishPartsGallery() {
 				<div style={cell}>
 					<DishArt placements={breakfast} size={200} />
 					朝ごはんの組み合わせ
+				</div>
+				<div style={cell}>
+					<DishArt placements={karaageSet} size={200} />
+					唐揚げの組み合わせ
+				</div>
+				<div style={cell}>
+					<DishArt placements={eggBreakfast} size={200} />
+					卵とウインナーの組み合わせ
 				</div>
 			</div>
 		</section>
