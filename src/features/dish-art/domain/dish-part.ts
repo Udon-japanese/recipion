@@ -1,8 +1,11 @@
+import { MASCOT_DISPLAY_NAME } from "#/config/app";
+
 // 料理の絵の部品。絵ではなく、図形（円・楕円・角丸の四角・パス）の並びで持つ。
 // 座標は 0〜100 の正方形の中。利用者が選べるのは、部品の id と、置き場所・色だけ。
 export const dishArtViewSize = 100;
 
 export const dishColors = {
+	mascot: "#e9a900",
 	ink: "#292720",
 	white: "#ffffff",
 	riceShade: "#ece5d2",
@@ -2785,6 +2788,22 @@ const nori: DishPart = {
 	],
 };
 
+// アプリのマスコット（れしぽよ）。実際の体の形（上が丸く、下が平ら）と縦長の目に合わせる。絵のない料理のプレースホルダーに使う。
+const mascot: DishPart = {
+	id: "mascot",
+	label: MASCOT_DISPLAY_NAME,
+	tints: [],
+	shapes: [
+		{
+			kind: "path",
+			d: "M50 16A36 39.4 0 0 1 86 55.4A27.4 28.6 0 0 1 58.6 84L41.4 84A27.4 28.6 0 0 1 14 55.4A36 39.4 0 0 1 50 16Z",
+			fill: "mascot",
+		},
+		{ kind: "ellipse", cx: 37.9, cy: 44.4, rx: 4.9, ry: 9.5, fill: "ink" },
+		{ kind: "ellipse", cx: 62.1, cy: 44.4, rx: 4.9, ry: 9.5, fill: "ink" },
+	],
+};
+
 const umeboshi: DishPart = {
 	id: "umeboshi",
 	label: "梅干し",
@@ -4646,6 +4665,7 @@ const rawEgg: DishPart = {
 };
 
 export const dishParts: readonly DishPart[] = [
+	mascot,
 	donburi,
 	rice,
 	misoSoup,

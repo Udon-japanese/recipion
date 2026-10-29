@@ -68,6 +68,7 @@ function EditRecipePage() {
 	return (
 		<RecipeEditor
 			initialDocument={recipe}
+			publicId={recipe.publicId}
 			loadLinkedRecipe={loadLinkedRecipe}
 			renderOpenLink={renderOpenLink}
 			loadLinkedRecipes={loadLinkedRecipes}

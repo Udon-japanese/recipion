@@ -43,8 +43,17 @@ const dishPlacementSchema = v.object({
 
 export type DishPlacement = v.InferOutput<typeof dishPlacementSchema>;
 
+// 保存されている値を読む。壊れていれば、なし（プリセットの表示）にする。
+export function parseDishCover(value: unknown): DishPlacement[] | null {
+	const result = v.safeParse(dishPlacementsSchema, value);
+
+	return result.success ? result.output : null;
+}
+
 // 並びの順が重なり順（あとの部品が手前）。
 export const dishPlacementsSchema = v.pipe(
 	v.array(dishPlacementSchema),
+	// 空の絵は保存しない（絵がないときは null で、レシピ名から選ぶ絵になる）。
+	v.minLength(1),
 	v.maxLength(dishCoverLimits.maxParts),
 );

@@ -1,9 +1,12 @@
-import type { CSSProperties } from "react";
+import { type CSSProperties, useState } from "react";
 import {
 	DishArt,
 	DishPartPreview,
 } from "#/features/dish-art/components/dish-art";
+import { DishCoverEditor } from "#/features/dish-art/components/dish-cover-editor";
+import type { DishPlacement } from "#/features/dish-art/domain/dish-cover";
 import { dishParts } from "#/features/dish-art/domain/dish-part";
+import { dishPlaceholders } from "#/features/dish-art/domain/dish-placeholder";
 import { dishPresets } from "#/features/dish-art/domain/dish-preset";
 
 const cell: CSSProperties = {
@@ -20,9 +23,16 @@ const wrap: CSSProperties = { display: "flex", flexWrap: "wrap", gap: 12 };
 
 // 料理の絵の部品の試作（図形だけで描く）。
 export function DishPartsGallery() {
+	const [draft, setDraft] = useState<DishPlacement[]>([
+		...(dishPresets[0]?.placements ?? []),
+	]);
+
 	return (
 		<section style={{ display: "grid", gap: 12 }}>
 			<h2 style={{ margin: 0, fontSize: 18 }}>料理の絵の部品（試作）</h2>
+			<div style={{ maxWidth: 960 }}>
+				<DishCoverEditor placements={draft} onChange={setDraft} />
+			</div>
 			<div style={wrap}>
 				{dishParts.map((part) => (
 					<div key={part.id} style={cell}>
@@ -42,6 +52,13 @@ export function DishPartsGallery() {
 					)}
 			</div>
 			<div style={wrap}>
+				{dishPlaceholders.map((placements, index) => (
+					// biome-ignore lint/suspicious/noArrayIndexKey: 固定の並び（確認用）
+					<div key={index} style={cell}>
+						<DishArt placements={placements} size={200} />
+						プレースホルダー {index + 1}
+					</div>
+				))}
 				{dishPresets.map((preset) => (
 					<div key={preset.id} style={cell}>
 						<DishArt placements={preset.placements} size={200} />

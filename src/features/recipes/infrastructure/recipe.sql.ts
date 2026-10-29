@@ -15,6 +15,7 @@ import {
 	uuid,
 } from "drizzle-orm/pg-core";
 
+import type { DishPlacement } from "#/features/dish-art/domain/dish-cover";
 import { user } from "#/integrations/better-auth/auth.sql";
 
 export const recipe = pgTable(
@@ -40,6 +41,8 @@ export const recipe = pgTable(
 		unlistedPassphrase: text("unlisted_passphrase"),
 		// 「作った」で、できあがりを在庫に入れる（作り置き。他のレシピから材料としてリンクされるものなど）。
 		stocksWhenMade: boolean("stocks_when_made").default(false).notNull(),
+		// 料理の絵（部品の置き方）。null は、レシピ名から選ぶプリセットを見せる。
+		cover: jsonb("cover").$type<DishPlacement[]>(),
 		createdAt: timestamp("created_at", { withTimezone: true })
 			.defaultNow()
 			.notNull(),

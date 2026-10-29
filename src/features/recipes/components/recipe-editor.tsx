@@ -16,6 +16,8 @@ import { IconButton } from "#/components/icon-button/icon-button";
 import { Note } from "#/components/note/note";
 import { Toast } from "#/components/toast/toast";
 import { describeError } from "#/errors/user-facing-error";
+import { DishCoverField } from "#/features/dish-art/components/dish-cover-field";
+import type { DishPlacement } from "#/features/dish-art/domain/dish-cover";
 import type { RecipeDetail } from "../application/recipe-repository";
 import {
 	collectIngredientIds,
@@ -92,6 +94,8 @@ type RecipeEditorProps = {
 	onSaved?: (recipe: SavedRecipe) => void;
 	// 保存済みのレシピを編集するときの初期値。なければ、新規登録。
 	initialDocument?: RecipeEditorDocument;
+	// 保存済みのレシピの識別子（絵を付けていないときの、れしぽよの絵を、一覧・詳細と同じにする）。
+	publicId?: string;
 	// リンクできるレシピ（自分のレシピ。編集中のレシピ自身は、除く）を取ってくる。渡すと、リンクの入力（補完・ボタン）が使える。
 	loadLinkTargets?: () => Promise<RecipeLinkTarget[]>;
 	// 保存前の確認で、リンクを押したとき、リンク先のレシピのプレビューを開く（取ってくる方法と、「レシピを開く」のリンク）。
@@ -162,6 +166,7 @@ export function RecipeEditor({
 	onSave,
 	onSaved,
 	initialDocument,
+	publicId,
 	loadLinkTargets,
 	loadLinkedRecipe,
 	renderOpenLink,
@@ -186,6 +191,9 @@ export function RecipeEditor({
 	);
 	const [stocksWhenMade, setStocksWhenMade] = useState(
 		initialDocument?.stocksWhenMade ?? false,
+	);
+	const [cover, setCover] = useState<DishPlacement[] | null>(
+		initialDocument?.cover ?? null,
 	);
 	const [text, setText] = useState(initialState.text);
 	const [sync, setSync] = useState(initialState.sync);
@@ -540,6 +548,7 @@ export function RecipeEditor({
 					sourceUrl,
 					visibility,
 					stocksWhenMade,
+					cover,
 					// 本文に出てくるラベルのリンクだけを送る（本文から消したリンクは、送らない）。
 					links: links.filter((link) =>
 						linkedLabels.some(({ label }) => label === link.label),
@@ -578,14 +587,23 @@ export function RecipeEditor({
 				className={styles.form}
 				onSubmit={(event) => void handleSubmit(event)}
 			>
-				<RecipeTitleInput
-					value={title}
-					onChange={(value) => {
-						setTitle(value);
-					}}
-					isEditing={isTitleEditing}
-					onEditingChange={setIsTitleEditing}
-				/>
+				<div className={styles.titleRow}>
+					<DishCoverField
+						seed={publicId ?? "new"}
+						cover={cover}
+						onChange={setCover}
+					/>
+					<div className={styles.titleCell}>
+						<RecipeTitleInput
+							value={title}
+							onChange={(value) => {
+								setTitle(value);
+							}}
+							isEditing={isTitleEditing}
+							onEditingChange={setIsTitleEditing}
+						/>
+					</div>
+				</div>
 
 				<div className={styles.metaRow}>
 					<div className={styles.metaField}>

@@ -1,5 +1,6 @@
 import * as v from "valibot";
 import { UserFacingError } from "#/errors/user-facing-error";
+import { dishPlacementsSchema } from "#/features/dish-art/domain/dish-cover";
 import type {
 	RecipeEditorDocument,
 	RecipeEditorIngredientNode,
@@ -73,6 +74,7 @@ const documentSchema = v.object({
 		"private",
 	),
 	stocksWhenMade: v.optional(v.boolean(), false),
+	cover: v.optional(v.nullable(dishPlacementsSchema), null),
 	// 古い画面（links を送らない）からの保存も受け付ける。
 	links: v.optional(
 		v.pipe(

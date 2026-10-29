@@ -98,6 +98,23 @@ function PartView({
 	);
 }
 
+// 置いた部品を、重ね順どおりに描く（svg の中に置く）。
+export function DishArtLayers({
+	placements,
+}: {
+	placements: readonly DishPlacement[];
+}) {
+	return placements.map((placement, index) => {
+		const part = findDishPart(placement.partId);
+
+		return part ? (
+			// 置いた順が重なり順。
+			// biome-ignore lint/suspicious/noArrayIndexKey: 並びが識別子
+			<PartView key={index} part={part} placement={placement} />
+		) : null;
+	});
+}
+
 type DishArtProps = {
 	placements: readonly DishPlacement[];
 	// 見た目の大きさ（px）。
@@ -122,15 +139,7 @@ export function DishArt({ placements, size = 160, background }: DishArtProps) {
 					fill={background}
 				/>
 			) : null}
-			{placements.map((placement, index) => {
-				const part = findDishPart(placement.partId);
-
-				return part ? (
-					// 置いた順が重なり順。
-					// biome-ignore lint/suspicious/noArrayIndexKey: 並びが識別子
-					<PartView key={index} part={part} placement={placement} />
-				) : null;
-			})}
+			<DishArtLayers placements={placements} />
 		</svg>
 	);
 }

@@ -1,3 +1,4 @@
+import type { DishPlacement } from "#/features/dish-art/domain/dish-cover";
 import type {
 	RecipeEditorDocument,
 	RecipeEditorIngredientNode,
@@ -30,6 +31,7 @@ export type PreparedRecipeForStorage = {
 	sourceUrl: string | null;
 	visibility: RecipeVisibility;
 	stocksWhenMade: boolean;
+	cover: DishPlacement[] | null;
 	ingredients: StoredRecipeIngredientNode[];
 	preparations: {
 		id: string;
@@ -130,6 +132,7 @@ export function prepareRecipeForStorage(
 		sourceUrl: document.sourceUrl,
 		visibility: document.visibility ?? "private",
 		stocksWhenMade: document.stocksWhenMade ?? false,
+		cover: document.cover ?? null,
 		ingredients,
 		preparations: document.preparations.map((preparation, sortOrder) => ({
 			id: preparation.id,

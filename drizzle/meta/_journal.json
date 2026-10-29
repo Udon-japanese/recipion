@@ -29,6 +29,13 @@
       "when": 1793062427882,
       "tag": "0003_made_recipe_stock",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793260228833,
+      "tag": "0004_recipe_cover",
+      "breakpoints": true
     }
   ]
 }

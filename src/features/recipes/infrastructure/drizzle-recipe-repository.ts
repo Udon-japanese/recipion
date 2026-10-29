@@ -1,9 +1,9 @@
 import { and, asc, count, desc, eq, inArray } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import * as v from "valibot";
-
 import type { DB } from "#/db/client";
 import { UserFacingError } from "#/errors/user-facing-error";
+import { parseDishCover } from "#/features/dish-art/domain/dish-cover";
 import {
 	ingredient,
 	ingredientAlias,
@@ -251,6 +251,7 @@ export async function loadRecipeDetail(
 		sourceUrl: found.sourceUrl,
 		visibility: parseRecipeVisibility(found.visibility),
 		stocksWhenMade: found.stocksWhenMade,
+		cover: parseDishCover(found.cover),
 		ingredients: restoreRecipeIngredients(
 			ingredientRows.map((row) => ({
 				id: row.id,
@@ -323,6 +324,7 @@ export function createDrizzleRecipeRepository(
 						sourceUrl: command.sourceUrl,
 						visibility: command.visibility,
 						stocksWhenMade: command.stocksWhenMade,
+						cover: command.cover,
 						unlistedPassphrase: command.passphraseCipher ?? null,
 					})
 					.returning({ id: recipe.id, publicId: recipe.publicId });
@@ -368,6 +370,7 @@ export function createDrizzleRecipeRepository(
 						sourceUrl: command.sourceUrl,
 						visibility: command.visibility,
 						stocksWhenMade: command.stocksWhenMade,
+						cover: command.cover,
 						// undefined は、いまのまま。変えるときは、これまでに開けた人の記録を消す。
 						...(command.passphraseCipher === undefined
 							? {}
@@ -469,6 +472,7 @@ export function createDrizzleRecipeRepository(
 					name: recipe.name,
 					servings: recipe.servings,
 					visibility: recipe.visibility,
+					cover: recipe.cover,
 					createdAt: recipe.createdAt,
 				})
 				.from(recipe)
@@ -480,6 +484,7 @@ export function createDrizzleRecipeRepository(
 				name: row.name,
 				servings: Number(row.servings),
 				visibility: parseRecipeVisibility(row.visibility),
+				cover: parseDishCover(row.cover),
 				createdAt: row.createdAt.toISOString(),
 			}));
 		},

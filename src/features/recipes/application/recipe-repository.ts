@@ -1,3 +1,4 @@
+import type { DishPlacement } from "#/features/dish-art/domain/dish-cover";
 import type { RecipeEditorDocument } from "../domain/recipe-editor-document";
 import type { RecipeVisibility } from "../domain/recipe-link-permission";
 import type { RecipeLinkView } from "../domain/recipe-links";
@@ -18,6 +19,8 @@ export type RecipeSummary = {
 	name: string;
 	servings: number;
 	visibility: RecipeVisibility;
+	// 料理の絵（なければ、レシピ名から選ぶプリセット）。
+	cover: DishPlacement[] | null;
 	// 登録した日時（ISO 8601）。
 	createdAt: string;
 };

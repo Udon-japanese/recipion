@@ -203,6 +203,23 @@ export const unclassified = style({
 	borderRadius: 12,
 });
 
+// 料理の絵（左）と、レシピ名（右）。
+// 狭い画面では、絵を上、レシピ名を下に並べる（横に並べると、名前が窮屈で、普通の長さでも折り返すため）。
+export const titleRow = style({
+	display: "grid",
+	justifyItems: "start",
+	gap: 12,
+	"@media": {
+		"screen and (min-width: 1024px)": {
+			gridTemplateColumns: "auto minmax(0, 1fr)",
+			alignItems: "center",
+			gap: 16,
+		},
+	},
+});
+
+export const titleCell = style({ minWidth: 0, width: "100%" });
+
 export const form = style({
 	display: "grid",
 	gap: 16,

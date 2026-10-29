@@ -2,8 +2,7 @@ import { type ReactNode, useState } from "react";
 import { Card } from "#/components/card/card";
 import { SegmentedControl } from "#/components/segmented-control/segmented-control";
 import { Tag } from "#/components/tag/tag";
-import { DishArt } from "#/features/dish-art/components/dish-art";
-import { pickDishPreset } from "#/features/dish-art/domain/dish-preset";
+import { DishCoverView } from "#/features/dish-art/components/dish-cover-view";
 import type { RecipeDetail } from "../application/recipe-repository";
 import { findIngredientLinkTarget } from "../domain/ingredient-link-target";
 import type { RecipeEditorIngredientNode } from "../domain/recipe-editor-document";
@@ -217,8 +216,9 @@ export function RecipeView({
 		<article className={styles.container}>
 			<header className={styles.header}>
 				<span className={styles.cover}>
-					<DishArt
-						placements={pickDishPreset(recipe.name).placements}
+					<DishCoverView
+						cover={recipe.cover}
+						seed={recipe.publicId}
 						size={96}
 					/>
 				</span>
