@@ -46,6 +46,7 @@ import {
 	type BranchConditionValue,
 	ShoppingBranchConditionEditor,
 } from "#/features/shopping/components/shopping-branch-condition-editor";
+import { DishPartsGallery } from "./dish-parts-gallery";
 
 // 開発中だけの、部品の確認用ページの中身（/dev/ui。本番では、404）。
 // 部品を足したら、ここに並べる。デザインの依頼の、スクリーンショットにも使う。
@@ -376,6 +377,7 @@ export function UiGallery() {
 				</div>
 			</Section>
 
+			<DishPartsGallery />
 			<PartsGallery />
 
 			<SheetGallery />
