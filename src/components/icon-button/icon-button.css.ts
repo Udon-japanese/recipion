@@ -1,3 +1,4 @@
+import { style } from "@vanilla-extract/css";
 import { type RecipeVariants, recipe } from "@vanilla-extract/recipes";
 
 // 見た目は 36px の丸。押せる範囲は、44px 以上（::before で広げる）。
@@ -17,6 +18,7 @@ export const button = recipe({
 		color: "var(--color-text)",
 		cursor: "pointer",
 		WebkitTapHighlightColor: "transparent",
+		WebkitTouchCallout: "none",
 		transition: `background-color var(--duration-fast) var(--ease-standard), transform var(--duration-fast) var(--ease-standard)`,
 
 		selectors: {
@@ -57,6 +59,11 @@ export const button = recipe({
 				},
 			},
 			danger: { color: "var(--color-error)" },
+			// 選んだものへの操作など、目立たせたいとき。
+			accent: {
+				background: "var(--color-primary-soft)",
+				color: "var(--color-accent-text)",
+			},
 			on: {
 				background: "var(--color-primary)",
 				border: "2px solid var(--color-text)",
@@ -82,3 +89,18 @@ type Variants = NonNullable<RecipeVariants<typeof button>>;
 // props の型は、スタイルの定義から作る（種類を足すときは、ここだけを直す）。
 export type IconButtonSize = NonNullable<Variants["size"]>;
 export type IconButtonTone = NonNullable<Variants["tone"]>;
+
+// 長押し（マウスは、少し置いたとき）に出る、ボタンの名前の吹き出し。飾りで、読み上げない（名前は aria-label が持つ）。
+export const tip = style({
+	position: "fixed",
+	zIndex: 2000,
+	padding: "4px 8px",
+	borderRadius: 6,
+	background: "var(--color-text)",
+	color: "var(--color-surface)",
+	fontSize: "var(--font-size-xs)",
+	lineHeight: 1.3,
+	whiteSpace: "nowrap",
+	pointerEvents: "none",
+	boxShadow: "var(--shadow-md)",
+});

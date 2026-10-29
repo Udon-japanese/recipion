@@ -29,6 +29,7 @@ function recipe(publicId: string, name: string): RecipeSummary {
 		name,
 		servings: 2,
 		visibility: "private",
+		cover: null,
 		createdAt: "2026-10-23T00:00:00.000Z",
 	};
 }

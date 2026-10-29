@@ -1,3 +1,4 @@
+import type { DishPlacement } from "#/features/dish-art/domain/dish-cover";
 import type {
 	ParsedRecipeIngredientGroup,
 	ParsedRecipeIngredientItem,
@@ -51,6 +52,8 @@ export type RecipeEditorDocument = {
 	visibility?: RecipeVisibility;
 	// 「作った」で、できあがりを在庫に入れる（作り置き）。省略は false。
 	stocksWhenMade?: boolean;
+	// 料理の絵。省略か null は、レシピ名から選ぶプリセット。
+	cover?: DishPlacement[] | null;
 };
 
 export type CreateRecipeEditorDocumentInput = {
@@ -64,6 +67,7 @@ export type CreateRecipeEditorDocumentInput = {
 	links?: RecipeLinkReference[];
 	visibility?: RecipeVisibility;
 	stocksWhenMade?: boolean;
+	cover?: DishPlacement[] | null;
 };
 
 type CreateId = () => string;
@@ -118,5 +122,6 @@ export function createRecipeEditorDocument(
 		links: input.links ? [...input.links] : [],
 		visibility: input.visibility ?? "private",
 		stocksWhenMade: input.stocksWhenMade ?? false,
+		cover: input.cover ?? null,
 	};
 }

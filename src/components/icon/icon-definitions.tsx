@@ -163,6 +163,15 @@ export const iconDefinitions = {
 			</>
 		) as ReactNode,
 	},
+	copy: {
+		style: "outline",
+		content: (<path d="M9 9h11v11H9zM5 15V4h11" />) as ReactNode,
+	},
+	// 左右に向き合う三角：左右反転。
+	flip: {
+		style: "outline",
+		content: (<path d="M12 3v18M8 7L3 18h5zM16 7l5 11h-5z" />) as ReactNode,
+	},
 	multiply: {
 		style: "outline",
 		content: (<path d="M7 7l10 10M17 7L7 17" />) as ReactNode,
@@ -238,6 +247,15 @@ export const iconDefinitions = {
 		content: (
 			<path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13M10 11v6M14 11v6" />
 		) as ReactNode,
+	},
+	// 90度、右に回す。
+	"rotate-right": {
+		style: "outline",
+		content: (<path d="M20 6v5h-5M19.5 11A8 8 0 1012 20" />) as ReactNode,
+	},
+	redo: {
+		style: "outline",
+		content: (<path d="M15 6l5 5-5 5M20 11h-9a6 6 0 000 12h3" />) as ReactNode,
 	},
 	undo: {
 		style: "outline",

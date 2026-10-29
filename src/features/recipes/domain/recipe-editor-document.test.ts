@@ -104,6 +104,7 @@ describe("createRecipeEditorDocument", () => {
 			links: [],
 			visibility: "private",
 			stocksWhenMade: false,
+			cover: null,
 		});
 	});
 
@@ -120,6 +121,7 @@ describe("createRecipeEditorDocument", () => {
 				links: [],
 				visibility: "private",
 				stocksWhenMade: false,
+				cover: null,
 			},
 		);
 	});

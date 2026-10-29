@@ -1,7 +1,8 @@
 import * as v from "valibot";
 import { describe, expect, it } from "vitest";
 import { dishPlacementsSchema } from "./dish-cover";
-import { dishPresets, pickDishPreset } from "./dish-preset";
+import { dishPlaceholders, pickDishPlaceholder } from "./dish-placeholder";
+import { dishPresets } from "./dish-preset";
 
 describe("dishPresets", () => {
 	it("すべてのプリセットが、保存の検証を通る", () => {
@@ -19,15 +20,25 @@ describe("dishPresets", () => {
 	});
 });
 
-describe("pickDishPreset", () => {
-	it.each([
-		["カレーうどん", "curry"],
-		["鶏の唐揚げ", "karaage"],
-		["親子丼", "tamago-don"],
-		["豚汁", "nabe"],
-		["きょうの一品", "teishoku"],
-	])("%s は %s", (name, id) => {
-		expect(pickDishPreset(name).id).toBe(id);
+describe("dishPlaceholders", () => {
+	it("すべてのプレースホルダーが、保存の検証を通る", () => {
+		for (const placements of dishPlaceholders) {
+			expect(v.safeParse(dishPlacementsSchema, placements).success).toBe(true);
+		}
+	});
+
+	it("同じ種なら、いつも同じ絵になる", () => {
+		expect(pickDishPlaceholder("abc123")).toBe(pickDishPlaceholder("abc123"));
+	});
+
+	it("種によって、いくつかの絵に分かれる", () => {
+		const picked = new Set(
+			Array.from({ length: 60 }, (_, index) =>
+				dishPlaceholders.indexOf(pickDishPlaceholder(`recipe-${index}`)),
+			),
+		);
+
+		expect(picked.size).toBeGreaterThan(1);
 	});
 });
 
@@ -40,6 +51,7 @@ describe("dishPlacementsSchema", () => {
 		["範囲外の拡大", [{ ...valid, scale: 10 }]],
 		["色の形式", [{ ...valid, tint: "red" }]],
 		["部品の数", Array.from({ length: 31 }, () => valid)],
+		["空の絵", []],
 	])("%s を断る", (_name, placements) => {
 		expect(v.safeParse(dishPlacementsSchema, placements).success).toBe(false);
 	});
