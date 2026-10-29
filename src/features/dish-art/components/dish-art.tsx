@@ -1,3 +1,4 @@
+import type { DishPlacement } from "../domain/dish-cover";
 import {
 	type DishPart,
 	type DishShape,
@@ -5,17 +6,6 @@ import {
 	dishColors,
 	findDishPart,
 } from "../domain/dish-part";
-
-// 置いた部品。x・y は部品の中心（0〜100）、scale は 1 が等倍。
-export type DishPlacement = {
-	partId: string;
-	x: number;
-	y: number;
-	scale?: number;
-	rotate?: number;
-	flip?: boolean;
-	tint?: string;
-};
 
 function shapeRotation(shape: DishShape): string | undefined {
 	if (shape.kind === "ellipse" && shape.rotate) {

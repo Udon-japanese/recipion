@@ -16,6 +16,15 @@ export const container = style({
 
 export const header = style({ display: "grid", gap: 8 });
 
+// 料理の絵の枠（絵は飾り）。
+export const cover = style({
+	display: "grid",
+	justifySelf: "start",
+	overflow: "hidden",
+	borderRadius: 16,
+	background: "var(--color-primary-soft)",
+});
+
 export const title = style({
 	margin: 0,
 	fontSize: "var(--font-size-2xl)",

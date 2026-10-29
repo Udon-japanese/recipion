@@ -12,6 +12,8 @@ import {
 import { Mascot } from "#/components/mascot/mascot";
 import { SegmentedControl } from "#/components/segmented-control/segmented-control";
 import { Tag } from "#/components/tag/tag";
+import { DishArt } from "#/features/dish-art/components/dish-art";
+import { pickDishPreset } from "#/features/dish-art/domain/dish-preset";
 import type { RecipeSummary } from "../application/recipe-repository";
 import { filterRecipesByName } from "../domain/filter-recipes-by-name";
 import { maxSearchQueryLength } from "../domain/public-recipe-search";
@@ -95,6 +97,14 @@ export function RecipeList({
 								{shownRecipes.map((recipe) => (
 									<ListRow
 										key={recipe.publicId}
+										leading={
+											<span className={styles.thumbnail}>
+												<DishArt
+													placements={pickDishPreset(recipe.name).placements}
+													size={48}
+												/>
+											</span>
+										}
 										actions={<Icon name="chevron-right" size={20} />}
 									>
 										<Link
