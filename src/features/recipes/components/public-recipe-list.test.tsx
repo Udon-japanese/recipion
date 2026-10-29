@@ -30,6 +30,7 @@ function recipe(
 		name,
 		servings: 2,
 		ingredientCount: 3,
+		cover: null,
 		createdAt: "2026-10-23T00:00:00.000Z",
 		authorName: "作者",
 		authorHandle: "author",

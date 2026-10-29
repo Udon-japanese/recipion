@@ -15,6 +15,7 @@ import { UserFacingError } from "#/errors/user-facing-error";
 import type { PublicRecipePage } from "../domain/public-recipe-search";
 import { maxSearchQueryLength } from "../domain/public-recipe-search";
 import * as styles from "./public-recipe-list.css";
+import { RecipeThumbnail } from "./recipe-thumbnail";
 
 type PublicRecipeListProps = {
 	// 検索の欄の初期値と、最初のページ。
@@ -111,6 +112,12 @@ export function PublicRecipeList({
 						{recipes.map((recipe) => (
 							<ListRow
 								key={recipe.publicId}
+								leading={
+									<RecipeThumbnail
+										cover={recipe.cover}
+										publicId={recipe.publicId}
+									/>
+								}
 								actions={<Icon name="chevron-right" size={20} />}
 							>
 								<Link
