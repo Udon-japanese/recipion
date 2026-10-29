@@ -12,12 +12,12 @@ import {
 import { Mascot } from "#/components/mascot/mascot";
 import { SegmentedControl } from "#/components/segmented-control/segmented-control";
 import { Tag } from "#/components/tag/tag";
-import { DishCoverView } from "#/features/dish-art/components/dish-cover-view";
 import type { RecipeSummary } from "../application/recipe-repository";
 import { filterRecipesByName } from "../domain/filter-recipes-by-name";
 import { maxSearchQueryLength } from "../domain/public-recipe-search";
 import { recipeVisibilityLabels } from "../domain/recipe-visibility-label";
 import * as styles from "./recipe-list.css";
+import { RecipeThumbnail } from "./recipe-thumbnail";
 
 export type RecipesTab = "mine" | "public";
 
@@ -97,13 +97,10 @@ export function RecipeList({
 									<ListRow
 										key={recipe.publicId}
 										leading={
-											<span className={styles.thumbnail}>
-												<DishCoverView
-													cover={recipe.cover}
-													seed={recipe.publicId}
-													size={48}
-												/>
-											</span>
+											<RecipeThumbnail
+												cover={recipe.cover}
+												publicId={recipe.publicId}
+											/>
 										}
 										actions={<Icon name="chevron-right" size={20} />}
 									>

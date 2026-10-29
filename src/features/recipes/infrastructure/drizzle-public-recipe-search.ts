@@ -11,6 +11,7 @@ import {
 } from "drizzle-orm";
 
 import type { DB } from "#/db/client";
+import { parseDishCover } from "#/features/dish-art/domain/dish-cover";
 import { accountSuspension } from "#/features/moderation/infrastructure/moderation.sql";
 import { user } from "#/integrations/better-auth/auth.sql";
 import {
@@ -61,6 +62,7 @@ export async function searchPublicRecipes(
 			publicId: recipe.publicId,
 			name: recipe.name,
 			servings: recipe.servings,
+			cover: recipe.cover,
 			createdAtText: sql<string>`${recipe.createdAt}::text`,
 			createdAt: recipe.createdAt,
 			authorName: user.name,
@@ -101,6 +103,7 @@ export async function searchPublicRecipes(
 			name: row.name,
 			servings: Number(row.servings),
 			ingredientCount: row.ingredientCount,
+			cover: parseDishCover(row.cover),
 			createdAt: row.createdAt.toISOString(),
 			authorName: row.authorName,
 			authorHandle: row.authorHandle,

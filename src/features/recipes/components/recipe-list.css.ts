@@ -49,12 +49,3 @@ export const empty = style({
 });
 
 export const emptyText = style({ margin: 0 });
-
-// 料理の絵の枠（絵は飾り）。
-export const thumbnail = style({
-	display: "grid",
-	flexShrink: 0,
-	overflow: "hidden",
-	borderRadius: 12,
-	background: "var(--color-primary-soft)",
-});
