@@ -50,6 +50,10 @@ export const dishPartCategories: readonly DishPartCategory[] = [
 			"boiled-egg",
 			"raw-egg",
 			"tofu",
+			"natto",
+			"konnyaku",
+			"hanpen",
+			"oyster",
 		],
 	},
 	{
@@ -89,6 +93,8 @@ export const dishPartCategories: readonly DishPartCategory[] = [
 			"takoyaki",
 			"omelet",
 			"curry",
+			"roll-cabbage",
+			"gratin",
 		],
 	},
 	{
