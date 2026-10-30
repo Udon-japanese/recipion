@@ -293,6 +293,11 @@ export function InventoryList({
 	}
 
 	function handleOpen(tile: InventoryTileModel) {
+		// 広い画面で、追加のパネルを開いている間は、行を押しても何も開かない（閉じてから）。
+		if (isRegistrationOpen && isWide) {
+			return;
+		}
+
 		setSelection({
 			inventoryItemId: tile.inventoryItemId,
 			zone: tile.zone,
@@ -442,6 +447,7 @@ export function InventoryList({
 					zone={selection.zone}
 					mode={panelMode}
 					actions={actions}
+					anchorTileKey={selection.tileKey}
 					readOnly={isOffline}
 					onClose={handleClose}
 					onUpdate={handleUpdate}

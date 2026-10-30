@@ -1,59 +1,5 @@
 import { style } from "@vanilla-extract/css";
 
-// 食材のパネル（PC は、動かせる浮いたパネル。スマホ・狭い PC は、シートの中に同じ中身を入れる）。
-export const floating = style({
-	boxSizing: "border-box",
-	position: "fixed",
-	zIndex: 30,
-	display: "flex",
-	flexDirection: "column",
-	width: 400,
-	maxHeight: "calc(100dvh - 48px)",
-	overflow: "hidden",
-	background: "var(--color-surface)",
-	borderRadius: "var(--radius-dialog)",
-	boxShadow: "var(--shadow-md)",
-	color: "var(--color-text)",
-});
-
-export const floatingHeader = style({
-	cursor: "grab",
-	touchAction: "none",
-	userSelect: "none",
-	display: "flex",
-	alignItems: "center",
-	gap: 8,
-	flex: "none",
-	minHeight: 56,
-	padding: "0 6px 0 20px",
-});
-
-export const floatingTitle = style({
-	flex: 1,
-	minWidth: 0,
-	margin: 0,
-	fontSize: "var(--font-size-lg)",
-	fontWeight: "var(--font-weight-bold)",
-	lineHeight: 1.3,
-	outline: "none",
-});
-
-export const floatingBody = style({
-	flex: 1,
-	minHeight: 0,
-	padding: "8px 16px 16px",
-	overflowY: "auto",
-	overscrollBehavior: "contain",
-});
-
-export const floatingFooter = style({
-	display: "flex",
-	flex: "none",
-	gap: 12,
-	padding: 12,
-	borderTop: "1px solid var(--color-border)",
-});
-
 export const stack = style({
 	display: "grid",
 	gap: 16,

@@ -147,7 +147,7 @@ describe("InventoryList", () => {
 		expect(screen.getByRole("button", { name: /^卵、/u })).toBeInTheDocument();
 
 		await user.click(screen.getByRole("button", { name: "あいうえお" }));
-		await user.click(screen.getByRole("button", { name: /^た\s*1$/u }));
+		await user.click(screen.getByRole("button", { name: /^た（1）$/u }));
 
 		expect(screen.getByRole("button", { name: /^卵、/u })).toBeInTheDocument();
 		expect(screen.queryByRole("button", { name: /^醤油、/u })).toBeNull();
@@ -394,12 +394,12 @@ describe("InventoryList", () => {
 	});
 
 	describe("ロット", () => {
-		it("ロットごとの追加日と数量を、パネルに表示する。複数あるタイルは「×2」", async () => {
+		it("ロットごとの追加日と数量を、パネルに表示する。複数あるときは「（2回分）」", async () => {
 			const user = userEvent.setup();
 
 			renderList([eggItem]);
 
-			expect(await screen.findByText("×2")).toBeInTheDocument();
+			expect(await screen.findByText("（2回分）")).toBeInTheDocument();
 
 			const dialog = await openPanel(user, "卵");
 			const lots = within(

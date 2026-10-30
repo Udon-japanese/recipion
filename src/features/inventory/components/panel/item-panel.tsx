@@ -5,6 +5,11 @@ import { Card } from "#/components/card/card";
 import { ConfirmDialog } from "#/components/dialog/confirm-dialog";
 import { Field, SelectBox, TextInput } from "#/components/field/field";
 import { input as fieldInput } from "#/components/field/field.css";
+import {
+	clampPanelPosition,
+	FloatingPanel,
+	floatingPanelWidth,
+} from "#/components/floating-panel/floating-panel";
 import { Icon } from "#/components/icon/icon";
 import type { IconName } from "#/components/icon/icon-definitions";
 import { IconButton } from "#/components/icon-button/icon-button";
@@ -44,6 +49,8 @@ type ItemPanelProps = {
 	actions: InventoryActions;
 	// 通信できず、保存済みの在庫を見ているとき。書き換える操作は、押すと理由を出す。
 	readOnly: boolean;
+	// 浮いたパネルが寄り添う、一覧の行（data-tile-key）。
+	anchorTileKey?: string;
 	onClose: () => void;
 	onUpdate: (
 		inventoryItemId: string,
@@ -85,6 +92,7 @@ export function ItemPanel({
 	mode,
 	actions,
 	readOnly,
+	anchorTileKey,
 	onClose,
 	onUpdate,
 	onDeleted,
@@ -683,10 +691,11 @@ export function ItemPanel({
 		return (
 			<FloatingPanel
 				title={heading}
-				back={back}
+				headerLeading={back}
 				footer={bar}
-				onClose={() => (view.name === "main" ? onClose() : panel.goMain())}
-				onCloseAll={onClose}
+				getInitialPosition={() => anchoredPosition(anchorTileKey)}
+				onEscape={() => (view.name === "main" ? onClose() : panel.goMain())}
+				onClose={onClose}
 			>
 				{content}
 			</FloatingPanel>
@@ -749,143 +758,21 @@ function RowButton({
 	);
 }
 
-// 位置は、閉じても次に開いたときまで覚える（画面の左上からの px）。
-let lastPosition: { x: number; y: number } | null = null;
+const edge = 8;
 
-const panelWidth = 400;
-const panelMargin = 24;
-const keyStep = 24;
-
-function clampPosition(x: number, y: number) {
-	return {
-		x: Math.min(
-			Math.max(x, 8),
-			Math.max(8, window.innerWidth - panelWidth - 8),
-		),
-		y: Math.min(Math.max(y, 8), Math.max(8, window.innerHeight - 120)),
-	};
-}
-
-// PC の浮いたパネル（モーダルにしない。一覧を見ながら操作できる）。見出しをつかんで、動かせる。
-function FloatingPanel({
-	title,
-	back,
-	footer,
-	children,
-	onClose,
-	onCloseAll,
-}: {
-	title: string;
-	back?: ReactNode;
-	footer: ReactNode;
-	children: ReactNode;
-	onClose: () => void;
-	onCloseAll: () => void;
-}) {
-	const headingRef = useRef<HTMLHeadingElement>(null);
-	const [position, setPosition] = useState(() =>
-		clampPosition(
-			lastPosition?.x ?? window.innerWidth - panelWidth - panelMargin,
-			lastPosition?.y ?? panelMargin,
-		),
+// 開く位置：押した行と同じ高さで、パネルの中央が、行（リスト）の右端にくる。
+function anchoredPosition(tileKey: string | undefined) {
+	const row = tileKey
+		? document.querySelector<HTMLElement>(
+				`[data-tile-key="${CSS.escape(tileKey)}"]`,
+			)
+		: null;
+	const rect = row?.getBoundingClientRect();
+	const center = rect?.right ?? window.innerWidth / 2;
+	const x = Math.min(
+		center - floatingPanelWidth / 2,
+		window.innerWidth - floatingPanelWidth - edge,
 	);
-	const dragRef = useRef<{ dx: number; dy: number } | null>(null);
 
-	function move(x: number, y: number) {
-		const next = clampPosition(x, y);
-
-		lastPosition = next;
-		setPosition(next);
-	}
-
-	// 開いたら見出しへ。Esc で閉じる（フォームが開いていれば、まずフォームを閉じる）。
-	useEffect(() => {
-		headingRef.current?.focus({ preventScroll: true });
-	}, []);
-
-	useEffect(() => {
-		function handleKeyDown(event: KeyboardEvent) {
-			if (event.key === "Escape" && !event.defaultPrevented) {
-				onClose();
-			}
-		}
-
-		document.addEventListener("keydown", handleKeyDown);
-
-		return () => document.removeEventListener("keydown", handleKeyDown);
-	}, [onClose]);
-
-	// 画面の大きさが変わっても、はみ出さない。
-	useEffect(() => {
-		function handleResize() {
-			setPosition((current) => clampPosition(current.x, current.y));
-		}
-
-		window.addEventListener("resize", handleResize);
-
-		return () => window.removeEventListener("resize", handleResize);
-	}, []);
-
-	return (
-		<aside
-			className={styles.floating}
-			aria-label={title}
-			style={{ left: position.x, top: position.y }}
-		>
-			<div
-				className={styles.floatingHeader}
-				onPointerDown={(event) => {
-					if ((event.target as HTMLElement).closest("button")) {
-						return;
-					}
-
-					event.currentTarget.setPointerCapture(event.pointerId);
-					dragRef.current = {
-						dx: event.clientX - position.x,
-						dy: event.clientY - position.y,
-					};
-				}}
-				onPointerMove={(event) => {
-					const drag = dragRef.current;
-
-					if (drag) {
-						move(event.clientX - drag.dx, event.clientY - drag.dy);
-					}
-				}}
-				onPointerUp={() => {
-					dragRef.current = null;
-				}}
-				onPointerCancel={() => {
-					dragRef.current = null;
-				}}
-			>
-				{back}
-				<h2
-					className={styles.floatingTitle}
-					ref={headingRef}
-					tabIndex={-1}
-					// 見出しにいるとき、Alt + 矢印キーで動かす（ドラッグができない人のため）。
-					onKeyDown={(event) => {
-						const delta: Record<string, [number, number]> = {
-							ArrowLeft: [-keyStep, 0],
-							ArrowRight: [keyStep, 0],
-							ArrowUp: [0, -keyStep],
-							ArrowDown: [0, keyStep],
-						};
-						const step = event.altKey ? delta[event.key] : undefined;
-
-						if (step) {
-							event.preventDefault();
-							move(position.x + step[0], position.y + step[1]);
-						}
-					}}
-				>
-					{title}
-				</h2>
-				<IconButton icon="close" label="閉じる" onClick={onCloseAll} />
-			</div>
-			<div className={styles.floatingBody}>{children}</div>
-			{footer ? <div className={styles.floatingFooter}>{footer}</div> : null}
-		</aside>
-	);
+	return clampPanelPosition(x, rect ? rect.top - 8 : 24);
 }

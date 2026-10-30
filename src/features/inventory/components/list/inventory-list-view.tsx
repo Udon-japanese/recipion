@@ -141,7 +141,7 @@ export function InventoryListView({
 						<div className={styles.chipScroll}>
 							<ChipGroup label="絞り込み">
 								<Chip pressed={active === null} onClick={() => setPick(null)}>
-									すべて {searched.length}
+									すべて（{searched.length}）
 								</Chip>
 								{groups.map((group) => (
 									<Chip
@@ -149,7 +149,7 @@ export function InventoryListView({
 										pressed={group.id === active}
 										onClick={() => setPick(group.id)}
 									>
-										{group.label} {counts.get(group.id)}
+										{group.label}（{counts.get(group.id)}）
 									</Chip>
 								))}
 							</ChipGroup>

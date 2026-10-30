@@ -3,6 +3,11 @@ import { Button } from "#/components/button/button";
 import { Chip, ChipGroup } from "#/components/chip/chip";
 import { Field, SelectBox, TextInput } from "#/components/field/field";
 import { input as fieldInput } from "#/components/field/field.css";
+import {
+	FloatingPanel,
+	floatingPanelWidth,
+	type PanelPosition,
+} from "#/components/floating-panel/floating-panel";
 import { Icon } from "#/components/icon/icon";
 import type { IconName } from "#/components/icon/icon-definitions";
 import { IconButton } from "#/components/icon-button/icon-button";
@@ -306,6 +311,9 @@ function RegistrationFooter({
 	);
 }
 
+// 動かした位置（画面を開いている間、覚える）。
+let lastPosition: PanelPosition | null = null;
+
 type InventoryRegistrationPanelProps = {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
@@ -313,7 +321,6 @@ type InventoryRegistrationPanelProps = {
 	onOpenSettings: () => void;
 };
 
-// 在庫に追加するパネル（スマホ＝下に浮くパネル、1024px〜＝右のパネル。どちらも後ろの画面を操作できる）。
 // 連続して登録できるよう、登録しても閉じない。入力は、閉じても残る（状態は、開く側が持つ）。
 export function InventoryRegistrationPanel({
 	open,
@@ -322,33 +329,61 @@ export function InventoryRegistrationPanel({
 	onOpenSettings,
 }: InventoryRegistrationPanelProps) {
 	const isRight = useMediaQuery("(min-width: 1024px)");
+	const trailing =
+		registration.addedCount > 0 ? (
+			<Tag tone="success" icon="check">
+				<span aria-hidden>{registration.addedCount}</span>
+				<span className={styles.srOnly}>
+					追加した件数 {registration.addedCount}
+				</span>
+			</Tag>
+		) : null;
+	const footer = <RegistrationFooter registration={registration} />;
+	const form = (
+		<RegistrationFormBody
+			registration={registration}
+			onOpenSettings={onOpenSettings}
+		/>
+	);
+
+	// 広い画面：自由に動かせる浮いたパネル。続けて何件も追加できるよう、動かした位置は覚えておく。
+	if (isRight) {
+		return open ? (
+			<FloatingPanel
+				title="在庫に追加"
+				headerTrailing={trailing}
+				footer={footer}
+				getInitialPosition={() =>
+					lastPosition ?? {
+						x: window.innerWidth - floatingPanelWidth - 32,
+						y: window.innerHeight - 640,
+					}
+				}
+				onMove={(position) => {
+					lastPosition = position;
+				}}
+				onEscape={() => onOpenChange(false)}
+				onClose={() => onOpenChange(false)}
+			>
+				{form}
+			</FloatingPanel>
+		) : null;
+	}
 
 	return (
 		<Sheet
 			open={open}
 			onOpenChange={onOpenChange}
 			title="在庫に追加"
-			placement={isRight ? "right" : "bottom"}
-			// 浮いたパネル：後ろの在庫を見ながら、続けて登録できる。スマホは、見出しだけの低い位置（0.1）・半分・ほぼ全面に止まる。
+			placement="bottom"
+			// 浮いたパネル：後ろの在庫を見ながら、続けて登録できる。スマホは、見出しだけの低い位置・半分・ほぼ全面に止まる。
 			modal={false}
-			snapPoints={isRight ? [0.92] : [0.6, 0.92]}
+			snapPoints={[0.6, 0.92]}
 			defaultSnapIndex={0}
-			headerTrailing={
-				registration.addedCount > 0 ? (
-					<Tag tone="success" icon="check">
-						<span aria-hidden>{registration.addedCount}</span>
-						<span className={styles.srOnly}>
-							追加した件数 {registration.addedCount}
-						</span>
-					</Tag>
-				) : null
-			}
-			footer={<RegistrationFooter registration={registration} />}
+			headerTrailing={trailing}
+			footer={footer}
 		>
-			<RegistrationFormBody
-				registration={registration}
-				onOpenSettings={onOpenSettings}
-			/>
+			{form}
 		</Sheet>
 	);
 }
