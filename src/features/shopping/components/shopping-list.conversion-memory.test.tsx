@@ -47,7 +47,8 @@ const checkedItem: ShoppingItem = buildShoppingItem({
 	quantity: 1,
 	unitLabel: null,
 	status: "checked",
-	inventoryConversion: null,
+	// 確認の画面では換算が足りている商品。サーバーが「足りない」と返したときの、設定のシートを確かめる。
+	inventoryConversion: sixPackConversion,
 	categoryAssignment: "manual",
 });
 
@@ -84,7 +85,9 @@ async function setUpAndChooseSixPack(initial: ShoppingConversionDefaults = {}) {
 	await user.click(
 		await screen.findByRole("button", { name: "購入を確定（1件）" }),
 	);
-	await user.click(await screen.findByRole("button", { name: "購入確定" }));
+	await user.click(
+		await screen.findByRole("button", { name: /^購入確定（\d+件）$/u }),
+	);
 	await screen.findByRole("heading", { name: "たまごを在庫へ追加する方法" });
 	await user.click(screen.getByRole("button", { name: "6個" }));
 

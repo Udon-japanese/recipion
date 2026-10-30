@@ -48,7 +48,11 @@ export function ExpiryEstimateSetting({
 export function ExpiryEstimateSettingRow({
 	level,
 	onChange,
-}: ExpiryEstimateSettingProps) {
+	quiet = false,
+}: ExpiryEstimateSettingProps & {
+	// 画面のじゃまにならない、文字だけの入口にする。
+	quiet?: boolean;
+}) {
 	const [isOpen, setIsOpen] = useState(false);
 	const isRight = useMediaQuery("(min-width: 1024px)");
 	const current = options.find((option) => option.value === level);
@@ -56,17 +60,19 @@ export function ExpiryEstimateSettingRow({
 	return (
 		<>
 			<button
-				className={styles.row}
+				className={quiet ? styles.quietRow : styles.row}
 				type="button"
 				aria-haspopup="dialog"
 				onClick={() => setIsOpen(true)}
 			>
-				<Icon name="sliders" size={20} />
-				<span className={styles.rowLabel}>期限の目安の自動入力</span>
-				<span className={styles.rowValue}>
+				<Icon name="sliders" size={quiet ? 16 : 20} />
+				<span className={quiet ? undefined : styles.rowLabel}>
+					期限の目安の自動入力
+				</span>
+				<span className={quiet ? undefined : styles.rowValue}>
 					{current?.value === "off" ? "オフ" : current?.label}
 				</span>
-				<Icon name="chevron-right" size={20} />
+				{quiet ? null : <Icon name="chevron-right" size={20} />}
 			</button>
 
 			<Sheet

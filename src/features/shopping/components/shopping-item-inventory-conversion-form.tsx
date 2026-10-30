@@ -1,5 +1,4 @@
 import { type SubmitEvent, useId, useState } from "react";
-import * as v from "valibot";
 import { Button } from "#/components/button/button";
 import { Chip, ChipGroup } from "#/components/chip/chip";
 import { Field, TextInput } from "#/components/field/field";
@@ -7,28 +6,21 @@ import { Note } from "#/components/note/note";
 import { SegmentedControl } from "#/components/segmented-control/segmented-control";
 import { Sheet } from "#/components/sheet/sheet";
 import { useMediaQuery } from "#/components/use-media-query";
-import {
-	findIngredientCatalogEntry,
-	getDefaultStockUnitLabel,
-} from "#/features/ingredients/domain/ingredient-catalog";
-import {
-	type InventoryTrackingMode,
-	inventoryTrackingModeSchema,
-} from "#/features/inventory/domain/inventory-tracking-mode";
+import type { InventoryTrackingMode } from "#/features/inventory/domain/inventory-tracking-mode";
 import { formatQuantityForUnit } from "#/features/quantity/domain/format-quantity";
-
-import type {
-	ShoppingItem,
-	ShoppingItemInventoryConversion,
-} from "../domain/shopping-item";
+import {
+	buildConversionConfiguration,
+	changeDraftStockUnit,
+	describeConversionDraftError,
+	getLockedStockUnitCode,
+	initialConversionDraft,
+	type ShoppingItemInventoryConfiguration,
+} from "../domain/conversion-draft";
+import type { ShoppingItem } from "../domain/shopping-item";
 import { getShoppingItemPresets } from "../domain/shopping-item-suggestion";
 import * as styles from "./shopping-item-inventory-conversion-form.css";
 
-export type ShoppingItemInventoryConfiguration = {
-	quantity: number;
-	unitLabel: string | null;
-	inventoryConversion: ShoppingItemInventoryConversion;
-};
+export type { ShoppingItemInventoryConfiguration };
 
 type ShoppingItemInventoryConversionFormProps = {
 	item: ShoppingItem;
@@ -38,21 +30,6 @@ type ShoppingItemInventoryConversionFormProps = {
 	): void | Promise<void>;
 	onCancel(): void;
 };
-
-const genericConversionSchema = v.object({
-	stockUnitCode: v.picklist(["count", "g", "ml"]),
-	stockUnitLabel: v.pipe(
-		v.string(),
-		v.trim(),
-		v.minLength(1, "在庫の表示単位を入力してください"),
-	),
-	stockQuantityPerInputUnit: v.pipe(
-		v.number(),
-		v.finite("換算数量には有限の数値を指定してください"),
-		v.gtValue(0, "換算数量は0より大きくしてください"),
-	),
-	trackingMode: inventoryTrackingModeSchema,
-});
 
 const trackingModeOptions: readonly {
 	value: InventoryTrackingMode;
@@ -72,14 +49,6 @@ const stockUnitOptions: readonly {
 	{ value: "ml", label: "ミリリットル" },
 ];
 
-function getErrorMessage(error: unknown): string {
-	if (v.isValiError(error)) {
-		return error.issues[0]?.message ?? "入力内容を確認してください";
-	}
-
-	return "換算設定を保存できませんでした";
-}
-
 export function ShoppingItemInventoryConversionForm({
 	item,
 	isSaving = false,
@@ -90,64 +59,15 @@ export function ShoppingItemInventoryConversionForm({
 	const formId = useId();
 	const isRight = useMediaQuery("(min-width: 1024px)");
 
-	// 数量プリセットのある食材は、在庫の単位が決まっている（在庫の登録がカタログの単位に固定するため、
-	// ここで別の単位を選ぶと、数量が狂う）。
-	const catalogEntry = findIngredientCatalogEntry(item.name);
-	const lockedStockUnitCode =
-		catalogEntry && (catalogEntry.presets?.length ?? 0) > 0
-			? catalogEntry.stockUnitCode
-			: null;
-
-	// すでに換算がある項目（行の換算を押して直すとき）は、その値から始める。
-	// ない項目は、カタログの在庫の単位から始める（「袋」のまま g の数量を入れて、800袋になるのを防ぐ）。
-	const existing = item.inventoryConversion;
-	const initialStockUnitCode =
-		lockedStockUnitCode ??
-		existing?.stockUnitCode ??
-		catalogEntry?.stockUnitCode ??
-		"count";
-
-	const [stockUnitCode, setStockUnitCode] = useState<"count" | "g" | "ml">(
-		initialStockUnitCode,
-	);
-
-	const [stockUnitLabel, setStockUnitLabel] = useState(
-		initialStockUnitCode === "count"
-			? existing?.stockUnitCode === "count"
-				? existing.stockUnitLabel
-				: item.unitLabel?.trim() || "個"
-			: getDefaultStockUnitLabel(initialStockUnitCode),
-	);
-
-	const [stockQuantityPerInputUnit, setStockQuantityPerInputUnit] = useState(
-		existing && existing.trackingMode !== "presence"
-			? String(existing.stockQuantityPerInputUnit)
-			: "1",
-	);
-
-	const [trackingMode, setTrackingMode] = useState<InventoryTrackingMode>(
-		existing?.trackingMode ??
-			(catalogEntry && lockedStockUnitCode
-				? catalogEntry.defaultTrackingMode
-				: "estimated"),
-	);
+	const lockedStockUnitCode = getLockedStockUnitCode(item);
+	const [draft, setDraft] = useState(() => initialConversionDraft(item));
+	const { stockUnitCode, stockUnitLabel, trackingMode } = draft;
+	const stockQuantityPerInputUnit = draft.stockQuantityPerInputUnit;
 
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
 	function handleStockUnitChange(value: "count" | "g" | "ml") {
-		setStockUnitCode(value);
-
-		if (value === "g") {
-			setStockUnitLabel("g");
-			return;
-		}
-
-		if (value === "ml") {
-			setStockUnitLabel("ml");
-			return;
-		}
-
-		setStockUnitLabel(item.unitLabel?.trim() || "個");
+		setDraft((current) => changeDraftStockUnit(current, item, value));
 	}
 
 	async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
@@ -155,49 +75,9 @@ export function ShoppingItemInventoryConversionForm({
 		setErrorMessage(null);
 
 		try {
-			// 有無だけは、量の換算がいらない（「ある」になるだけ）。
-			if (trackingMode === "presence") {
-				await onSave({
-					quantity: item.quantity,
-					unitLabel: item.unitLabel,
-					inventoryConversion: {
-						inputUnitCode: item.unitLabel?.trim() || "unit",
-						stockUnitCode: lockedStockUnitCode ?? "count",
-						stockUnitLabel: lockedStockUnitCode
-							? getDefaultStockUnitLabel(lockedStockUnitCode)
-							: "個",
-						stockQuantityPerInputUnit: 1,
-						trackingMode: "presence",
-					},
-				});
-
-				return;
-			}
-
-			const conversion = v.parse(genericConversionSchema, {
-				stockUnitCode,
-				stockUnitLabel,
-				stockQuantityPerInputUnit: Number(stockQuantityPerInputUnit),
-				trackingMode,
-			});
-
-			await onSave({
-				quantity: item.quantity,
-				unitLabel: item.unitLabel,
-				inventoryConversion: {
-					inputUnitCode: item.unitLabel?.trim() || "unit",
-					stockUnitCode: conversion.stockUnitCode,
-					// g・ml は表示単位が決まっている（「袋」のまま g の数量を入れて、800袋と表示されるのを防ぐ）。
-					stockUnitLabel:
-						conversion.stockUnitCode === "count"
-							? conversion.stockUnitLabel
-							: getDefaultStockUnitLabel(conversion.stockUnitCode),
-					stockQuantityPerInputUnit: conversion.stockQuantityPerInputUnit,
-					trackingMode: conversion.trackingMode,
-				},
-			});
+			await onSave(buildConversionConfiguration(item, draft));
 		} catch (error) {
-			setErrorMessage(getErrorMessage(error));
+			setErrorMessage(describeConversionDraftError(error));
 		}
 	}
 
@@ -278,13 +158,15 @@ export function ShoppingItemInventoryConversionForm({
 				<form className={styles.form} id={formId} onSubmit={handleSubmit}>
 					<div className={styles.group}>
 						<span className={styles.groupLabel} aria-hidden="true">
-							在庫管理方法
+							数え方
 						</span>
 
 						<SegmentedControl
-							label="在庫管理方法"
+							label="数え方"
 							value={trackingMode}
-							onChange={setTrackingMode}
+							onChange={(next: InventoryTrackingMode) =>
+								setDraft((current) => ({ ...current, trackingMode: next }))
+							}
 							options={trackingModeOptions}
 						/>
 					</div>
@@ -323,7 +205,10 @@ export function ShoppingItemInventoryConversionForm({
 											step="any"
 											value={stockQuantityPerInputUnit}
 											onChange={(event) =>
-												setStockQuantityPerInputUnit(event.target.value)
+												setDraft((current) => ({
+													...current,
+													stockQuantityPerInputUnit: event.target.value,
+												}))
 											}
 										/>
 									)}
@@ -337,7 +222,10 @@ export function ShoppingItemInventoryConversionForm({
 												value={stockUnitLabel}
 												placeholder="個、枚、本など"
 												onChange={(event) =>
-													setStockUnitLabel(event.target.value)
+													setDraft((current) => ({
+														...current,
+														stockUnitLabel: event.target.value,
+													}))
 												}
 											/>
 										)}

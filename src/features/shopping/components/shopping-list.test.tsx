@@ -1,15 +1,12 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { formatShortDate } from "#/features/inventory/domain/expiry-labels";
 import {
 	addDays,
 	toDateString,
 } from "#/features/inventory/domain/inventory-lot";
 import { buildShoppingItem } from "#/test/builders/build-shopping-item";
-import {
-	chooseExpiryKind,
-	chooseExpiryStorage,
-} from "#/test/expiry-fields-helpers";
 import { createFakeShoppingRepository } from "#/test/fakes/fake-shopping-repository";
 import type { ShoppingItem } from "../domain/shopping-item";
 import { ShoppingList } from "./shopping-list";
@@ -670,7 +667,9 @@ describe("ShoppingList", () => {
 		);
 
 		// 期限の確認画面（入力は任意）で、そのまま確定する。
-		await user.click(await screen.findByRole("button", { name: "購入確定" }));
+		await user.click(
+			await screen.findByRole("button", { name: /^購入確定（\d+件）$/u }),
+		);
 
 		expect(confirmPurchases).toHaveBeenCalledWith("guest", {
 			lotsByItemId: {},
@@ -772,7 +771,9 @@ describe("ShoppingList", () => {
 		);
 
 		// 期限の確認画面（入力は任意）で、そのまま確定する。
-		await user.click(await screen.findByRole("button", { name: "購入確定" }));
+		await user.click(
+			await screen.findByRole("button", { name: /^購入確定（\d+件）$/u }),
+		);
 
 		expect(await screen.findByRole("alert")).toHaveTextContent(
 			"謎の商品の在庫換算を設定してください",
@@ -832,7 +833,9 @@ describe("ShoppingList", () => {
 		);
 
 		// 期限の確認画面（入力は任意）で、そのまま確定する。
-		await user.click(await screen.findByRole("button", { name: "購入確定" }));
+		await user.click(
+			await screen.findByRole("button", { name: /^購入確定（\d+件）$/u }),
+		);
 
 		await waitFor(() => {
 			expect(confirmPurchases).toHaveBeenCalledWith("user:user-id", {
@@ -878,23 +881,30 @@ describe("ShoppingList", () => {
 			}),
 		);
 
-		// 期限の確認画面：明日の期限、消費期限、冷蔵
+		// 購入確定の確認画面：明日の期限、冷蔵
 		await user.click(
-			await screen.findByRole("button", { name: "期限を明日にする" }),
+			await screen.findByRole("button", { name: "鶏もも肉の期限を選ぶ" }),
 		);
-		await chooseExpiryKind(user, "消費期限");
-		await chooseExpiryStorage(user, "冷蔵");
-		await user.click(screen.getByRole("button", { name: "購入確定" }));
+		await user.click(
+			screen.getByRole("button", { name: "鶏もも肉の期限を明日にする" }),
+		);
+		await user.click(
+			within(
+				screen.getByRole("group", { name: "鶏もも肉の保存方法" }),
+			).getByRole("button", { name: "冷蔵" }),
+		);
+		await user.click(
+			screen.getByRole("button", { name: /^購入確定（\d+件）$/u }),
+		);
 
 		await waitFor(() =>
 			expect(confirmPurchases).toHaveBeenCalledWith("guest", {
 				lotsByItemId: {
-					[checkedItem.id]: {
+					[checkedItem.id]: expect.objectContaining({
 						expiresOn: addDays(toDateString(new Date()), 1),
 						expirySource: "entered",
-						expiryKind: "use-by",
 						storage: "fridge",
-					},
+					}),
 				},
 			}),
 		);
@@ -939,12 +949,15 @@ describe("ShoppingList", () => {
 		// 冷凍野菜：購入から90日（短め）
 		const today = toDateString(new Date());
 
-		expect(await screen.findByLabelText("期限")).toHaveValue(
-			addDays(today, 90),
-		);
-		expect(screen.getByText(/目安の日付（約）です/u)).toBeInTheDocument();
+		expect(
+			await screen.findByRole("button", {
+				name: "冷凍ブロッコリーの期限を選ぶ",
+			}),
+		).toHaveTextContent(`約 ${formatShortDate(addDays(today, 90))}目安`);
 
-		await user.click(screen.getByRole("button", { name: "購入確定" }));
+		await user.click(
+			screen.getByRole("button", { name: /^購入確定（\d+件）$/u }),
+		);
 
 		await waitFor(() =>
 			expect(confirmPurchases).toHaveBeenCalledWith("guest", {
@@ -999,15 +1012,100 @@ describe("ShoppingList", () => {
 		);
 		await user.click(screen.getByLabelText("オフ（自動で入れない）"));
 
-		expect(screen.getByLabelText("期限")).toHaveValue("");
+		// 日付は入っておらず、日付の欄も出ていない（「日付を選ぶ」を押したときだけ出る）。
+		expect(screen.queryByLabelText("期限")).toBeNull();
+		expect(screen.queryByRole("button", { name: "期限を消す" })).toBeNull();
 
-		await user.click(screen.getByRole("button", { name: "購入確定" }));
+		await user.click(
+			screen.getByRole("button", { name: /^購入確定（\d+件）$/u }),
+		);
 
 		await waitFor(() =>
 			expect(confirmPurchases).toHaveBeenCalledWith("guest", {
 				lotsByItemId: {},
 			}),
 		);
+	});
+
+	it("換算が足りない商品は、確認の画面で、換算を入れて、まとめて購入確定する", async () => {
+		const user = userEvent.setup();
+
+		const checkedItem: ShoppingItem = {
+			...storedItem,
+			name: "はなげ",
+			quantity: 1,
+			unitLabel: "袋",
+			status: "checked",
+			inventoryConversion: null,
+		};
+
+		const repository = createFakeShoppingRepository([checkedItem]);
+		const confirmPurchases = vi.fn().mockResolvedValue({
+			status: "confirmed",
+			items: [{ ...checkedItem, status: "purchased" }],
+		});
+
+		render(
+			<ShoppingList
+				repository={repository}
+				confirmPurchases={confirmPurchases}
+			/>,
+		);
+
+		await user.click(
+			await screen.findByRole("button", { name: "購入を確定（1件）" }),
+		);
+
+		const quantity = await screen.findByLabelText("はなげの1袋あたりの数量");
+
+		await user.clear(quantity);
+		await user.type(quantity, "300");
+		await user.click(
+			screen.getByRole("button", { name: /^購入確定（\d+件）$/u }),
+		);
+
+		await waitFor(() => expect(confirmPurchases).toHaveBeenCalledTimes(1));
+		expect(repository.items[0]?.inventoryConversion).toMatchObject({
+			stockQuantityPerInputUnit: 300,
+		});
+		// 換算のためだけの別のシートは、開かない。
+		expect(
+			screen.queryByRole("heading", { name: /を在庫へ追加する方法/u }),
+		).toBeNull();
+	});
+
+	it("換算の数量が読めないときは、購入確定せず、その行に理由を出す", async () => {
+		const user = userEvent.setup();
+
+		const checkedItem: ShoppingItem = {
+			...storedItem,
+			name: "はなげ",
+			quantity: 1,
+			unitLabel: "袋",
+			status: "checked",
+			inventoryConversion: null,
+		};
+		const confirmPurchases = vi.fn();
+
+		render(
+			<ShoppingList
+				repository={createFakeShoppingRepository([checkedItem])}
+				confirmPurchases={confirmPurchases}
+			/>,
+		);
+
+		await user.click(
+			await screen.findByRole("button", { name: "購入を確定（1件）" }),
+		);
+		await user.clear(await screen.findByLabelText("はなげの1袋あたりの数量"));
+		await user.click(
+			screen.getByRole("button", { name: /^購入確定（\d+件）$/u }),
+		);
+
+		expect((await screen.findByRole("alert")).textContent).toContain(
+			"0より大きく",
+		);
+		expect(confirmPurchases).not.toHaveBeenCalled();
 	});
 
 	it("在庫に入る商品がなければ（日用品だけ）、期限の確認なしで購入確定する", async () => {
@@ -1140,7 +1238,9 @@ describe("ShoppingList", () => {
 		);
 
 		// 期限の確認画面（入力は任意）で、そのまま確定する。
-		await user.click(await screen.findByRole("button", { name: "購入確定" }));
+		await user.click(
+			await screen.findByRole("button", { name: /^購入確定（\d+件）$/u }),
+		);
 
 		expect(
 			await screen.findByRole("heading", {

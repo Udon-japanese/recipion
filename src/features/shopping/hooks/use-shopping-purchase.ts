@@ -20,6 +20,12 @@ import {
 } from "#/features/inventory/infrastructure/expiry-hints-storage";
 import type { ShoppingItemInventoryConfiguration } from "../components/shopping-item-inventory-conversion-form";
 import {
+	buildConversionConfiguration,
+	type ConversionDraft,
+	describeConversionDraftError,
+	initialConversionDraft,
+} from "../domain/conversion-draft";
+import {
 	isSameConversionDefault,
 	type ShoppingConversionDefault,
 } from "../domain/shopping-conversion-default";
@@ -86,9 +92,19 @@ export function useShoppingPurchase({
 	const [isConfirmingPurchase, setIsConfirmingPurchase] = useState(false);
 	const [conversionItemId, setConversionItemId] = useState<string | null>(null);
 	const [isSavingConversion, setIsSavingConversion] = useState(false);
-	// 記憶と違う換算を設定したとき、答えを待つあいだ。
-	const [overwriteRequest, setOverwriteRequest] =
-		useState<ConversionOverwriteRequest | null>(null);
+	// 記憶と違う換算を設定したとき、答えを待つあいだ（複数あるときは、1件ずつ聞く）。
+	const [overwriteQueue, setOverwriteQueue] = useState<
+		ConversionOverwriteRequest[]
+	>([]);
+	const overwriteRequest = overwriteQueue[0] ?? null;
+
+	// 購入確定の確認画面で、換算が足りない商品の、入力途中の換算（商品の ID ごと）と、その誤り。
+	const [conversionDrafts, setConversionDrafts] = useState<
+		Record<string, ConversionDraft>
+	>({});
+	const [conversionErrors, setConversionErrors] = useState<
+		Record<string, string>
+	>({});
 
 	// 購入確定の前に、期限・保存方法を確認する画面（任意入力）。
 	const [isReviewingExpiry, setIsReviewingExpiry] = useState(false);
@@ -153,6 +169,14 @@ export function useShoppingPurchase({
 		}
 
 		setErrorMessage(null);
+		setConversionErrors({});
+		setConversionDrafts(
+			Object.fromEntries(
+				checkedTrackedItems
+					.filter((item) => !item.inventoryConversion)
+					.map((item) => [item.id, initialConversionDraft(item)]),
+			),
+		);
 
 		if (checkedTrackedItems.length === 0) {
 			pendingLotsRef.current = {};
@@ -174,8 +198,85 @@ export function useShoppingPurchase({
 		setIsReviewingExpiry(true);
 	}
 
-	// 期限の確認画面で「購入確定」を押したとき。入力のある項目だけを、購入の記録に載せる。
-	function confirmWithExpiry() {
+	// 確認の画面で「購入確定」を押したとき。足りない換算を、先にすべて保存して、入力のある期限を載せて確定する。
+	async function confirmWithExpiry() {
+		const missingItems = checkedTrackedItems.filter(
+			(item) => item.id in conversionDrafts,
+		);
+		const configurations: {
+			item: ShoppingItem;
+			configuration: ShoppingItemInventoryConfiguration;
+		}[] = [];
+		const errors: Record<string, string> = {};
+
+		for (const item of missingItems) {
+			const draft = conversionDrafts[item.id];
+
+			if (!draft) {
+				continue;
+			}
+
+			try {
+				configurations.push({
+					item,
+					configuration: buildConversionConfiguration(item, draft),
+				});
+			} catch (error) {
+				errors[item.id] = describeConversionDraftError(error);
+			}
+		}
+
+		setConversionErrors(errors);
+
+		if (Object.keys(errors).length > 0) {
+			return;
+		}
+
+		const overwrites: ConversionOverwriteRequest[] = [];
+
+		if (configurations.length > 0) {
+			setIsSavingConversion(true);
+
+			try {
+				for (const { item, configuration } of configurations) {
+					const updatedItem = await saveConversion(() =>
+						updateShoppingItem(item, {
+							name: item.name,
+							quantity: configuration.quantity,
+							unitLabel: configuration.unitLabel,
+							inventoryConversion: configuration.inventoryConversion,
+						}),
+					);
+
+					if (!updatedItem) {
+						setErrorMessage(
+							"換算を保存できませんでした。もう一度お試しください",
+						);
+
+						return;
+					}
+
+					// 決めた換算は、次から同じ食材の初期値にするため、覚える。記憶と違うときは、あとで聞く。
+					const next: ShoppingConversionDefault = {
+						unitLabel: configuration.unitLabel,
+						inventoryConversion: configuration.inventoryConversion,
+					};
+					const previous = conversionMemory.lookup(
+						item.name,
+						configuration.unitLabel,
+					);
+
+					if (!previous) {
+						await conversionMemory.remember(item.name, next);
+					} else if (!isSameConversionDefault(previous, next)) {
+						overwrites.push({ itemName: item.name, previous, next });
+					}
+				}
+			} finally {
+				setIsSavingConversion(false);
+			}
+		}
+
 		const lotsByItemId: Record<string, InventoryLotInput> = {};
 
 		for (const item of checkedTrackedItems) {
@@ -200,7 +301,15 @@ export function useShoppingPurchase({
 
 		pendingLotsRef.current = lotsByItemId;
 		setIsReviewingExpiry(false);
-		void confirm();
+		setConversionDrafts({});
+
+		if (overwrites.length > 0) {
+			setOverwriteQueue(overwrites);
+
+			return;
+		}
+
+		await confirm();
 	}
 
 	async function confirm() {
@@ -299,7 +408,7 @@ export function useShoppingPurchase({
 			if (!previous) {
 				await conversionMemory.remember(item.name, next);
 			} else if (!isSameConversionDefault(previous, next)) {
-				setOverwriteRequest({ itemName: item.name, previous, next });
+				setOverwriteQueue([{ itemName: item.name, previous, next }]);
 
 				return;
 			}
@@ -314,7 +423,7 @@ export function useShoppingPurchase({
 		}
 	}
 
-	// 記憶と違う換算の確認への答え。「変える」なら記憶を置き換える。どちらでも、購入確定を続ける。
+	// 記憶と違う換算の確認への答え。「変える」なら記憶を置き換える。残りがなければ、購入確定を続ける。
 	async function answerConversionOverwrite(choice: "replace" | "once") {
 		const request = overwriteRequest;
 
@@ -322,13 +431,15 @@ export function useShoppingPurchase({
 			return;
 		}
 
-		setOverwriteRequest(null);
+		setOverwriteQueue((queue) => queue.slice(1));
 
 		if (choice === "replace") {
 			await conversionMemory.remember(request.itemName, request.next);
 		}
 
-		await confirm();
+		if (overwriteQueue.length <= 1) {
+			await confirm();
+		}
 	}
 
 	function cancelConversion() {
@@ -347,7 +458,15 @@ export function useShoppingPurchase({
 		expiryEstimateLevel,
 		today,
 		setExpiryValues,
-		cancelExpiryReview: () => setIsReviewingExpiry(false),
+		cancelExpiryReview: () => {
+			setIsReviewingExpiry(false);
+			setConversionDrafts({});
+			setConversionErrors({});
+		},
+		conversionDrafts,
+		conversionErrors,
+		changeConversionDraft: (itemId: string, draft: ConversionDraft) =>
+			setConversionDrafts((current) => ({ ...current, [itemId]: draft })),
 		changeEstimateLevel,
 		requestPurchase,
 		confirmWithExpiry,

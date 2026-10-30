@@ -45,3 +45,25 @@ export const rowValue = style({
 	color: "var(--color-text-muted)",
 	fontSize: "var(--font-size-sm)",
 });
+
+// 文字だけの入口（画面のじゃまにならない）。
+export const quietRow = style({
+	display: "inline-flex",
+	alignItems: "center",
+	gap: 6,
+	padding: 0,
+	color: "var(--color-text-muted)",
+	background: "none",
+	border: "none",
+	font: "inherit",
+	fontSize: "var(--font-size-sm)",
+	cursor: "pointer",
+	textDecoration: "underline",
+	selectors: {
+		"&:hover": { color: "var(--color-text)" },
+		"&:focus-visible": {
+			outline: "3px solid var(--color-focus)",
+			outlineOffset: 2,
+		},
+	},
+});

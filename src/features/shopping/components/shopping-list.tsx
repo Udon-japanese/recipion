@@ -41,7 +41,7 @@ import { confirmCheckedShoppingItemsPurchase } from "../infrastructure/dexie-sho
 import { dexieShoppingRepository } from "../infrastructure/dexie-shopping-repository";
 import { dexieShoppingStoreRepository } from "../infrastructure/dexie-shopping-store-repository";
 import { shoppingViewStorage } from "../infrastructure/shopping-view-storage";
-import { PurchaseExpiryReview } from "./purchase-expiry-review";
+import { PurchaseReview } from "./purchase-review";
 import type { RenderRecipePicker } from "./recipe-picker-slot";
 import { ShoppingAddSheet } from "./shopping-add-sheet";
 import {
@@ -522,7 +522,7 @@ export function ShoppingList({
 			) : null}
 
 			{purchase.isReviewingExpiry ? (
-				<PurchaseExpiryReview
+				<PurchaseReview
 					items={purchase.checkedTrackedItems}
 					values={purchase.expiryValues}
 					onChangeValue={(itemId, value) =>
@@ -531,11 +531,14 @@ export function ShoppingList({
 							[itemId]: value,
 						}))
 					}
+					conversionDrafts={purchase.conversionDrafts}
+					conversionErrors={purchase.conversionErrors}
+					onChangeConversionDraft={purchase.changeConversionDraft}
 					today={purchase.today}
 					estimateLevel={purchase.expiryEstimateLevel}
 					onChangeEstimateLevel={purchase.changeEstimateLevel}
 					isConfirming={purchase.isConfirmingPurchase}
-					onConfirm={purchase.confirmWithExpiry}
+					onConfirm={() => void purchase.confirmWithExpiry()}
 					onCancel={purchase.cancelExpiryReview}
 				/>
 			) : null}
