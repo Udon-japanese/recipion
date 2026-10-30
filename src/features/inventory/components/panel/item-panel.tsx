@@ -51,6 +51,8 @@ type ItemPanelProps = {
 	readOnly: boolean;
 	// 浮いたパネルが寄り添う、一覧の行（data-tile-key）。
 	anchorTileKey?: string;
+	// 開く位置：overlap＝押した行の右端に、パネルの中央／beside＝行の右隣（おうちの表示）。
+	anchorPlacement?: "overlap" | "beside";
 	onClose: () => void;
 	onUpdate: (
 		inventoryItemId: string,
@@ -93,6 +95,7 @@ export function ItemPanel({
 	actions,
 	readOnly,
 	anchorTileKey,
+	anchorPlacement = "overlap",
 	onClose,
 	onUpdate,
 	onDeleted,
@@ -693,7 +696,9 @@ export function ItemPanel({
 				title={heading}
 				headerLeading={back}
 				footer={bar}
-				getInitialPosition={() => anchoredPosition(anchorTileKey)}
+				getInitialPosition={() =>
+					anchoredPosition(anchorTileKey, anchorPlacement)
+				}
 				onEscape={() => (view.name === "main" ? onClose() : panel.goMain())}
 				onClose={onClose}
 			>
@@ -760,19 +765,23 @@ function RowButton({
 
 const edge = 8;
 
-// 開く位置：押した行と同じ高さで、パネルの中央が、行（リスト）の右端にくる。
-function anchoredPosition(tileKey: string | undefined) {
+// 開く位置：押した行と同じ高さ。overlap は、パネルの中央が行（リスト）の右端、beside は、行の右隣。
+function anchoredPosition(
+	tileKey: string | undefined,
+	placement: "overlap" | "beside",
+) {
 	const row = tileKey
 		? document.querySelector<HTMLElement>(
 				`[data-tile-key="${CSS.escape(tileKey)}"]`,
 			)
 		: null;
 	const rect = row?.getBoundingClientRect();
-	const center = rect?.right ?? window.innerWidth / 2;
-	const x = Math.min(
-		center - floatingPanelWidth / 2,
-		window.innerWidth - floatingPanelWidth - edge,
-	);
+	const left = rect
+		? placement === "beside"
+			? rect.right + edge
+			: rect.right - floatingPanelWidth / 2
+		: window.innerWidth / 2;
+	const x = Math.min(left, window.innerWidth - floatingPanelWidth - edge);
 
 	return clampPanelPosition(x, rect ? rect.top - 8 : 24);
 }

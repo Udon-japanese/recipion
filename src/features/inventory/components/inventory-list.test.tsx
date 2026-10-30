@@ -120,6 +120,32 @@ describe("InventoryList", () => {
 		).toBeInTheDocument();
 	});
 
+	it("表示を「おうち」に切り替えられ、選んだ表示を覚える", async () => {
+		const user = userEvent.setup();
+
+		try {
+			renderList([stocked({ name: "卵", quantity: 6 })]);
+
+			await screen.findByRole("button", { name: /^卵、/u });
+			await user.click(screen.getByRole("button", { name: "おうちで見る" }));
+
+			expect(
+				screen.getByRole("region", { name: "れしぽよのおうち" }),
+			).toBeInTheDocument();
+			expect(window.localStorage.getItem("recipion.inventory.view")).toBe(
+				"scene",
+			);
+
+			await user.click(screen.getByRole("button", { name: "リストで見る" }));
+
+			expect(
+				await screen.findByRole("button", { name: /^卵、/u }),
+			).toBeInTheDocument();
+		} finally {
+			window.localStorage.removeItem("recipion.inventory.view");
+		}
+	});
+
 	it("場所の縦タブで絞り、もう一度押すとすべてに戻る。まとめ方を変えると、チップで絞れる", async () => {
 		const user = userEvent.setup();
 
