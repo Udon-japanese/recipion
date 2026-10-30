@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { type DishPlacement, dishCoverLimits } from "./dish-cover";
 import { dishParts } from "./dish-part";
-import { dishPartCategories } from "./dish-part-category";
+import { dishPartCategories, inventoryOnlyPartIds } from "./dish-part-category";
 import {
 	addDishPart,
 	duplicateDishPart,
@@ -20,12 +20,23 @@ const rice: DishPlacement = { partId: "rice", x: 20, y: 20, scale: 0.5 };
 const tofu: DishPlacement = { partId: "tofu", x: 25, y: 22, scale: 0.5 };
 
 describe("dishPartCategories", () => {
-	it("すべての部品が、ちょうど1つの棚に入る", () => {
+	it("在庫専用を除くすべての部品が、ちょうど1つの棚に入る", () => {
 		const shelved = dishPartCategories.flatMap((category) => category.partIds);
 
 		expect([...shelved].sort()).toEqual(
-			dishParts.map((part) => part.id).sort(),
+			dishParts
+				.map((part) => part.id)
+				.filter((id) => !inventoryOnlyPartIds.includes(id))
+				.sort(),
 		);
+	});
+
+	it("在庫専用の部品は、実在する", () => {
+		const ids = dishParts.map((part) => part.id);
+
+		for (const id of inventoryOnlyPartIds) {
+			expect(ids).toContain(id);
+		}
 	});
 });
 

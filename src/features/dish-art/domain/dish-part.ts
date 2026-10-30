@@ -1,10 +1,15 @@
 import { MASCOT_DISPLAY_NAME } from "#/config/app";
+import { extraDishColors } from "./dish-colors-extra";
+import { pantryParts } from "./dish-parts-pantry";
+import { produceParts } from "./dish-parts-produce";
+import { proteinParts } from "./dish-parts-protein";
 
 // 料理の絵の部品。絵ではなく、図形（円・楕円・角丸の四角・パス）の並びで持つ。
 // 座標は 0〜100 の正方形の中。利用者が選べるのは、部品の id と、置き場所・色だけ。
 export const dishArtViewSize = 100;
 
 export const dishColors = {
+	...extraDishColors,
 	mascot: "#e9a900",
 	ink: "#292720",
 	white: "#ffffff",
@@ -5217,6 +5222,9 @@ export const dishParts: readonly DishPart[] = [
 	drumstick,
 	zaru,
 	rawEgg,
+	...produceParts,
+	...proteinParts,
+	...pantryParts,
 ];
 
 export function findDishPart(id: string): DishPart | undefined {
