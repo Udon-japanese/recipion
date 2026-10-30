@@ -34,7 +34,7 @@ import type { InventoryActions } from "./inventory-actions";
 import * as styles from "./item-panel.css";
 import { isCurrentUnit, toOptionValue, useItemPanel } from "./use-item-panel";
 
-export type ItemPanelMode = "sheet-bottom" | "sheet-right" | "fixed";
+export type ItemPanelMode = "sheet-bottom" | "floating";
 
 type ItemPanelProps = {
 	item: InventoryListItem;
@@ -679,9 +679,9 @@ export function ItemPanel({
 			<IconButton icon="chevron-left" label="戻る" onClick={panel.goMain} />
 		);
 
-	if (mode === "fixed") {
+	if (mode === "floating") {
 		return (
-			<FixedPanel
+			<FloatingPanel
 				title={heading}
 				back={back}
 				footer={bar}
@@ -689,7 +689,7 @@ export function ItemPanel({
 				onCloseAll={onClose}
 			>
 				{content}
-			</FixedPanel>
+			</FloatingPanel>
 		);
 	}
 
@@ -711,7 +711,7 @@ export function ItemPanel({
 			title={heading}
 			headerLeading={back}
 			footer={bar ?? undefined}
-			placement={mode === "sheet-right" ? "right" : "bottom"}
+			placement="bottom"
 			snapPoints={view.name === "main" ? [0.62, 0.92] : [0.92]}
 		>
 			{content}
@@ -749,8 +749,25 @@ function RowButton({
 	);
 }
 
-// PC の固定のパネル（モーダルにしない。冷蔵庫を見ながら操作できる）。
-function FixedPanel({
+// 位置は、閉じても次に開いたときまで覚える（画面の左上からの px）。
+let lastPosition: { x: number; y: number } | null = null;
+
+const panelWidth = 400;
+const panelMargin = 24;
+const keyStep = 24;
+
+function clampPosition(x: number, y: number) {
+	return {
+		x: Math.min(
+			Math.max(x, 8),
+			Math.max(8, window.innerWidth - panelWidth - 8),
+		),
+		y: Math.min(Math.max(y, 8), Math.max(8, window.innerHeight - 120)),
+	};
+}
+
+// PC の浮いたパネル（モーダルにしない。一覧を見ながら操作できる）。見出しをつかんで、動かせる。
+function FloatingPanel({
 	title,
 	back,
 	footer,
@@ -766,6 +783,20 @@ function FixedPanel({
 	onCloseAll: () => void;
 }) {
 	const headingRef = useRef<HTMLHeadingElement>(null);
+	const [position, setPosition] = useState(() =>
+		clampPosition(
+			lastPosition?.x ?? window.innerWidth - panelWidth - panelMargin,
+			lastPosition?.y ?? panelMargin,
+		),
+	);
+	const dragRef = useRef<{ dx: number; dy: number } | null>(null);
+
+	function move(x: number, y: number) {
+		const next = clampPosition(x, y);
+
+		lastPosition = next;
+		setPosition(next);
+	}
 
 	// 開いたら見出しへ。Esc で閉じる（フォームが開いていれば、まずフォームを閉じる）。
 	useEffect(() => {
@@ -784,17 +815,77 @@ function FixedPanel({
 		return () => document.removeEventListener("keydown", handleKeyDown);
 	}, [onClose]);
 
+	// 画面の大きさが変わっても、はみ出さない。
+	useEffect(() => {
+		function handleResize() {
+			setPosition((current) => clampPosition(current.x, current.y));
+		}
+
+		window.addEventListener("resize", handleResize);
+
+		return () => window.removeEventListener("resize", handleResize);
+	}, []);
+
 	return (
-		<aside className={styles.fixed} aria-label={title}>
-			<div className={styles.fixedHeader}>
+		<aside
+			className={styles.floating}
+			aria-label={title}
+			style={{ left: position.x, top: position.y }}
+		>
+			<div
+				className={styles.floatingHeader}
+				onPointerDown={(event) => {
+					if ((event.target as HTMLElement).closest("button")) {
+						return;
+					}
+
+					event.currentTarget.setPointerCapture(event.pointerId);
+					dragRef.current = {
+						dx: event.clientX - position.x,
+						dy: event.clientY - position.y,
+					};
+				}}
+				onPointerMove={(event) => {
+					const drag = dragRef.current;
+
+					if (drag) {
+						move(event.clientX - drag.dx, event.clientY - drag.dy);
+					}
+				}}
+				onPointerUp={() => {
+					dragRef.current = null;
+				}}
+				onPointerCancel={() => {
+					dragRef.current = null;
+				}}
+			>
 				{back}
-				<h2 className={styles.fixedTitle} ref={headingRef} tabIndex={-1}>
+				<h2
+					className={styles.floatingTitle}
+					ref={headingRef}
+					tabIndex={-1}
+					// 見出しにいるとき、Alt + 矢印キーで動かす（ドラッグができない人のため）。
+					onKeyDown={(event) => {
+						const delta: Record<string, [number, number]> = {
+							ArrowLeft: [-keyStep, 0],
+							ArrowRight: [keyStep, 0],
+							ArrowUp: [0, -keyStep],
+							ArrowDown: [0, keyStep],
+						};
+						const step = event.altKey ? delta[event.key] : undefined;
+
+						if (step) {
+							event.preventDefault();
+							move(position.x + step[0], position.y + step[1]);
+						}
+					}}
+				>
 					{title}
 				</h2>
 				<IconButton icon="close" label="閉じる" onClick={onCloseAll} />
 			</div>
-			<div className={styles.fixedBody}>{children}</div>
-			{footer ? <div className={styles.fixedFooter}>{footer}</div> : null}
+			<div className={styles.floatingBody}>{children}</div>
+			{footer ? <div className={styles.floatingFooter}>{footer}</div> : null}
 		</aside>
 	);
 }

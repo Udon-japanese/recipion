@@ -111,13 +111,9 @@ export function InventoryList({
 	const rankedEpochRef = useRef(-1);
 	const today = useMemo(() => toDateString(new Date()), []);
 
-	const isWide = useMediaQuery("(min-width: 1280px)");
-	const isRightSheet = useMediaQuery("(min-width: 1024px)");
-	const panelMode: ItemPanelMode = isWide
-		? "fixed"
-		: isRightSheet
-			? "sheet-right"
-			: "sheet-bottom";
+	// 広い画面：ドラッグで動かせる浮いたパネル（一覧を見ながら操作できる）。狭い画面：下のシート。
+	const isWide = useMediaQuery("(min-width: 1024px)");
+	const panelMode: ItemPanelMode = isWide ? "floating" : "sheet-bottom";
 
 	const isMember = ownerScope !== null && ownerScope !== "guest";
 
@@ -414,7 +410,7 @@ export function InventoryList({
 			) : null}
 
 			{showEmpty ? (
-				<div className={styles.emptyFridge}>
+				<div className={styles.empty}>
 					<Mascot size={72} />
 					<p className={styles.srOnly}>在庫はまだありません。</p>
 					{registration ? (
@@ -430,38 +426,16 @@ export function InventoryList({
 			) : null}
 
 			{showFridge ? (
-				<div className={styles.layout}>
-					<InventoryListView
-						zones={zones}
-						today={today}
-						selectedItemId={selection?.inventoryItemId ?? null}
-						highlightedItemIds={highlightedIds}
-						onOpen={handleOpen}
-					/>
-
-					<div className={styles.panelColumn}>
-						{selection && selectedItem && isWide ? (
-							<ItemPanel
-								key={selectedItem.inventoryItemId}
-								item={selectedItem}
-								zone={selection.zone}
-								mode="fixed"
-								actions={actions}
-								readOnly={isOffline}
-								onClose={handleClose}
-								onUpdate={handleUpdate}
-								onDeleted={handleDeleted}
-							/>
-						) : (
-							<div className={styles.placeholder}>
-								<Mascot size={64} motion="still" />
-							</div>
-						)}
-					</div>
-				</div>
+				<InventoryListView
+					zones={zones}
+					today={today}
+					selectedItemId={selection?.inventoryItemId ?? null}
+					highlightedItemIds={highlightedIds}
+					onOpen={handleOpen}
+				/>
 			) : null}
 
-			{selection && selectedItem && !isWide ? (
+			{selection && selectedItem ? (
 				<ItemPanel
 					key={selectedItem.inventoryItemId}
 					item={selectedItem}

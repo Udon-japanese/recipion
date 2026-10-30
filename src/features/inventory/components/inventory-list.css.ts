@@ -1,7 +1,5 @@
 import { style } from "@vanilla-extract/css";
 
-const WIDE = "(min-width: 1280px)";
-
 export const container = style({
 	display: "grid",
 	gap: 16,
@@ -23,29 +21,6 @@ export const title = style({
 	lineHeight: 1.3,
 });
 
-// 冷蔵庫（左）と、食材のパネル（右。幅が広いときだけ固定）。
-export const layout = style({
-	display: "grid",
-	gap: 24,
-	alignItems: "start",
-	"@media": {
-		[WIDE]: { gridTemplateColumns: "minmax(0, 960px) 400px" },
-	},
-});
-
-export const panelColumn = style({
-	display: "none",
-	"@media": {
-		[WIDE]: { display: "block" },
-	},
-});
-
-export const placeholder = style({
-	display: "grid",
-	placeItems: "center",
-	minHeight: 240,
-});
-
 // 空・ゲスト・確認中：れしぽよと一言。
 export const center = style({
 	display: "grid",
@@ -64,26 +39,12 @@ export const addButton = style({
 	},
 });
 
-export const emptyFridge = style({
-	boxSizing: "border-box",
+// 在庫がまだないとき：れしぽよと、追加の入口だけ（枠や地色はつけない）。
+export const empty = style({
 	display: "grid",
 	justifyItems: "center",
 	gap: 16,
-	padding: "40px 16px",
-	border: "2px solid var(--color-border-strong)",
-	borderRadius: 24,
-	background: "var(--color-surface-muted)",
-});
-
-export const loadingBody = style({
-	boxSizing: "border-box",
-	display: "grid",
-	gridTemplateColumns: "repeat(auto-fill, minmax(104px, 1fr))",
-	gap: 8,
-	padding: 12,
-	border: "2px solid var(--color-border-strong)",
-	borderRadius: 24,
-	background: "var(--color-surface-muted)",
+	padding: "56px 16px",
 });
 
 export const loadingText = style({

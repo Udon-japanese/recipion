@@ -1,10 +1,10 @@
 import { style } from "@vanilla-extract/css";
 
-// 食材のパネル（PC の固定。スマホ・狭い PC は、シートの中に同じ中身を入れる）。
-export const fixed = style({
+// 食材のパネル（PC は、動かせる浮いたパネル。スマホ・狭い PC は、シートの中に同じ中身を入れる）。
+export const floating = style({
 	boxSizing: "border-box",
-	position: "sticky",
-	top: 24,
+	position: "fixed",
+	zIndex: 30,
 	display: "flex",
 	flexDirection: "column",
 	width: 400,
@@ -16,7 +16,10 @@ export const fixed = style({
 	color: "var(--color-text)",
 });
 
-export const fixedHeader = style({
+export const floatingHeader = style({
+	cursor: "grab",
+	touchAction: "none",
+	userSelect: "none",
 	display: "flex",
 	alignItems: "center",
 	gap: 8,
@@ -25,7 +28,7 @@ export const fixedHeader = style({
 	padding: "0 6px 0 20px",
 });
 
-export const fixedTitle = style({
+export const floatingTitle = style({
 	flex: 1,
 	minWidth: 0,
 	margin: 0,
@@ -35,7 +38,7 @@ export const fixedTitle = style({
 	outline: "none",
 });
 
-export const fixedBody = style({
+export const floatingBody = style({
 	flex: 1,
 	minHeight: 0,
 	padding: "8px 16px 16px",
@@ -43,20 +46,12 @@ export const fixedBody = style({
 	overscrollBehavior: "contain",
 });
 
-export const fixedFooter = style({
+export const floatingFooter = style({
 	display: "flex",
 	flex: "none",
 	gap: 12,
 	padding: 12,
 	borderTop: "1px solid var(--color-border)",
-});
-
-// 何も開いていない PC のパネルの場所（冷蔵庫の位置がずれないよう、幅だけ確保する）。
-export const placeholder = style({
-	display: "grid",
-	placeItems: "center",
-	width: 400,
-	minHeight: 240,
 });
 
 export const stack = style({
