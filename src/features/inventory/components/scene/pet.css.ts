@@ -129,7 +129,8 @@ export const zzz = style({
 export const bubble = style({
 	position: "absolute",
 	left: "50%",
-	bottom: "100%",
+	// いちばん高く跳ねたとき（歩く跳ね・喜ぶ跳ね）でも、頭が当たらない高さに置く。
+	bottom: "calc(100% + 4.2cqh)",
 	zIndex: 1,
 	width: "max-content",
 	maxWidth: "29cqh",
