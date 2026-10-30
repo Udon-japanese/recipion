@@ -7,11 +7,25 @@ import type {
 	InventoryTile,
 	InventoryZoneId,
 } from "../../domain/inventory-fridge";
+import { Pet, type PetMood } from "./pet";
+import { describePetMessage } from "./pet-message";
 import { type OpenPart, RoomArt } from "./room-art";
 import * as styles from "./scene.css";
 import { SceneInterior } from "./scene-interior";
+import { type Point, useHopWalker } from "./use-hop-walker";
 
 type Target = "fridge" | "table";
+type Spot = Point & { mood: PetMood };
+
+// れしぽよの巡回（層の中の %。x は 800 幅、y は 640 高さ）。夜は、クッションで寝たまま。
+const spots: Spot[] = [
+	{ x: 32, y: 64, mood: "idle" },
+	{ x: 51, y: 67, mood: "look" },
+	{ x: 43, y: 79, mood: "idle" },
+	{ x: 62.5, y: 92.5, mood: "sleep" },
+];
+const cushionIndex = 3;
+const startSpot: Spot = { x: 32, y: 64, mood: "idle" };
 
 type HitSpec = {
 	id: string;
@@ -91,6 +105,8 @@ type InventorySceneProps = {
 	zones: readonly InventoryFridgeZone[];
 	// 夜の絵にするか。
 	night: boolean;
+	// れしぽよを出すか。
+	petVisible: boolean;
 	// 操作のボタン（絵の上部に重ねる）。
 	toolbar: ReactNode;
 	selectedItemId: string | null;
@@ -104,6 +120,7 @@ type InventorySceneProps = {
 export function InventoryScene({
 	zones,
 	night,
+	petVisible,
 	toolbar,
 	selectedItemId,
 	highlightedItemIds,
@@ -120,6 +137,49 @@ export function InventoryScene({
 	const isPanelOpen = selectedItemId !== null;
 
 	const zoomed = target !== null;
+
+	const [spotIndex, setSpotIndex] = useState(0);
+	const [arrivedAt, setArrivedAt] = useState<Spot | null>(null);
+	const [cheer, setCheer] = useState(false);
+	const buttonRef = useRef<HTMLButtonElement>(null);
+	const hopRef = useRef<HTMLSpanElement>(null);
+	const spot = spots[night ? cushionIndex : spotIndex] ?? startSpot;
+	const arrived = arrivedAt === spot;
+
+	useHopWalker({
+		buttonRef,
+		hopRef,
+		target: spot,
+		active: !zoomed && petVisible,
+		start: startSpot,
+		onArrive: () => setArrivedAt(spot),
+	});
+
+	// 着いたら、しばらく休んで、次の場所へ。
+	useEffect(() => {
+		if (!arrived || zoomed || night) {
+			return;
+		}
+
+		const dwell = spotIndex === cushionIndex ? 24000 : 14000;
+		const timer = window.setTimeout(() => {
+			setSpotIndex((value) => (value + 1) % spots.length);
+		}, dwell);
+
+		return () => window.clearTimeout(timer);
+	}, [arrived, zoomed, night, spotIndex]);
+
+	useEffect(() => {
+		if (!cheer) {
+			return;
+		}
+
+		const timer = window.setTimeout(() => setCheer(false), 1500);
+
+		return () => window.clearTimeout(timer);
+	}, [cheer]);
+
+	const mood: PetMood = cheer ? "cheer" : arrived ? spot.mood : "walk";
 
 	function clearTimers() {
 		for (const timer of timers.current) {
@@ -239,6 +299,16 @@ export function InventoryScene({
 				className={styles.frame}
 				aria-label={`${MASCOT_DISPLAY_NAME}のおうち`}
 			>
+				{petVisible ? (
+					<p className={styles.bubble} data-hidden={zoomed}>
+						<strong>{MASCOT_DISPLAY_NAME}</strong>：
+						{describePetMessage(
+							zones.flatMap((item) => item.tiles),
+							night,
+						)}
+					</p>
+				) : null}
+
 				<div className={styles.bar}>{toolbar}</div>
 
 				{inside ? (
@@ -303,12 +373,23 @@ export function InventoryScene({
 							</button>
 						);
 					})}
+
+					{zoomed || !petVisible ? null : (
+						<Pet
+							mood={mood}
+							buttonRef={buttonRef}
+							hopRef={hopRef}
+							onPoke={() => setCheer(true)}
+						/>
+					)}
 				</div>
 
 				{inside && target ? (
 					<SceneInterior
 						zones={zones}
 						zone={zone}
+						night={night}
+						petVisible={petVisible}
 						selectedItemId={selectedItemId}
 						highlightedItemIds={highlightedItemIds}
 						onZoneChange={switchZone}

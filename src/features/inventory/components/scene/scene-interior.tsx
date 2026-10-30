@@ -9,11 +9,14 @@ import {
 import { InventoryRow } from "../list/inventory-row";
 import * as listStyles from "../list/list.css";
 import { ZoneTabs } from "../list/zone-tabs";
+import { Pet } from "./pet";
 import * as styles from "./scene.css";
 
 type SceneInteriorProps = {
 	zones: readonly InventoryFridgeZone[];
 	zone: InventoryZoneId;
+	night: boolean;
+	petVisible: boolean;
 	selectedItemId: string | null;
 	highlightedItemIds?: ReadonlySet<string>;
 	onZoneChange: (zone: InventoryZoneId) => void;
@@ -25,6 +28,8 @@ type SceneInteriorProps = {
 export function SceneInterior({
 	zones,
 	zone,
+	night,
+	petVisible,
 	selectedItemId,
 	highlightedItemIds,
 	onZoneChange,
@@ -58,6 +63,14 @@ export function SceneInterior({
 				className={styles.interior}
 				aria-label={inventoryZoneLabels[zone]}
 			>
+				{petVisible ? (
+					<Pet
+						mood={night ? "sleep" : "peek"}
+						isStatic
+						style={{ left: "5cqh", top: "-6cqh" }}
+					/>
+				) : null}
+
 				<h2 className={styles.interiorHead}>
 					<IconButton
 						icon="chevron-left"

@@ -148,6 +148,41 @@ export const alert = style({
 	fontWeight: 700,
 });
 
+// れしぽよのふきだし（絵の左上。飾りなので、下の絵を押せるように、操作は通す）。
+export const bubble = style({
+	position: "absolute",
+	left: 12,
+	top: 60,
+	zIndex: 5,
+	pointerEvents: "none",
+	maxWidth: "29cqh",
+	margin: 0,
+	padding: "1.25cqh 1.9cqh",
+	boxSizing: "border-box",
+	borderRadius: "2.5cqh",
+	background: "var(--color-surface)",
+	border: "2px solid var(--color-text)",
+	fontSize: "2.1cqh",
+	fontWeight: 700,
+	lineHeight: 1.45,
+	transition: "opacity 300ms",
+	selectors: {
+		'&[data-hidden="true"]': { opacity: 0 },
+		"&::after": {
+			content: '""',
+			position: "absolute",
+			left: "3.75cqh",
+			bottom: "-0.9cqh",
+			width: "1.5cqh",
+			height: "1.5cqh",
+			background: "var(--color-surface)",
+			borderRight: "2px solid var(--color-text)",
+			borderBottom: "2px solid var(--color-text)",
+			transform: "rotate(45deg)",
+		},
+	},
+});
+
 // 操作のボタン（絵の右上）。背景は敷かず、ボタンごとに、白い台に乗せる。空いたところは、絵を押せるようにする。
 export const bar = style({
 	position: "absolute",

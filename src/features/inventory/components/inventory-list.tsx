@@ -12,6 +12,7 @@ import { IconButton } from "#/components/icon-button/icon-button";
 import { Mascot } from "#/components/mascot/mascot";
 import { Note } from "#/components/note/note";
 import { useMediaQuery } from "#/components/use-media-query";
+import { MASCOT_DISPLAY_NAME } from "#/config/app";
 import type { InventoryPurchaseOwnerScope } from "../application/inventory-purchase-outbox";
 import type { InventoryListItem } from "../application/inventory-query-repository";
 import type { LoadInventoryItemsResult } from "../application/load-inventory-items-with-cache";
@@ -37,6 +38,7 @@ import { InventoryScene } from "./scene/inventory-scene";
 import { type InventoryView, ViewToggle } from "./view-toggle";
 
 const viewStorageKey = "recipion.inventory.view";
+const petStorageKey = "recipion.inventory.pet";
 
 function readView(): InventoryView {
 	try {
@@ -122,6 +124,7 @@ export function InventoryList({
 	const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 	const [view, setView] = useState<InventoryView>("list");
 	const [night, setNight] = useState(false);
+	const [petVisible, setPetVisible] = useState(true);
 	// 登録のパネルを開いている間に追加した食材。閉じたあと、タイルに輪を出す。
 	const addedItemIdsRef = useRef(new Set<string>());
 	const [highlightedIds, setHighlightedIds] = useState<ReadonlySet<string>>(
@@ -142,6 +145,12 @@ export function InventoryList({
 	useEffect(() => {
 		setView(readView());
 		setNight(isNight(new Date()));
+
+		try {
+			setPetVisible(window.localStorage.getItem(petStorageKey) !== "off");
+		} catch {
+			// 読めなければ、表示する。
+		}
 	}, []);
 
 	function changeView(next: InventoryView) {
@@ -149,6 +158,16 @@ export function InventoryList({
 
 		try {
 			window.localStorage.setItem(viewStorageKey, next);
+		} catch {
+			// 覚えられなくても、そのまま使える。
+		}
+	}
+
+	function changePetVisible(next: boolean) {
+		setPetVisible(next);
+
+		try {
+			window.localStorage.setItem(petStorageKey, next ? "on" : "off");
 		} catch {
 			// 覚えられなくても、そのまま使える。
 		}
@@ -379,6 +398,17 @@ export function InventoryList({
 			) : null}
 
 			<span className={styles.tools} data-tools>
+				{view === "scene" ? (
+					<IconButton
+						icon="eye"
+						label={`${MASCOT_DISPLAY_NAME}を表示`}
+						size="std"
+						tone={petVisible ? "on" : "plain"}
+						aria-pressed={petVisible}
+						onClick={() => changePetVisible(!petVisible)}
+					/>
+				) : null}
+
 				{isMember && registration ? (
 					<IconButton
 						icon="sliders"
@@ -498,6 +528,7 @@ export function InventoryList({
 				<InventoryScene
 					zones={zones}
 					night={night}
+					petVisible={petVisible}
 					toolbar={toolbar}
 					onDismissPanel={() => setSelection(null)}
 					selectedItemId={selection?.inventoryItemId ?? null}

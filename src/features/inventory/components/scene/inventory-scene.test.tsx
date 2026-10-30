@@ -45,6 +45,7 @@ function renderScene(onOpen = vi.fn(), onDismissPanel = vi.fn()) {
 		<InventoryScene
 			zones={zones}
 			night={false}
+			petVisible={false}
 			toolbar={null}
 			selectedItemId={null}
 			onOpen={onOpen}
