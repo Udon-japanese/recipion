@@ -30,7 +30,6 @@ import {
 	sortLotsForConsumption,
 } from "../../domain/inventory-lot";
 import { ExpiryFields } from "../expiry-fields";
-import { QuantityPicture } from "../fridge/quantity-picture";
 import type { InventoryActions } from "./inventory-actions";
 import * as styles from "./item-panel.css";
 import { isCurrentUnit, toOptionValue, useItemPanel } from "./use-item-panel";
@@ -458,7 +457,6 @@ export function ItemPanel({
 		body = (
 			<div className={styles.stack}>
 				<div className={styles.amountRow}>
-					<QuantityPicture item={item} />
 					{isPresence ? (
 						<Tag tone={item.quantity > 0 ? "success" : "default"}>
 							{item.quantity > 0 ? "あり" : "なし"}

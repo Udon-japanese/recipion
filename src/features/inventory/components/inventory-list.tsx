@@ -23,9 +23,9 @@ import {
 	type InventoryZoneId,
 } from "../domain/inventory-fridge";
 import { toDateString } from "../domain/inventory-lot";
-import * as fridgeStyles from "./fridge/fridge.css";
-import { FridgeView } from "./fridge/fridge-view";
 import * as styles from "./inventory-list.css";
+import { InventoryListView } from "./list/inventory-list-view";
+import * as listStyles from "./list/list.css";
 import type { InventoryActions } from "./panel/inventory-actions";
 import { ItemPanel, type ItemPanelMode } from "./panel/item-panel";
 import {
@@ -155,13 +155,7 @@ export function InventoryList({
 	}, [loadItems, refreshKey]);
 
 	const baseZones = useMemo(
-		() =>
-			buildInventoryFridge(
-				items,
-				today,
-				undefined,
-				new Map(items.map((item) => [item.inventoryItemId, item.capacity])),
-			),
+		() => buildInventoryFridge(items, today),
 		[items, today],
 	);
 
@@ -406,10 +400,10 @@ export function InventoryList({
 
 			{showSkeleton ? (
 				<div>
-					<div className={styles.loadingBody} aria-hidden>
+					<div className={listStyles.skeletonRows} aria-hidden>
 						{Array.from({ length: 6 }, (_, index) => (
 							<div
-								className={fridgeStyles.skeleton}
+								className={listStyles.skeleton}
 								// biome-ignore lint/suspicious/noArrayIndexKey: 同じ形の板が並ぶだけ
 								key={index}
 							/>
@@ -437,8 +431,9 @@ export function InventoryList({
 
 			{showFridge ? (
 				<div className={styles.layout}>
-					<FridgeView
+					<InventoryListView
 						zones={zones}
+						today={today}
 						selectedItemId={selection?.inventoryItemId ?? null}
 						highlightedItemIds={highlightedIds}
 						onOpen={handleOpen}
