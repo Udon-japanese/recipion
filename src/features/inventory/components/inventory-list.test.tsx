@@ -85,7 +85,7 @@ const eggItem = buildInventoryListItem({
 });
 
 describe("InventoryList", () => {
-	it("ログインユーザーの在庫を、ゾーンごとの冷蔵庫のタイルで表示する", async () => {
+	it("ログインユーザーの在庫を、行にして表示し、場所の縦タブに件数を出す", async () => {
 		renderList([
 			stocked({ name: "卵", quantity: 6 }),
 			stocked({
@@ -116,7 +116,60 @@ describe("InventoryList", () => {
 		).toBeInTheDocument();
 		expect(screen.getByRole("heading", { name: "在庫" })).toBeInTheDocument();
 		expect(
-			screen.getByRole("heading", { name: /^冷蔵室.*2件/u }),
+			screen.getByRole("button", { name: /^冷蔵室\s*2$/u }),
+		).toBeInTheDocument();
+	});
+
+	it("場所の縦タブで絞り、もう一度押すとすべてに戻る。まとめ方を変えると、チップで絞れる", async () => {
+		const user = userEvent.setup();
+
+		renderList([
+			stocked({ name: "卵", quantity: 6 }),
+			buildInventoryListItem({
+				inventoryItemId: "shoyu",
+				name: "醤油",
+				quantity: 1,
+				trackingMode: "presence",
+				lots: [createLot({ id: "s1", quantity: 1 })],
+			}),
+		]);
+
+		await screen.findByRole("button", { name: /^卵、/u });
+		await user.click(screen.getByRole("button", { name: /^ドア\s*1$/u }));
+
+		expect(screen.queryByRole("button", { name: /^卵、/u })).toBeNull();
+		expect(
+			screen.getByRole("button", { name: /^醤油、/u }),
+		).toBeInTheDocument();
+
+		await user.click(screen.getByRole("button", { name: /^ドア\s*1$/u }));
+
+		expect(screen.getByRole("button", { name: /^卵、/u })).toBeInTheDocument();
+
+		await user.click(screen.getByRole("button", { name: "あいうえお" }));
+		await user.click(screen.getByRole("button", { name: /^た（1）$/u }));
+
+		expect(screen.getByRole("button", { name: /^卵、/u })).toBeInTheDocument();
+		expect(screen.queryByRole("button", { name: /^醤油、/u })).toBeNull();
+	});
+
+	it("検索で、名前に合う食材だけにする", async () => {
+		const user = userEvent.setup();
+
+		renderList([
+			stocked({ name: "卵", quantity: 6 }),
+			stocked({ inventoryItemId: "milk", name: "牛乳", quantity: 2 }),
+		]);
+
+		await screen.findByRole("button", { name: /^卵、/u });
+		await user.type(
+			screen.getByRole("searchbox", { name: "在庫を探す" }),
+			"牛",
+		);
+
+		expect(screen.queryByRole("button", { name: /^卵、/u })).toBeNull();
+		expect(
+			screen.getByRole("button", { name: /^牛乳、/u }),
 		).toBeInTheDocument();
 	});
 
@@ -341,12 +394,12 @@ describe("InventoryList", () => {
 	});
 
 	describe("ロット", () => {
-		it("ロットごとの追加日と数量を、パネルに表示する。複数あるタイルは「×2」", async () => {
+		it("ロットごとの追加日と数量を、パネルに表示する。複数あるときは「（2回分）」", async () => {
 			const user = userEvent.setup();
 
 			renderList([eggItem]);
 
-			expect(await screen.findByText("×2")).toBeInTheDocument();
+			expect(await screen.findByText("（2回分）")).toBeInTheDocument();
 
 			const dialog = await openPanel(user, "卵");
 			const lots = within(

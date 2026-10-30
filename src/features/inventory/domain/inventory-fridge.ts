@@ -50,19 +50,14 @@ export type InventoryTileExpiry = {
 	badgeText: string;
 };
 
-// 粒（卵のかたち）で表す量。1個＝1粒。端数は、最後の粒の一部だけを塗る。
-export type InventoryTileGrains = {
-	full: number;
-	// 0 より大きく 1 より小さい。最後の粒の塗る割合。なければ 0。
-	partial: number;
-};
-
 export type InventoryTile = {
 	// ゾーンごとに一意（ゾーンをまたぐ食材は、タイルが分かれる）。
 	key: string;
 	inventoryItemId: string;
 	zone: InventoryZoneId;
 	name: string;
+	// 食材の名前（絵を引くのに使う。name は、ユーザーが付けた呼び名のことがある）。
+	ingredientName: string;
 	// このゾーンにある（数量が 0 より多い）ロットの数。
 	lotCount: number;
 	// このゾーンのロットの数量の合計。
@@ -75,10 +70,6 @@ export type InventoryTile = {
 	// 数量が 0（有無だけ以外）。
 	isEmpty: boolean;
 	expiry: InventoryTileExpiry | null;
-	// 粒で表すとき。
-	grains: InventoryTileGrains | null;
-	// 水位（0〜1）。満タンの量が分かる、量を追う食材だけ（g・ml と、11個以上の個数）。
-	level: number | null;
 	// 「だいたいで管理」（波線・破線で表す）。
 	approximate: boolean;
 	// 並べ替えの鍵：数量が 0 より多いロットのいちばん近い期限（なければ null）と、読み仮名。
@@ -160,39 +151,6 @@ export function getLotZone(
 			lot.storage ?? item.defaultStorage ?? catalog?.defaultStorage ?? null,
 		isProduce: catalog?.isProduce ?? false,
 	});
-}
-
-const grainLimit = 10;
-
-export function toGrains(quantity: number): InventoryTileGrains | null {
-	if (quantity <= 0 || quantity > grainLimit) {
-		return null;
-	}
-
-	const full = Math.floor(quantity + 1e-9);
-	const partial = Number((quantity - full).toFixed(4));
-
-	return { full, partial: partial > 0.0001 ? partial : 0 };
-}
-
-const minWaterLevel = 0.06;
-
-// 水位＝いまの量 ÷ 満タンの量。0 より多いのに空に見えないよう、最小 6%、最大 100%。0 のときは水位なし。
-// 個数は、粒で表せる（10個まで）ときは水位にしない。
-export function toWaterLevel(
-	quantity: number,
-	capacity: number | undefined,
-	stockUnitCode: InventoryListItem["stockUnitCode"],
-): number | null {
-	if (quantity <= 0 || capacity === undefined || !(capacity > 0)) {
-		return null;
-	}
-
-	if (stockUnitCode === "count" && quantity <= grainLimit) {
-		return null;
-	}
-
-	return Math.min(1, Math.max(minWaterLevel, quantity / capacity));
 }
 
 function expiryBadgeText(daysLeft: number): string {
@@ -302,8 +260,6 @@ export function buildInventoryFridge(
 	items: readonly InventoryListItem[],
 	today: string,
 	lookup: InventoryCatalogLookup = defaultCatalogLookup,
-	// 食材ごとの「満タンの量」（食材の在庫の単位で、食材全体の量。ゾーンをまたぐときは、ゾーンの割合で数える）。
-	capacities: ReadonlyMap<string, number> = new Map(),
 ): InventoryFridgeZone[] {
 	const tilesByZone = new Map<InventoryZoneId, InventoryTile[]>(
 		inventoryZones.map((zone) => [zone.id, []]),
@@ -352,6 +308,7 @@ export function buildInventoryFridge(
 				inventoryItemId: item.inventoryItemId,
 				zone,
 				name,
+				ingredientName: item.name,
 				lotCount: lots.length,
 				quantity,
 				trackingMode: item.trackingMode,
@@ -360,17 +317,6 @@ export function buildInventoryFridge(
 				isPresent: isPresence && quantity > 0,
 				isEmpty: !isPresence && quantity <= 0,
 				expiry: findNearestExpiry(lots, today),
-				grains:
-					!isPresence && item.stockUnitCode === "count"
-						? toGrains(quantity)
-						: null,
-				level: isPresence
-					? null
-					: toWaterLevel(
-							quantity,
-							capacities.get(item.inventoryItemId),
-							item.stockUnitCode,
-						),
 				approximate: item.trackingMode === "estimated",
 				sortExpiresOn: nearestExpiryDate(lots),
 				sortReading,

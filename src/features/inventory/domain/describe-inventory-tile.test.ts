@@ -8,6 +8,7 @@ function tile(overrides: Partial<InventoryTile> = {}): InventoryTile {
 		inventoryItemId: "a",
 		zone: "fridge",
 		name: "鶏むね肉",
+		ingredientName: "鶏むね肉",
 		lotCount: 1,
 		quantity: 300,
 		trackingMode: "estimated",
@@ -16,8 +17,6 @@ function tile(overrides: Partial<InventoryTile> = {}): InventoryTile {
 		isPresent: false,
 		isEmpty: false,
 		expiry: null,
-		grains: null,
-		level: null,
 		approximate: true,
 		sortExpiresOn: null,
 		sortReading: "とりむね",
@@ -41,9 +40,7 @@ describe("describeInventoryTile", () => {
 					},
 				}),
 			),
-		).toBe(
-			"鶏むね肉、約 300グラム、冷蔵室、消費期限 10月16日、あと3日、2ロット",
-		);
+		).toBe("鶏むね肉、約 300グラム、冷蔵室、消費期限 10月16日、あと3日、2回分");
 	});
 
 	it("切れは「期限切れ」、期限の札がなければ期限は読まない", () => {

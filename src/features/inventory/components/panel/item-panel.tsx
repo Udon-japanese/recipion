@@ -5,6 +5,11 @@ import { Card } from "#/components/card/card";
 import { ConfirmDialog } from "#/components/dialog/confirm-dialog";
 import { Field, SelectBox, TextInput } from "#/components/field/field";
 import { input as fieldInput } from "#/components/field/field.css";
+import {
+	clampPanelPosition,
+	FloatingPanel,
+	floatingPanelWidth,
+} from "#/components/floating-panel/floating-panel";
 import { Icon } from "#/components/icon/icon";
 import type { IconName } from "#/components/icon/icon-definitions";
 import { IconButton } from "#/components/icon-button/icon-button";
@@ -30,12 +35,11 @@ import {
 	sortLotsForConsumption,
 } from "../../domain/inventory-lot";
 import { ExpiryFields } from "../expiry-fields";
-import { QuantityPicture } from "../fridge/quantity-picture";
 import type { InventoryActions } from "./inventory-actions";
 import * as styles from "./item-panel.css";
 import { isCurrentUnit, toOptionValue, useItemPanel } from "./use-item-panel";
 
-export type ItemPanelMode = "sheet-bottom" | "sheet-right" | "fixed";
+export type ItemPanelMode = "sheet-bottom" | "floating";
 
 type ItemPanelProps = {
 	item: InventoryListItem;
@@ -45,6 +49,8 @@ type ItemPanelProps = {
 	actions: InventoryActions;
 	// 通信できず、保存済みの在庫を見ているとき。書き換える操作は、押すと理由を出す。
 	readOnly: boolean;
+	// 浮いたパネルが寄り添う、一覧の行（data-tile-key）。
+	anchorTileKey?: string;
 	onClose: () => void;
 	onUpdate: (
 		inventoryItemId: string,
@@ -86,6 +92,7 @@ export function ItemPanel({
 	mode,
 	actions,
 	readOnly,
+	anchorTileKey,
 	onClose,
 	onUpdate,
 	onDeleted,
@@ -458,7 +465,6 @@ export function ItemPanel({
 		body = (
 			<div className={styles.stack}>
 				<div className={styles.amountRow}>
-					<QuantityPicture item={item} />
 					{isPresence ? (
 						<Tag tone={item.quantity > 0 ? "success" : "default"}>
 							{item.quantity > 0 ? "あり" : "なし"}
@@ -681,17 +687,18 @@ export function ItemPanel({
 			<IconButton icon="chevron-left" label="戻る" onClick={panel.goMain} />
 		);
 
-	if (mode === "fixed") {
+	if (mode === "floating") {
 		return (
-			<FixedPanel
+			<FloatingPanel
 				title={heading}
-				back={back}
+				headerLeading={back}
 				footer={bar}
-				onClose={() => (view.name === "main" ? onClose() : panel.goMain())}
-				onCloseAll={onClose}
+				getInitialPosition={() => anchoredPosition(anchorTileKey)}
+				onEscape={() => (view.name === "main" ? onClose() : panel.goMain())}
+				onClose={onClose}
 			>
 				{content}
-			</FixedPanel>
+			</FloatingPanel>
 		);
 	}
 
@@ -713,7 +720,7 @@ export function ItemPanel({
 			title={heading}
 			headerLeading={back}
 			footer={bar ?? undefined}
-			placement={mode === "sheet-right" ? "right" : "bottom"}
+			placement="bottom"
 			snapPoints={view.name === "main" ? [0.62, 0.92] : [0.92]}
 		>
 			{content}
@@ -751,52 +758,21 @@ function RowButton({
 	);
 }
 
-// PC の固定のパネル（モーダルにしない。冷蔵庫を見ながら操作できる）。
-function FixedPanel({
-	title,
-	back,
-	footer,
-	children,
-	onClose,
-	onCloseAll,
-}: {
-	title: string;
-	back?: ReactNode;
-	footer: ReactNode;
-	children: ReactNode;
-	onClose: () => void;
-	onCloseAll: () => void;
-}) {
-	const headingRef = useRef<HTMLHeadingElement>(null);
+const edge = 8;
 
-	// 開いたら見出しへ。Esc で閉じる（フォームが開いていれば、まずフォームを閉じる）。
-	useEffect(() => {
-		headingRef.current?.focus({ preventScroll: true });
-	}, []);
-
-	useEffect(() => {
-		function handleKeyDown(event: KeyboardEvent) {
-			if (event.key === "Escape" && !event.defaultPrevented) {
-				onClose();
-			}
-		}
-
-		document.addEventListener("keydown", handleKeyDown);
-
-		return () => document.removeEventListener("keydown", handleKeyDown);
-	}, [onClose]);
-
-	return (
-		<aside className={styles.fixed} aria-label={title}>
-			<div className={styles.fixedHeader}>
-				{back}
-				<h2 className={styles.fixedTitle} ref={headingRef} tabIndex={-1}>
-					{title}
-				</h2>
-				<IconButton icon="close" label="閉じる" onClick={onCloseAll} />
-			</div>
-			<div className={styles.fixedBody}>{children}</div>
-			{footer ? <div className={styles.fixedFooter}>{footer}</div> : null}
-		</aside>
+// 開く位置：押した行と同じ高さで、パネルの中央が、行（リスト）の右端にくる。
+function anchoredPosition(tileKey: string | undefined) {
+	const row = tileKey
+		? document.querySelector<HTMLElement>(
+				`[data-tile-key="${CSS.escape(tileKey)}"]`,
+			)
+		: null;
+	const rect = row?.getBoundingClientRect();
+	const center = rect?.right ?? window.innerWidth / 2;
+	const x = Math.min(
+		center - floatingPanelWidth / 2,
+		window.innerWidth - floatingPanelWidth - edge,
 	);
+
+	return clampPanelPosition(x, rect ? rect.top - 8 : 24);
 }

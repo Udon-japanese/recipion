@@ -23,9 +23,9 @@ import {
 	type InventoryZoneId,
 } from "../domain/inventory-fridge";
 import { toDateString } from "../domain/inventory-lot";
-import * as fridgeStyles from "./fridge/fridge.css";
-import { FridgeView } from "./fridge/fridge-view";
 import * as styles from "./inventory-list.css";
+import { InventoryListView } from "./list/inventory-list-view";
+import * as listStyles from "./list/list.css";
 import type { InventoryActions } from "./panel/inventory-actions";
 import { ItemPanel, type ItemPanelMode } from "./panel/item-panel";
 import {
@@ -111,13 +111,9 @@ export function InventoryList({
 	const rankedEpochRef = useRef(-1);
 	const today = useMemo(() => toDateString(new Date()), []);
 
-	const isWide = useMediaQuery("(min-width: 1280px)");
-	const isRightSheet = useMediaQuery("(min-width: 1024px)");
-	const panelMode: ItemPanelMode = isWide
-		? "fixed"
-		: isRightSheet
-			? "sheet-right"
-			: "sheet-bottom";
+	// 広い画面：ドラッグで動かせる浮いたパネル（一覧を見ながら操作できる）。狭い画面：下のシート。
+	const isWide = useMediaQuery("(min-width: 1024px)");
+	const panelMode: ItemPanelMode = isWide ? "floating" : "sheet-bottom";
 
 	const isMember = ownerScope !== null && ownerScope !== "guest";
 
@@ -155,13 +151,7 @@ export function InventoryList({
 	}, [loadItems, refreshKey]);
 
 	const baseZones = useMemo(
-		() =>
-			buildInventoryFridge(
-				items,
-				today,
-				undefined,
-				new Map(items.map((item) => [item.inventoryItemId, item.capacity])),
-			),
+		() => buildInventoryFridge(items, today),
 		[items, today],
 	);
 
@@ -303,6 +293,11 @@ export function InventoryList({
 	}
 
 	function handleOpen(tile: InventoryTileModel) {
+		// 広い画面で、追加のパネルを開いている間は、行を押しても何も開かない（閉じてから）。
+		if (isRegistrationOpen && isWide) {
+			return;
+		}
+
 		setSelection({
 			inventoryItemId: tile.inventoryItemId,
 			zone: tile.zone,
@@ -406,10 +401,10 @@ export function InventoryList({
 
 			{showSkeleton ? (
 				<div>
-					<div className={styles.loadingBody} aria-hidden>
+					<div className={listStyles.skeletonRows} aria-hidden>
 						{Array.from({ length: 6 }, (_, index) => (
 							<div
-								className={fridgeStyles.skeleton}
+								className={listStyles.skeleton}
 								// biome-ignore lint/suspicious/noArrayIndexKey: 同じ形の板が並ぶだけ
 								key={index}
 							/>
@@ -420,7 +415,7 @@ export function InventoryList({
 			) : null}
 
 			{showEmpty ? (
-				<div className={styles.emptyFridge}>
+				<div className={styles.empty}>
 					<Mascot size={72} />
 					<p className={styles.srOnly}>在庫はまだありません。</p>
 					{registration ? (
@@ -436,43 +431,23 @@ export function InventoryList({
 			) : null}
 
 			{showFridge ? (
-				<div className={styles.layout}>
-					<FridgeView
-						zones={zones}
-						selectedItemId={selection?.inventoryItemId ?? null}
-						highlightedItemIds={highlightedIds}
-						onOpen={handleOpen}
-					/>
-
-					<div className={styles.panelColumn}>
-						{selection && selectedItem && isWide ? (
-							<ItemPanel
-								key={selectedItem.inventoryItemId}
-								item={selectedItem}
-								zone={selection.zone}
-								mode="fixed"
-								actions={actions}
-								readOnly={isOffline}
-								onClose={handleClose}
-								onUpdate={handleUpdate}
-								onDeleted={handleDeleted}
-							/>
-						) : (
-							<div className={styles.placeholder}>
-								<Mascot size={64} motion="still" />
-							</div>
-						)}
-					</div>
-				</div>
+				<InventoryListView
+					zones={zones}
+					today={today}
+					selectedItemId={selection?.inventoryItemId ?? null}
+					highlightedItemIds={highlightedIds}
+					onOpen={handleOpen}
+				/>
 			) : null}
 
-			{selection && selectedItem && !isWide ? (
+			{selection && selectedItem ? (
 				<ItemPanel
 					key={selectedItem.inventoryItemId}
 					item={selectedItem}
 					zone={selection.zone}
 					mode={panelMode}
 					actions={actions}
+					anchorTileKey={selection.tileKey}
 					readOnly={isOffline}
 					onClose={handleClose}
 					onUpdate={handleUpdate}

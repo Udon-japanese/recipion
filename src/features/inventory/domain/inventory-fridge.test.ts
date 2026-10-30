@@ -247,59 +247,6 @@ describe("buildInventoryFridge", () => {
 		expect(tilesOf(items, "fridge")[0]).toMatchObject({
 			inventoryItemId: "egg",
 			isEmpty: true,
-			grains: null,
 		});
-	});
-
-	it("個数は10個まで粒で表し、端数は最後の粒の一部にする", () => {
-		const make = (quantity: number) =>
-			buildInventoryListItem({
-				quantity,
-				lots: [lot({ quantity, storage: "fridge" })],
-			});
-
-		expect(tilesOf([make(6)], "fridge")[0]?.grains).toEqual({
-			full: 6,
-			partial: 0,
-		});
-		expect(tilesOf([make(2.5)], "fridge")[0]?.grains).toEqual({
-			full: 2,
-			partial: 0.5,
-		});
-		expect(tilesOf([make(11)], "fridge")[0]?.grains).toBeNull();
-	});
-});
-
-describe("水位", () => {
-	const make = (quantity: number, unit: "g" | "count") =>
-		buildInventoryListItem({
-			inventoryItemId: "w",
-			quantity,
-			stockUnitCode: unit,
-			stockUnitLabel: unit === "g" ? "g" : "個",
-			trackingMode: "estimated",
-			lots: [lot({ quantity, storage: "fridge" })],
-		});
-
-	function levelOf(quantity: number, unit: "g" | "count", capacity?: number) {
-		return buildInventoryFridge(
-			[make(quantity, unit)],
-			today,
-			lookup,
-			capacity === undefined ? new Map() : new Map([["w", capacity]]),
-		)[0]?.tiles[0];
-	}
-
-	it("量 ÷ 満タンの量。最小 6%・最大 100%。満タンの量がなければ水位なし", () => {
-		expect(levelOf(250, "g", 1000)?.level).toBe(0.25);
-		expect(levelOf(1, "g", 1000)?.level).toBe(0.06);
-		expect(levelOf(1500, "g", 1000)?.level).toBe(1);
-		expect(levelOf(250, "g")?.level).toBeNull();
-	});
-
-	it("10個までの個数は、粒で表すので水位にしない。11個以上は水位", () => {
-		expect(levelOf(6, "count", 12)?.level).toBeNull();
-		expect(levelOf(12, "count", 24)?.level).toBe(0.5);
-		expect(levelOf(6, "count", 12)?.approximate).toBe(true);
 	});
 });
