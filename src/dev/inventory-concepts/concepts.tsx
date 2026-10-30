@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { Button } from "#/components/button/button";
-import { SegmentedControl } from "#/components/segmented-control/segmented-control";
+import { IconButton } from "#/components/icon-button/icon-button";
 import { inventoryZoneLabels } from "#/features/inventory/domain/inventory-fridge";
 import * as styles from "./concepts.css";
 import { ListView } from "./list-view";
-import { PanelView } from "./panel-view";
 import {
 	baseItems,
 	describeAmount,
@@ -13,19 +12,47 @@ import {
 } from "./sample-data";
 import { SceneView } from "./scene-view";
 
-type View = "home" | "list" | "panel";
+type View = "home" | "list";
 
-// 在庫画面のUI案（開発中だけ。/dev/inventory）。3つの見せ方を、同じ見本データで切り替えて触れる。
+function ViewToggle({
+	view,
+	onChange,
+}: {
+	view: View;
+	onChange: (view: View) => void;
+}) {
+	return (
+		<fieldset className={styles.viewToggle} aria-label="表示の切り替え">
+			<IconButton
+				icon="zone-fridge"
+				label="おうちで見る"
+				size="std"
+				tone={view === "home" ? "on" : "plain"}
+				aria-pressed={view === "home"}
+				onClick={() => onChange("home")}
+			/>
+			<IconButton
+				icon="list"
+				label="リストで見る"
+				size="std"
+				tone={view === "list" ? "on" : "plain"}
+				aria-pressed={view === "list"}
+				onClick={() => onChange("list")}
+			/>
+		</fieldset>
+	);
+}
+
+// 在庫画面のUI案（開発中だけ。/dev/inventory）。「おうち」と「リスト」を、同じ見本データで切り替えて触れる。
 export function InventoryConcepts() {
 	const [view, setView] = useState<View>("home");
 	const [many, setMany] = useState(false);
 	const [night, setNight] = useState(false);
 	const [petVisible, setPetVisible] = useState(true);
-	const [edited, setEdited] = useState<SampleItem[] | null>(null);
 	const [selected, setSelected] = useState<SampleItem | null>(null);
 
-	// 「たくさん」を切り替えたら、並べ替えの結果は捨てる。
-	const items = edited ?? (many ? manyItems : baseItems);
+	const items = many ? manyItems : baseItems;
+	const toggle = <ViewToggle view={view} onChange={setView} />;
 
 	return (
 		<main className={styles.page}>
@@ -35,10 +62,7 @@ export function InventoryConcepts() {
 					<input
 						type="checkbox"
 						checked={many}
-						onChange={(event) => {
-							setMany(event.target.checked);
-							setEdited(null);
-						}}
+						onChange={(event) => setMany(event.target.checked)}
 					/>
 					食材をたくさん（{manyItems.length}件）
 				</label>
@@ -56,20 +80,9 @@ export function InventoryConcepts() {
 						checked={night}
 						onChange={(event) => setNight(event.target.checked)}
 					/>
-					夜（れしぽよが寝る）
+					夜
 				</label>
 			</div>
-
-			<SegmentedControl
-				label="表示"
-				value={view}
-				onChange={setView}
-				options={[
-					{ value: "home", label: "おうち", icon: "inventory-box" },
-					{ value: "list", label: "リスト", icon: "list" },
-					{ value: "panel", label: "パネル", icon: "square-rounded" },
-				]}
-			/>
 
 			{view === "home" ? (
 				<SceneView
@@ -78,23 +91,16 @@ export function InventoryConcepts() {
 					petVisible={petVisible}
 					selectedId={selected?.id ?? null}
 					onSelect={setSelected}
+					toggle={toggle}
 				/>
-			) : null}
-			{view === "list" ? (
+			) : (
 				<ListView
 					items={items}
 					selectedId={selected?.id ?? null}
 					onSelect={setSelected}
+					toggle={toggle}
 				/>
-			) : null}
-			{view === "panel" ? (
-				<PanelView
-					items={items}
-					onItemsChange={setEdited}
-					selectedId={selected?.id ?? null}
-					onSelect={setSelected}
-				/>
-			) : null}
+			)}
 
 			{selected ? (
 				<div
@@ -104,7 +110,7 @@ export function InventoryConcepts() {
 				>
 					<div style={{ flex: 1 }}>
 						<strong>{selected.name}</strong>
-						<div className={styles.itemAmount}>
+						<div className={styles.caption}>
 							{inventoryZoneLabels[selected.zone]}・{describeAmount(selected)}
 							（詳細パネルは、いまのものをそのまま使う）
 						</div>

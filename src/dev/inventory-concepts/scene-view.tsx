@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Icon } from "#/components/icon/icon";
 import { MASCOT_DISPLAY_NAME } from "#/config/app";
 import {
@@ -26,6 +26,8 @@ type Props = {
 	petVisible: boolean;
 	selectedId: string | null;
 	onSelect: (item: SampleItem) => void;
+	// 表示の切り替え（丸いボタン）。絵の右上に重ねる。
+	toggle: ReactNode;
 };
 
 type Target = "fridge" | "table";
@@ -211,7 +213,7 @@ function RoomArt({
 					strokeWidth="2.5"
 				/>
 			</g>
-			<Plant x={90} y={228} scale={0.5} />
+			<Plant x={90} y={217} scale={0.5} />
 
 			{/* 床の観葉植物 */}
 			<Plant x={36} y={372} scale={0.95} />
@@ -257,24 +259,10 @@ function RoomArt({
 				<PartAt partId="fish-fillet" x={274} y={220} size={34} />
 				<PartAt partId="sauce" x={332} y={220} size={30} />
 
-				{/* 野菜室（引き出し。奥に中身） */}
-				<rect
-					x="234"
-					y="248"
-					width="140"
-					height="74"
-					rx="10"
-					fill="#e9dfc4"
-					stroke={INK}
-					strokeWidth="3"
-				/>
-				<PartAt partId="cabbage" x={262} y={284} size={36} />
-				<PartAt partId="carrot" x={300} y={284} size={34} />
-				<PartAt partId="tomato" x={338} y={284} size={34} />
 				{/* 冷凍室（引き出し。奥に中身） */}
 				<rect
 					x="234"
-					y="328"
+					y="248"
 					width="140"
 					height="68"
 					rx="10"
@@ -282,9 +270,23 @@ function RoomArt({
 					stroke={INK}
 					strokeWidth="3"
 				/>
-				<PartAt partId="gyoza" x={262} y={364} size={36} />
-				<PartAt partId="takoyaki" x={300} y={364} size={34} />
-				<PartAt partId="shokupan" x={338} y={364} size={34} />
+				<PartAt partId="gyoza" x={262} y={284} size={36} />
+				<PartAt partId="takoyaki" x={300} y={284} size={34} />
+				<PartAt partId="shokupan" x={338} y={284} size={34} />
+				{/* 野菜室（一番下。引き出し。奥に中身） */}
+				<rect
+					x="234"
+					y="322"
+					width="140"
+					height="74"
+					rx="10"
+					fill="#e9dfc4"
+					stroke={INK}
+					strokeWidth="3"
+				/>
+				<PartAt partId="cabbage" x={262} y={358} size={36} />
+				<PartAt partId="carrot" x={300} y={358} size={34} />
+				<PartAt partId="tomato" x={338} y={358} size={34} />
 
 				{/* 上の扉（冷蔵室・ドアポケット）：ちょうつがいは左 */}
 				<g className={styles.fridgeDoor} data-open={open === "top"}>
@@ -386,12 +388,12 @@ function RoomArt({
 				</g>
 
 				{/* 野菜室・冷凍室の前板（ひらくと、手前に出て、中身が見える） */}
-				<g className={styles.drawer} data-open={open === "veg"}>
+				<g className={styles.drawer} data-open={open === "freezer"}>
 					<rect
 						x="234"
 						y="248"
 						width="140"
-						height="74"
+						height="68"
 						rx="10"
 						fill="#fffdf7"
 						stroke={INK}
@@ -408,12 +410,12 @@ function RoomArt({
 						strokeWidth="2.5"
 					/>
 				</g>
-				<g className={styles.drawer} data-open={open === "freezer"}>
+				<g className={styles.drawer} data-open={open === "veg"}>
 					<rect
 						x="234"
-						y="328"
+						y="322"
 						width="140"
-						height="68"
+						height="74"
 						rx="10"
 						fill="#fffdf7"
 						stroke={INK}
@@ -421,7 +423,7 @@ function RoomArt({
 					/>
 					<rect
 						x="276"
-						y="338"
+						y="332"
 						width="56"
 						height="8"
 						rx="4"
@@ -509,13 +511,6 @@ function RoomArt({
 			{/* 天井のランプ */}
 			<g>
 				<path d="M170 0V40" stroke={INK} strokeWidth="3" />
-				<path
-					d="M146 66L156 40H184L194 66Z"
-					fill="#e9a900"
-					stroke={INK}
-					strokeWidth={STROKE}
-					strokeLinejoin="round"
-				/>
 				<ellipse
 					cx="170"
 					cy="68"
@@ -524,6 +519,13 @@ function RoomArt({
 					fill="#fff6c8"
 					stroke={INK}
 					strokeWidth="2"
+				/>
+				<path
+					d="M146 66L156 40H184L194 66Z"
+					fill="#e9a900"
+					stroke={INK}
+					strokeWidth={STROKE}
+					strokeLinejoin="round"
 				/>
 			</g>
 
@@ -607,26 +609,26 @@ const hits: HitSpec[] = [
 		opens: "top",
 	},
 	{
-		id: "vegetable",
-		label: "野菜室",
-		icon: "zone-vegetable",
-		zones: ["vegetable"],
-		target: "fridge",
-		zone: "vegetable",
-		box: { x: 234, y: 248, w: 140, h: 74 },
-		tagAlign: "start",
-		opens: "veg",
-	},
-	{
 		id: "freezer",
 		label: "冷凍室",
 		icon: "zone-freezer",
 		zones: ["freezer"],
 		target: "fridge",
 		zone: "freezer",
-		box: { x: 234, y: 328, w: 140, h: 68 },
+		box: { x: 234, y: 248, w: 140, h: 68 },
 		tagAlign: "start",
 		opens: "freezer",
+	},
+	{
+		id: "vegetable",
+		label: "野菜室",
+		icon: "zone-vegetable",
+		zones: ["vegetable"],
+		target: "fridge",
+		zone: "vegetable",
+		box: { x: 234, y: 322, w: 140, h: 74 },
+		tagAlign: "start",
+		opens: "veg",
 	},
 	{
 		id: "table",
@@ -641,12 +643,15 @@ const hits: HitSpec[] = [
 	},
 ];
 
+// 縦タブの並びは、冷蔵庫の上から順。
 const fridgeZones: InventoryZoneId[] = [
 	"fridge",
-	"vegetable",
-	"freezer",
 	"door",
+	"freezer",
+	"vegetable",
 ];
+
+const allZones: InventoryZoneId[] = [...fridgeZones, "table"];
 
 // A案（作り直し）：画面全体が部屋。奥に冷蔵庫、手前に丸いテーブル。押すとズームして、中が見える。
 export function SceneView({
@@ -655,6 +660,7 @@ export function SceneView({
 	petVisible,
 	selectedId,
 	onSelect,
+	toggle,
 }: Props) {
 	const [target, setTarget] = useState<Target | null>(null);
 	const [opened, setOpened] = useState(false);
@@ -662,6 +668,7 @@ export function SceneView({
 	const [inside, setInside] = useState(false);
 	const [zone, setZone] = useState<InventoryZoneId>("fridge");
 	const timers = useRef<number[]>([]);
+	const frameRef = useRef<HTMLElement>(null);
 
 	const [spotIndex, setSpotIndex] = useState(0);
 	const [arrivedAt, setArrivedAt] = useState<Spot | null>(null);
@@ -722,7 +729,52 @@ export function SceneView({
 		later(() => setInside(true), 1180);
 	};
 
+	// 庫内の縦タブで別の場所へ：いまの扉を閉じてから、次を開く。
+	const switchZone = (next: InventoryZoneId) => {
+		const spec = hits.find((hit) => hit.zone === next);
+		if (!spec || next === zone) {
+			return;
+		}
+
+		for (const timer of timers.current) {
+			window.clearTimeout(timer);
+		}
+		timers.current = [];
+
+		// 机と冷蔵庫の行き来：扉を閉じ、カメラを動かしてから開く。
+		if (spec.target !== target) {
+			setZone(next);
+			setOpened(false);
+			setTarget(spec.target);
+			later(() => {
+				setOpenPart(spec.opens);
+				setOpened(true);
+			}, 760);
+			return;
+		}
+
+		// 冷蔵室とドアは同じ扉：開いたまま、視点だけ少し変える。
+		if (spec.opens === openPart) {
+			setZone(next);
+			return;
+		}
+
+		setZone(next);
+		setOpened(false);
+		later(() => {
+			setOpenPart(spec.opens);
+			setOpened(true);
+		}, 480);
+	};
+
 	const leave = () => {
+		// 閉じたあと、開いたときの場所のボタンへ、キーボードの位置を戻す。
+		const hitId = hits.find((hit) => hit.zone === zone)?.id;
+		const refocus = () =>
+			frameRef.current
+				?.querySelector<HTMLElement>(`[data-hit="${hitId}"]`)
+				?.focus();
+
 		for (const timer of timers.current) {
 			window.clearTimeout(timer);
 		}
@@ -730,7 +782,24 @@ export function SceneView({
 		setInside(false);
 		later(() => setOpened(false), 200);
 		later(() => setTarget(null), 420);
+		later(refocus, 520);
 	};
+
+	// Esc で、おうちにもどる（変換中の Esc は、変換の取り消しなので除く）。
+	useEffect(() => {
+		if (!inside) {
+			return;
+		}
+
+		const onKeyDown = (event: KeyboardEvent) => {
+			if (event.key === "Escape" && !event.isComposing) {
+				leave();
+			}
+		};
+
+		window.addEventListener("keydown", onKeyDown);
+		return () => window.removeEventListener("keydown", onKeyDown);
+	});
 
 	const urgent = [...items]
 		.filter((item) => describeExpiry(item) !== null)
@@ -748,18 +817,34 @@ export function SceneView({
 		: arrived
 			? (spot?.mood ?? "idle")
 			: "walk";
-	const view = target ? camera[target] : null;
+	const base = target ? camera[target] : null;
+	// ドアポケットは、冷蔵室より少し下・右を見る。
+	const view =
+		base && zone === "door"
+			? { ...base, cy: base.cy + 3, cx: base.cx + 1 }
+			: base;
 	const tableItems = items.filter((item) => item.zone === "table");
 
 	return (
 		<div style={{ display: "grid", gap: 8 }}>
 			<section
+				ref={frameRef}
 				className={styles.frame}
 				aria-label={`${MASCOT_DISPLAY_NAME}のおうち`}
 			>
 				<p className={styles.bubble} data-hidden={zoomed || !petVisible}>
 					<strong>{MASCOT_DISPLAY_NAME}</strong>：{message}
 				</p>
+				<div className={styles.toggleSlot}>{toggle}</div>
+				{inside ? (
+					<button
+						className={styles.backdrop}
+						type="button"
+						aria-label="おうちにもどる"
+						tabIndex={-1}
+						onClick={leave}
+					/>
+				) : null}
 
 				<div
 					className={styles.camera}
@@ -789,6 +874,7 @@ export function SceneView({
 								className={styles.hit}
 								type="button"
 								key={spec.id}
+								data-hit={spec.id}
 								data-hidden={zoomed}
 								tabIndex={zoomed ? -1 : 0}
 								aria-label={`${spec.label}をひらく（${total}件${alerts ? `、期限が近いもの${alerts}件` : ""}）`}
@@ -829,9 +915,9 @@ export function SceneView({
 
 				{inside && target ? (
 					<InteriorPanel
-						zones={target === "fridge" ? fridgeZones : ["table"]}
+						zones={allZones}
 						zone={zone}
-						onZoneChange={setZone}
+						onZoneChange={switchZone}
 						items={items}
 						night={night}
 						petVisible={petVisible}
@@ -841,16 +927,6 @@ export function SceneView({
 					/>
 				) : null}
 			</section>
-			<p
-				style={{
-					margin: 0,
-					fontSize: 12,
-					textAlign: "center",
-					color: "var(--color-text-muted)",
-				}}
-			>
-				冷蔵庫の扉・引き出し、テーブルを押すと、ズームして中が見えます。れしぽよもつつけます。
-			</p>
 		</div>
 	);
 }

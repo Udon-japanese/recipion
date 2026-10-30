@@ -1,27 +1,25 @@
 import { globalStyle, keyframes, style } from "@vanilla-extract/css";
 
-// 在庫画面のUI案（/dev/inventory）。試作なので、色の一部は直接指定している。
-// 実装に進めるときは、トークンに置き換える。
-
+// 在庫画面のUI案（/dev/inventory）の、まわりの部品。色は、すべてトークンを使う。
 const pop = keyframes({
-	from: { opacity: 0, transform: "translateY(6px) scale(0.96)" },
+	from: { opacity: 0, transform: "translateY(6px) scale(0.98)" },
 	to: { opacity: 1, transform: "translateY(0) scale(1)" },
 });
 
 export const page = style({
 	boxSizing: "border-box",
 	display: "grid",
-	gap: 16,
+	gap: 12,
 	maxWidth: 960,
 	margin: "0 auto",
-	padding: "16px 16px 96px",
+	padding: "12px 16px 96px",
 });
 
 export const devBar = style({
 	display: "flex",
 	flexWrap: "wrap",
 	alignItems: "center",
-	gap: "8px 16px",
+	gap: "4px 16px",
 	fontSize: 13,
 	color: "var(--color-text-muted)",
 });
@@ -34,189 +32,174 @@ export const devCheck = style({
 
 export const caption = style({
 	margin: 0,
-	fontSize: 13,
-	lineHeight: 1.6,
+	fontSize: "var(--font-size-sm)",
 	color: "var(--color-text-muted)",
 });
 
-// ---------- マスコット（動きの試作） ----------
-
-// ---------- おうち（A案） ----------
-
-export const bubble = style({
-	position: "relative",
-	alignSelf: "start",
-	justifySelf: "start",
+// 表示の切り替え（丸いボタンが2つ）。
+export const viewToggle = style({
+	display: "inline-flex",
+	gap: 4,
 	margin: 0,
-	padding: "8px 14px",
+	padding: 4,
+	border: 0,
+	borderRadius: 9999,
+	background: "var(--color-surface)",
+	boxShadow: "var(--shadow-sm)",
+});
+
+// ---------- 場所の縦タブ ----------
+
+export const zoneTabs = style({
+	display: "flex",
+	flexDirection: "column",
+	flexShrink: 0,
+	alignSelf: "flex-start",
+	gap: 6,
+	margin: 0,
+	padding: 0,
+	border: 0,
+	minWidth: 0,
+});
+
+export const zoneTab = style({
+	boxSizing: "border-box",
+	display: "grid",
+	justifyItems: "center",
+	gap: 2,
+	width: 64,
+	padding: "8px 2px",
+	border: "1.5px solid var(--color-control-border)",
 	borderRadius: 16,
 	background: "var(--color-surface)",
-	border: "2px solid var(--color-border-strong)",
-	fontSize: 14,
-	fontWeight: 600,
+	color: "var(--color-text)",
+	font: "inherit",
+	fontSize: 12,
+	fontWeight: "var(--font-weight-semibold)",
+	lineHeight: 1.25,
+	cursor: "pointer",
 	selectors: {
-		"&::after": {
-			content: '""',
-			position: "absolute",
-			left: 22,
-			bottom: -8,
-			width: 12,
-			height: 12,
-			background: "var(--color-surface)",
-			borderRight: "2px solid var(--color-border-strong)",
-			borderBottom: "2px solid var(--color-border-strong)",
-			transform: "rotate(45deg)",
+		"&:focus-visible": {
+			outline: "3px solid var(--color-focus)",
+			outlineOffset: 2,
+		},
+		'&[aria-pressed="true"]': {
+			borderColor: "var(--color-text)",
+			background: "var(--color-primary-soft)",
+			boxShadow: "0 0 0 1px var(--color-text)",
 		},
 	},
 });
 
-export const compartmentHead = style({
-	display: "flex",
-	alignItems: "center",
-	gap: 6,
-	width: "100%",
-	paddingInlineEnd: 10,
-	boxSizing: "border-box",
-	fontSize: 14,
-	fontWeight: 700,
-});
-
-export const compartmentCount = style({
-	fontSize: 12,
-	fontWeight: 500,
+export const zoneTabCount = style({
+	fontSize: 11,
+	fontWeight: "var(--font-weight-regular)",
 	color: "var(--color-text-muted)",
 });
 
-export const alertPill = style({
-	marginInlineStart: "auto",
-	display: "inline-flex",
-	alignItems: "center",
-	gap: 2,
-	padding: "2px 8px 2px 6px",
-	borderRadius: 999,
-	background: "var(--color-error-soft)",
-	color: "var(--color-error)",
-	fontSize: 12,
-	fontWeight: 700,
-	zIndex: 1,
+// リスト：縦タブ＋一覧を横に並べる。
+export const listBody = style({
+	display: "flex",
+	alignItems: "flex-start",
+	gap: 8,
 });
 
-// ---------- 庫内（扉をあけたあと） ----------
+export const listMain = style({
+	display: "grid",
+	gap: 12,
+	flex: 1,
+	minWidth: 0,
+});
 
-export const interior = style({
+// ---------- 庫内（ズームしたあと） ----------
+
+// 庫内：左の縦タブと、パネルを横に並べる。
+export const interiorWrap = style({
 	boxSizing: "border-box",
 	position: "absolute",
 	inset: "14cqw 3cqw 3cqw",
 	zIndex: 6,
-	display: "grid",
-	gridTemplateRows: "auto auto auto minmax(0, 1fr)",
-	gap: 10,
-	padding: "14px 12px 0",
+	display: "flex",
+	alignItems: "stretch",
+	gap: 6,
+	// 空いたところは、外側として押せるようにする。
+	pointerEvents: "none",
+});
+
+globalStyle(`${interiorWrap} > *`, { pointerEvents: "auto" });
+
+export const interior = style({
+	boxSizing: "border-box",
+	position: "relative",
+	flex: 1,
+	minWidth: 0,
+	outline: "none",
+	display: "flex",
+	flexDirection: "column",
+	gap: 12,
+	padding: "12px 12px 0",
 	border: "2px solid var(--color-border-strong)",
-	borderRadius: 24,
+	borderRadius: "var(--radius-sheet)",
 	background: "var(--color-background)",
 	boxShadow: "var(--shadow-md)",
 	animation: `${pop} 320ms var(--ease-emphasized) both`,
 });
 
+export const interiorHead = style({
+	display: "flex",
+	alignItems: "center",
+	gap: 8,
+	margin: 0,
+	fontSize: "var(--font-size-lg)",
+});
+
+export const count = style({
+	fontSize: "var(--font-size-sm)",
+	fontWeight: "var(--font-weight-regular)",
+	color: "var(--color-text-muted)",
+});
+
+// 横に並べる絞り込み（はみ出したら、横にスクロール）。
+export const chipScroll = style({
+	flexShrink: 0,
+	overflowX: "auto",
+	// 枠・影・フォーカスの輪が、スクロール領域の縁で削れないように、余白を足す。
+	padding: 4,
+	margin: -4,
+});
+
+// 中のチップの並びは、折り返さず、横に伸ばす。
+globalStyle(`${chipScroll} fieldset`, {
+	flexWrap: "nowrap",
+	width: "max-content",
+});
+
+export const searchRow = style({
+	display: "flex",
+	flexShrink: 0,
+	alignItems: "center",
+	gap: 8,
+});
+
+export const searchGrow = style({ flex: 1, minWidth: 0 });
+
 export const interiorScroll = style({
 	display: "grid",
 	alignContent: "start",
 	gap: 12,
+	flex: 1,
 	minHeight: 0,
 	paddingBottom: 20,
 	overflowY: "auto",
 });
 
-export const interiorTitle = style({
-	display: "flex",
-	alignItems: "center",
-	gap: 8,
-	margin: 0,
-	fontSize: 18,
-});
-
-export const backButton = style({
-	display: "inline-flex",
-	alignItems: "center",
-	gap: 2,
-	minHeight: 44,
-	padding: "0 14px 0 8px",
-	border: "2px solid var(--color-control-border)",
-	borderRadius: 999,
-	background: "var(--color-surface)",
-	color: "var(--color-text)",
-	font: "inherit",
-	fontSize: 14,
-	fontWeight: 700,
-	cursor: "pointer",
-});
-
-export const toolbar = style({
-	display: "flex",
-	flexWrap: "wrap",
-	alignItems: "center",
-	gap: 8,
-});
-
-export const toolbarGroup = style([
-	toolbar,
-	{ margin: 0, padding: 0, border: 0, minWidth: 0 },
-]);
-
-export const zoneChips = style({
-	display: "flex",
-	gap: 8,
-	margin: 0,
-	padding: "0 0 4px",
-	border: 0,
-	minWidth: 0,
-	overflowX: "auto",
-	flexWrap: "nowrap",
-});
-
-export const searchBox = style({
-	boxSizing: "border-box",
-	flex: "1 1 120px",
-	minWidth: 0,
-	height: 40,
-	padding: "0 16px",
-	border: "2px solid var(--color-control-border)",
-	borderRadius: 999,
-	background: "var(--color-surface)",
-	color: "var(--color-text)",
-	font: "inherit",
-	fontSize: 16,
-});
-
-export const chip = style({
-	flexShrink: 0,
-	boxSizing: "border-box",
-	minHeight: 36,
-	padding: "0 14px",
-	border: "2px solid var(--color-control-border)",
-	borderRadius: 999,
-	background: "var(--color-surface)",
-	color: "var(--color-text)",
-	font: "inherit",
-	fontSize: 13,
-	cursor: "pointer",
-	selectors: {
-		'&[aria-pressed="true"]': {
-			borderColor: "var(--color-text)",
-			background: "var(--color-primary-soft)",
-			fontWeight: 700,
-		},
-	},
-});
-
 export const shelf = style({
 	display: "grid",
 	gap: 8,
-	paddingBottom: 14,
-	borderBottom: "6px solid var(--color-border-strong)",
-	borderRadius: 3,
-	boxShadow: "0 6px 6px -6px rgba(41, 39, 32, 0.25)",
+	padding: 12,
+	borderRadius: "var(--radius-card)",
+	background: "var(--color-surface)",
+	boxShadow: "var(--shadow-sm)",
 });
 
 export const shelfHeading = style({
@@ -224,291 +207,127 @@ export const shelfHeading = style({
 	alignItems: "center",
 	gap: 6,
 	margin: 0,
-	fontSize: 13,
-	fontWeight: 700,
+	fontSize: "var(--font-size-sm)",
+	fontWeight: "var(--font-weight-semibold)",
 	color: "var(--color-text-muted)",
 	selectors: { '&[data-alert="true"]': { color: "var(--color-error)" } },
 });
 
 export const shelfItems = style({
 	display: "grid",
-	gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))",
+	gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))",
 	gap: 8,
 	margin: 0,
 	padding: 0,
 	listStyle: "none",
-	selectors: {
-		'&[data-density="small"]': {
-			gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
-			gap: 6,
-		},
-	},
 });
 
-export const more = style({
-	justifySelf: "start",
-	minHeight: 36,
-	padding: "0 14px",
-	border: "2px dashed var(--color-control-border)",
-	borderRadius: 999,
-	background: "transparent",
-	color: "var(--color-text)",
-	font: "inherit",
-	fontSize: 13,
-	cursor: "pointer",
-});
+export const moreRow = style({ display: "flex" });
 
-export const itemButton = style({
+// ---------- 食材の1件 ----------
+
+export const item = style({
 	boxSizing: "border-box",
-	position: "relative",
-	display: "grid",
-	gap: 6,
-	alignContent: "start",
-	justifyItems: "start",
+	display: "flex",
+	alignItems: "center",
+	gap: 12,
 	width: "100%",
-	minHeight: 120,
-	padding: 10,
+	minHeight: 72,
+	padding: "8px 12px 8px 8px",
 	border: "1.5px solid var(--color-border)",
-	borderRadius: 18,
+	borderRadius: 16,
 	background: "var(--color-surface)",
-	boxShadow: "var(--shadow-sm)",
 	color: "var(--color-text)",
 	font: "inherit",
 	textAlign: "left",
 	cursor: "pointer",
-	animation: `${pop} 260ms var(--ease-emphasized) both`,
+	animation: `${pop} 240ms var(--ease-emphasized) both`,
 	selectors: {
 		"&:hover": { borderColor: "var(--color-border-strong)" },
 		"&:focus-visible": {
-			outline: "3px solid var(--color-text)",
+			outline: "3px solid var(--color-focus)",
 			outlineOffset: 2,
 		},
 		'&[data-selected="true"]': {
 			borderColor: "var(--color-text)",
 			background: "var(--color-primary-soft)",
 		},
-		'&[data-expiry="expired"]': {
-			borderColor: "var(--color-error)",
-			background: "var(--color-error-soft)",
+		// 一覧の行：枠と角丸をなくし、区切り線だけにする。
+		'&[data-variant="row"]': {
+			border: 0,
+			borderTop: "1px solid var(--color-border)",
+			borderRadius: 0,
+			background: "transparent",
+			animation: "none",
 		},
-		'&[data-expiry="soon"]': { background: "var(--color-error-soft)" },
-		'&[data-expiry="near"]': { background: "var(--color-warning-soft)" },
-		'&[data-density="small"]': {
-			gridAutoFlow: "column",
-			gridTemplateColumns: "auto minmax(0, 1fr) auto auto",
-			alignItems: "center",
-			minHeight: 52,
-			padding: "6px 12px 6px 6px",
-			borderRadius: 16,
-			gap: 10,
+		'&[data-variant="row"][data-selected="true"]': {
+			background: "var(--color-primary-soft)",
 		},
 	},
 });
 
 export const itemArt = style({
-	display: "inline-grid",
+	display: "grid",
 	placeItems: "center",
 	flexShrink: 0,
-	borderRadius: 14,
-	overflow: "hidden",
+	width: 56,
+	height: 56,
+	borderRadius: "var(--radius-image)",
+	background: "var(--color-surface-muted)",
+});
+
+export const itemText = style({
+	display: "grid",
+	gap: 4,
+	flex: 1,
+	minWidth: 0,
 });
 
 export const itemName = style({
-	minWidth: 0,
 	overflow: "hidden",
 	textOverflow: "ellipsis",
 	whiteSpace: "nowrap",
-	fontSize: 15,
-	fontWeight: 700,
+	fontSize: "var(--font-size-lg)",
+	fontWeight: "var(--font-weight-semibold)",
+});
+
+export const itemMeta = style({
+	display: "flex",
+	flexWrap: "wrap",
+	alignItems: "center",
+	gap: 6,
 });
 
 export const itemAmount = style({
-	fontSize: 13,
+	fontSize: "var(--font-size-md)",
 	color: "var(--color-text-muted)",
 });
 
-export const expiryBadge = style({
-	display: "inline-flex",
-	alignItems: "center",
-	gap: 2,
-	justifySelf: "start",
-	padding: "1px 8px 1px 5px",
-	borderRadius: 999,
-	fontSize: 12,
-	fontWeight: 700,
-	selectors: {
-		'&[data-level="expired"]': {
-			background: "var(--color-error)",
-			color: "var(--color-on-error)",
-		},
-		'&[data-level="soon"]': {
-			background: "var(--color-error-soft)",
-			color: "var(--color-error)",
-		},
-		'&[data-level="near"]': {
-			background: "var(--color-warning-soft)",
-			color: "var(--color-warning)",
-		},
-	},
-});
-
-// ---------- リスト（B案） ----------
+// ---------- リスト ----------
 
 export const listWrap = style({ display: "grid", gap: 12 });
 
-export const groupHeader = style({
-	boxSizing: "border-box",
-	position: "sticky",
-	top: "var(--shell-header-height, 0px)",
-	zIndex: 2,
+export const listHead = style({
 	display: "flex",
 	alignItems: "center",
-	gap: 8,
-	width: "100%",
-	minHeight: 40,
-	padding: "0 12px",
-	border: 0,
-	borderRadius: 12,
-	background: "var(--color-surface-muted)",
-	color: "var(--color-text)",
-	font: "inherit",
-	fontSize: 14,
-	fontWeight: 700,
-	textAlign: "left",
-	cursor: "pointer",
+	justifyContent: "space-between",
+	gap: 12,
 });
 
 export const rows = style({
 	margin: 0,
-	padding: 0,
+	padding: "4px 0",
 	listStyle: "none",
 });
 
-export const row = style({
-	boxSizing: "border-box",
-	display: "flex",
-	alignItems: "center",
-	gap: 12,
-	width: "100%",
-	minHeight: 56,
-	padding: "6px 12px",
-	border: 0,
-	borderBottom: "1px solid var(--color-border)",
-	background: "transparent",
-	color: "var(--color-text)",
-	font: "inherit",
-	textAlign: "left",
-	cursor: "pointer",
-	selectors: {
-		"&:hover": { background: "var(--color-surface-muted)" },
-		"&:focus-visible": {
-			outline: "3px solid var(--color-text)",
-			outlineOffset: -3,
-		},
-		'&[data-selected="true"]': { background: "var(--color-primary-soft)" },
-	},
-});
-
-export const rowMain = style({
-	display: "grid",
-	flex: 1,
-	minWidth: 0,
-	gap: 2,
-});
-
-export const rowSub = style({
-	fontSize: 12,
-	color: "var(--color-text-muted)",
-});
-
-export const zoneTag = style({
-	padding: "1px 8px",
-	borderRadius: 999,
-	background: "var(--color-surface-muted)",
-	fontSize: 12,
-	color: "var(--color-text-muted)",
-});
-
-// ---------- パネル（C案：ドラッグで動かす） ----------
-
-export const panelZone = style({
-	boxSizing: "border-box",
-	display: "grid",
-	gap: 8,
-	padding: 12,
-	border: "2px solid var(--color-border-strong)",
-	borderRadius: 20,
-	background: "var(--color-surface-muted)",
-	transition:
-		"background var(--duration-fast), border-color var(--duration-fast)",
-	selectors: {
-		'&[data-drop="true"]': {
-			borderColor: "var(--color-text)",
-			background: "var(--color-primary-soft)",
-			borderStyle: "dashed",
-		},
-	},
-});
-
-export const panelGrid = style({
-	display: "grid",
-	gridTemplateColumns: "repeat(auto-fill, minmax(112px, 1fr))",
-	gap: 8,
+export const empty = style({
 	margin: 0,
-	padding: 0,
-	listStyle: "none",
-});
-
-export const tileItem = style({
-	position: "relative",
-	minWidth: 0,
-	selectors: {
-		'&[data-dragging="true"]': { opacity: 0.3 },
-		'&[data-drop-before="true"]::before': {
-			content: '""',
-			position: "absolute",
-			left: -6,
-			top: 0,
-			bottom: 0,
-			width: 4,
-			borderRadius: 2,
-			background: "var(--color-text)",
-		},
-	},
-});
-
-export const grip = style({
-	position: "absolute",
-	right: 2,
-	top: 2,
-	zIndex: 1,
-	display: "grid",
-	placeItems: "center",
-	width: 36,
-	height: 36,
-	padding: 0,
-	border: 0,
-	borderRadius: 999,
-	background: "transparent",
+	padding: 24,
+	textAlign: "center",
 	color: "var(--color-text-muted)",
-	cursor: "grab",
-	touchAction: "none",
-	selectors: {
-		"&:hover": { background: "var(--color-surface-muted)" },
-		"&:active": { cursor: "grabbing" },
-	},
 });
 
-export const ghost = style({
-	position: "fixed",
-	zIndex: 100,
-	width: 120,
-	pointerEvents: "none",
-	opacity: 0.92,
-	transform: "translate(-50%, -50%) rotate(3deg)",
-	boxShadow: "var(--shadow-md)",
-	borderRadius: 14,
-});
+// ---------- 詳細（見本） ----------
 
 export const detail = style({
 	position: "fixed",
@@ -521,18 +340,9 @@ export const detail = style({
 	width: "min(92vw, 420px)",
 	boxSizing: "border-box",
 	padding: "10px 12px 10px 16px",
-	borderRadius: 20,
+	borderRadius: "var(--radius-card)",
 	background: "var(--color-surface)",
 	boxShadow: "var(--shadow-md)",
 	border: "2px solid var(--color-border-strong)",
 	transform: "translateX(-50%)",
-});
-
-globalStyle(`${page} *, ${page} *::before, ${page} *::after`, {
-	"@media": {
-		"(prefers-reduced-motion: reduce)": {
-			animation: "none !important",
-			transition: "none !important",
-		},
-	},
 });

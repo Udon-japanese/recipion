@@ -1,26 +1,20 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Chip } from "#/components/chip/chip";
+import { TextInput } from "#/components/field/field";
 import { Icon } from "#/components/icon/icon";
-import type { IconName } from "#/components/icon/icon-definitions";
+import { IconButton } from "#/components/icon-button/icon-button";
 import {
 	type InventoryZoneId,
 	inventoryZoneLabels,
 } from "#/features/inventory/domain/inventory-fridge";
 import * as styles from "./concepts.css";
-import { ExpiryBadge, Glyph, Pet } from "./parts";
+import { ItemRow, Pet } from "./parts";
 import {
 	compareByExpiry,
-	describeAmount,
 	describeExpiry,
 	type SampleItem,
 } from "./sample-data";
-
-const zoneIcons: Record<InventoryZoneId, IconName> = {
-	fridge: "zone-fridge",
-	door: "zone-door",
-	vegetable: "zone-vegetable",
-	freezer: "zone-freezer",
-	table: "zone-table",
-};
+import { ZoneTabs } from "./zone-tabs";
 
 type Props = {
 	zones: readonly InventoryZoneId[];
@@ -34,7 +28,9 @@ type Props = {
 	onBack: () => void;
 };
 
-// 庫内（机の上）。棚ごとに、期限の近いものを上に。多いときは棚を畳み、検索・絞り込みで探す。
+const shelfLimit = 8;
+
+// 庫内（机の上）。棚ごとに、期限の近いものを上に。多いときは棚の表示数を絞り、検索・絞り込みで探す。
 export function InteriorPanel({
 	zones,
 	zone,
@@ -46,11 +42,15 @@ export function InteriorPanel({
 	onSelect,
 	onBack,
 }: Props) {
+	const sectionRef = useRef<HTMLElement>(null);
 	const [query, setQuery] = useState("");
 	const [onlySoon, setOnlySoon] = useState(false);
-	const [density, setDensity] = useState<"large" | "small">("large");
 	const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
-	const limit = density === "large" ? 8 : 12;
+
+	// 開いたら、キーボードの位置を庫内へ移す（閉じるときは、場面の側が元の場所へ戻す）。
+	useEffect(() => {
+		sectionRef.current?.focus();
+	}, []);
 
 	const visible = useMemo(
 		() =>
@@ -86,130 +86,119 @@ export function InteriorPanel({
 	].filter((shelf) => shelf.items.length > 0);
 
 	return (
-		<section className={styles.interior} aria-label={inventoryZoneLabels[zone]}>
-			{petVisible ? (
-				<Pet
-					mood={night ? "sleep" : "peek"}
-					isStatic
-					style={{ right: "7cqw", top: "-9.6cqw" }}
-				/>
-			) : null}
-			<h2 className={styles.interiorTitle}>
-				<button className={styles.backButton} type="button" onClick={onBack}>
-					<Icon name="chevron-left" size={20} />
-					おうち
-				</button>
-				<Icon name={zoneIcons[zone]} size={20} />
-				{inventoryZoneLabels[zone]}
-				<span className={styles.compartmentCount}>{visible.length}件</span>
-			</h2>
-
+		<div className={styles.interiorWrap}>
 			{zones.length > 1 ? (
-				<fieldset className={styles.zoneChips} aria-label="場所">
-					{zones.map((id) => (
-						<button
-							className={styles.chip}
-							type="button"
-							key={id}
-							aria-pressed={id === zone}
-							onClick={() => onZoneChange(id)}
-						>
-							{inventoryZoneLabels[id]}（
-							{items.filter((item) => item.zone === id).length}）
-						</button>
-					))}
-				</fieldset>
-			) : null}
-
-			<div className={styles.toolbar}>
-				<input
-					className={styles.searchBox}
-					type="search"
-					placeholder={`${inventoryZoneLabels[zone]}の中を探す`}
-					aria-label="食材を探す"
-					value={query}
-					onChange={(event) => setQuery(event.target.value)}
+				<ZoneTabs
+					zones={zones}
+					value={zone}
+					counts={Object.fromEntries(
+						zones.map((id) => [
+							id,
+							items.filter((item) => item.zone === id).length,
+						]),
+					)}
+					onChange={onZoneChange}
 				/>
-				<button
-					className={styles.chip}
-					type="button"
-					aria-pressed={onlySoon}
-					onClick={() => setOnlySoon((value) => !value)}
-				>
-					期限が近い
-				</button>
-				<button
-					className={styles.chip}
-					type="button"
-					aria-pressed={density === "small"}
-					aria-label="小さく並べる"
-					onClick={() =>
-						setDensity((value) => (value === "large" ? "small" : "large"))
-					}
-				>
-					<Icon name="rows" size={20} />
-				</button>
-			</div>
-
-			<div className={styles.interiorScroll}>
-				{shelves.length === 0 ? (
-					<p className={styles.caption}>見つかりませんでした。</p>
+			) : null}
+			<section
+				ref={sectionRef}
+				tabIndex={-1}
+				className={styles.interior}
+				aria-label={inventoryZoneLabels[zone]}
+			>
+				{petVisible ? (
+					<Pet
+						mood={night ? "sleep" : "peek"}
+						isStatic
+						style={{ left: "8cqw", top: "-9.6cqw" }}
+					/>
 				) : null}
 
-				{shelves.map((shelf) => {
-					const isOpen = expanded.has(shelf.id) || query.trim() !== "";
-					const shown = isOpen ? shelf.items : shelf.items.slice(0, limit);
+				<h2 className={styles.interiorHead}>
+					<IconButton
+						icon="chevron-left"
+						label="おうちにもどる"
+						size="std"
+						onClick={onBack}
+					/>
+					{inventoryZoneLabels[zone]}
+					<span className={styles.count}>{visible.length}件</span>
+				</h2>
 
-					return (
-						<div className={styles.shelf} key={shelf.id}>
-							<h3 className={styles.shelfHeading} data-alert={shelf.alert}>
-								{shelf.alert ? <Icon name="alert-triangle" size={16} /> : null}
-								{shelf.title}（{shelf.items.length}）
-							</h3>
-							<ul className={styles.shelfItems} data-density={density}>
-								{shown.map((item) => (
-									<li key={item.id}>
-										<button
-											className={styles.itemButton}
-											type="button"
-											data-density={density}
-											data-selected={item.id === selectedId}
-											data-expiry={describeExpiry(item)?.level}
-											onClick={() => onSelect(item)}
-										>
-											<Glyph item={item} size={density === "large" ? 56 : 36} />
-											<span className={styles.itemName}>{item.name}</span>
-											<span className={styles.itemAmount}>
-												{describeAmount(item)}
-											</span>
-											<ExpiryBadge item={item} />
-										</button>
-									</li>
-								))}
-							</ul>
-							{shelf.items.length > limit && !query.trim() ? (
-								<button
-									className={styles.more}
-									type="button"
-									onClick={() =>
-										setExpanded((current) => {
-											const next = new Set(current);
-											if (!next.delete(shelf.id)) {
-												next.add(shelf.id);
+				<div className={styles.searchRow}>
+					<div className={styles.searchGrow}>
+						<TextInput
+							type="search"
+							placeholder={`${inventoryZoneLabels[zone]}の中を探す`}
+							aria-label="食材を探す"
+							value={query}
+							onChange={(event) => setQuery(event.target.value)}
+						/>
+					</div>
+					<Chip
+						pressed={onlySoon}
+						onClick={() => setOnlySoon((value) => !value)}
+					>
+						期限が近い
+					</Chip>
+				</div>
+
+				<div className={styles.interiorScroll}>
+					{shelves.length === 0 ? (
+						<p className={styles.empty}>見つかりませんでした。</p>
+					) : null}
+
+					{shelves.map((shelf) => {
+						const isOpen = expanded.has(shelf.id) || query.trim() !== "";
+						const shown = isOpen
+							? shelf.items
+							: shelf.items.slice(0, shelfLimit);
+
+						return (
+							<div className={styles.shelf} key={shelf.id}>
+								<h3 className={styles.shelfHeading} data-alert={shelf.alert}>
+									{shelf.alert ? (
+										<Icon name="alert-triangle" size={16} />
+									) : null}
+									{shelf.title}（{shelf.items.length}）
+								</h3>
+								<ul className={styles.shelfItems}>
+									{shown.map((item) => (
+										<li key={item.id}>
+											<ItemRow
+												item={item}
+												variant="card"
+												selected={item.id === selectedId}
+												onSelect={onSelect}
+											/>
+										</li>
+									))}
+								</ul>
+								{shelf.items.length > shelfLimit && !query.trim() ? (
+									<div className={styles.moreRow}>
+										<Chip
+											icon={isOpen ? "arrow-up" : "arrow-down"}
+											onClick={() =>
+												setExpanded((current) => {
+													const next = new Set(current);
+													if (!next.delete(shelf.id)) {
+														next.add(shelf.id);
+													}
+													return next;
+												})
 											}
-											return next;
-										})
-									}
-								>
-									{isOpen
-										? "たたむ"
-										: `ほか ${shelf.items.length - limit} 件を見る`}
-								</button>
-							) : null}
-						</div>
-					);
-				})}
-			</div>
-		</section>
+										>
+											{isOpen
+												? "たたむ"
+												: `ほか ${shelf.items.length - shelfLimit} 件`}
+										</Chip>
+									</div>
+								) : null}
+							</div>
+						);
+					})}
+				</div>
+			</section>
+		</div>
 	);
 }

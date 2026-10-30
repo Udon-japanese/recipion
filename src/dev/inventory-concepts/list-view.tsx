@@ -1,190 +1,206 @@
-import { useMemo, useState } from "react";
-import { Icon } from "#/components/icon/icon";
+import { type ReactNode, useMemo, useState } from "react";
+import { Card } from "#/components/card/card";
+import { Chip, ChipGroup } from "#/components/chip/chip";
+import { TextInput } from "#/components/field/field";
+import { SegmentedControl } from "#/components/segmented-control/segmented-control";
+import { Tag } from "#/components/tag/tag";
 import {
 	type InventoryZoneId,
 	inventoryZoneLabels,
 	inventoryZones,
 } from "#/features/inventory/domain/inventory-fridge";
 import * as styles from "./concepts.css";
-import { ExpiryBadge, Glyph } from "./parts";
-import {
-	compareByExpiry,
-	describeAmount,
-	describeExpiry,
-	type SampleItem,
-} from "./sample-data";
+import { kanaRowLabels, kanaRowOf, readingOf } from "./kana";
+import { ItemRow } from "./parts";
+import { compareByExpiry, type SampleItem } from "./sample-data";
+import { ZoneTabs } from "./zone-tabs";
 
 type GroupBy = "zone" | "expiry" | "kana";
 
-const groupOptions: { value: GroupBy; label: string }[] = [
-	{ value: "zone", label: "場所" },
-	{ value: "expiry", label: "期限" },
-	{ value: "kana", label: "あいうえお" },
+// 縦タブの並びは、冷蔵庫の絵の上から順（野菜室は一番下）。
+const zoneOrder: InventoryZoneId[] = [
+	"fridge",
+	"door",
+	"freezer",
+	"vegetable",
+	"table",
 ];
 
-type Group = { id: string; title: string; items: SampleItem[] };
+type Group = {
+	id: string;
+	label: string;
+	match: (item: SampleItem) => boolean;
+};
 
-function buildGroups(items: readonly SampleItem[], by: GroupBy): Group[] {
-	if (by === "zone") {
-		return inventoryZones
-			.map((zone) => ({
-				id: zone.id,
-				title: zone.label,
-				items: items
-					.filter((item) => item.zone === zone.id)
-					.sort(compareByExpiry),
-			}))
-			.filter((group) => group.items.length > 0);
+function expiryBucket(item: SampleItem): string {
+	const days = item.daysLeft;
+
+	if (days === null) {
+		return "none";
 	}
 
-	if (by === "expiry") {
-		const bucket = (item: SampleItem) =>
-			item.daysLeft === null
-				? "none"
-				: item.daysLeft < 0
-					? "expired"
-					: item.daysLeft <= 3
-						? "soon"
-						: item.daysLeft <= 14
-							? "week"
-							: "later";
-		const titles: [string, string][] = [
-			["expired", "切れている"],
-			["soon", "3日以内"],
-			["week", "2週間以内"],
-			["later", "それより先"],
-			["none", "期限なし"],
-		];
-
-		return titles
-			.map(([id, title]) => ({
-				id,
-				title,
-				items: items
-					.filter((item) => bucket(item) === id)
-					.sort(compareByExpiry),
-			}))
-			.filter((group) => group.items.length > 0);
+	if (days < 0) {
+		return "expired";
 	}
 
-	const sorted = [...items].sort((a, b) => a.name.localeCompare(b.name, "ja"));
+	if (days <= 3) {
+		return "soon";
+	}
 
-	return [{ id: "all", title: "すべて", items: sorted }];
+	return days <= 14 ? "week" : "later";
 }
 
-// B案：シンプルなリスト（レシピ・買い物メモと同じ作り）。数が増えても、検索・グループの畳みで迷わない。
+const expiryLabels: [string, string][] = [
+	["expired", "切れている"],
+	["soon", "3日以内"],
+	["week", "2週間以内"],
+	["later", "それより先"],
+	["none", "期限なし"],
+];
+
+const groupsBy: Record<GroupBy, Group[]> = {
+	zone: inventoryZones.map((zone) => ({
+		id: zone.id,
+		label: zone.label,
+		match: (item) => item.zone === zone.id,
+	})),
+	expiry: expiryLabels.map(([id, label]) => ({
+		id,
+		label,
+		match: (item) => expiryBucket(item) === id,
+	})),
+	kana: kanaRowLabels.map((label) => ({
+		id: label,
+		label,
+		match: (item) => kanaRowOf(item.name) === label,
+	})),
+};
+
+function sortFor(by: GroupBy) {
+	return by === "kana"
+		? (a: SampleItem, b: SampleItem) =>
+				readingOf(a.name).localeCompare(readingOf(b.name), "ja")
+		: compareByExpiry;
+}
+
+// B案：シンプルな一覧（レシピ・買い物メモと同じ作り）。
+// 「場所・期限・あいうえお」をタブで選び、その中身はチップで一瞬で切り替える（畳む操作はなし）。
 export function ListView({
 	items,
 	selectedId,
 	onSelect,
+	toggle,
 }: {
 	items: readonly SampleItem[];
 	selectedId: string | null;
 	onSelect: (item: SampleItem) => void;
+	toggle: ReactNode;
 }) {
 	const [query, setQuery] = useState("");
 	const [by, setBy] = useState<GroupBy>("zone");
-	const [folded, setFolded] = useState<ReadonlySet<string>>(new Set());
+	const [pick, setPick] = useState("all");
 
-	const groups = useMemo(
-		() =>
-			buildGroups(
-				items.filter((item) => item.name.includes(query.trim())),
-				by,
-			),
-		[items, query, by],
+	const searched = useMemo(
+		() => items.filter((item) => item.name.includes(query.trim())),
+		[items, query],
+	);
+	const groups = groupsBy[by]
+		.map((group) => ({
+			...group,
+			count: searched.filter(group.match).length,
+		}))
+		.filter((group) => group.count > 0);
+	const active = groups.find((group) => group.id === pick);
+	const shown = (active ? searched.filter(active.match) : [...searched]).sort(
+		sortFor(by),
 	);
 
 	return (
 		<div className={styles.listWrap}>
-			<div className={styles.toolbar}>
-				<input
-					className={styles.searchBox}
-					type="search"
-					placeholder="在庫を探す"
-					aria-label="在庫を探す"
-					value={query}
-					onChange={(event) => setQuery(event.target.value)}
-				/>
+			<div className={styles.listHead}>
+				<div style={{ flex: 1, minWidth: 0 }}>
+					<TextInput
+						type="search"
+						placeholder="在庫を探す"
+						aria-label="在庫を探す"
+						value={query}
+						onChange={(event) => setQuery(event.target.value)}
+					/>
+				</div>
+				{toggle}
 			</div>
-			<fieldset className={styles.toolbarGroup} aria-label="まとめ方">
-				<span className={styles.caption}>まとめ方</span>
-				{groupOptions.map((option) => (
-					<button
-						className={styles.chip}
-						type="button"
-						key={option.value}
-						aria-pressed={by === option.value}
-						onClick={() => setBy(option.value)}
-					>
-						{option.label}
-					</button>
-				))}
-			</fieldset>
 
-			{groups.map((group) => {
-				const isFolded = folded.has(group.id);
+			<SegmentedControl
+				label="まとめ方"
+				value={by}
+				onChange={(value) => {
+					setBy(value);
+					setPick("all");
+				}}
+				options={[
+					{ value: "zone", label: "場所" },
+					{ value: "expiry", label: "期限" },
+					{ value: "kana", label: "あいうえお" },
+				]}
+			/>
 
-				return (
-					<section key={group.id}>
-						<button
-							className={styles.groupHeader}
-							type="button"
-							aria-expanded={!isFolded}
-							onClick={() =>
-								setFolded((current) => {
-									const next = new Set(current);
-									if (!next.delete(group.id)) {
-										next.add(group.id);
-									}
-									return next;
-								})
-							}
-						>
-							<Icon
-								name={isFolded ? "chevron-right" : "chevron-down"}
-								size={20}
-							/>
-							{group.title}
-							<span className={styles.compartmentCount}>
-								{group.items.length}件
-							</span>
-						</button>
-						{isFolded ? null : (
+			<div className={styles.listBody}>
+				{by === "zone" ? (
+					<ZoneTabs
+						zones={zoneOrder}
+						value={active ? (active.id as InventoryZoneId) : null}
+						counts={Object.fromEntries(
+							groups.map((group) => [group.id, group.count]),
+						)}
+						onChange={(id) => setPick(id === pick ? "all" : id)}
+					/>
+				) : null}
+
+				<div className={styles.listMain}>
+					{by === "zone" ? null : (
+						<div className={styles.chipScroll}>
+							<ChipGroup label="絞り込み">
+								<Chip pressed={!active} onClick={() => setPick("all")}>
+									すべて {searched.length}
+								</Chip>
+								{groups.map((group) => (
+									<Chip
+										key={group.id}
+										pressed={group.id === pick}
+										onClick={() => setPick(group.id)}
+									>
+										{group.label} {group.count}
+									</Chip>
+								))}
+							</ChipGroup>
+						</div>
+					)}
+
+					<Card>
+						{shown.length === 0 ? (
+							<p className={styles.empty}>見つかりませんでした。</p>
+						) : (
 							<ul className={styles.rows}>
-								{group.items.map((item) => (
+								{shown.map((item) => (
 									<li key={item.id}>
-										<button
-											className={styles.row}
-											type="button"
-											data-selected={item.id === selectedId}
-											onClick={() => onSelect(item)}
-										>
-											<Glyph item={item} />
-											<span className={styles.rowMain}>
-												<span className={styles.itemName}>{item.name}</span>
-												<span className={styles.rowSub}>
-													{describeAmount(item)}
-													{item.daysLeft !== null &&
-													describeExpiry(item) === null
-														? `・あと${item.daysLeft}日`
-														: ""}
-												</span>
-											</span>
-											<ExpiryBadge item={item} />
-											{by !== "zone" ? (
-												<span className={styles.zoneTag}>
-													{inventoryZoneLabels[item.zone as InventoryZoneId]}
-												</span>
-											) : null}
-										</button>
+										<ItemRow
+											item={item}
+											variant="row"
+											selected={item.id === selectedId}
+											onSelect={onSelect}
+											extra={
+												by === "zone" && active ? null : (
+													<Tag>{inventoryZoneLabels[item.zone]}</Tag>
+												)
+											}
+										/>
 									</li>
 								))}
 							</ul>
 						)}
-					</section>
-				);
-			})}
+					</Card>
+				</div>
+			</div>
 		</div>
 	);
 }

@@ -15,24 +15,6 @@ export type SampleItem = {
 	daysLeft: number | null;
 };
 
-export const categoryTint: Record<ShoppingCategoryId, string> = {
-	produce: "#d8efd9",
-	chilled: "#efe3c8",
-	household: "#e6e3dc",
-	meat: "#fbd9d0",
-	seafood: "#d6e8f5",
-	dairy: "#fff0c9",
-	eggs: "#fff0c9",
-	pantry: "#ecd8bf",
-	frozen: "#d6e8f5",
-	snacks: "#f6dcea",
-	staples: "#f0e4d0",
-	beverages: "#d6ecea",
-	deli: "#f6dcc0",
-	bakery: "#f0e4d0",
-	other: "#e6e3dc",
-};
-
 // name|カテゴリ|場所|量|単位|期限までの日数
 const base = `
 牛乳|dairy|fridge|600|ml|1
