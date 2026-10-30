@@ -1,12 +1,12 @@
 import { type RefObject, useEffect, useRef } from "react";
 
-// 場面の中の位置（%。x は幅、y は高さ。足元の位置）。
+// 場面の層（800:640）の中の位置（%。x は幅、y は高さ。足元の位置）。
 export type Point = { x: number; y: number };
 
-// 場面の高さ ÷ 幅。縦と横を同じ長さで数えるために使う。
-export const SCENE_ASPECT = 640 / 400;
-// 1秒に進む距離（場面の幅に対する %）。
-const SPEED = 22;
+// 層の高さ ÷ 幅。縦と横を同じ長さで数えるために使う。
+export const SCENE_ASPECT = 640 / 800;
+// 1秒に進む距離（層の幅に対する %）。
+const SPEED = 11;
 const HOP_SECONDS = 0.5;
 const HOP_HEIGHT = 4.2;
 

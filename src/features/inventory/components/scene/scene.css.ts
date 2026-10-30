@@ -1,27 +1,39 @@
-import { globalStyle, style } from "@vanilla-extract/css";
+import { globalStyle, keyframes, style } from "@vanilla-extract/css";
 
-// 部屋の場面。絵（SVG）は固定の座標（400×640）で描き、押せる場所とれしぽよは、その上に % で重ねる。
+// 部屋の場面。絵（SVG）は固定の座標（中央の400×640と、左右に200ずつの余白）で描き、押せる場所は、その上に % で重ねる。
+// 画面が狭いと、左右の余白から削れる（中央の400は、いつも見える）。
+export const stage = style({
+	width: "100%",
+	containerType: "inline-size",
+});
+
 export const frame = style({
 	position: "relative",
-	width: "min(100%, calc((100dvh - 56px) * 0.625))",
-	minWidth: 300,
-	aspectRatio: "400 / 640",
+	vars: { "--h": "min(calc(100dvh - 56px), 160cqw)" },
+	boxSizing: "border-box",
+	height: "var(--h)",
+	width: "min(100%, calc(var(--h) * 1.25))",
 	margin: "0 auto",
 	overflow: "hidden",
-	containerType: "inline-size",
+	// 文字や余白は、絵の高さ（cqh）に合わせる。
+	containerType: "size",
 	border: "2px solid var(--color-border-strong)",
 	borderRadius: 28,
 	background: "#f2d9a6",
 });
 
+// 絵と、その上の押せる場所をまとめる層。高さは場面いっぱい、幅は 800:640。左右の中央に置く。
 export const camera = style({
 	position: "absolute",
-	inset: 0,
+	top: 0,
+	bottom: 0,
+	left: "50%",
+	aspectRatio: "800 / 640",
 	transformOrigin: "0 0",
 	transition: "transform 760ms cubic-bezier(0.5, 0, 0.2, 1)",
 	vars: { "--cx": "50", "--cy": "50", "--zoom": "1", "--aim": "50" },
 	transform:
-		"translate(calc(50% - var(--cx) * var(--zoom) * 1%), calc(var(--aim) * 1% - var(--cy) * var(--zoom) * 1%)) scale(var(--zoom))",
+		"translateX(-50%) translate(calc(50% - var(--cx) * var(--zoom) * 1%), calc(var(--aim) * 1% - var(--cy) * var(--zoom) * 1%)) scale(var(--zoom))",
 });
 
 export const art = style({
@@ -59,13 +71,13 @@ export const hit = style({
 	display: "flex",
 	alignItems: "flex-end",
 	justifyContent: "flex-start",
-	padding: "1.6cqw",
+	padding: "1cqh",
 	boxSizing: "border-box",
 	border: 0,
-	borderRadius: "3cqw",
+	borderRadius: "1.9cqh",
 	background: "transparent",
 	cursor: "pointer",
-	fontSize: "3.2cqw",
+	fontSize: "2cqh",
 	selectors: {
 		"&:focus-visible": {
 			outline: "3px solid var(--color-text)",
@@ -111,7 +123,7 @@ export const tag = style({
 });
 
 globalStyle(`${hit}:hover > ${tag}, ${hit}:focus-visible > ${tag}`, {
-	transform: "translateY(-0.4cqw) rotate(0deg)",
+	transform: "translateY(-0.25cqh) rotate(0deg)",
 });
 
 globalStyle(`${hit}:focus-visible > ${tag}`, {
@@ -136,48 +148,31 @@ export const alert = style({
 	fontWeight: 700,
 });
 
-export const bubble = style({
+// 操作のボタン（絵の右上）。背景は敷かず、ボタンごとに、白い台に乗せる。空いたところは、絵を押せるようにする。
+export const bar = style({
 	position: "absolute",
-	left: "3.5cqw",
-	top: "3cqw",
-	zIndex: 5,
-	// 飾りなので、下の絵（冷蔵庫・窓）を押せるように、操作は通す。
+	top: 10,
+	left: 12,
+	right: 12,
+	zIndex: 7,
+	display: "flex",
+	alignItems: "center",
+	justifyContent: "flex-end",
+	gap: 8,
 	pointerEvents: "none",
-	maxWidth: "46cqw",
-	margin: 0,
-	padding: "2cqw 3cqw",
-	boxSizing: "border-box",
-	borderRadius: "4cqw",
-	background: "var(--color-surface)",
-	border: "2px solid var(--color-text)",
-	fontSize: "3.3cqw",
-	fontWeight: 700,
-	lineHeight: 1.45,
-	transition: "opacity 300ms",
-	selectors: {
-		'&[data-hidden="true"]': { opacity: 0 },
-		"&::after": {
-			content: '""',
-			position: "absolute",
-			left: "6cqw",
-			bottom: "-1.4cqw",
-			width: "2.4cqw",
-			height: "2.4cqw",
-			background: "var(--color-surface)",
-			borderRight: "2px solid var(--color-text)",
-			borderBottom: "2px solid var(--color-text)",
-			transform: "rotate(45deg)",
-		},
-	},
 });
 
-// 表示の切り替え（絵の右上）。
-export const toggleSlot = style({
-	position: "absolute",
-	top: "2.4cqw",
-	right: "2.4cqw",
-	zIndex: 5,
+globalStyle(`${bar} > *`, { pointerEvents: "auto" });
+
+globalStyle(`${bar} [data-tools]`, {
+	padding: 4,
+	gap: 4,
+	borderRadius: 9999,
+	background: "var(--color-surface)",
+	boxShadow: "var(--shadow-sm)",
 });
+
+globalStyle(`${bar} [data-tools] button`, { background: "transparent" });
 
 // 庫内の外側（押すと、おうちにもどる）。
 export const backdrop = style({
@@ -188,4 +183,76 @@ export const backdrop = style({
 	padding: 0,
 	background: "rgba(41, 39, 32, 0.28)",
 	cursor: "pointer",
+});
+
+// ---------- 庫内（ズームしたあと） ----------
+
+const pop = keyframes({
+	from: { opacity: 0, transform: "translateY(6px) scale(0.98)" },
+	to: { opacity: 1, transform: "translateY(0) scale(1)" },
+});
+
+// 庫内：左の縦タブと、パネルを横に並べる。
+export const interiorWrap = style({
+	position: "absolute",
+	top: 64,
+	right: 0,
+	bottom: "1.9cqh",
+	left: 0,
+	boxSizing: "border-box",
+	width: "min(100%, 560px)",
+	paddingInline: "1.9cqh",
+	margin: "0 auto",
+	zIndex: 6,
+	display: "flex",
+	alignItems: "flex-start",
+	gap: 6,
+	// 空いたところは、外側として押せるようにする。
+	pointerEvents: "none",
+});
+
+globalStyle(`${interiorWrap} > *`, { pointerEvents: "auto" });
+
+export const interior = style({
+	boxSizing: "border-box",
+	position: "relative",
+	flex: 1,
+	minWidth: 0,
+	// 中身が少ないときは、低く。多いときは、画面いっぱいまで（中でスクロール）。
+	alignSelf: "flex-start",
+	maxHeight: "100%",
+	outline: "none",
+	display: "flex",
+	flexDirection: "column",
+	gap: 12,
+	padding: "12px 12px 0",
+	border: "2px solid var(--color-border-strong)",
+	borderRadius: "var(--radius-sheet)",
+	background: "var(--color-background)",
+	boxShadow: "var(--shadow-md)",
+	animation: `${pop} 320ms var(--ease-emphasized) both`,
+});
+
+export const interiorHead = style({
+	display: "flex",
+	alignItems: "center",
+	gap: 8,
+	margin: 0,
+	fontSize: "var(--font-size-lg)",
+});
+
+export const count = style({
+	fontSize: "var(--font-size-sm)",
+	fontWeight: "var(--font-weight-regular)",
+	color: "var(--color-text-muted)",
+});
+
+export const interiorScroll = style({
+	display: "grid",
+	alignContent: "start",
+	gap: 12,
+	flex: 1,
+	minHeight: 0,
+	paddingBottom: 20,
+	overflowY: "auto",
 });

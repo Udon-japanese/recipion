@@ -34,9 +34,15 @@ test.describe("レシピの「つくった」と在庫", () => {
 		await expect(stock.getByRole("button", { name: /^玉ねぎ、/ })).toBeVisible();
 
 		await openRecipe(page, "豚の生姜焼き");
-		await page
-			.getByRole("checkbox", { name: "できあがりを、在庫に入れる" })
-			.check();
+		// 読み込み直しの再描画で、押した直後に戻ることがある。入るまで、押し直す。
+		const intoStock = page.getByRole("checkbox", {
+			name: "できあがりを、在庫に入れる",
+		});
+
+		await expect(async () => {
+			await intoStock.check();
+			await expect(intoStock).toBeChecked();
+		}).toPass();
 		await page.getByRole("button", { name: "つくった！" }).click();
 		await expect(page.getByText(/在庫から\d+件を引きました/)).toBeVisible({
 			timeout: 20_000,

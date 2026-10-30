@@ -12,6 +12,7 @@ import { IconButton } from "#/components/icon-button/icon-button";
 import { Mascot } from "#/components/mascot/mascot";
 import { Note } from "#/components/note/note";
 import { useMediaQuery } from "#/components/use-media-query";
+import { MASCOT_DISPLAY_NAME } from "#/config/app";
 import type { InventoryPurchaseOwnerScope } from "../application/inventory-purchase-outbox";
 import type { InventoryListItem } from "../application/inventory-query-repository";
 import type { LoadInventoryItemsResult } from "../application/load-inventory-items-with-cache";
@@ -33,6 +34,28 @@ import {
 	InventoryRegistrationController,
 } from "./registration/registration-controller";
 import type { RegisteredInfo } from "./registration/use-inventory-registration";
+import { InventoryScene } from "./scene/inventory-scene";
+import { type InventoryView, ViewToggle } from "./view-toggle";
+
+const viewStorageKey = "recipion.inventory.view";
+const petStorageKey = "recipion.inventory.pet";
+
+function readView(): InventoryView {
+	try {
+		return window.localStorage.getItem(viewStorageKey) === "scene"
+			? "scene"
+			: "list";
+	} catch {
+		return "list";
+	}
+}
+
+// 夜の絵にする時間（18時〜翌5時）。
+function isNight(date: Date): boolean {
+	const hour = date.getHours();
+
+	return hour >= 18 || hour < 5;
+}
 
 type LoadInventoryItems = () => Promise<LoadInventoryItemsResult>;
 
@@ -99,6 +122,9 @@ export function InventoryList({
 	const [selection, setSelection] = useState<Selection | null>(null);
 	const [isRegistrationOpen, setIsRegistrationOpen] = useState(false);
 	const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+	const [view, setView] = useState<InventoryView>("list");
+	const [night, setNight] = useState(false);
+	const [petVisible, setPetVisible] = useState(true);
 	// 登録のパネルを開いている間に追加した食材。閉じたあと、タイルに輪を出す。
 	const addedItemIdsRef = useRef(new Set<string>());
 	const [highlightedIds, setHighlightedIds] = useState<ReadonlySet<string>>(
@@ -114,6 +140,38 @@ export function InventoryList({
 	// 広い画面：ドラッグで動かせる浮いたパネル（一覧を見ながら操作できる）。狭い画面：下のシート。
 	const isWide = useMediaQuery("(min-width: 1024px)");
 	const panelMode: ItemPanelMode = isWide ? "floating" : "sheet-bottom";
+
+	// 最後に選んだ表示を覚える（読み込めなければ、リスト）。時間は、描画のあとに見る。
+	useEffect(() => {
+		setView(readView());
+		setNight(isNight(new Date()));
+
+		try {
+			setPetVisible(window.localStorage.getItem(petStorageKey) !== "off");
+		} catch {
+			// 読めなければ、表示する。
+		}
+	}, []);
+
+	function changeView(next: InventoryView) {
+		setView(next);
+
+		try {
+			window.localStorage.setItem(viewStorageKey, next);
+		} catch {
+			// 覚えられなくても、そのまま使える。
+		}
+	}
+
+	function changePetVisible(next: boolean) {
+		setPetVisible(next);
+
+		try {
+			window.localStorage.setItem(petStorageKey, next ? "on" : "off");
+		} catch {
+			// 覚えられなくても、そのまま使える。
+		}
+	}
 
 	const isMember = ownerScope !== null && ownerScope !== "guest";
 
@@ -325,14 +383,31 @@ export function InventoryList({
 	const isOffline = itemsSource === "cache";
 	const hasItems = items.length > 0;
 	const showFridge = isMember && hasItems;
+	// おうちの表示では、操作（見出しは除く）を、絵の上部に重ねる。
+	const isSceneShown = showFridge && view === "scene";
 	const showEmpty =
 		isMember && hasLoaded && !isLoading && !errorMessage && !hasItems;
 	const showSkeleton = isMember && isLoading && !hasItems;
 
-	return (
-		<section className={styles.container}>
-			<div className={styles.header}>
-				<h1 className={styles.title}>在庫</h1>
+	const title = <h1 className={styles.title}>在庫</h1>;
+
+	const toolbar = (
+		<>
+			{isMember && hasItems ? (
+				<ViewToggle value={view} onChange={changeView} />
+			) : null}
+
+			<span className={styles.tools} data-tools>
+				{view === "scene" ? (
+					<IconButton
+						icon="eye"
+						label={`${MASCOT_DISPLAY_NAME}を表示`}
+						size="std"
+						tone={petVisible ? "on" : "plain"}
+						aria-pressed={petVisible}
+						onClick={() => changePetVisible(!petVisible)}
+					/>
+				) : null}
 
 				{isMember && registration ? (
 					<IconButton
@@ -352,18 +427,27 @@ export function InventoryList({
 						onClick={() => void loadItems()}
 					/>
 				) : null}
+			</span>
 
-				{isMember && registration && hasItems ? (
-					<span className={styles.addButton}>
-						<Button
-							leadingIcon={<Icon name="plus" size={20} />}
-							aria-haspopup="dialog"
-							onClick={() => setIsRegistrationOpen(true)}
-						>
-							在庫に追加
-						</Button>
-					</span>
-				) : null}
+			{isMember && registration && hasItems ? (
+				<span className={styles.addButton}>
+					<Button
+						leadingIcon={<Icon name="plus" size={20} />}
+						aria-haspopup="dialog"
+						onClick={() => setIsRegistrationOpen(true)}
+					>
+						在庫に追加
+					</Button>
+				</span>
+			) : null}
+		</>
+	);
+
+	return (
+		<section className={styles.container}>
+			<div className={styles.header}>
+				{title}
+				{isSceneShown ? null : toolbar}
 			</div>
 
 			{notices}
@@ -430,10 +514,23 @@ export function InventoryList({
 				</div>
 			) : null}
 
-			{showFridge ? (
+			{showFridge && view === "list" ? (
 				<InventoryListView
 					zones={zones}
 					today={today}
+					selectedItemId={selection?.inventoryItemId ?? null}
+					highlightedItemIds={highlightedIds}
+					onOpen={handleOpen}
+				/>
+			) : null}
+
+			{showFridge && view === "scene" ? (
+				<InventoryScene
+					zones={zones}
+					night={night}
+					petVisible={petVisible}
+					toolbar={toolbar}
+					onDismissPanel={() => setSelection(null)}
 					selectedItemId={selection?.inventoryItemId ?? null}
 					highlightedItemIds={highlightedIds}
 					onOpen={handleOpen}
@@ -448,6 +545,7 @@ export function InventoryList({
 					mode={panelMode}
 					actions={actions}
 					anchorTileKey={selection.tileKey}
+					anchorPlacement={view === "scene" ? "beside" : "overlap"}
 					readOnly={isOffline}
 					onClose={handleClose}
 					onUpdate={handleUpdate}

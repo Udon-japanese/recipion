@@ -32,7 +32,7 @@ const cheer = keyframes({
 	"80%": { transform: "translateY(0) scale(1.1, 0.86)" },
 });
 
-// 単位は em。場面の幅（cqw）に比例して大きさが変わる。
+// 単位は em。場面の高さ（cqh）に比例して大きさが変わる。
 export const pet = style({
 	position: "absolute",
 	zIndex: 4,
@@ -40,7 +40,7 @@ export const pet = style({
 	transform: "translate(-50%, -100%)",
 	width: "11em",
 	height: "10.4em",
-	fontSize: "1cqw",
+	fontSize: "0.625cqh",
 	padding: 0,
 	border: 0,
 	background: "none",
@@ -123,4 +123,56 @@ export const zzz = style({
 	color: "var(--color-text-muted)",
 	animation: `${floatZ} 2.6s ease-out infinite`,
 	pointerEvents: "none",
+});
+
+// 頭の上のふきだし。れしぽよについて歩く。飾りなので、操作は通す。
+export const bubble = style({
+	position: "absolute",
+	left: "50%",
+	// いちばん高く跳ねたとき（歩く跳ね・喜ぶ跳ね）でも、頭が当たらない高さに置く。
+	bottom: "calc(100% + 4.2cqh)",
+	zIndex: 1,
+	width: "max-content",
+	maxWidth: "29cqh",
+	boxSizing: "border-box",
+	padding: "1.25cqh 1.9cqh",
+	borderRadius: "2.5cqh",
+	background: "var(--color-surface)",
+	border: "2px solid var(--color-text)",
+	color: "var(--color-text)",
+	fontSize: "2.1cqh",
+	fontWeight: 700,
+	lineHeight: 1.45,
+	textAlign: "left",
+	pointerEvents: "none",
+	opacity: 0,
+	transform: "translate(-50%, 0.5cqh)",
+	transition: "opacity 200ms, transform 200ms",
+	selectors: {
+		'&[data-visible="true"]': {
+			opacity: 1,
+			transform: "translate(-50%, 0)",
+		},
+		"&::after": {
+			content: '""',
+			position: "absolute",
+			left: "50%",
+			bottom: "-0.9cqh",
+			width: "1.5cqh",
+			height: "1.5cqh",
+			background: "var(--color-surface)",
+			borderRight: "2px solid var(--color-text)",
+			borderBottom: "2px solid var(--color-text)",
+			transform: "translateX(-50%) rotate(45deg)",
+		},
+	},
+});
+
+export const srOnly = style({
+	position: "absolute",
+	width: 1,
+	height: 1,
+	overflow: "hidden",
+	clip: "rect(0 0 0 0)",
+	whiteSpace: "nowrap",
 });
