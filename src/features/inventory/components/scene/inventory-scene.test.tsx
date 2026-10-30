@@ -21,7 +21,11 @@ function lot(id: string, expiresOn: string | null = null): InventoryLot {
 
 const today = "2026-10-30";
 
-function renderScene(onOpen = vi.fn(), onDismissPanel = vi.fn()) {
+function renderScene(
+	onOpen = vi.fn(),
+	onDismissPanel = vi.fn(),
+	petVisible = false,
+) {
 	const zones = buildInventoryFridge(
 		[
 			buildInventoryListItem({
@@ -45,7 +49,7 @@ function renderScene(onOpen = vi.fn(), onDismissPanel = vi.fn()) {
 		<InventoryScene
 			zones={zones}
 			night={false}
-			petVisible={false}
+			petVisible={petVisible}
 			toolbar={null}
 			selectedItemId={null}
 			onOpen={onOpen}
@@ -115,4 +119,28 @@ describe("InventoryScene", () => {
 		).toBeInTheDocument();
 		expect(screen.queryByRole("button", { name: /^卵、/u })).toBeNull();
 	});
+
+	it("れしぽよにマウスを乗せると、ふきだしが出て、離すと消える", async () => {
+		const user = userEvent.setup();
+
+		renderScene(vi.fn(), vi.fn(), true);
+
+		const pet = screen.getByRole("button", { name: "れしぽよをつつく" });
+		const bubble = () => pet.querySelector("[data-visible]");
+
+		// 最初の5秒は、自動で出ている。そのあとの状態を見るため、いったん待つ。
+		await waitFor(
+			() => expect(bubble()).toHaveAttribute("data-visible", "false"),
+			{
+				timeout: 7000,
+			},
+		);
+
+		await user.hover(pet);
+		expect(bubble()).toHaveAttribute("data-visible", "true");
+
+		await user.unhover(pet);
+		expect(bubble()).toHaveAttribute("data-visible", "false");
+		expect(pet).toHaveAccessibleDescription(/期限|卵/u);
+	}, 10000);
 });

@@ -25,6 +25,8 @@ const spots: Spot[] = [
 	{ x: 62.5, y: 92.5, mood: "sleep" },
 ];
 const cushionIndex = 3;
+// ページを開いて最初の1回だけ、ふきだしを自動で出した（出し終えたら true）。
+let introShown = false;
 const startSpot: Spot = { x: 32, y: 64, mood: "idle" };
 
 type HitSpec = {
@@ -141,6 +143,10 @@ export function InventoryScene({
 	const [spotIndex, setSpotIndex] = useState(0);
 	const [arrivedAt, setArrivedAt] = useState<Spot | null>(null);
 	const [cheer, setCheer] = useState(false);
+	// ふきだし：最初の5秒（ページを開いて1回だけ）・乗せた間・つついたあとの4秒。
+	const [isIntro, setIsIntro] = useState(false);
+	const [isAttended, setIsAttended] = useState(false);
+	const [isTalking, setIsTalking] = useState(false);
 	const buttonRef = useRef<HTMLButtonElement>(null);
 	const hopRef = useRef<HTMLSpanElement>(null);
 	const spot = spots[night ? cushionIndex : spotIndex] ?? startSpot;
@@ -170,6 +176,30 @@ export function InventoryScene({
 	}, [arrived, zoomed, night, spotIndex]);
 
 	useEffect(() => {
+		if (!petVisible || introShown) {
+			return;
+		}
+
+		setIsIntro(true);
+		const timer = window.setTimeout(() => {
+			introShown = true;
+			setIsIntro(false);
+		}, 5000);
+
+		return () => window.clearTimeout(timer);
+	}, [petVisible]);
+
+	useEffect(() => {
+		if (!isTalking) {
+			return;
+		}
+
+		const timer = window.setTimeout(() => setIsTalking(false), 4000);
+
+		return () => window.clearTimeout(timer);
+	}, [isTalking]);
+
+	useEffect(() => {
 		if (!cheer) {
 			return;
 		}
@@ -179,6 +209,10 @@ export function InventoryScene({
 		return () => window.clearTimeout(timer);
 	}, [cheer]);
 
+	const petMessage = describePetMessage(
+		zones.flatMap((item) => item.tiles),
+		night,
+	);
 	const mood: PetMood = cheer ? "cheer" : arrived ? spot.mood : "walk";
 
 	function clearTimers() {
@@ -299,16 +333,6 @@ export function InventoryScene({
 				className={styles.frame}
 				aria-label={`${MASCOT_DISPLAY_NAME}のおうち`}
 			>
-				{petVisible ? (
-					<p className={styles.bubble} data-hidden={zoomed}>
-						<strong>{MASCOT_DISPLAY_NAME}</strong>：
-						{describePetMessage(
-							zones.flatMap((item) => item.tiles),
-							night,
-						)}
-					</p>
-				) : null}
-
 				<div className={styles.bar}>{toolbar}</div>
 
 				{inside ? (
@@ -379,7 +403,13 @@ export function InventoryScene({
 							mood={mood}
 							buttonRef={buttonRef}
 							hopRef={hopRef}
-							onPoke={() => setCheer(true)}
+							message={petMessage}
+							showMessage={isIntro || isAttended || isTalking}
+							onAttention={setIsAttended}
+							onPoke={() => {
+								setCheer(true);
+								setIsTalking(true);
+							}}
 						/>
 					)}
 				</div>

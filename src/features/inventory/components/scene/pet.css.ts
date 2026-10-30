@@ -124,3 +124,54 @@ export const zzz = style({
 	animation: `${floatZ} 2.6s ease-out infinite`,
 	pointerEvents: "none",
 });
+
+// 頭の上のふきだし。れしぽよについて歩く。飾りなので、操作は通す。
+export const bubble = style({
+	position: "absolute",
+	left: "50%",
+	bottom: "100%",
+	zIndex: 1,
+	width: "max-content",
+	maxWidth: "29cqh",
+	boxSizing: "border-box",
+	padding: "1.25cqh 1.9cqh",
+	borderRadius: "2.5cqh",
+	background: "var(--color-surface)",
+	border: "2px solid var(--color-text)",
+	color: "var(--color-text)",
+	fontSize: "2.1cqh",
+	fontWeight: 700,
+	lineHeight: 1.45,
+	textAlign: "left",
+	pointerEvents: "none",
+	opacity: 0,
+	transform: "translate(-50%, 0.5cqh)",
+	transition: "opacity 200ms, transform 200ms",
+	selectors: {
+		'&[data-visible="true"]': {
+			opacity: 1,
+			transform: "translate(-50%, 0)",
+		},
+		"&::after": {
+			content: '""',
+			position: "absolute",
+			left: "50%",
+			bottom: "-0.9cqh",
+			width: "1.5cqh",
+			height: "1.5cqh",
+			background: "var(--color-surface)",
+			borderRight: "2px solid var(--color-text)",
+			borderBottom: "2px solid var(--color-text)",
+			transform: "translateX(-50%) rotate(45deg)",
+		},
+	},
+});
+
+export const srOnly = style({
+	position: "absolute",
+	width: 1,
+	height: 1,
+	overflow: "hidden",
+	clip: "rect(0 0 0 0)",
+	whiteSpace: "nowrap",
+});
