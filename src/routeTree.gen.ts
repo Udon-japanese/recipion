@@ -24,7 +24,6 @@ import { Route as AdminAppealsRouteImport } from './routes/admin/appeals'
 import { Route as AdminReportsRouteImport } from './routes/admin/reports'
 import { Route as AdminUserReportsRouteImport } from './routes/admin/user-reports'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
-import { Route as DevInventoryRouteImport } from './routes/dev.inventory'
 import { Route as DevUiRouteImport } from './routes/dev.ui'
 import { Route as RecipesIndexRouteImport } from './routes/recipes/index'
 import { Route as RecipesNewRouteImport } from './routes/recipes/new'
@@ -107,11 +106,6 @@ const AdminUsersRoute = AdminUsersRouteImport.update({
   path: '/users',
   getParentRoute: () => AdminRoute,
 } as any)
-const DevInventoryRoute = DevInventoryRouteImport.update({
-  id: '/dev/inventory',
-  path: '/dev/inventory',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const DevUiRoute = DevUiRouteImport.update({
   id: '/dev/ui',
   path: '/dev/ui',
@@ -158,7 +152,6 @@ export interface FileRoutesByFullPath {
   '/admin/reports': typeof AdminReportsRoute
   '/admin/user-reports': typeof AdminUserReportsRoute
   '/admin/users': typeof AdminUsersRoute
-  '/dev/inventory': typeof DevInventoryRoute
   '/dev/ui': typeof DevUiRoute
   '/recipes/new': typeof RecipesNewRoute
   '/admin/': typeof AdminIndexRoute
@@ -181,7 +174,6 @@ export interface FileRoutesByTo {
   '/admin/reports': typeof AdminReportsRoute
   '/admin/user-reports': typeof AdminUserReportsRoute
   '/admin/users': typeof AdminUsersRoute
-  '/dev/inventory': typeof DevInventoryRoute
   '/dev/ui': typeof DevUiRoute
   '/recipes/new': typeof RecipesNewRoute
   '/admin': typeof AdminIndexRoute
@@ -206,7 +198,6 @@ export interface FileRoutesById {
   '/admin/reports': typeof AdminReportsRoute
   '/admin/user-reports': typeof AdminUserReportsRoute
   '/admin/users': typeof AdminUsersRoute
-  '/dev/inventory': typeof DevInventoryRoute
   '/dev/ui': typeof DevUiRoute
   '/recipes/new': typeof RecipesNewRoute
   '/admin/': typeof AdminIndexRoute
@@ -232,7 +223,6 @@ export interface FileRouteTypes {
     | '/admin/reports'
     | '/admin/user-reports'
     | '/admin/users'
-    | '/dev/inventory'
     | '/dev/ui'
     | '/recipes/new'
     | '/admin/'
@@ -255,7 +245,6 @@ export interface FileRouteTypes {
     | '/admin/reports'
     | '/admin/user-reports'
     | '/admin/users'
-    | '/dev/inventory'
     | '/dev/ui'
     | '/recipes/new'
     | '/admin'
@@ -279,7 +268,6 @@ export interface FileRouteTypes {
     | '/admin/reports'
     | '/admin/user-reports'
     | '/admin/users'
-    | '/dev/inventory'
     | '/dev/ui'
     | '/recipes/new'
     | '/admin/'
@@ -300,7 +288,6 @@ export interface RootRouteChildren {
   ShoppingRoute: typeof ShoppingRoute
   TeapotRoute: typeof TeapotRoute
   TermsRoute: typeof TermsRoute
-  DevInventoryRoute: typeof DevInventoryRoute
   DevUiRoute: typeof DevUiRoute
   RecipesNewRoute: typeof RecipesNewRoute
   RecipesIndexRoute: typeof RecipesIndexRoute
@@ -416,13 +403,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsersRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/dev/inventory': {
-      id: '/dev/inventory'
-      path: '/dev/inventory'
-      fullPath: '/dev/inventory'
-      preLoaderRoute: typeof DevInventoryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/dev/ui': {
       id: '/dev/ui'
       path: '/dev/ui'
@@ -497,7 +477,6 @@ const rootRouteChildren: RootRouteChildren = {
   ShoppingRoute: ShoppingRoute,
   TeapotRoute: TeapotRoute,
   TermsRoute: TermsRoute,
-  DevInventoryRoute: DevInventoryRoute,
   DevUiRoute: DevUiRoute,
   RecipesNewRoute: RecipesNewRoute,
   RecipesIndexRoute: RecipesIndexRoute,

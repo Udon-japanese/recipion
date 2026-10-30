@@ -6,7 +6,11 @@ test("買い物メモに追加でき、読み込み直しても残る（ブラ�
 	await page.goto("/shopping");
 	await expect(page.getByText("買うものはまだありません。")).toBeVisible();
 
-	await page.getByRole("button", { name: "買うものを入れる" }).click();
+	// 入口は、デスクトップ幅では「追加」、スマホ幅では右下の「＋」（買うものを入れる）。
+	// 上の「まだありません」が出たあとなので、画面幅の判定は済んでいる。
+	await page
+		.getByRole("button", { name: /^(追加|買うものを入れる)$/ })
+		.click();
 
 	const input = page.getByRole("combobox", { name: "買うもの" });
 
