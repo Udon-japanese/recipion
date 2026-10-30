@@ -414,7 +414,7 @@ describe("InventoryRegistrationPanel", () => {
 
 			// 買ってから3日後の期限を入力して、登録する
 			await user.click(
-				screen.getByRole("button", { name: "期限を+3日にする" }),
+				screen.getByRole("button", { name: "期限を3日後にする" }),
 			);
 			await user.click(screen.getByRole("button", { name: "在庫に追加" }));
 			await waitFor(() => expect(registerInventoryItem).toHaveBeenCalled());

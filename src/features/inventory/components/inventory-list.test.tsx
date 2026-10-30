@@ -362,9 +362,14 @@ describe("InventoryList", () => {
 
 		const dialog = await openPanel(user, "卵");
 
-		await user.click(within(dialog).getByRole("button", { name: "調整" }));
-		await user.clear(screen.getByRole("textbox", { name: "卵の調整数量" }));
-		await user.type(screen.getByRole("textbox", { name: "卵の調整数量" }), "2");
+		await user.click(
+			within(dialog).getByRole("button", { name: "買い足した" }),
+		);
+		await user.clear(screen.getByRole("textbox", { name: "卵の買い足した量" }));
+		await user.type(
+			screen.getByRole("textbox", { name: "卵の買い足した量" }),
+			"2",
+		);
 		await user.click(screen.getByRole("button", { name: "増やす" }));
 
 		await waitFor(() =>
@@ -407,7 +412,9 @@ describe("InventoryList", () => {
 
 		const dialog = await openPanel(user, "卵");
 
-		await user.click(within(dialog).getByRole("button", { name: "調整" }));
+		await user.click(
+			within(dialog).getByRole("button", { name: "買い足した" }),
+		);
 
 		expect(
 			(
@@ -452,7 +459,7 @@ describe("InventoryList", () => {
 
 			const dialog = await openPanel(user, "卵");
 
-			await user.click(within(dialog).getByRole("button", { name: "調整" }));
+			await user.click(within(dialog).getByRole("button", { name: "使った" }));
 			await user.click(screen.getByLabelText("入れた分を指定して減らす"));
 			await user.type(
 				screen.getByLabelText("10/1に入れた分から減らす数量"),
@@ -491,7 +498,9 @@ describe("InventoryList", () => {
 
 			const dialog = await openPanel(user, "卵");
 
-			await user.click(within(dialog).getByRole("button", { name: "調整" }));
+			await user.click(
+				within(dialog).getByRole("button", { name: "買い足した" }),
+			);
 
 			expect(screen.queryByLabelText("入れた分を指定して減らす")).toBeNull();
 		});
@@ -581,15 +590,19 @@ describe("InventoryList", () => {
 
 			const dialog = await openPanel(user, "卵");
 
-			await user.click(within(dialog).getByRole("button", { name: "調整" }));
+			await user.click(
+				within(dialog).getByRole("button", { name: "買い足した" }),
+			);
 			expect(
-				screen.getByRole("textbox", { name: "卵の調整数量" }),
+				screen.getByRole("textbox", { name: "卵の買い足した量" }),
 			).toBeInTheDocument();
 
 			await user.click(screen.getByRole("button", { name: "戻る" }));
 
-			expect(screen.queryByLabelText("卵の調整数量")).toBeNull();
-			expect(screen.getByRole("button", { name: "調整" })).toBeInTheDocument();
+			expect(screen.queryByLabelText("卵の買い足した量")).toBeNull();
+			expect(
+				screen.getByRole("button", { name: "買い足した" }),
+			).toBeInTheDocument();
 		});
 	});
 

@@ -157,3 +157,10 @@ export const counter = style({
 	fontSize: 13,
 	color: "var(--color-text-muted)",
 });
+
+// 「使った」「買い足した」の2つのボタン。
+export const primaryActions = style({
+	display: "grid",
+	gridTemplateColumns: "1fr 1fr",
+	gap: 8,
+});

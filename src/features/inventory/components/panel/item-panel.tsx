@@ -174,13 +174,15 @@ export function ItemPanel({
 	const status = primary.status;
 
 	if (view.name === "adjust") {
-		heading = `${displayName}の調整数量`;
+		const isDecrease = view.operation === "decrease";
+
+		heading = `${displayName}の${isDecrease ? "使った量" : "買い足した量"}`;
 		body = (
 			<div className={styles.formStack}>
 				<div className={styles.quantityLine}>
 					<QuantityInput
 						className={fieldInput}
-						aria-label={`${item.name}の調整数量`}
+						aria-label={`${item.name}の${isDecrease ? "使った量" : "買い足した量"}`}
 						value={panel.adjustForm.quantity}
 						onChange={panel.adjustForm.setQuantity}
 						unitLabel={item.stockUnitLabel}
@@ -188,7 +190,7 @@ export function ItemPanel({
 					<span className={styles.unitSuffix}>{item.stockUnitLabel}</span>
 				</div>
 
-				{item.lots.length > 1 ? (
+				{isDecrease && item.lots.length > 1 ? (
 					<div className={styles.lotFieldList}>
 						<label className={styles.checkLine}>
 							<input
@@ -232,21 +234,13 @@ export function ItemPanel({
 			</div>
 		);
 		bar = (
-			<div className={styles.bar} data-columns="3">
+			<div className={styles.bar} data-columns="2">
 				{cancel}
 				<Button
-					variant="secondary"
-					disabled={item.quantity === 0}
-					disabledReason="在庫が 0 のため、減らせません。"
-					onClick={() => runPrimary(() => panel.run.adjust("decrease"))}
-				>
-					減らす
-				</Button>
-				<Button
 					status={status}
-					onClick={() => runPrimary(() => panel.run.adjust("increase"))}
+					onClick={() => runPrimary(() => panel.run.adjust(view.operation))}
 				>
-					増やす
+					{isDecrease ? "減らす" : "増やす"}
 				</Button>
 			</div>
 		);
@@ -498,14 +492,27 @@ export function ItemPanel({
 				) : null}
 
 				{!isPresence && actions.adjustInventoryItem ? (
-					<Button
-						fullWidth
-						disabled={readOnly}
-						disabledReason={offlineMessage}
-						onClick={panel.open.adjust}
-					>
-						調整
-					</Button>
+					<div className={styles.primaryActions}>
+						<Button
+							variant="secondary"
+							fullWidth
+							disabled={readOnly || item.quantity === 0}
+							disabledReason={
+								readOnly ? offlineMessage : "在庫が 0 のため、減らせません。"
+							}
+							onClick={() => panel.open.adjust("decrease")}
+						>
+							使った
+						</Button>
+						<Button
+							fullWidth
+							disabled={readOnly}
+							disabledReason={offlineMessage}
+							onClick={() => panel.open.adjust("increase")}
+						>
+							買い足した
+						</Button>
+					</div>
 				) : null}
 
 				{item.lots.length > 0 ? (
@@ -562,7 +569,7 @@ export function ItemPanel({
 														aria-label={`${lotLabel(lot)}の数量を直す`}
 														onClick={() => panel.open.lotQuantity(lot)}
 													>
-														数量
+														数量を直す
 													</Button>
 												) : null}
 												{actions.updateInventoryLot ? (
@@ -574,7 +581,7 @@ export function ItemPanel({
 														aria-label={`${lotLabel(lot)}の期限を編集`}
 														onClick={() => panel.open.lotExpiry(lot)}
 													>
-														期限
+														期限を直す
 													</Button>
 												) : null}
 											</div>
@@ -632,22 +639,19 @@ export function ItemPanel({
 								名前を変更
 							</RowButton>
 						) : null}
+						{actions.deleteInventoryItem ? (
+							<RowButton
+								icon="trash"
+								danger
+								readOnly={readOnly}
+								label={`${displayName}を在庫から削除`}
+								onClick={guard(() => setIsDeleting(true))}
+							>
+								削除
+							</RowButton>
+						) : null}
 					</div>
 				</Card>
-
-				{actions.deleteInventoryItem ? (
-					<Card>
-						<RowButton
-							icon="trash"
-							danger
-							readOnly={readOnly}
-							label={`${displayName}を在庫から削除`}
-							onClick={guard(() => setIsDeleting(true))}
-						>
-							削除
-						</RowButton>
-					</Card>
-				) : null}
 			</div>
 		);
 	}

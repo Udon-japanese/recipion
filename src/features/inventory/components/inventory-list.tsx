@@ -333,6 +333,11 @@ export function InventoryList({
 	function handleRegistrationOpenChange(open: boolean) {
 		setIsRegistrationOpen(open);
 
+		// 追加のパネルと、食材のパネルは、どちらか一方だけ開く。
+		if (open) {
+			setSelection(null);
+		}
+
 		if (open || addedItemIdsRef.current.size === 0) {
 			return;
 		}
@@ -351,11 +356,8 @@ export function InventoryList({
 	}
 
 	function handleOpen(tile: InventoryTileModel) {
-		// 広い画面で、追加のパネルを開いている間は、行を押しても何も開かない（閉じてから）。
-		if (isRegistrationOpen && isWide) {
-			return;
-		}
-
+		// 追加のパネルと、食材のパネルは、どちらか一方だけ開く。
+		handleRegistrationOpenChange(false);
 		setSelection({
 			inventoryItemId: tile.inventoryItemId,
 			zone: tile.zone,
@@ -434,7 +436,7 @@ export function InventoryList({
 					<Button
 						leadingIcon={<Icon name="plus" size={20} />}
 						aria-haspopup="dialog"
-						onClick={() => setIsRegistrationOpen(true)}
+						onClick={() => handleRegistrationOpenChange(true)}
 					>
 						在庫に追加
 					</Button>
@@ -506,7 +508,7 @@ export function InventoryList({
 						<Button
 							leadingIcon={<Icon name="plus" size={20} />}
 							aria-haspopup="dialog"
-							onClick={() => setIsRegistrationOpen(true)}
+							onClick={() => handleRegistrationOpenChange(true)}
 						>
 							在庫に追加
 						</Button>

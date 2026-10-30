@@ -35,8 +35,17 @@ export const detailsToggle = style({
 	minHeight: 44,
 	padding: 0,
 	color: "var(--color-text)",
-	textAlign: "left",
+	background: "none",
+	border: "none",
+	font: "inherit",
+	textAlign: "start",
 	cursor: "pointer",
+	selectors: {
+		"&:focus-visible": {
+			outline: "3px solid var(--color-focus)",
+			outlineOffset: 2,
+		},
+	},
 });
 
 export const detailsTitle = style({
