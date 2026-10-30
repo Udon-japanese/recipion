@@ -429,7 +429,7 @@ export function ItemPanel({
 					<span className={styles.unitSuffix}>{item.stockUnitLabel}</span>
 				</div>
 
-				<Field label="管理方法">
+				<Field label="数え方">
 					{(control) => (
 						<SelectBox
 							{...control}

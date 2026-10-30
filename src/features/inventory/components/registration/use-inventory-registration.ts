@@ -98,8 +98,7 @@ export function useInventoryRegistration({
 	// クイック入力の基準になる、今日（日本時間）。
 	const today = useMemo(() => toDateString(new Date()), []);
 	const submitAction = useButtonAction();
-	const availableAction = useButtonAction();
-	const isSubmitting = submitAction.isPending || availableAction.isPending;
+	const isSubmitting = submitAction.isPending;
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [successMessage, setSuccessMessage] = useState<string | null>(null);
 	// 開いている間に追加した件数（連続して登録していることの目印）。
@@ -280,7 +279,6 @@ export function useInventoryRegistration({
 		today,
 		isSubmitting,
 		submitAction,
-		availableAction,
 		errorMessage,
 		successMessage,
 		addedCount,
