@@ -58,9 +58,6 @@ export function InventoryRow({
 					<span className={styles.amount}>
 						{tile.isEmpty ? "なし" : describeTileQuantity(tile)}
 					</span>
-					{tile.lotCount >= 2 ? (
-						<span className={styles.amount}>（{tile.lotCount}回分）</span>
-					) : null}
 					{expiry ? (
 						<Tag
 							tone={expiry.level === "near" ? "warn" : "error"}

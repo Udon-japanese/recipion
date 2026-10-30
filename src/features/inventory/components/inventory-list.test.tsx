@@ -420,25 +420,23 @@ describe("InventoryList", () => {
 	});
 
 	describe("ロット", () => {
-		it("ロットごとの追加日と数量を、パネルに表示する。複数あるときは「（2回分）」", async () => {
+		it("ロットごとの追加日と数量を、パネルに表示する。行には回数を出さない", async () => {
 			const user = userEvent.setup();
 
 			renderList([eggItem]);
 
-			expect(await screen.findByText("（2回分）")).toBeInTheDocument();
-
 			const dialog = await openPanel(user, "卵");
 			const lots = within(
-				within(dialog).getByRole("list", { name: "卵のロット" }),
+				within(dialog).getByRole("list", { name: "卵の内訳" }),
 			);
 
-			expect(lots.getByText("10/1に追加")).toBeInTheDocument();
+			expect(lots.getByText("10/1に入れた分")).toBeInTheDocument();
 			expect(lots.getByText("2個")).toBeInTheDocument();
-			expect(lots.getByText("10/3に追加")).toBeInTheDocument();
+			expect(lots.getByText("10/3に入れた分")).toBeInTheDocument();
 			expect(lots.getByText("3個")).toBeInTheDocument();
 		});
 
-		it("ロットを指定して減らすと、ロットごとの数量を送り、結果を表示する", async () => {
+		it("入れた分を指定して減らすと、ロットごとの数量を送り、結果を表示する", async () => {
 			const user = userEvent.setup();
 			const adjustInventoryItem = vi.fn().mockResolvedValue({
 				status: "applied",
@@ -455,13 +453,13 @@ describe("InventoryList", () => {
 			const dialog = await openPanel(user, "卵");
 
 			await user.click(within(dialog).getByRole("button", { name: "調整" }));
-			await user.click(screen.getByLabelText("ロットを指定して減らす"));
+			await user.click(screen.getByLabelText("入れた分を指定して減らす"));
 			await user.type(
-				screen.getByLabelText("10/1に追加のロットから減らす数量"),
+				screen.getByLabelText("10/1に入れた分から減らす数量"),
 				"1",
 			);
 			await user.type(
-				screen.getByLabelText("10/3に追加のロットから減らす数量"),
+				screen.getByLabelText("10/3に入れた分から減らす数量"),
 				"1",
 			);
 			await user.click(screen.getByRole("button", { name: "減らす" }));
@@ -495,7 +493,7 @@ describe("InventoryList", () => {
 
 			await user.click(within(dialog).getByRole("button", { name: "調整" }));
 
-			expect(screen.queryByLabelText("ロットを指定して減らす")).toBeNull();
+			expect(screen.queryByLabelText("入れた分を指定して減らす")).toBeNull();
 		});
 
 		it("期限と保存方法を表示する（目安は「約」付き）。期限の近いロットを先に並べる", async () => {
@@ -526,7 +524,7 @@ describe("InventoryList", () => {
 
 			const dialog = await openPanel(user, "卵");
 			const lots = within(
-				within(dialog).getByRole("list", { name: "卵のロット" }),
+				within(dialog).getByRole("list", { name: "卵の内訳" }),
 			);
 
 			expect(lots.getByText("消費期限 約 10/10")).toBeInTheDocument();
@@ -554,7 +552,7 @@ describe("InventoryList", () => {
 
 			await user.click(
 				within(dialog).getByRole("button", {
-					name: "10/1に追加のロットの期限を編集",
+					name: "10/1に入れた分の期限を編集",
 				}),
 			);
 			await user.click(
@@ -762,10 +760,10 @@ describe("InventoryList", () => {
 			);
 
 			expect(deleteInventoryItem).not.toHaveBeenCalled();
-			expect(screen.getByText(/ロットと履歴も消えます/u)).toBeInTheDocument();
+			expect(screen.getByText(/内訳と履歴も消えます/u)).toBeInTheDocument();
 
 			await user.click(screen.getByRole("button", { name: "やめる" }));
-			expect(screen.queryByText(/ロットと履歴も消えます/u)).toBeNull();
+			expect(screen.queryByText(/内訳と履歴も消えます/u)).toBeNull();
 
 			await user.click(
 				screen.getByRole("button", { name: "鶏もも肉を在庫から削除" }),
@@ -926,7 +924,7 @@ describe("InventoryList", () => {
 
 			// 300g → 1.2枚、600g → 2.4枚 が、ロットごとの目安として入る
 			const [early, late] = screen.getAllByLabelText(
-				"10/1に追加のロットの新しい単位での量",
+				"10/1に入れた分の新しい単位での量",
 			);
 
 			if (!early || !late) {
@@ -1028,7 +1026,7 @@ describe("InventoryList", () => {
 				"count:個",
 			);
 			expect(
-				screen.getByLabelText("10/1に追加のロットの新しい単位での量"),
+				screen.getByLabelText("10/1に入れた分の新しい単位での量"),
 			).toHaveValue("");
 
 			await user.click(screen.getByRole("button", { name: "この単位にする" }));
@@ -1080,7 +1078,7 @@ describe("InventoryList", () => {
 
 			expect(
 				within(oilDialog).queryByRole("button", {
-					name: "10/1に追加のロットの数量を直す",
+					name: "10/1に入れた分の数量を直す",
 				}),
 			).toBeNull();
 
@@ -1093,11 +1091,11 @@ describe("InventoryList", () => {
 
 			await user.click(
 				within(dialog).getByRole("button", {
-					name: "10/1に追加のロットの数量を直す",
+					name: "10/1に入れた分の数量を直す",
 				}),
 			);
-			await user.clear(screen.getByLabelText("10/1に追加のロットの数量"));
-			await user.type(screen.getByLabelText("10/1に追加のロットの数量"), "300");
+			await user.clear(screen.getByLabelText("10/1に入れた分の数量"));
+			await user.type(screen.getByLabelText("10/1に入れた分の数量"), "300");
 			await user.click(screen.getByRole("button", { name: "この数量にする" }));
 
 			expect(setLotQuantity).toHaveBeenCalledWith({
@@ -1117,18 +1115,18 @@ describe("InventoryList", () => {
 
 			await user.click(
 				within(dialog).getByRole("button", {
-					name: "10/1に追加のロットの数量を直す",
+					name: "10/1に入れた分の数量を直す",
 				}),
 			);
-			await user.clear(screen.getByLabelText("10/1に追加のロットの数量"));
-			await user.type(screen.getByLabelText("10/1に追加のロットの数量"), "abc");
+			await user.clear(screen.getByLabelText("10/1に入れた分の数量"));
+			await user.type(screen.getByLabelText("10/1に入れた分の数量"), "abc");
 			await user.click(screen.getByRole("button", { name: "この数量にする" }));
 
 			expect(await screen.findByRole("alert")).toHaveTextContent("数量を確認");
 			expect(setLotQuantity).not.toHaveBeenCalled();
 
-			await user.clear(screen.getByLabelText("10/1に追加のロットの数量"));
-			await user.type(screen.getByLabelText("10/1に追加のロットの数量"), "100");
+			await user.clear(screen.getByLabelText("10/1に入れた分の数量"));
+			await user.type(screen.getByLabelText("10/1に入れた分の数量"), "100");
 			await user.click(screen.getByRole("button", { name: "この数量にする" }));
 
 			await waitFor(() =>

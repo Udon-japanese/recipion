@@ -159,7 +159,7 @@ export function ItemPanel({
 	});
 
 	const lotLabel = (lot: InventoryLot) =>
-		`${formatShortDate(lot.acquiredOn)}に追加`;
+		`${formatShortDate(lot.acquiredOn)}に入れた分`;
 
 	// ---- 本文・見出し・操作バーを、いまの画面で決める ----
 	let heading = title;
@@ -198,7 +198,7 @@ export function ItemPanel({
 									panel.adjustForm.setIsLotSpecified(event.target.checked)
 								}
 							/>
-							ロットを指定して減らす
+							入れた分を指定して減らす
 						</label>
 
 						{panel.adjustForm.isLotSpecified
@@ -210,7 +210,7 @@ export function ItemPanel({
 										{(control) => (
 											<TextInput
 												{...control}
-												aria-label={`${lotLabel(lot)}のロットから減らす数量`}
+												aria-label={`${lotLabel(lot)}から減らす数量`}
 												type="number"
 												inputMode="decimal"
 												min="0"
@@ -259,7 +259,7 @@ export function ItemPanel({
 				<div className={styles.quantityLine}>
 					<QuantityInput
 						className={fieldInput}
-						aria-label={`${lot ? lotLabel(lot) : ""}のロットの数量`}
+						aria-label={`${lot ? lotLabel(lot) : ""}の数量`}
 						value={panel.lotQuantityForm.value}
 						onChange={panel.lotQuantityForm.setValue}
 						unitLabel={item.stockUnitLabel}
@@ -352,7 +352,7 @@ export function ItemPanel({
 
 				<div className={styles.lotFieldList}>
 					<p className={styles.subLabel}>
-						ロットごとの量（換算した目安が入っています。違えば直してください）
+						入れた分ごとの量（換算した目安が入っています。違えば直してください）
 					</p>
 					{item.lots.map((lot) => (
 						<div key={lot.id} className={styles.lotFieldList}>
@@ -362,7 +362,7 @@ export function ItemPanel({
 							</span>
 							<QuantityInput
 								className={fieldInput}
-								aria-label={`${lotLabel(lot)}のロットの新しい単位での量`}
+								aria-label={`${lotLabel(lot)}の新しい単位での量`}
 								unitLabel={selected?.stockUnitLabel}
 								value={panel.unitForm.lotQuantities[lot.id] ?? ""}
 								onChange={(value) =>
@@ -510,7 +510,7 @@ export function ItemPanel({
 
 				{item.lots.length > 0 ? (
 					<Card>
-						<ul className={styles.lotList} aria-label={`${item.name}のロット`}>
+						<ul className={styles.lotList} aria-label={`${item.name}の内訳`}>
 							{sortedLots.map((lot) => {
 								const expiryText = formatLotExpiry(lot);
 								const badge = findNearestExpiry([lot], panel.today);
@@ -559,7 +559,7 @@ export function ItemPanel({
 														size="sm"
 														disabled={readOnly}
 														disabledReason={offlineMessage}
-														aria-label={`${lotLabel(lot)}のロットの数量を直す`}
+														aria-label={`${lotLabel(lot)}の数量を直す`}
 														onClick={() => panel.open.lotQuantity(lot)}
 													>
 														数量
@@ -571,7 +571,7 @@ export function ItemPanel({
 														size="sm"
 														disabled={readOnly}
 														disabledReason={offlineMessage}
-														aria-label={`${lotLabel(lot)}のロットの期限を編集`}
+														aria-label={`${lotLabel(lot)}の期限を編集`}
 														onClick={() => panel.open.lotExpiry(lot)}
 													>
 														期限
@@ -680,7 +680,7 @@ export function ItemPanel({
 				}}
 			>
 				「{displayName}
-				」を在庫から削除します。ロットと履歴も消えます。よろしいですか。
+				」を在庫から削除します。内訳と履歴も消えます。よろしいですか。
 			</ConfirmDialog>
 		</>
 	);
