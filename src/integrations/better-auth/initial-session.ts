@@ -1,3 +1,5 @@
+import { type Avatar, parseAvatar } from "#/features/avatar/domain/avatar";
+
 // サーバーで確認したセッションのうち、表示に使う最小限の項目だけ。
 // SSR の HTML に埋め込まれるため、トークンなどは含めない。
 export type InitialSession = {
@@ -5,11 +7,15 @@ export type InitialSession = {
 		id: string;
 		name: string;
 		email: string;
+		// null は、まだ作っていない（ユーザーごとに決まったプリセットを出す）。
+		avatar: Avatar | null;
 	};
 };
 
 type StoreSession = {
-	data: { user: { id: string; name: string; email: string } } | null;
+	data: {
+		user: { id: string; name: string; email: string; avatar?: unknown };
+	} | null;
 	isPending: boolean;
 };
 
@@ -39,6 +45,7 @@ export function resolveSession(
 						id: store.data.user.id,
 						name: store.data.user.name,
 						email: store.data.user.email,
+						avatar: parseAvatar(store.data.user.avatar),
 					},
 				}
 			: null,

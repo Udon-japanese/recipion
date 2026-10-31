@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import { type InitialSession, resolveSession } from "./initial-session";
 
 const initialSession: InitialSession = {
-	user: { id: "u1", name: "山田", email: "yamada@example.com" },
+	user: { id: "u1", name: "山田", email: "yamada@example.com", avatar: null },
+};
+
+const tomatoAvatar = {
+	background: "mint",
+	placements: [{ partId: "tomato", x: 50, y: 50 }],
 };
 
 const pendingStore = { data: null, isPending: true };
@@ -39,16 +44,46 @@ describe("resolveSession", () => {
 	it("クライアントの取得が終わったら、ストアの値を優先し、表示に使う項目だけを返す", () => {
 		const store = {
 			data: {
-				user: { id: "u2", name: "佐藤", email: "sato@example.com" },
+				user: {
+					id: "u2",
+					name: "佐藤",
+					email: "sato@example.com",
+					avatar: tomatoAvatar,
+				},
 				session: { token: "secret" },
 			},
 			isPending: false,
 		};
 
 		expect(resolveSession(store, initialSession, true)).toEqual({
-			data: { user: { id: "u2", name: "佐藤", email: "sato@example.com" } },
+			data: {
+				user: {
+					id: "u2",
+					name: "佐藤",
+					email: "sato@example.com",
+					avatar: tomatoAvatar,
+				},
+			},
 			isPending: false,
 		});
+	});
+
+	it("ストアのアバターが壊れていれば、なし（ユーザーごとのプリセット）として扱う", () => {
+		const store = {
+			data: {
+				user: {
+					id: "u2",
+					name: "佐藤",
+					email: "sato@example.com",
+					avatar: { background: "unknown", placements: [] },
+				},
+			},
+			isPending: false,
+		};
+
+		expect(resolveSession(store, initialSession, true).data?.user.avatar).toBe(
+			null,
+		);
 	});
 
 	it("ログアウトしたあとは、サーバーの初期値に戻らずゲストになる", () => {

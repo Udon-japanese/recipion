@@ -1,11 +1,11 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { Avatar } from "#/components/avatar/avatar";
 import { ButtonLink } from "#/components/button/button-link";
 import { Icon } from "#/components/icon/icon";
 import type { IconName } from "#/components/icon/icon-definitions";
 import { Mascot } from "#/components/mascot/mascot";
 import { APP_DISPLAY_NAME } from "#/config/app";
+import { UserAvatar } from "#/features/avatar/components/user-avatar";
 import { useAppSession } from "#/integrations/better-auth/use-app-session";
 import { getShellLayout } from "../domain/shell-layout";
 import * as styles from "./app-shell.css";
@@ -89,7 +89,11 @@ function HeaderAccount() {
 					className={styles.avatarLink}
 					aria-label="プロフィール"
 				>
-					<Avatar name={session.user.name} />
+					<UserAvatar
+						userId={session.user.id}
+						avatar={session.user.avatar}
+						size={36}
+					/>
 				</Link>
 			) : (
 				<ButtonLink to="/login" size="sm">
@@ -150,7 +154,11 @@ function SideNav() {
 
 			{isPending ? null : session ? (
 				<Link to="/profile" className={styles.me}>
-					<Avatar name={session.user.name} />
+					<UserAvatar
+						userId={session.user.id}
+						avatar={session.user.avatar}
+						size={36}
+					/>
 					<span className={styles.meName}>{session.user.name}</span>
 				</Link>
 			) : (

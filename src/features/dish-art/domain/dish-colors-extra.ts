@@ -142,4 +142,6 @@ export const extraDishColors = {
 	rouxBlock: "#6a3f22",
 	rouxBlockLight: "#8a5a38",
 	rouxBlockDark: "#3f2412",
+	// 顔
+	blush: "#f29b94",
 } as const;

@@ -1,4 +1,4 @@
-import { type SubmitEvent, useState } from "react";
+import { type ReactNode, type SubmitEvent, useState } from "react";
 import { Button } from "#/components/button/button";
 import { useButtonAction } from "#/components/button/use-button-action";
 import { Card } from "#/components/card/card";
@@ -21,12 +21,19 @@ type ProfileFormProps = {
 	}) => Promise<UpdateProfileResult>;
 	// 保存のあと（ヘッダーなどの、ログイン中の名前の表示を、更新するため）。
 	onChanged?: () => void;
+	// 見出しの下に置く、アバターの欄。
+	avatar?: ReactNode;
 };
 
 type FieldErrors = { name?: string; handle?: string; form?: string };
 
 // 公開される名前（表示名とハンドル）の編集。
-export function ProfileForm({ profile, onSave, onChanged }: ProfileFormProps) {
+export function ProfileForm({
+	profile,
+	onSave,
+	onChanged,
+	avatar,
+}: ProfileFormProps) {
 	const [name, setName] = useState(profile.name);
 	const [handle, setHandle] = useState(profile.handle);
 	const [errors, setErrors] = useState<FieldErrors>({});
@@ -64,8 +71,10 @@ export function ProfileForm({ profile, onSave, onChanged }: ProfileFormProps) {
 		<section className={styles.container}>
 			<h1 className={styles.title}>プロフィール</h1>
 			<p className={styles.lead}>
-				公開されるのは、表示名とハンドルだけです。メールアドレスは、公開されません。
+				公開されるのは、アバター・表示名・ハンドルだけです。メールアドレスは、公開されません。
 			</p>
+
+			{avatar}
 
 			<Card padding="md">
 				<form

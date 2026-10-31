@@ -37,7 +37,8 @@ export const dishPlaceholders: readonly (readonly DishPlacement[])[] = [
 	],
 ];
 
-function hashSeed(seed: string): number {
+// 文字列から、いつも同じ数を出す（決まった1つを選ぶため）。
+export function hashSeed(seed: string): number {
 	let hash = 5381;
 
 	for (const character of seed) {

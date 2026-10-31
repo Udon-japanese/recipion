@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
 
 import { createDb } from "#/db/client";
+import { parseAvatar } from "#/features/avatar/domain/avatar";
 import { STATIC_PAGE_REQUEST_HEADER } from "#/features/pwa/build/static-pages";
 import { createAuth } from "#/integrations/better-auth/auth";
 import type { InitialSession } from "#/integrations/better-auth/initial-session";
@@ -38,6 +39,7 @@ export const getInitialSessionServerFn = createServerFn({
 			id: session.user.id,
 			name: session.user.name,
 			email: session.user.email,
+			avatar: parseAvatar(session.user.avatar),
 		},
 	};
 });

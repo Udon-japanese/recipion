@@ -1,4 +1,5 @@
 // 全体公開のレシピの一覧・検索に使う、純粋な関数と型。
+import type { Avatar } from "#/features/avatar/domain/avatar";
 import type { DishPlacement } from "#/features/dish-art/domain/dish-cover";
 
 export type PublicRecipeSummary = {
@@ -12,6 +13,7 @@ export type PublicRecipeSummary = {
 	createdAt: string;
 	authorName: string;
 	authorHandle: string;
+	authorAvatar: Avatar;
 };
 
 export type PublicRecipePage = {

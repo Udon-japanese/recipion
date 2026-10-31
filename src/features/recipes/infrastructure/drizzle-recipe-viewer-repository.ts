@@ -1,6 +1,8 @@
 import { and, count, eq, gte } from "drizzle-orm";
 
 import type { DB } from "#/db/client";
+import type { Avatar } from "#/features/avatar/domain/avatar";
+import { resolveUserAvatar } from "#/features/avatar/domain/avatar-presets";
 import { user } from "#/integrations/better-auth/auth.sql";
 import type { RecipeDetail } from "../application/recipe-repository";
 import {
@@ -19,8 +21,8 @@ const maxFailuresPerHourOverall = 20;
 export type ViewableRecipe = {
 	recipe: RecipeDetail;
 	isOwn: boolean;
-	// 作者の、公開される名前（メールアドレスは含めない）。
-	author: { name: string; handle: string };
+	// 作者の、公開される名前とアバター（メールアドレス・ユーザーの id は含めない）。
+	author: { name: string; handle: string; avatar: Avatar };
 };
 
 // 見る人（viewerUserId）が見てよいレシピ。自分のレシピ、全体公開、パスフレーズで開けた限定公開。
@@ -35,6 +37,7 @@ export async function findViewableRecipe(
 			recipe,
 			authorName: user.name,
 			authorHandle: user.handle,
+			authorAvatar: user.avatar,
 		})
 		.from(recipe)
 		.innerJoin(user, eq(user.id, recipe.userId))
@@ -78,7 +81,11 @@ export async function findViewableRecipe(
 					author: { name: row.authorName, handle: row.authorHandle },
 				},
 		isOwn,
-		author: { name: row.authorName, handle: row.authorHandle },
+		author: {
+			name: row.authorName,
+			handle: row.authorHandle,
+			avatar: resolveUserAvatar(row.recipe.userId, row.authorAvatar),
+		},
 	};
 }
 

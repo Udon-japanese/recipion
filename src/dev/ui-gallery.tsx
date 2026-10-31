@@ -1,5 +1,4 @@
 import { type CSSProperties, useState } from "react";
-import { Avatar } from "#/components/avatar/avatar";
 import { Button } from "#/components/button/button";
 import { ButtonLink } from "#/components/button/button-link";
 import { useButtonAction } from "#/components/button/use-button-action";
@@ -35,6 +34,9 @@ import { Sheet } from "#/components/sheet/sheet";
 import { Tag } from "#/components/tag/tag";
 import { Toast } from "#/components/toast/toast";
 import { Toggle } from "#/components/toggle/toggle";
+import { AvatarArt } from "#/features/avatar/components/avatar-art";
+import { AvatarField } from "#/features/avatar/components/avatar-field";
+import { avatarPresets } from "#/features/avatar/domain/avatar-presets";
 import type { InventoryListItem } from "#/features/inventory/application/inventory-query-repository";
 import { RecipeConsumeSection } from "#/features/recipes/components/recipe-consume-section";
 import type { RecipeEditorIngredientNode } from "#/features/recipes/domain/recipe-editor-document";
@@ -183,6 +185,30 @@ export function UiGallery() {
 	return (
 		<div style={page}>
 			<h1 style={{ margin: 0 }}>部品の確認（開発用）</h1>
+
+			<Section
+				title="アバターのプリセット"
+				description="食材に顔。左から 96px・40px・32px・24px（ナビは 32px 前後）。"
+			>
+				<div style={row}>
+					<AvatarField
+						userId="gallery-user"
+						avatar={null}
+						// 確認用：保存はしない。
+						onSave={async () => true}
+					/>
+					<span>押すと、エディタが開く（保存はしない）</span>
+				</div>
+				{avatarPresets.map((preset) => (
+					<div style={row} key={preset.id}>
+						<AvatarArt avatar={preset} size={96} />
+						<AvatarArt avatar={preset} size={40} />
+						<AvatarArt avatar={preset} size={32} />
+						<AvatarArt avatar={preset} size={24} />
+						<span>{preset.label}</span>
+					</div>
+				))}
+			</Section>
 
 			<Section
 				title="れしぽよの色（処理中の丸）"
@@ -445,7 +471,6 @@ function PartsGallery() {
 					<IconButton icon="close" label="閉じる" size="std" />
 					<IconButton icon="sync" label="更新" tone="on" />
 					<IconButton icon="plus" label="追加" disabled />
-					<Avatar name="れしぴょなー" />
 				</div>
 				<div style={row}>
 					<Tag>残り 3</Tag>

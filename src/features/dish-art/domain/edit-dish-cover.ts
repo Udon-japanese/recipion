@@ -27,11 +27,9 @@ function replaceAt(
 export function addDishPart(
 	placements: readonly DishPlacement[],
 	partId: string,
+	maxParts: number = dishCoverLimits.maxParts,
 ): DishPlacement[] {
-	if (
-		placements.length >= dishCoverLimits.maxParts ||
-		findDishPart(partId) === undefined
-	) {
+	if (placements.length >= maxParts || findDishPart(partId) === undefined) {
 		return [...placements];
 	}
 
@@ -157,10 +155,11 @@ export function snapRotation(degrees: number, tolerance = 5): number {
 export function duplicateDishPart(
 	placements: readonly DishPlacement[],
 	index: number,
+	maxParts: number = dishCoverLimits.maxParts,
 ): DishPlacement[] {
 	const target = placements[index];
 
-	if (!target || placements.length >= dishCoverLimits.maxParts) {
+	if (!target || placements.length >= maxParts) {
 		return [...placements];
 	}
 

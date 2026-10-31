@@ -12,6 +12,7 @@ import {
 import { Mascot } from "#/components/mascot/mascot";
 import { Tag } from "#/components/tag/tag";
 import { UserFacingError } from "#/errors/user-facing-error";
+import { AvatarArt } from "#/features/avatar/components/avatar-art";
 import type { PublicRecipePage } from "../domain/public-recipe-search";
 import { maxSearchQueryLength } from "../domain/public-recipe-search";
 import * as styles from "./public-recipe-list.css";
@@ -131,6 +132,7 @@ export function PublicRecipeList({
 									<Tag>{recipe.servings}人分</Tag>
 									<Tag tone="soft">材料{recipe.ingredientCount}</Tag>
 									<span className={styles.author}>
+										<AvatarArt avatar={recipe.authorAvatar} size={20} />
 										{recipe.authorName}（@{recipe.authorHandle}）
 									</span>
 								</ListRowMeta>
