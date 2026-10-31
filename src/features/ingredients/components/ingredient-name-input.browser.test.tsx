@@ -76,3 +76,94 @@ it("PC の変換中は、変換候補と重ならないよう、候補を入力�
 		})
 		.toBe(true);
 });
+
+// シートのような、はみ出しを切る枠の中に置く。
+function ClippedHarness({ paddingTop }: { paddingTop: number }) {
+	const [value, setValue] = useState("");
+
+	return (
+		<div style={{ paddingTop }}>
+			<div style={{ height: 80, overflow: "hidden" }}>
+				<IngredientNameInput id="name" value={value} onChange={setValue} />
+			</div>
+		</div>
+	);
+}
+
+function getVisibleList() {
+	const list = document.querySelector<HTMLElement>('[role="listbox"]');
+
+	return list && getComputedStyle(list).visibility === "visible" ? list : null;
+}
+
+it("はみ出しを切る枠の中でも、一覧は切れずに、画面の内に出る", async () => {
+	await page.viewport(1024, 768);
+	await render(<ClippedHarness paddingTop={0} />);
+
+	const input = document.querySelector("input") as HTMLInputElement;
+
+	input.focus();
+	await cdp().send("Input.insertText", { text: "に" });
+
+	await expect.poll(getVisibleList).not.toBeNull();
+
+	const list = getVisibleList() as HTMLElement;
+	const rect = list.getBoundingClientRect();
+
+	expect(rect.top).toBeGreaterThanOrEqual(input.getBoundingClientRect().bottom);
+	// 枠（高さ 80px）より下の部分も、切られずに見えている（その位置で、いちばん上にあるのが一覧）。
+	expect(rect.bottom - 10).toBeGreaterThan(80);
+	expect(
+		list.contains(document.elementFromPoint(rect.left + 20, rect.bottom - 10)),
+	).toBe(true);
+	expect(rect.bottom).toBeLessThanOrEqual(window.innerHeight);
+	expect(rect.width).toBe(input.getBoundingClientRect().width);
+});
+
+it("変換中に、上の余白が少ないときは、一覧を縮めて上に出す", async () => {
+	await page.viewport(1024, 768);
+	await render(<ClippedHarness paddingTop={120} />);
+
+	const input = document.querySelector("input") as HTMLInputElement;
+
+	input.focus();
+	await cdp().send("Input.imeSetComposition", {
+		text: "に",
+		selectionStart: 1,
+		selectionEnd: 1,
+	});
+
+	await expect.poll(getVisibleList).not.toBeNull();
+
+	const rect = (getVisibleList() as HTMLElement).getBoundingClientRect();
+
+	expect(rect.top).toBeGreaterThanOrEqual(8);
+	expect(rect.bottom).toBeLessThanOrEqual(input.getBoundingClientRect().top);
+});
+
+it("変換中に、上に余白がないときは、IME の窓に隠れないよう、一覧を出さず、確定したら下に出す", async () => {
+	await page.viewport(1024, 768);
+	await render(<ClippedHarness paddingTop={0} />);
+
+	const input = document.querySelector("input") as HTMLInputElement;
+
+	input.focus();
+	await cdp().send("Input.imeSetComposition", {
+		text: "にん",
+		selectionStart: 2,
+		selectionEnd: 2,
+	});
+
+	await expect
+		.poll(() => document.querySelector('[role="listbox"]'))
+		.not.toBeNull();
+	expect(getVisibleList()).toBeNull();
+	expect(input).toHaveAttribute("aria-expanded", "false");
+
+	await cdp().send("Input.insertText", { text: "にん" });
+
+	await expect.poll(getVisibleList).not.toBeNull();
+	expect(
+		(getVisibleList() as HTMLElement).getBoundingClientRect().top,
+	).toBeGreaterThanOrEqual(input.getBoundingClientRect().bottom);
+});
