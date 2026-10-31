@@ -105,8 +105,13 @@ describe("IngredientNameInput", () => {
 		fireEvent.compositionStart(input);
 		fireEvent.change(input, { target: { value: "にんにく" } });
 
+		// jsdom にはレイアウトがなく、入力欄の上に余白がない扱いになり、変換中の一覧は隠れる（IME の窓を避けるため）。
+		// ここでは候補の中身だけを見る。見える位置は、ブラウザのテストで確かめる。
 		expect(
-			within(await screen.findByRole("listbox")).getAllByRole("option")[0],
+			within(await screen.findByRole("listbox", { hidden: true })).getAllByRole(
+				"option",
+				{ hidden: true },
+			)[0],
 		).toHaveTextContent("にんにく");
 
 		fireEvent.compositionEnd(input);

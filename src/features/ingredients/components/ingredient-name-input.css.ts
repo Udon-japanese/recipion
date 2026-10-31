@@ -1,40 +1,28 @@
 import { style } from "@vanilla-extract/css";
+import { thinScrollbar } from "#/components/completion-menu/scrollbar.css";
 
 export const container = style({
-	position: "relative",
 	display: "grid",
 });
 
-export const list = style({
-	position: "absolute",
-	zIndex: 10,
-	top: "100%",
-	left: 0,
-	right: 0,
-	display: "grid",
-	// 見える範囲（キーボードが出ていても）から、はみ出さないようにする。
-	maxHeight: "min(280px, 40dvh)",
-	marginTop: 6,
-	padding: 4,
-	overflowY: "auto",
-	background: "var(--color-surface)",
-	border: "1px solid var(--color-border)",
-	borderRadius: 16,
-	boxShadow: "var(--shadow-md)",
-	"@media": {
-		// PC：変換中は、IME の変換候補が入力欄の真下に出るので、重ならないよう、上に出す。
-		"(min-width: 768px)": {
-			selectors: {
-				'&[data-above="true"]': {
-					top: "auto",
-					bottom: "100%",
-					marginTop: 0,
-					marginBottom: 6,
-				},
-			},
-		},
+// 一覧は、画面の上に固定して出す（シートや、スクロールする枠の中にあっても、切れないように）。
+// 位置と高さは、ingredient-name-input.tsx で決める。補完の候補（completion-menu）と同じ重なりの順。
+export const list = style([
+	thinScrollbar,
+	{
+		position: "fixed",
+		zIndex: 40,
+		display: "grid",
+		alignContent: "start",
+		padding: 4,
+		overflowY: "auto",
+		boxSizing: "border-box",
+		background: "var(--color-surface)",
+		border: "1px solid var(--color-border)",
+		borderRadius: 16,
+		boxShadow: "var(--shadow-md)",
 	},
-});
+]);
 
 export const option = style({
 	position: "relative",

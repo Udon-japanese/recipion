@@ -1,4 +1,5 @@
 import { style } from "@vanilla-extract/css";
+import { thinScrollbar } from "./scrollbar.css";
 
 // 補完の候補は、画面の上に固定して出す（シートや、スクロールする枠の中にあっても、切れないように）。
 // メニュー（30）・確認のダイアログ（30）より、上。
@@ -21,16 +22,19 @@ export const popup = style({
 	boxShadow: "var(--shadow-md)",
 });
 
-export const popupList = style({
-	display: "grid",
-	gap: 2,
-	maxHeight: 264,
-	minHeight: 0,
-	margin: 0,
-	padding: 0,
-	overflowY: "auto",
-	listStyle: "none",
-});
+export const popupList = style([
+	thinScrollbar,
+	{
+		display: "grid",
+		gap: 2,
+		maxHeight: 264,
+		minHeight: 0,
+		margin: 0,
+		padding: 0,
+		overflowY: "auto",
+		listStyle: "none",
+	},
+]);
 
 export const popupItem = style({
 	boxSizing: "border-box",
