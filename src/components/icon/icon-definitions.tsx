@@ -105,12 +105,25 @@ export const iconDefinitions = {
 			<path d="M4 20l4-1 11-11-3-3L5 16l-1 4zM14 6l3 3" />
 		) as ReactNode,
 	},
-	eye: {
+	// れしぽよ。表示中は塗りのシルエット（目は抜く）、非表示は同じ形の点線。
+	"mascot-shown": {
+		style: "solid",
+		content: (
+			<path
+				fillRule="evenodd"
+				d="M12 4C6.5 4 3.5 8.5 3.5 13c0 4.5 2 7 4.5 7h8c2.5 0 4.5-2.5 4.5-7C20.5 8.5 17.5 4 12 4zM8.4 10.4a.95.95 0 0 1 1.9 0v3.2a.95.95 0 0 1-1.9 0zM13.7 10.4a.95.95 0 0 1 1.9 0v3.2a.95.95 0 0 1-1.9 0z"
+			/>
+		) as ReactNode,
+	},
+	"mascot-hidden": {
 		style: "outline",
 		content: (
 			<>
-				<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z" />
-				<circle cx={12} cy={12} r={3} />
+				<path
+					strokeDasharray="2.6 3"
+					d="M12 4C6.5 4 3.5 8.5 3.5 13c0 4.5 2 7 4.5 7h8c2.5 0 4.5-2.5 4.5-7C20.5 8.5 17.5 4 12 4z"
+				/>
+				<path d="M9.35 10.8v2.4M14.65 10.8v2.4" />
 			</>
 		) as ReactNode,
 	},

@@ -39,13 +39,6 @@ export const presetList = style({
 	gap: 8,
 });
 
-export const expiryHeader = style({
-	display: "flex",
-	alignItems: "center",
-	justifyContent: "space-between",
-	gap: 4,
-});
-
 export const switchRow = style({
 	display: "flex",
 	alignItems: "center",

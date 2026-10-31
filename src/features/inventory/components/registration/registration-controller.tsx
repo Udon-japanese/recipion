@@ -1,10 +1,7 @@
 import { Icon } from "#/components/icon/icon";
-import { Sheet } from "#/components/sheet/sheet";
-import { useMediaQuery } from "#/components/use-media-query";
 import type { RegisterInventoryItemInput } from "../../application/register-inventory-item";
 import type { IngredientExpiryDefaults } from "../../domain/build-expiry-prefill";
 import type { ExpiryEstimateLevel } from "../../domain/estimate-lot-expiry";
-import { ExpiryEstimateSetting } from "../expiry-estimate-setting";
 import { InventoryRegistrationPanel } from "./registration-panel";
 import * as styles from "./registration-panel.css";
 import {
@@ -28,24 +25,19 @@ type InventoryRegistrationControllerProps = {
 	config: InventoryRegistrationConfig;
 	isOpen: boolean;
 	onOpenChange: (open: boolean) => void;
-	isSettingsOpen: boolean;
-	onSettingsOpenChange: (open: boolean) => void;
 	onRegistered: (info: RegisteredInfo) => void;
 	// スマホの右下の「在庫に追加」を出すか（空のときは、画面の中のボタンに一本化する）。
 	showFab: boolean;
 };
 
-// 登録のパネル・期限の目安の設定・右下の「在庫に追加」。入力の状態は、ここで持つ（パネルを閉じても残る）。
+// 登録のパネル・右下の「在庫に追加」。入力の状態は、ここで持つ（パネルを閉じても残る）。
 export function InventoryRegistrationController({
 	config,
 	isOpen,
 	onOpenChange,
-	isSettingsOpen,
-	onSettingsOpenChange,
 	onRegistered,
 	showFab,
 }: InventoryRegistrationControllerProps) {
-	const isRight = useMediaQuery("(min-width: 1024px)");
 	const registration = useInventoryRegistration({
 		registerInventoryItem: config.registerInventoryItem,
 		onRegistered,
@@ -71,21 +63,11 @@ export function InventoryRegistrationController({
 				open={isOpen}
 				onOpenChange={onOpenChange}
 				registration={registration}
-				onOpenSettings={() => onSettingsOpenChange(true)}
+				expiryEstimate={{
+					level: config.expiryEstimateLevel,
+					onChange: config.onExpiryEstimateLevelChange,
+				}}
 			/>
-
-			<Sheet
-				open={isSettingsOpen}
-				onOpenChange={onSettingsOpenChange}
-				title="期限の目安の自動入力"
-				placement={isRight ? "right" : "bottom"}
-				snapPoints={[0.5]}
-			>
-				<ExpiryEstimateSetting
-					level={config.expiryEstimateLevel}
-					onChange={config.onExpiryEstimateLevelChange}
-				/>
-			</Sheet>
 		</>
 	);
 }

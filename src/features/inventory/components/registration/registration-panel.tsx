@@ -9,7 +9,6 @@ import {
 	type PanelPosition,
 } from "#/components/floating-panel/floating-panel";
 import { Icon } from "#/components/icon/icon";
-import { IconButton } from "#/components/icon-button/icon-button";
 import { SegmentedControl } from "#/components/segmented-control/segmented-control";
 import { Sheet } from "#/components/sheet/sheet";
 import { Tag } from "#/components/tag/tag";
@@ -18,6 +17,10 @@ import { useMediaQuery } from "#/components/use-media-query";
 import { IngredientNameInput } from "#/features/ingredients/components/ingredient-name-input";
 import { QuantityInput } from "#/features/quantity/components/quantity-input";
 import { formatQuantity } from "#/features/quantity/domain/format-quantity";
+import {
+	type ExpiryEstimateSettingProps as ExpiryEstimateProps,
+	ExpiryEstimateSetting,
+} from "../expiry-estimate-setting";
 import { ExpiryFields } from "../expiry-fields";
 import * as expiryStyles from "../expiry-fields.css";
 import * as styles from "./registration-panel.css";
@@ -31,11 +34,11 @@ const nameInputId = "inventory-ingredient-name";
 
 type FormBodyProps = {
 	registration: InventoryRegistration;
-	onOpenSettings: () => void;
+	expiryEstimate: ExpiryEstimateProps;
 };
 
 // 登録のパネルの本文（上から、よく使う順。数え方は、たたんでおく）。
-function RegistrationFormBody({ registration, onOpenSettings }: FormBodyProps) {
+function RegistrationFormBody({ registration, expiryEstimate }: FormBodyProps) {
 	const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 	const detailsId = useId();
 	const { ingredientName, stockUnit, unitOptions, unitChoice, trackingMode } =
@@ -170,22 +173,18 @@ function RegistrationFormBody({ registration, onOpenSettings }: FormBodyProps) {
 			)}
 
 			<div className={styles.fieldGroup}>
-				<div className={styles.expiryHeader}>
-					<span className={styles.label}>期限</span>
-					<IconButton
-						icon="sliders"
-						label="期限の目安の設定"
-						size="std"
-						tone="plain"
-						onClick={onOpenSettings}
-					/>
-				</div>
+				<span className={styles.label}>期限</span>
 
 				<ExpiryFields
 					value={registration.expiry}
 					onChange={registration.changeExpiry}
 					today={registration.today}
 					disabled={registration.isSubmitting}
+				/>
+
+				<ExpiryEstimateSetting
+					level={expiryEstimate.level}
+					onChange={expiryEstimate.onChange}
 				/>
 			</div>
 
@@ -270,7 +269,7 @@ type InventoryRegistrationPanelProps = {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	registration: InventoryRegistration;
-	onOpenSettings: () => void;
+	expiryEstimate: ExpiryEstimateProps;
 };
 
 // 連続して登録できるよう、登録しても閉じない。入力は、閉じても残る（状態は、開く側が持つ）。
@@ -278,7 +277,7 @@ export function InventoryRegistrationPanel({
 	open,
 	onOpenChange,
 	registration,
-	onOpenSettings,
+	expiryEstimate,
 }: InventoryRegistrationPanelProps) {
 	const isRight = useMediaQuery("(min-width: 1024px)");
 	const trailing =
@@ -294,7 +293,7 @@ export function InventoryRegistrationPanel({
 	const form = (
 		<RegistrationFormBody
 			registration={registration}
-			onOpenSettings={onOpenSettings}
+			expiryEstimate={expiryEstimate}
 		/>
 	);
 
