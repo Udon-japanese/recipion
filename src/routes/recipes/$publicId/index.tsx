@@ -1,13 +1,12 @@
 import {
 	createFileRoute,
-	Link,
 	useNavigate,
 	useRouter,
 } from "@tanstack/react-router";
 import { useCallback } from "react";
+import { ButtonLink } from "#/components/button/button-link";
 import { Tag } from "#/components/tag/tag";
 import { pageTitle } from "#/config/app";
-import { AvatarArt } from "#/features/avatar/components/avatar-art";
 import type { Avatar } from "#/features/avatar/domain/avatar";
 import {
 	findIngredientCatalogEntry,
@@ -30,7 +29,9 @@ import {
 	undoRecipeConsumptionWithCache,
 } from "#/features/recipes/application/consume-recipe-ingredients";
 import type { RecipeDetail } from "#/features/recipes/application/recipe-repository";
+import { RecipeAuthorByline } from "#/features/recipes/components/recipe-author-byline";
 import { RecipeConsumeSection } from "#/features/recipes/components/recipe-consume-section";
+import * as styles from "#/features/recipes/components/recipe-detail-page.css";
 import { RecipeKeepAwake } from "#/features/recipes/components/recipe-keep-awake";
 import { RecipeOwnerActions } from "#/features/recipes/components/recipe-owner-actions";
 import { RecipePassphraseSection } from "#/features/recipes/components/recipe-passphrase-section";
@@ -50,8 +51,7 @@ import {
 	unlockRecipeServerFn,
 	viewRecipeServerFn,
 } from "#/features/recipes/server/view-recipe";
-import { ReportRecipeForm } from "#/features/reports/components/report-recipe-form";
-import { ReportUserForm } from "#/features/reports/components/report-user-form";
+import { ReportMenu } from "#/features/reports/components/report-menu";
 import { createReportServerFn } from "#/features/reports/server/create-report";
 import { createUserNameReportServerFn } from "#/features/reports/server/create-user-report";
 
@@ -213,8 +213,7 @@ function OwnRecipePage({ recipe }: { recipe: RecipeDetail }) {
 	} = useRecipeViewSupport(recipe);
 
 	return (
-		<>
-			<RecipeKeepAwake />
+		<div className={styles.page}>
 			{/* 別のレシピへ移ったとき、開いているプレビューを、閉じる（key で、状態を作り直す）。 */}
 			<RecipeViewWithLinks
 				key={recipe.publicId}
@@ -230,51 +229,56 @@ function OwnRecipePage({ recipe }: { recipe: RecipeDetail }) {
 						{recipeVisibilityLabels[recipe.visibility ?? "private"]}
 					</Tag>
 				}
+				actions={
+					<RecipeOwnerActions
+						publicId={recipe.publicId}
+						onDelete={async () => {
+							await deleteRecipeServerFn({
+								data: { publicId: recipe.publicId },
+							});
+							await navigate({ to: "/recipes" });
+						}}
+					/>
+				}
+				headerExtra={
+					recipe.visibility === "unlisted" ? (
+						<RecipePassphraseSection
+							loadPassphrase={loadPassphrase}
+							regeneratePassphrase={regeneratePassphrase}
+						/>
+					) : null
+				}
+				instructionsAction={<RecipeKeepAwake />}
 				loadLinkedRecipe={loadLinkedRecipe}
 				loadLinkedRecipes={loadLinkedRecipes}
-				renderOpenLink={(publicId) => (
-					<Link to="/recipes/$publicId" params={{ publicId }}>
-						レシピを開く
-					</Link>
-				)}
+				renderOpenLink={renderOpenLink}
 			/>
-			{recipe.visibility === "unlisted" ? (
-				<RecipePassphraseSection
-					loadPassphrase={loadPassphrase}
-					regeneratePassphrase={regeneratePassphrase}
+			<div className={styles.actions}>
+				<RecipeShoppingSection
+					ingredients={recipe.ingredients}
+					linkViews={recipe.linkViews}
+					loadLinkedRecipe={loadLinkedRecipe}
+					ownerScope={ownerScope}
+					loadInventoryItems={loadInventoryItems}
+					registerAvailable={registerAvailable}
 				/>
-			) : null}
-			<RecipeShoppingSection
-				ingredients={recipe.ingredients}
-				linkViews={recipe.linkViews}
-				loadLinkedRecipe={loadLinkedRecipe}
-				ownerScope={ownerScope}
-				loadInventoryItems={loadInventoryItems}
-				registerAvailable={registerAvailable}
-			/>
-			<RecipeConsumeSection
-				recipePublicId={recipe.publicId}
-				ingredients={recipe.ingredients}
-				linkViews={recipe.linkViews}
-				loadLinkedRecipe={loadLinkedRecipe}
-				ownerScope={ownerScope}
-				loadInventoryItems={loadInventoryItems}
-				consume={consume}
-				undo={undoConsumption}
-				madeRecipe={{
-					name: recipe.name,
-					defaultChecked: recipe.stocksWhenMade ?? false,
-					produce,
-				}}
-			/>
-			<RecipeOwnerActions
-				publicId={recipe.publicId}
-				onDelete={async () => {
-					await deleteRecipeServerFn({ data: { publicId: recipe.publicId } });
-					await navigate({ to: "/recipes" });
-				}}
-			/>
-		</>
+				<RecipeConsumeSection
+					recipePublicId={recipe.publicId}
+					ingredients={recipe.ingredients}
+					linkViews={recipe.linkViews}
+					loadLinkedRecipe={loadLinkedRecipe}
+					ownerScope={ownerScope}
+					loadInventoryItems={loadInventoryItems}
+					consume={consume}
+					undo={undoConsumption}
+					madeRecipe={{
+						name: recipe.name,
+						defaultChecked: recipe.stocksWhenMade ?? false,
+						produce,
+					}}
+				/>
+			</div>
+		</div>
 	);
 }
 
@@ -296,58 +300,71 @@ function SharedRecipePage({
 	} = useRecipeViewSupport(recipe);
 
 	return (
-		<>
-			<RecipeKeepAwake />
+		<div className={styles.page}>
 			<RecipeViewWithLinks
 				key={recipe.publicId}
 				recipe={recipe}
 				badges={
-					<Tag>
-						<AvatarArt avatar={author.avatar} size={18} />
-						作者：{author.name}（@{author.handle}）
-					</Tag>
+					<RecipeAuthorByline
+						name={author.name}
+						handle={author.handle}
+						avatar={author.avatar}
+					/>
 				}
+				actions={
+					<ReportMenu
+						onReportRecipe={(input) =>
+							createReportServerFn({
+								data: { recipePublicId: recipe.publicId, ...input },
+							})
+						}
+						onReportUser={(input) =>
+							createUserNameReportServerFn({
+								data: { handle: author.handle, ...input },
+							})
+						}
+					/>
+				}
+				instructionsAction={<RecipeKeepAwake />}
 				loadLinkedRecipe={loadLinkedRecipe}
 				loadLinkedRecipes={loadLinkedRecipes}
-				renderOpenLink={(publicId) => (
-					<Link to="/recipes/$publicId" params={{ publicId }}>
-						レシピを開く
-					</Link>
-				)}
+				renderOpenLink={renderOpenLink}
 			/>
-			<RecipeShoppingSection
-				ingredients={recipe.ingredients}
-				linkViews={recipe.linkViews}
-				loadLinkedRecipe={loadLinkedRecipe}
-				ownerScope={ownerScope}
-				loadInventoryItems={loadInventoryItems}
-				registerAvailable={registerAvailable}
-			/>
-			<RecipeConsumeSection
-				recipePublicId={recipe.publicId}
-				ingredients={recipe.ingredients}
-				linkViews={recipe.linkViews}
-				loadLinkedRecipe={loadLinkedRecipe}
-				ownerScope={ownerScope}
-				loadInventoryItems={loadInventoryItems}
-				consume={consume}
-				undo={undoConsumption}
-			/>
-			<ReportUserForm
-				onReport={(input) =>
-					createUserNameReportServerFn({
-						data: { handle: author.handle, ...input },
-					})
-				}
-			/>
-			<ReportRecipeForm
-				onReport={(input) =>
-					createReportServerFn({
-						data: { recipePublicId: recipe.publicId, ...input },
-					})
-				}
-			/>
-		</>
+			<div className={styles.actions}>
+				<RecipeShoppingSection
+					ingredients={recipe.ingredients}
+					linkViews={recipe.linkViews}
+					loadLinkedRecipe={loadLinkedRecipe}
+					ownerScope={ownerScope}
+					loadInventoryItems={loadInventoryItems}
+					registerAvailable={registerAvailable}
+				/>
+				<RecipeConsumeSection
+					recipePublicId={recipe.publicId}
+					ingredients={recipe.ingredients}
+					linkViews={recipe.linkViews}
+					loadLinkedRecipe={loadLinkedRecipe}
+					ownerScope={ownerScope}
+					loadInventoryItems={loadInventoryItems}
+					consume={consume}
+					undo={undoConsumption}
+				/>
+			</div>
+		</div>
+	);
+}
+
+// リンク先のプレビューの「レシピを開く」。
+function renderOpenLink(publicId: string) {
+	return (
+		<ButtonLink
+			to="/recipes/$publicId"
+			params={{ publicId }}
+			variant="secondary"
+			size="sm"
+		>
+			レシピを開く
+		</ButtonLink>
 	);
 }
 

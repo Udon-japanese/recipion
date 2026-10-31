@@ -1,7 +1,7 @@
 import { type ReactNode, useState } from "react";
 import { Card } from "#/components/card/card";
+import { Icon } from "#/components/icon/icon";
 import { SegmentedControl } from "#/components/segmented-control/segmented-control";
-import { Tag } from "#/components/tag/tag";
 import { DishCoverView } from "#/features/dish-art/components/dish-cover-view";
 import type { RecipeDetail } from "../application/recipe-repository";
 import { findIngredientLinkTarget } from "../domain/ingredient-link-target";
@@ -43,7 +43,7 @@ type IngredientBlock =
 	| { kind: "items"; key: string; items: IngredientLeafNode[] }
 	| { kind: "group"; group: IngredientGroupNode; colorIndex: number };
 
-// グループに入っていない材料は、枠なしの箇条書きにまとめる。グループは、1つずつ枠にする。
+// グループに入っていない材料は、枠なしの行にまとめる。グループは、1つずつ枠にする。
 function toIngredientBlocks(
 	nodes: readonly RecipeEditorIngredientNode[],
 ): IngredientBlock[] {
@@ -69,35 +69,64 @@ function toIngredientBlocks(
 	return blocks;
 }
 
-function LinkedIngredients({
+// リンクの材料の行。行を押すと、リンク先の材料を、下の箱に開閉する。リンク先のプレビューは、箱の中から開く。
+function LinkedIngredient({
+	node,
 	recipe,
+	linkViews,
 	...tree
-}: IngredientTreeProps & { recipe: RecipeDetail }) {
+}: IngredientTreeProps & {
+	node: IngredientLeafNode;
+	recipe: RecipeDetail;
+	linkViews: readonly RecipeLinkView[];
+}) {
 	const [isOpen, setIsOpen] = useState(tree.depth <= initiallyOpenDepth);
 
 	return (
-		<div className={styles.linkedRecipe}>
+		<>
 			<button
 				type="button"
-				className={styles.linkedToggle}
+				className={styles.linkedRow}
 				aria-expanded={isOpen}
+				aria-label={`${recipe.name}の材料`}
 				onClick={() => setIsOpen((current) => !current)}
 			>
-				{recipe.name}の材料を{isOpen ? "閉じる" : "開く"}
+				<span className={styles.linkedName}>
+					<RecipeText text={node.name} linkViews={linkViews} />
+				</span>
+				<span className={styles.amount}>{node.amountText}</span>
+				<span className={styles.chevron} data-open={isOpen}>
+					<Icon name="chevron-down" size={20} />
+				</span>
 			</button>
 			{isOpen ? (
-				<IngredientList
-					nodes={recipe.ingredients}
-					linkViews={recipe.linkViews}
-					{...tree}
-					ancestors={[...tree.ancestors, recipe.publicId]}
-				/>
+				<div className={styles.linkedBox} data-depth={Math.min(tree.depth, 3)}>
+					<IngredientList
+						nodes={recipe.ingredients}
+						linkViews={recipe.linkViews}
+						{...tree}
+						ancestors={[...tree.ancestors, recipe.publicId]}
+					/>
+					{tree.onOpenLink ? (
+						<button
+							type="button"
+							className={styles.linkedOpen}
+							aria-haspopup="dialog"
+							onClick={(event) =>
+								tree.onOpenLink?.(recipe.publicId, event.currentTarget)
+							}
+						>
+							{recipe.name}のレシピを見る
+							<Icon name="chevron-right" size={16} />
+						</button>
+					) : null}
+				</div>
 			) : null}
-		</div>
+		</>
 	);
 }
 
-// グループ名で、色つきの枠に囲む。枠の中は、1段の箇条書き。
+// グループ名で、色つきの枠に囲む。枠の中は、1段の行。
 function IngredientList({
 	nodes,
 	linkViews,
@@ -123,7 +152,7 @@ function IngredientList({
 						/>
 					</section>
 				) : (
-					<ul key={block.key} className={styles.list}>
+					<ul key={block.key} className={styles.ingredientList}>
 						{block.items.map((item) => (
 							<IngredientItem
 								key={item.id}
@@ -154,31 +183,58 @@ function IngredientItem({
 	const isCycle = target ? tree.ancestors.includes(target.publicId) : false;
 
 	return (
-		<li>
-			<div className={styles.ingredientRow}>
-				<span>
-					<RecipeText
-						text={node.name}
-						linkViews={linkViews}
-						onOpenLink={tree.onOpenLink}
-					/>
-				</span>
-				<span>{node.amountText}</span>
-			</div>
-			{isCycle ? (
-				<p className={styles.linkedNote}>（上で表示済み）</p>
-			) : linkedRecipe ? (
-				<LinkedIngredients
+		<li className={styles.ingredientItem}>
+			{linkedRecipe && !isCycle ? (
+				<LinkedIngredient
+					node={node}
 					recipe={linkedRecipe}
+					linkViews={linkViews}
 					{...tree}
 					depth={tree.depth + 1}
 				/>
-			) : null}
+			) : (
+				<div className={styles.ingredientRow}>
+					<span className={styles.ingredientName}>
+						<RecipeText
+							text={node.name}
+							linkViews={linkViews}
+							onOpenLink={tree.onOpenLink}
+						/>
+						{isCycle ? (
+							<span className={styles.linkedNote}>（上で表示済み）</span>
+						) : null}
+					</span>
+					<span className={styles.amount}>{node.amountText}</span>
+				</div>
+			)}
 		</li>
 	);
 }
 
-type RecipeViewProps = {
+function RecipeSection({
+	title,
+	action,
+	children,
+}: {
+	title: string;
+	// 見出しの右に置くもの。
+	action?: ReactNode;
+	children: ReactNode;
+}) {
+	return (
+		<Card padding="md">
+			<section className={styles.section}>
+				<div className={styles.sectionHeader}>
+					<h3 className={styles.sectionTitle}>{title}</h3>
+					{action}
+				</div>
+				{children}
+			</section>
+		</Card>
+	);
+}
+
+export type RecipeViewProps = {
 	recipe: RecipeDetail;
 	// 本文のリンクを押したとき。なければ、リンクは押せない文字になる。
 	onOpenLink?: OpenLink;
@@ -186,9 +242,17 @@ type RecipeViewProps = {
 	titleId?: string;
 	// 材料のリンク先のレシピ（公開 ID → レシピ）。あれば、材料の下に、その場で開く。
 	linkedRecipes?: LinkedRecipes;
-	// 題名の下に並べる印（公開範囲など）。
+	// 題名の下に並べる印（公開範囲・作者など）。
 	badges?: ReactNode;
 	hideTitle?: boolean;
+	// 題名の右に置く操作（編集・その他）。
+	actions?: ReactNode;
+	// 題名の下の、全幅の欄（限定公開のパスフレーズなど）。
+	headerExtra?: ReactNode;
+	// 作り方の見出しの右に置くもの（画面をつけたまま）。作り方がなければ、出さない。
+	instructionsAction?: ReactNode;
+	// プレビューの中など、狭い枠で使うとき（料理の絵を小さくする）。
+	compact?: boolean;
 };
 
 type RecipeTab = "prepare" | "cook";
@@ -205,33 +269,53 @@ export function RecipeView({
 	linkedRecipes,
 	badges,
 	hideTitle,
+	actions,
+	headerExtra,
+	instructionsAction,
+	compact = false,
 }: RecipeViewProps) {
 	const [tab, setTab] = useState<RecipeTab>("prepare");
+	const hasIngredients = recipe.ingredients.length > 0;
+	const hasPreparePane = hasIngredients || recipe.preparations.length > 0;
 	const hasCookPane =
 		recipe.instructions.length > 0 ||
 		recipe.sourceUrl !== null ||
 		recipe.note.length > 0;
+	const hasTabs = hasPreparePane && hasCookPane;
 
 	return (
 		<article className={styles.container}>
-			<header className={styles.header}>
+			<header className={styles.header} data-compact={compact}>
 				<span className={styles.cover}>
 					<DishCoverView
 						cover={recipe.cover}
 						seed={recipe.publicId}
-						size={96}
+						size={compact ? 56 : 80}
 					/>
 				</span>
-				{hideTitle ? null : (
-					<h2 id={titleId} className={styles.title}>
-						{recipe.name}
-					</h2>
-				)}
-				{badges ? <div className={styles.tags}>{badges}</div> : null}
+				<div className={styles.heading}>
+					{hideTitle ? null : (
+						<h2 id={titleId} className={styles.title}>
+							{recipe.name}
+						</h2>
+					)}
+					{badges || hasIngredients ? (
+						<div className={styles.meta}>
+							{badges}
+							{hasIngredients ? (
+								<span className={styles.servings}>{recipe.servings}人分</span>
+							) : null}
+						</div>
+					) : null}
+				</div>
+				{actions ? <div className={styles.actions}>{actions}</div> : null}
+				{headerExtra ? (
+					<div className={styles.headerExtra}>{headerExtra}</div>
+				) : null}
 			</header>
 
 			{/* 狭い画面では、タブで切り替える（広い画面では、左右に並べるので隠れる）。 */}
-			{hasCookPane ? (
+			{hasTabs ? (
 				<div className={styles.tabs}>
 					<SegmentedControl
 						label="表示する内容"
@@ -242,74 +326,81 @@ export function RecipeView({
 				</div>
 			) : null}
 
-			<div className={styles.panes} data-single={!hasCookPane}>
-				<div className={styles.pane} data-active={tab === "prepare"}>
-					<Card padding="md">
-						<section className={styles.section}>
-							<div className={styles.sectionHeader}>
-								<h3 className={styles.sectionTitle}>材料</h3>
-								<Tag>{recipe.servings}人分</Tag>
-							</div>
-							{recipe.ingredients.length === 0 ? (
-								<p>材料は登録されていません。</p>
-							) : (
-								<IngredientList
-									nodes={recipe.ingredients}
-									linkViews={recipe.linkViews}
-									onOpenLink={onOpenLink}
-									linkedRecipes={linkedRecipes}
-									depth={0}
-									ancestors={[recipe.publicId]}
-								/>
-							)}
-						</section>
-					</Card>
+			{hasPreparePane || hasCookPane ? (
+				<div className={styles.panes} data-single={!hasTabs}>
+					{hasPreparePane ? (
+						<div
+							className={styles.pane}
+							data-active={!hasTabs || tab === "prepare"}
+						>
+							{hasIngredients ? (
+								<RecipeSection title="材料">
+									<IngredientList
+										nodes={recipe.ingredients}
+										linkViews={recipe.linkViews}
+										onOpenLink={onOpenLink}
+										linkedRecipes={linkedRecipes}
+										depth={0}
+										ancestors={[recipe.publicId]}
+									/>
+								</RecipeSection>
+							) : null}
 
-					{recipe.preparations.length > 0 ? (
-						<Card padding="md">
-							<section className={styles.section}>
-								<h3 className={styles.sectionTitle}>下準備</h3>
-								<ul className={styles.list}>
-									{recipe.preparations.map((preparation) => (
-										<li key={preparation.id}>
-											<RecipeText
-												text={preparation.text}
-												linkViews={recipe.linkViews}
-												onOpenLink={onOpenLink}
-											/>
-										</li>
-									))}
-								</ul>
-							</section>
-						</Card>
-					) : null}
-				</div>
-
-				{hasCookPane ? (
-					<div className={styles.pane} data-active={tab === "cook"}>
-						{recipe.instructions.length > 0 ? (
-							<Card padding="md">
-								<section className={styles.section}>
-									<h3 className={styles.sectionTitle}>作り方</h3>
-									<ol className={styles.list}>
-										{recipe.instructions.map((instruction) => (
-											<li key={instruction.id}>
+							{recipe.preparations.length > 0 ? (
+								<RecipeSection title="下準備">
+									<ul className={styles.bulletList}>
+										{recipe.preparations.map((preparation) => (
+											<li key={preparation.id} className={styles.bulletItem}>
 												<RecipeText
-													text={instruction.text}
+													text={preparation.text}
 													linkViews={recipe.linkViews}
 													onOpenLink={onOpenLink}
 												/>
 											</li>
 										))}
-									</ol>
-								</section>
-							</Card>
-						) : null}
+									</ul>
+								</RecipeSection>
+							) : null}
+						</div>
+					) : null}
 
-						{recipe.sourceUrl !== null ? (
-							<Card padding="md">
-								<section className={styles.section}>
-									<h3 className={styles.sectionTitle}>引用元</h3>
+					{hasCookPane ? (
+						<div
+							className={styles.pane}
+							data-active={!hasTabs || tab === "cook"}
+						>
+							{recipe.instructions.length > 0 ? (
+								<RecipeSection title="作り方" action={instructionsAction}>
+									<ol className={styles.steps}>
+										{recipe.instructions.map((instruction) => (
+											<li key={instruction.id} className={styles.step}>
+												<span className={styles.stepText}>
+													<RecipeText
+														text={instruction.text}
+														linkViews={recipe.linkViews}
+														onOpenLink={onOpenLink}
+													/>
+												</span>
+											</li>
+										))}
+									</ol>
+								</RecipeSection>
+							) : null}
+
+							{recipe.note.length > 0 ? (
+								<RecipeSection title="メモ">
+									<p className={styles.note}>
+										<RecipeText
+											text={recipe.note}
+											linkViews={recipe.linkViews}
+											onOpenLink={onOpenLink}
+										/>
+									</p>
+								</RecipeSection>
+							) : null}
+
+							{recipe.sourceUrl !== null ? (
+								<RecipeSection title="引用元">
 									{/^https?:\/\//iu.test(recipe.sourceUrl) ? (
 										<a
 											className={styles.sourceUrl}
@@ -322,27 +413,16 @@ export function RecipeView({
 									) : (
 										<p className={styles.sourceUrl}>{recipe.sourceUrl}</p>
 									)}
-								</section>
-							</Card>
-						) : null}
-
-						{recipe.note.length > 0 ? (
-							<Card padding="md">
-								<section className={styles.section}>
-									<h3 className={styles.sectionTitle}>メモ</h3>
-									<p className={styles.note}>
-										<RecipeText
-											text={recipe.note}
-											linkViews={recipe.linkViews}
-											onOpenLink={onOpenLink}
-										/>
-									</p>
-								</section>
-							</Card>
-						) : null}
-					</div>
-				) : null}
-			</div>
+								</RecipeSection>
+							) : null}
+						</div>
+					) : null}
+				</div>
+			) : (
+				<Card padding="md">
+					<p className={styles.empty}>まだ中身がありません。</p>
+				</Card>
+			)}
 		</article>
 	);
 }

@@ -231,25 +231,6 @@ export const field = style({
 	fontWeight: 600,
 });
 
-export const input = style({
-	boxSizing: "border-box",
-	width: "100%",
-	minHeight: 44,
-	padding: "0 16px",
-	color: "var(--color-text)",
-	background: "var(--color-surface)",
-	border: "1.5px solid var(--color-control-border)",
-	borderRadius: "var(--radius-control)",
-	font: "inherit",
-	selectors: {
-		"&::placeholder": { color: "var(--color-text-muted)" },
-		"&:focus-visible": {
-			outline: "3px solid var(--color-focus)",
-			outlineOffset: 2,
-		},
-	},
-});
-
 export const textarea = style({
 	minHeight: 110,
 	padding: 10,
@@ -281,15 +262,6 @@ export const preview = style({
 	},
 });
 
-export const list = style({
-	display: "grid",
-	gap: 6,
-	margin: 0,
-	paddingLeft: 24,
-	listStyle: "revert",
-	whiteSpace: "pre-wrap",
-});
-
 export const error = style({
 	margin: 0,
 	color: "var(--color-error)",
@@ -316,7 +288,6 @@ export const insertRecipeLinkButton = style({
 export const ingredientCard = style({
 	margin: 0,
 	padding: 0,
-	overflow: "hidden",
 	listStyle: "none",
 	border: "1px solid var(--color-border)",
 	borderRadius: "var(--radius-card)",
@@ -338,7 +309,7 @@ export const ingredientRow = style({
 	gridTemplateColumns: "minmax(0, 1fr) minmax(0, 0.7fr) auto auto",
 	alignItems: "center",
 	gap: 4,
-	padding: "2px 4px 2px 4px",
+	padding: "4px 6px 4px 8px",
 });
 
 export const linkedName = style({
@@ -360,8 +331,14 @@ export const groupHeader = style({
 	display: "flex",
 	alignItems: "center",
 	gap: 4,
-	padding: "2px 8px 2px 4px",
+	padding: "4px 6px 4px 8px",
 	background: "var(--color-surface-muted)",
+	selectors: {
+		// カードの角に合わせる（カードは、フォーカスの枠を切らないよう、はみ出しを隠さない）。
+		[`${groupItem}:first-child > &`]: {
+			borderRadius: "var(--radius-card) var(--radius-card) 0 0",
+		},
+	},
 });
 
 export const groupName = style({
@@ -390,25 +367,50 @@ export const addItem = style({
 	...rowBorder,
 });
 
-export const addTrigger = style({
+// 材料のカードの一番下：「＋ 材料を追加」「＋ グループを追加」を並べる。開いた入力行は、1行を使う。
+export const addFooter = style({
 	display: "flex",
+	flexWrap: "wrap",
+	gap: 4,
+	padding: 6,
+	listStyle: "none",
+	background: "var(--color-surface-muted)",
+	borderRadius: "0 0 var(--radius-card) var(--radius-card)",
+	selectors: {
+		"&:not(:first-child)": rowBorder,
+		"&:first-child": { borderRadius: "var(--radius-card)" },
+	},
+});
+
+export const addTrigger = style({
+	boxSizing: "border-box",
+	display: "flex",
+	flex: "1 1 160px",
 	alignItems: "center",
+	justifyContent: "center",
 	gap: 6,
-	width: "100%",
 	minHeight: 44,
 	padding: "0 16px",
 	color: "var(--color-text-muted)",
 	font: "inherit",
 	fontSize: "var(--font-size-sm)",
 	fontWeight: "var(--font-weight-semibold)",
-	textAlign: "left",
 	background: "transparent",
-	border: "none",
+	border: "1.5px dashed transparent",
+	borderRadius: 12,
 	cursor: "pointer",
+	transition:
+		"background-color var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard)",
 	selectors: {
 		"&:hover": {
 			color: "var(--color-text)",
-			background: "var(--color-surface-muted)",
+			background: "var(--color-surface)",
+			borderColor: "var(--color-border-strong)",
+		},
+		// 書きかけを残して閉じたとき（もう一度開くと、戻る）。
+		"&[data-draft]": {
+			color: "var(--color-text)",
+			borderColor: "var(--color-border-strong)",
 		},
 		"&:focus-visible": {
 			outline: "3px solid var(--color-focus)",
@@ -417,12 +419,15 @@ export const addTrigger = style({
 	},
 });
 
+// 開いた入力行（材料の行と同じ並び：名前｜分量｜追加｜閉じる）。
 export const addRow = style({
+	boxSizing: "border-box",
 	display: "grid",
+	flex: "1 1 100%",
 	gridTemplateColumns: "minmax(0, 1fr) minmax(0, 0.7fr) auto auto",
 	alignItems: "center",
 	gap: 6,
-	padding: 8,
+	padding: 4,
 	selectors: {
 		'&[data-kind="group"]': {
 			gridTemplateColumns: "minmax(0, 1fr) auto auto",
@@ -430,11 +435,23 @@ export const addRow = style({
 	},
 });
 
-export const addActions = style({
-	display: "flex",
-	flexWrap: "wrap",
-	gap: 4,
-	marginTop: 4,
+export const addInput = style({
+	boxSizing: "border-box",
+	width: "100%",
+	minHeight: 40,
+	padding: "0 12px",
+	color: "var(--color-text)",
+	background: "var(--color-surface)",
+	border: "1.5px solid var(--color-control-border)",
+	borderRadius: 10,
+	font: "inherit",
+	selectors: {
+		"&::placeholder": { color: "var(--color-text-muted)" },
+		"&:focus-visible": {
+			outline: "3px solid var(--color-focus)",
+			outlineOffset: 1,
+		},
+	},
 });
 
 // 人数：− 数字 ＋。全体で、ふつうの入力欄と同じ見た目（白い地・濃い枠・丸い形）。
@@ -507,4 +524,17 @@ export const bodyTips = style({
 	lineHeight: "var(--line-height-normal)",
 	whiteSpace: "pre-wrap",
 	pointerEvents: "none",
+});
+
+// 保存前の確認の見出し（詳細画面の見出しと、そろえる）。
+export const previewTitle = style({
+	margin: 0,
+	fontSize: "var(--font-size-lg)",
+	fontWeight: "var(--font-weight-bold)",
+});
+
+export const previewSectionTitle = style({
+	margin: "12px 0 0",
+	fontSize: "var(--font-size-md)",
+	fontWeight: "var(--font-weight-bold)",
 });

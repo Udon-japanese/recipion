@@ -160,9 +160,8 @@ describe("RecipeLinkPreview", () => {
 
 		setup("other");
 
-		expect(
-			await screen.findByText(/作者：たろう（@taro）/u),
-		).toBeInTheDocument();
+		expect(await screen.findByText("たろう")).toBeInTheDocument();
+		expect(screen.getByText("@taro")).toBeInTheDocument();
 
 		cleanup();
 		setup("rice");

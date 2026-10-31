@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { ButtonLink } from "#/components/button/button-link";
 import { pageTitle } from "#/config/app";
 import { RecipeEditor } from "#/features/recipes/components/recipe-editor";
 import { RecipeRouteError } from "#/features/recipes/components/recipe-route-error";
@@ -23,14 +24,16 @@ function loadLinkedRecipes(publicIds: string[]) {
 
 function renderOpenLink(publicId: string) {
 	return (
-		<Link
+		<ButtonLink
 			to="/recipes/$publicId"
 			params={{ publicId }}
 			target="_blank"
 			rel="noreferrer"
+			variant="secondary"
+			size="sm"
 		>
 			レシピを開く
-		</Link>
+		</ButtonLink>
 	);
 }
 

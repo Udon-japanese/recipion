@@ -362,7 +362,7 @@ describe("RecipeConsumeSection", () => {
 		});
 
 		const checkbox = screen.getByRole("checkbox", {
-			name: "できあがりを、在庫に入れる",
+			name: "できあがりも在庫に入れる",
 		});
 
 		expect(checkbox).not.toBeChecked();
@@ -387,7 +387,7 @@ describe("RecipeConsumeSection", () => {
 		});
 
 		await user.click(
-			screen.getByRole("checkbox", { name: "できあがりを、在庫に入れる" }),
+			screen.getByRole("checkbox", { name: "できあがりも在庫に入れる" }),
 		);
 		await user.click(screen.getByRole("button", { name: /つくった/u }));
 
@@ -483,7 +483,7 @@ describe("RecipeConsumeSection", () => {
 
 			await user.click(
 				screen.getByRole("checkbox", {
-					name: "リンク先のレシピは、在庫のできあがりから使う",
+					name: "リンク先のレシピは在庫のできあがりを使う",
 				}),
 			);
 			await user.click(screen.getByRole("button", { name: /つくった/u }));
@@ -502,7 +502,7 @@ describe("RecipeConsumeSection", () => {
 
 			expect(
 				screen.queryByRole("checkbox", {
-					name: "リンク先のレシピは、在庫のできあがりから使う",
+					name: "リンク先のレシピは在庫のできあがりを使う",
 				}),
 			).toBeNull();
 		});

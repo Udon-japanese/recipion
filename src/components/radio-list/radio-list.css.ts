@@ -31,7 +31,6 @@ export const options = style({
 	border: "1px solid var(--color-border)",
 	borderRadius: "var(--radius-card)",
 	background: "var(--color-surface)",
-	overflow: "hidden",
 });
 
 export const option = style({
@@ -45,6 +44,15 @@ export const option = style({
 	cursor: "pointer",
 	selectors: {
 		"& + &": { borderTop: "1px solid var(--color-border)" },
+		// 枠の角に合わせる（枠は、フォーカスの線を切らないよう、はみ出しを隠さない）。
+		"&:first-child": {
+			borderTopLeftRadius: "calc(var(--radius-card) - 1px)",
+			borderTopRightRadius: "calc(var(--radius-card) - 1px)",
+		},
+		"&:last-child": {
+			borderBottomLeftRadius: "calc(var(--radius-card) - 1px)",
+			borderBottomRightRadius: "calc(var(--radius-card) - 1px)",
+		},
 		"&:has(input:disabled)": {
 			color: "var(--color-text-disabled)",
 			cursor: "not-allowed",

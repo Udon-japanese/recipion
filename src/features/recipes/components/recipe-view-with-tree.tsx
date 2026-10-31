@@ -1,32 +1,23 @@
-import { type ReactNode, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import type { RecipeDetail } from "../application/recipe-repository";
 import { collectIngredientLinkTargetIds } from "../domain/ingredient-link-target";
-import { RecipeView } from "./recipe-view";
+import { RecipeView, type RecipeViewProps } from "./recipe-view";
 
 export type LoadLinkedRecipes = (
 	publicIds: string[],
 ) => Promise<Record<string, RecipeDetail>>;
 
-type RecipeViewWithTreeProps = {
-	recipe: RecipeDetail;
+type RecipeViewWithTreeProps = Omit<RecipeViewProps, "linkedRecipes"> & {
 	// 材料のリンク先のレシピを、まとめて取ってくる。なければ、リンクは、押すとプレビューが開くだけ。
 	loadLinkedRecipes?: LoadLinkedRecipes;
-	onOpenLink?: (publicId: string, trigger: HTMLElement) => void;
-	titleId?: string;
-	badges?: ReactNode;
-	// 題名を出さない（外側の見出しが、題名を出しているとき）。
-	hideTitle?: boolean;
 };
 
 // 材料のリンク先を取ってきて、材料の下に、その場で開く（取れるまでは、リンクのまま）。
 export function RecipeViewWithTree({
-	recipe,
 	loadLinkedRecipes,
-	onOpenLink,
-	titleId,
-	badges,
-	hideTitle,
+	...viewProps
 }: RecipeViewWithTreeProps) {
+	const { recipe } = viewProps;
 	const [loaded, setLoaded] = useState<{
 		forPublicId: string;
 		recipes: Record<string, RecipeDetail>;
@@ -60,11 +51,7 @@ export function RecipeViewWithTree({
 
 	return (
 		<RecipeView
-			recipe={recipe}
-			onOpenLink={onOpenLink}
-			titleId={titleId}
-			badges={badges}
-			hideTitle={hideTitle}
+			{...viewProps}
 			linkedRecipes={
 				loaded?.forPublicId === recipe.publicId ? loaded.recipes : undefined
 			}

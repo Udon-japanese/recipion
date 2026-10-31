@@ -346,34 +346,6 @@ export function RecipeConsumeSection({
 
 	return (
 		<section className={styles.container} aria-label="作った">
-			{hasLinkedRecipes ? (
-				<div className={styles.checkRow}>
-					<Checkbox
-						id={useMadeStockId}
-						label="リンク先のレシピは、在庫のできあがりから使う"
-						checked={useMadeStock}
-						disabled={isWorking}
-						onChange={(event) => setUseMadeStock(event.target.checked)}
-					/>
-					<label htmlFor={useMadeStockId} aria-hidden="true">
-						リンク先のレシピは、在庫のできあがりから使う
-					</label>
-				</div>
-			) : null}
-			{madeRecipe ? (
-				<div className={styles.checkRow}>
-					<Checkbox
-						id={putInStockId}
-						label="できあがりを、在庫に入れる"
-						checked={putInStock}
-						disabled={isWorking}
-						onChange={(event) => setPutInStock(event.target.checked)}
-					/>
-					<label htmlFor={putInStockId} aria-hidden="true">
-						できあがりを、在庫に入れる
-					</label>
-				</div>
-			) : null}
 			<Button
 				fullWidth
 				status={isWorking && !outcome ? "pending" : "idle"}
@@ -386,6 +358,38 @@ export function RecipeConsumeSection({
 				<Note tone="error">{errorMessage}</Note>
 			) : null}
 
+			{hasLinkedRecipes || madeRecipe ? (
+				<div className={styles.options}>
+					{hasLinkedRecipes ? (
+						<div className={styles.checkRow}>
+							<Checkbox
+								id={useMadeStockId}
+								label="リンク先のレシピは在庫のできあがりを使う"
+								checked={useMadeStock}
+								disabled={isWorking}
+								onChange={(event) => setUseMadeStock(event.target.checked)}
+							/>
+							<label htmlFor={useMadeStockId} aria-hidden="true">
+								リンク先のレシピは在庫のできあがりを使う
+							</label>
+						</div>
+					) : null}
+					{madeRecipe ? (
+						<div className={styles.checkRow}>
+							<Checkbox
+								id={putInStockId}
+								label="できあがりも在庫に入れる"
+								checked={putInStock}
+								disabled={isWorking}
+								onChange={(event) => setPutInStock(event.target.checked)}
+							/>
+							<label htmlFor={putInStockId} aria-hidden="true">
+								できあがりも在庫に入れる
+							</label>
+						</div>
+					) : null}
+				</div>
+			) : null}
 			<CornerSheet
 				open={outcome !== null}
 				onDismiss={() => {

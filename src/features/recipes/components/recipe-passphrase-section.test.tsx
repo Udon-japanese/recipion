@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { RecipePassphraseSection } from "./recipe-passphrase-section";
@@ -20,11 +20,13 @@ describe("RecipePassphraseSection", () => {
 		await user.click(screen.getByRole("button", { name: "作り直す" }));
 
 		expect(regeneratePassphrase).not.toHaveBeenCalled();
+
+		const dialog = screen.getByRole("alertdialog");
 		expect(
-			screen.getByText(/新しいパスフレーズを入れないと/u),
+			within(dialog).getByText(/新しいパスフレーズを入れないと/u),
 		).toBeInTheDocument();
 
-		await user.click(screen.getByRole("button", { name: "本当に作り直す" }));
+		await user.click(within(dialog).getByRole("button", { name: "作り直す" }));
 
 		expect(regeneratePassphrase).toHaveBeenCalledTimes(1);
 		expect(

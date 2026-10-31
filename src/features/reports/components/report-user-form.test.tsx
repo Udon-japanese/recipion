@@ -4,15 +4,13 @@ import { describe, expect, it, vi } from "vitest";
 import { ReportUserForm } from "./report-user-form";
 
 describe("ReportUserForm", () => {
-	it("理由と内容を送る。送れたら、閉じてお礼を出す", async () => {
+	it("理由と内容を送る。送れたら、お礼と「閉じる」に替わる", async () => {
 		const user = userEvent.setup();
 		const onReport = vi.fn(async () => "created" as const);
+		const onClose = vi.fn();
 
-		render(<ReportUserForm onReport={onReport} />);
+		render(<ReportUserForm onReport={onReport} onClose={onClose} />);
 
-		await user.click(
-			screen.getByRole("button", { name: "この作者のユーザー名を通報する" }),
-		);
 		await user.click(screen.getByLabelText("他の人・団体になりすましている"));
 		await user.type(
 			screen.getByLabelText(/詳しい内容/u),
@@ -24,25 +22,25 @@ describe("ReportUserForm", () => {
 			reason: "impersonation",
 			detail: "有名なお店の名前です",
 		});
-		expect(await screen.findByText(/通報しました/u)).toBeInTheDocument();
-		expect(
-			screen.getByRole("button", { name: "この作者のユーザー名を通報する" }),
-		).toBeInTheDocument();
+		expect(await screen.findByText(/通報しました。/u)).toBeInTheDocument();
+
+		await user.click(screen.getByRole("button", { name: "閉じる" }));
+
+		expect(onClose).toHaveBeenCalled();
 	});
 
 	it.each([
 		["duplicate", "すでに通報しています"],
 		["limit", "今日の通報の上限"],
 		["not-found", "通報できません"],
-		["own-profile", "自分は、通報できません"],
+		["own-profile", "自分は通報できません"],
 	] as const)(
 		"%s のときは、その旨を出し、フォームは開いたまま",
 		async (result, text) => {
 			const user = userEvent.setup();
 
-			render(<ReportUserForm onReport={async () => result} />);
-			await user.click(
-				screen.getByRole("button", { name: "この作者のユーザー名を通報する" }),
+			render(
+				<ReportUserForm onReport={async () => result} onClose={vi.fn()} />,
 			);
 			await user.click(screen.getByRole("button", { name: "通報する" }));
 
@@ -57,10 +55,10 @@ describe("ReportUserForm", () => {
 		const user = userEvent.setup();
 
 		render(
-			<ReportUserForm onReport={vi.fn().mockRejectedValue(new Error("x"))} />,
-		);
-		await user.click(
-			screen.getByRole("button", { name: "この作者のユーザー名を通報する" }),
+			<ReportUserForm
+				onReport={vi.fn().mockRejectedValue(new Error("x"))}
+				onClose={vi.fn()}
+			/>,
 		);
 		await user.click(screen.getByRole("button", { name: "通報する" }));
 

@@ -1,8 +1,10 @@
 import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { Modal } from "#/components/dialog/modal";
 import { IconButton } from "#/components/icon-button/icon-button";
 import { Sheet } from "#/components/sheet/sheet";
 import { useMediaQuery } from "#/components/use-media-query";
 import type { RecipeDetail } from "../application/recipe-repository";
+import { RecipeAuthorByline } from "./recipe-author-byline";
 import * as styles from "./recipe-link-preview.css";
 import {
 	type LoadLinkedRecipes,
@@ -36,7 +38,7 @@ export function RecipeLinkPreview({
 }: RecipeLinkPreviewProps) {
 	const [stack, setStack] = useState<string[]>([initialPublicId]);
 	const [states, setStates] = useState<Record<string, LoadState>>({});
-	const isRight = useMediaQuery("(min-width: 1024px)");
+	const isWide = useMediaQuery("(min-width: 768px)");
 	const current = stack.at(-1) ?? initialPublicId;
 	const state: LoadState = states[current] ?? { status: "loading" };
 
@@ -73,32 +75,26 @@ export function RecipeLinkPreview({
 		}
 	}, [current, load]);
 
-	return (
-		<Sheet
-			open
-			onOpenChange={(open) => {
-				if (!open) {
-					onClose();
-				}
-			}}
-			title={
-				state.status === "ready" ? state.recipe.name : "レシピのプレビュー"
-			}
-			placement={isRight ? "right" : "bottom"}
-			snapPoints={isRight ? [0.92] : [0.7, 0.92]}
-			headerLeading={
-				stack.length > 1 ? (
-					<IconButton
-						icon="chevron-left"
-						label="戻る"
-						size="std"
-						tone="plain"
-						onClick={() => setStack((current) => current.slice(0, -1))}
-					/>
-				) : null
-			}
-			footer={<div className={styles.footer}>{renderOpenLink(current)}</div>}
-		>
+	const title =
+		state.status === "ready" ? state.recipe.name : "レシピのプレビュー";
+	const handleOpenChange = (open: boolean) => {
+		if (!open) {
+			onClose();
+		}
+	};
+	const backButton =
+		stack.length > 1 ? (
+			<IconButton
+				icon="chevron-left"
+				label="戻る"
+				size="std"
+				tone="plain"
+				onClick={() => setStack((current) => current.slice(0, -1))}
+			/>
+		) : null;
+	const footer = <div className={styles.footer}>{renderOpenLink(current)}</div>;
+	const body = (
+		<>
 			{state.status === "loading" ? (
 				<p className={styles.message}>読み込んでいます…</p>
 			) : null}
@@ -110,21 +106,54 @@ export function RecipeLinkPreview({
 					レシピを読み込めませんでした。
 				</p>
 			) : null}
-			{state.status === "ready" && state.recipe.author ? (
-				<p className={styles.message}>
-					作者：{state.recipe.author.name}（@{state.recipe.author.handle}）
-				</p>
-			) : null}
 			{state.status === "ready" ? (
 				<RecipeViewWithTree
 					loadLinkedRecipes={loadLinkedRecipes}
 					recipe={state.recipe}
 					hideTitle
+					compact
+					badges={
+						state.recipe.author ? (
+							<RecipeAuthorByline
+								name={state.recipe.author.name}
+								handle={state.recipe.author.handle}
+							/>
+						) : undefined
+					}
 					onOpenLink={(publicId) =>
 						setStack((currentStack) => [...currentStack, publicId])
 					}
 				/>
 			) : null}
+		</>
+	);
+
+	// PC は、中央の広いダイアログ（材料と作り方を左右に並べる）。スマホは、下からのシート。
+	if (isWide) {
+		return (
+			<Modal
+				open
+				onOpenChange={handleOpenChange}
+				title={title}
+				headerLeading={backButton}
+				footer={footer}
+			>
+				{body}
+			</Modal>
+		);
+	}
+
+	return (
+		<Sheet
+			open
+			onOpenChange={handleOpenChange}
+			title={title}
+			placement="bottom"
+			snapPoints={[0.7, 0.92]}
+			headerLeading={backButton}
+			footer={footer}
+		>
+			{body}
 		</Sheet>
 	);
 }

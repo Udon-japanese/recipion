@@ -41,7 +41,7 @@ describe("RecipeKeepAwake", () => {
 		render(<RecipeKeepAwake />);
 
 		expect(
-			screen.getByRole("switch", { name: "調理中は、画面を消さない" }),
+			screen.getByRole("switch", { name: "画面をつけたまま" }),
 		).toBeChecked();
 		await vi.waitFor(() => expect(request).toHaveBeenCalledWith("screen"));
 	});

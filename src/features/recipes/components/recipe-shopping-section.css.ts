@@ -1,18 +1,23 @@
 import { style } from "@vanilla-extract/css";
 
+// 詳細画面の下の操作（買い物メモに入れる・つくった）。並べ方は、画面の側で決める。
 export const container = style({
 	display: "grid",
+	alignContent: "start",
 	gap: 8,
-	width: "min(100% - 32px, 640px)",
-	marginInline: "auto",
-	marginBottom: 16,
+	minWidth: 0,
 	color: "var(--color-text)",
 });
+
+// 「つくった！」の下の、小さな選択。
+export const options = style({ display: "grid", gap: 0 });
 
 export const checkRow = style({
 	display: "flex",
 	alignItems: "center",
-	gap: 8,
+	gap: 4,
+	fontSize: "var(--font-size-sm)",
+	lineHeight: "var(--line-height-tight)",
 });
 
 export const hint = style({

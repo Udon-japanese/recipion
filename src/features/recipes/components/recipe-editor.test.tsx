@@ -13,6 +13,12 @@ import {
 } from "../domain/recipe-editor-document";
 import { RecipeEditor } from "./recipe-editor";
 
+vi.mock("@tanstack/react-router", () => ({
+	Link: ({ children, to }: { children: React.ReactNode; to: string }) => (
+		<a href={to}>{children}</a>
+	),
+}));
+
 beforeEach(() => {
 	localStorage.clear();
 });
@@ -65,7 +71,7 @@ describe("RecipeEditor", () => {
 		await writeBody(user, "＜材料＞\n醤油 大さじ2\n酢 大さじ1");
 		await user.click(
 			screen.getByRole("checkbox", {
-				name: "作り置きのレシピ（「つくった」で、できあがりを在庫に入れるのを、初めから選んでおく）",
+				name: "作り置き",
 			}),
 		);
 		await user.click(screen.getByRole("button", { name: "レシピを保存" }));
@@ -74,6 +80,113 @@ describe("RecipeEditor", () => {
 		expect(onSave).toHaveBeenCalledWith(
 			expect.objectContaining({ stocksWhenMade: true }),
 		);
+	});
+
+	describe("公開して保存するときの確認", () => {
+		function chooseVisibility(value: string) {
+			fireEvent.change(screen.getByRole("combobox", { name: "公開範囲" }), {
+				target: { value },
+			});
+		}
+
+		it("非公開のレシピを公開にして保存すると、同意の確認を出し、確かめてから保存する。やめれば保存しない", async () => {
+			const user = userEvent.setup();
+			const onSave = vi.fn(async (_document: RecipeEditorDocument) => ({
+				publicId: "recipe-1",
+			}));
+
+			render(<RecipeEditor onSave={onSave} />);
+
+			await enterTitle(user, "和風ドレッシング");
+			chooseVisibility("public");
+			await user.click(screen.getByRole("button", { name: "レシピを保存" }));
+
+			const dialog = screen.getByRole("alertdialog", {
+				name: "全体公開で保存しますか？",
+			});
+			expect(
+				within(dialog).getByText(/自分の言葉で書いたレシピだけ/u),
+			).toBeTruthy();
+
+			await user.click(within(dialog).getByRole("button", { name: "やめる" }));
+
+			expect(onSave).not.toHaveBeenCalled();
+
+			await user.click(screen.getByRole("button", { name: "レシピを保存" }));
+			await user.click(
+				within(screen.getByRole("alertdialog")).getByRole("button", {
+					name: "公開して保存",
+				}),
+			);
+			await screen.findByText("保存しました", { selector: "output" });
+
+			expect(onSave).toHaveBeenCalledTimes(1);
+			expect(onSave).toHaveBeenCalledWith(
+				expect.objectContaining({ visibility: "public" }),
+			);
+		});
+
+		it("すでに公開しているレシピの保存と、非公開の保存では、確認を出さない", async () => {
+			const user = userEvent.setup();
+			const onSave = vi.fn(async (_document: RecipeEditorDocument) => ({
+				publicId: "recipe-1",
+			}));
+
+			const { unmount } = render(
+				<RecipeEditor
+					onSave={onSave}
+					initialDocument={createRecipeEditorDocument({
+						name: "つくね",
+						visibility: "public",
+					})}
+				/>,
+			);
+
+			await user.click(screen.getByRole("button", { name: "レシピを保存" }));
+			await screen.findByText("保存しました", { selector: "output" });
+
+			expect(screen.queryByRole("alertdialog")).toBeNull();
+			expect(onSave).toHaveBeenCalledTimes(1);
+
+			unmount();
+			render(<RecipeEditor onSave={onSave} />);
+
+			await enterTitle(user, "つくね");
+			await user.click(screen.getByRole("button", { name: "レシピを保存" }));
+			await screen.findByText("保存しました", { selector: "output" });
+
+			expect(screen.queryByRole("alertdialog")).toBeNull();
+			expect(onSave).toHaveBeenCalledTimes(2);
+		});
+	});
+
+	it("材料の追加の入力行は、外を押すと閉じる。書きかけは残り、開き直すと戻る。Esc では消える", async () => {
+		const user = userEvent.setup();
+
+		render(<RecipeEditor onSave={vi.fn()} />);
+
+		await user.click(screen.getByRole("button", { name: "材料を追加" }));
+		await user.type(
+			screen.getByRole("textbox", { name: "追加する材料名" }),
+			"塩",
+		);
+		await user.click(screen.getByRole("heading", { name: "保存前の確認" }));
+
+		expect(
+			screen.queryByRole("textbox", { name: "追加する材料名" }),
+		).toBeNull();
+
+		await user.click(screen.getByRole("button", { name: "材料を追加" }));
+		const nameInput = screen.getByRole("textbox", { name: "追加する材料名" });
+
+		expect(nameInput).toHaveProperty("value", "塩");
+
+		await user.type(nameInput, "{Escape}");
+		await user.click(screen.getByRole("button", { name: "材料を追加" }));
+
+		expect(
+			screen.getByRole("textbox", { name: "追加する材料名" }),
+		).toHaveProperty("value", "");
 	});
 
 	it("取り込んだ材料を既存グループへ移して保存できる", async () => {
@@ -904,7 +1017,7 @@ describe("RecipeEditor", () => {
 
 			await user.click(
 				screen.getByRole("checkbox", {
-					name: "新規登録で、見出しを最初から入れる",
+					name: "新規登録で見出しを最初から入れる",
 				}),
 			);
 			expect(
@@ -919,7 +1032,7 @@ describe("RecipeEditor", () => {
 			).toHaveProperty("value", "");
 			expect(
 				screen.getByRole("checkbox", {
-					name: "新規登録で、見出しを最初から入れる",
+					name: "新規登録で見出しを最初から入れる",
 				}),
 			).toHaveProperty("checked", false);
 		});
@@ -932,7 +1045,7 @@ describe("RecipeEditor", () => {
 			await writeBody(user, "＜材料＞\n卵 1個");
 			await user.click(
 				screen.getByRole("checkbox", {
-					name: "新規登録で、見出しを最初から入れる",
+					name: "新規登録で見出しを最初から入れる",
 				}),
 			);
 
@@ -951,7 +1064,7 @@ describe("RecipeEditor", () => {
 
 			expect(
 				screen.queryByRole("checkbox", {
-					name: "新規登録で、見出しを最初から入れる",
+					name: "新規登録で見出しを最初から入れる",
 				}),
 			).toBeNull();
 		});
