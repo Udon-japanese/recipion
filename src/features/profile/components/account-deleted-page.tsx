@@ -9,7 +9,7 @@ export function AccountDeletedPage() {
 			<Mascot size={64} />
 			<h1 className={styles.title}>アカウントを削除しました</h1>
 			<p className={styles.text}>
-				アカウントと、保存した情報を削除しました。ご利用ありがとうございました。
+				アカウントと保存した情報を削除しました。ご利用ありがとうございました。
 			</p>
 			{/* 端末のデータを消したあとなので、ページを読み込み直して、最初の状態から始める。 */}
 			<ButtonLink to="/" reloadDocument>

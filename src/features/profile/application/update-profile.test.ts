@@ -44,7 +44,7 @@ describe("updateProfile", () => {
 		expect(result).toEqual({
 			ok: false,
 			errors: {
-				name: "表示名に、@ は使えません（メールアドレスを入れないためです）。",
+				name: "表示名に @ は使えません（メールアドレスを入れないためです）。",
 				handle: "ハンドルは3文字以上にしてください。",
 			},
 		});
@@ -58,7 +58,7 @@ describe("updateProfile", () => {
 			await updateProfile(repository, { name: "たろう", handle: "taro" }),
 		).toEqual({
 			ok: false,
-			errors: { handle: "このハンドルは、すでに使われています。" },
+			errors: { handle: "このハンドルはすでに使われています。" },
 		});
 	});
 
@@ -137,12 +137,12 @@ describe("updateProfile", () => {
 			const result = await updateProfile(
 				repository,
 				{ name: "あ", handle: "user-abc123" },
-				async () => ({ name: "表示名に、使えない内容が含まれています。" }),
+				async () => ({ name: "表示名に使えない内容が含まれています。" }),
 			);
 
 			expect(result).toEqual({
 				ok: false,
-				errors: { name: "表示名に、使えない内容が含まれています。" },
+				errors: { name: "表示名に使えない内容が含まれています。" },
 			});
 			expect(updates).toEqual([]);
 		});

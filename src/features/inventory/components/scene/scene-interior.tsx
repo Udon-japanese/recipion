@@ -106,7 +106,7 @@ export function SceneInterior({
 
 				<div className={styles.interiorScroll}>
 					{tiles.length === 0 ? (
-						<p className={listStyles.empty}>ここには、まだ何もありません。</p>
+						<p className={listStyles.empty}>ここにはまだ何もありません。</p>
 					) : (
 						<ul className={listStyles.rows}>
 							{tiles.map((tile) => (

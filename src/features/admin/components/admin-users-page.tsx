@@ -81,7 +81,7 @@ export function AdminUsersPage({
 			});
 
 			if (result === "protected") {
-				setErrorMessage("管理者のアカウントは、停止できません");
+				setErrorMessage("管理者のアカウントは停止できません");
 			} else if (result === "not-found") {
 				setErrorMessage("ユーザーが見つかりません");
 			} else {
@@ -126,7 +126,7 @@ export function AdminUsersPage({
 					className={styles.searchInput}
 					id="admin-user-search"
 					value={searchText}
-					placeholder="空欄なら、新しく登録した順"
+					placeholder="空欄なら新しく登録した順"
 					onChange={(event) => setSearchText(event.target.value)}
 				/>
 				<button className={styles.button} type="submit">
@@ -142,7 +142,7 @@ export function AdminUsersPage({
 				</p>
 			) : null}
 
-			{users.length === 0 ? <p>該当するユーザーは、いません。</p> : null}
+			{users.length === 0 ? <p>該当するユーザーはいません。</p> : null}
 
 			<ul className={styles.list}>
 				{users.map((target) => {
@@ -242,7 +242,7 @@ export function AdminUsersPage({
 											checked={makePrivate}
 											onChange={(event) => setMakePrivate(event.target.checked)}
 										/>
-										このユーザーの公開のレシピを、すべて非公開にする
+										このユーザーの公開のレシピをすべて非公開にする
 									</label>
 
 									<div className={styles.actions}>

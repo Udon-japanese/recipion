@@ -68,7 +68,7 @@ export function PurchaseRowQuantity({
 			<div className={styles.askLine}>
 				{draft.isPresence ? (
 					<p className={styles.result}>
-						量は数えない（あるか、ないかだけ見ます）
+						量は数えない（あるかないかだけ見ます）
 					</p>
 				) : (
 					<>

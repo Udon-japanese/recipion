@@ -93,7 +93,7 @@ export function AdminUserReportsPage({
 			) : null}
 
 			{openReports.length === 0 ? (
-				<p>未対応のユーザー名の通報は、ありません。</p>
+				<p>未対応のユーザー名の通報はありません。</p>
 			) : null}
 
 			<ul className={styles.list}>
@@ -113,7 +113,7 @@ export function AdminUserReportsPage({
 							</p>
 							{report.currentHandle === null ? (
 								<p className={styles.meta}>
-									このユーザーは、すでに退会しています。
+									このユーザーはすでに退会しています。
 								</p>
 							) : null}
 							{isChanged ? (

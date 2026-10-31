@@ -6,7 +6,7 @@ export function ProfileRouteError(props: ErrorComponentProps) {
 		<RouteError
 			{...props}
 			subject="プロフィール"
-			loginMessage="ログインすると、プロフィールを確認・編集できます"
+			loginMessage="ログインするとプロフィールを確認・編集できます"
 		/>
 	);
 }

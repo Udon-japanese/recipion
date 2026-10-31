@@ -44,7 +44,7 @@ describe("AdminUserReportsPage", () => {
 
 		expect(onResolve).toHaveBeenCalledWith(report.id, "reset-name");
 		expect(
-			await screen.findByText("未対応のユーザー名の通報は、ありません。"),
+			await screen.findByText("未対応のユーザー名の通報はありません。"),
 		).toBeInTheDocument();
 	});
 
@@ -99,7 +99,7 @@ describe("AdminUserReportsPage", () => {
 			screen.getByText("いまの名前：直した名前（@fixed）"),
 		).toBeInTheDocument();
 		expect(
-			screen.getByText("このユーザーは、すでに退会しています。"),
+			screen.getByText("このユーザーはすでに退会しています。"),
 		).toBeInTheDocument();
 		// 退会済みの通報には、名前を戻すボタンがない（1件目だけ）
 		expect(

@@ -30,5 +30,5 @@ export function getAuthErrorMessage(
 		return messagesByCode[AUTH_RATE_LIMITED_CODE] as string;
 	}
 
-	return "ログインの処理に失敗しました。時間をおいて、もう一度お試しください。";
+	return "ログインの処理に失敗しました。時間をおいてもう一度お試しください。";
 }

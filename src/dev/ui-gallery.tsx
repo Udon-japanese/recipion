@@ -320,7 +320,7 @@ export function UiGallery() {
 					<Button
 						variant="secondary"
 						disabled
-						disabledReason="先に、食材の名前を入れてください"
+						disabledReason="先に食材の名前を入れてください"
 					>
 						在庫に追加
 					</Button>
@@ -623,7 +623,7 @@ function PartsGallery() {
 			>
 				<div style={row}>
 					<Toggle
-						label="調理中は、画面を消さない"
+						label="調理中は画面を消さない"
 						checked={toggled}
 						onChange={setToggled}
 					/>
@@ -903,7 +903,7 @@ function SheetGallery() {
 					});
 				}}
 			>
-				購入済みの3件を、買い物メモから削除します。在庫には影響しません。
+				購入済みの3件を買い物メモから削除します。在庫には影響しません。
 			</ConfirmDialog>
 
 			<CornerSheet

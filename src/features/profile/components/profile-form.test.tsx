@@ -75,8 +75,8 @@ describe("ProfileForm", () => {
 		const { user } = setup({
 			ok: false,
 			errors: {
-				name: "表示名に、@ は使えません（メールアドレスを入れないためです）。",
-				handle: "このハンドルは、すでに使われています。",
+				name: "表示名に @ は使えません（メールアドレスを入れないためです）。",
+				handle: "このハンドルはすでに使われています。",
 			},
 		});
 
@@ -86,8 +86,8 @@ describe("ProfileForm", () => {
 		const alerts = await screen.findAllByRole("alert");
 
 		expect(alerts.map((alert) => alert.textContent)).toEqual([
-			"表示名に、@ は使えません（メールアドレスを入れないためです）。",
-			"このハンドルは、すでに使われています。",
+			"表示名に @ は使えません（メールアドレスを入れないためです）。",
+			"このハンドルはすでに使われています。",
 		]);
 	});
 

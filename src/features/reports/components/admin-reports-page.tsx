@@ -100,7 +100,7 @@ export function AdminReportsPage({
 				</p>
 			) : null}
 
-			{openReports.length === 0 ? <p>未対応の通報は、ありません。</p> : null}
+			{openReports.length === 0 ? <p>未対応の通報はありません。</p> : null}
 
 			<ul className={styles.list}>
 				{openReports.map((report) => {

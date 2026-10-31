@@ -48,7 +48,7 @@ export function AdminHome({
 							ユーザー
 						</Link>
 					</p>
-					<p className={styles.meta}>探して、停止・永久停止・解除をする</p>
+					<p className={styles.meta}>探して停止・永久停止・解除をする</p>
 				</li>
 			</ul>
 		</main>

@@ -134,7 +134,7 @@ export function validateRecipeEditorDocument(
 
 	// 引用元のあるレシピは、公開できない（他のサイトの転載を避ける。DB の制約と同じ）。
 	if (document.visibility !== "private" && document.sourceUrl !== null) {
-		throw new UserFacingError("引用元のURLがあるレシピは、公開できません");
+		throw new UserFacingError("引用元のURLがあるレシピは公開できません");
 	}
 
 	const linkLabels = new Set<string>();

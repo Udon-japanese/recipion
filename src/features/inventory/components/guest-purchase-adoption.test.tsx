@@ -37,7 +37,7 @@ describe("GuestPurchaseAdoption", () => {
 
 		expect(
 			await screen.findByRole("alertdialog", {
-				name: "ログインする前に買ったものを、在庫に入れますか",
+				name: "ログインする前に買ったものを在庫に入れますか",
 			}),
 		).toBeInTheDocument();
 
@@ -72,7 +72,7 @@ describe("GuestPurchaseAdoption", () => {
 		// 質問のシートは閉じて、結果は、Note で出る。
 		expect(screen.queryByRole("alertdialog")).toBeNull();
 		expect(
-			await screen.findByText("ログインする前に買ったものを、在庫に入れました"),
+			await screen.findByText("ログインする前に買ったものを在庫に入れました"),
 		).toBeInTheDocument();
 	});
 
@@ -164,7 +164,7 @@ describe("GuestPurchaseAdoption", () => {
 		);
 
 		expect(
-			await screen.findByText("ログインする前に買ったものを、在庫に入れました"),
+			await screen.findByText("ログインする前に買ったものを在庫に入れました"),
 		).toBeInTheDocument();
 		expect(screen.queryByRole("alertdialog")).toBeNull();
 		expect(adoptGuestPurchases).toHaveBeenCalledWith("user:user-id");
@@ -207,7 +207,7 @@ describe("GuestPurchaseAdoption", () => {
 		await user.click(
 			await screen.findByRole("button", { name: "在庫に入れる" }),
 		);
-		await screen.findByText("ログインする前に買ったものを、在庫に入れました");
+		await screen.findByText("ログインする前に買ったものを在庫に入れました");
 		expect(adopted.read()).toBe("user:user-id");
 	});
 

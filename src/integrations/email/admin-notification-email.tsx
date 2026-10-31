@@ -21,9 +21,9 @@ export function adminNotificationEmail(
 	},
 ): EmailMessage {
 	const lead = `${APP_DISPLAY_NAME}の管理者へのお知らせです。`;
-	const summary = `${input.kindLabel}の未対応が、${input.openCount}件あります。`;
-	const guide = "次のリンクから、確認して、対応してください。";
-	const interval = "同じ種類のお知らせは、30分に1通までです。";
+	const summary = `${input.kindLabel}の未対応が${input.openCount}件あります。`;
+	const guide = "次のリンクから確認して、対応してください。";
+	const interval = "同じ種類のお知らせは30分に1通までです。";
 
 	return {
 		to,

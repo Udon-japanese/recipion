@@ -10,7 +10,7 @@ export function buildRecipeTips(options: {
 	if (options.canLinkOwn && options.canLinkOthers) {
 		tips.push("[[ で自分のレシピ、[[@ で他の人のレシピをリンクできます");
 	} else if (options.canLinkOwn) {
-		tips.push("[[ で、自分のレシピをリンクできます");
+		tips.push("[[ で自分のレシピをリンクできます");
 	}
 
 	return tips;

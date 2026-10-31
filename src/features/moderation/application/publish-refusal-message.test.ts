@@ -32,14 +32,14 @@ describe("describePublishRefusal", () => {
 				warning: "warned",
 				reasons,
 			}),
-		).toContain("今日は、公開ができなくなります");
+		).toContain("今日は公開ができなくなります");
 		expect(
 			describePublishRefusal({
 				status: "rejected",
 				warning: "locked",
 				reasons,
 			}),
-		).toContain("これ以上、公開できません");
+		).toContain("これ以上公開できません");
 		expect(
 			describePublishRefusal({
 				status: "rejected",
