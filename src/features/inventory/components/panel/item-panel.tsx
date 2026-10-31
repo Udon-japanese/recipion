@@ -20,6 +20,7 @@ import { Tag } from "#/components/tag/tag";
 import { listStockUnitOptions } from "#/features/ingredients/domain/list-stock-unit-options";
 import { QuantityInput } from "#/features/quantity/components/quantity-input";
 import { formatStockAmount } from "#/features/quantity/domain/format-quantity";
+import { formatQuantityInput } from "#/features/quantity/domain/quantity-buttons";
 import type { InventoryListItem } from "../../application/inventory-query-repository";
 import {
 	expiryKindLabels,
@@ -694,6 +695,12 @@ function AdjustForm({
 					unitLabel={item.stockUnitLabel}
 					trailing={
 						<span className={styles.unitSuffix}>{item.stockUnitLabel}</span>
+					}
+					// 「使った」なら全部、「買い足した」なら同じだけ。
+					presetButton={
+						item.quantity > 0
+							? { label: "今ある分", value: formatQuantityInput(item.quantity) }
+							: undefined
 					}
 				/>
 			)}

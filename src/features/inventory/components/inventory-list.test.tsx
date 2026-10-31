@@ -524,6 +524,48 @@ describe("InventoryList", () => {
 		expect(amount).toHaveValue("1");
 	});
 
+	it("「今ある分」で、いまの量を欄に入れ、「使った」で全部減らす。g の食材の欄は、はじめは空", async () => {
+		const user = userEvent.setup();
+		const adjustInventoryItem = vi.fn().mockResolvedValue({
+			status: "applied",
+			transactionId: "71af9bc7-03ed-4df4-a783-a45e743a81f7",
+			quantity: 0,
+			lots: [],
+		});
+
+		renderList(
+			[
+				stocked({
+					inventoryItemId: "1fc94e80-a9cf-4458-b0e6-3d72550cce06",
+					name: "鶏もも肉",
+					quantity: 300,
+					stockUnitCode: "g",
+					stockUnitLabel: "g",
+				}),
+			],
+			{ adjustInventoryItem },
+		);
+
+		const dialog = await openPanel(user, "鶏もも肉");
+		const amount = within(dialog).getByRole("textbox", {
+			name: "鶏もも肉の使った量・買い足した量",
+		});
+
+		expect(amount).toHaveValue("");
+
+		await user.click(within(dialog).getByRole("button", { name: "今ある分" }));
+
+		expect(amount).toHaveValue("300");
+
+		await user.click(within(dialog).getByRole("button", { name: "使った" }));
+
+		await waitFor(() =>
+			expect(adjustInventoryItem).toHaveBeenCalledWith(
+				expect.objectContaining({ inputQuantity: 300, operation: "decrease" }),
+			),
+		);
+	});
+
 	it("通信できず保存済みの在庫を見ているときは、案内を出し、書き換える操作は理由を出して実行しない", async () => {
 		const user = userEvent.setup();
 		const adjustInventoryItem = vi.fn();

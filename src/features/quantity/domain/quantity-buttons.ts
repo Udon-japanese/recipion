@@ -43,6 +43,23 @@ export function getQuantityButtons(
 	return (unit ? buttonsByUnit[unit] : undefined) ?? [];
 }
 
+/**
+ * 量の欄の、はじめの値。足すボタン（+50 など）がある単位（g・ml）は、空（1 に足すと 51 になってしまう）。
+ * ほかの単位は 1（「1個使った」を、ボタン1回で済ませる）。
+ */
+export function initialQuantityInput(
+	unitLabel: string | null | undefined,
+): string {
+	return getQuantityButtons(unitLabel).some((button) => button.kind === "add")
+		? ""
+		: "1";
+}
+
+/** いまの量を、量の欄に入れる文字にする（「今ある分」）。 */
+export function formatQuantityInput(quantity: number): string {
+	return formatQuantity(quantity, { grouping: false, allowFractions: false });
+}
+
 export function describeQuantityButton(button: QuantityButton): string {
 	return button.kind === "set" ? button.value : `+${button.amount}`;
 }

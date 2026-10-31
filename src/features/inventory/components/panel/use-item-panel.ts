@@ -8,6 +8,7 @@ import {
 } from "#/features/ingredients/domain/list-stock-unit-options";
 import { formatQuantity } from "#/features/quantity/domain/format-quantity";
 import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
+import { initialQuantityInput } from "#/features/quantity/domain/quantity-buttons";
 import { createManualInventoryAdjustment } from "../../application/create-manual-inventory-adjustment";
 import type { InventoryListItem } from "../../application/inventory-query-repository";
 import type { ChangeInventoryTrackingModeCommand } from "../../application/inventory-tracking-mode-repository";
@@ -72,7 +73,9 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
 	// 調整
-	const [adjustQuantity, setAdjustQuantity] = useState("1");
+	const [adjustQuantity, setAdjustQuantity] = useState(() =>
+		initialQuantityInput(item.stockUnitLabel),
+	);
 	const [isLotSpecified, setIsLotSpecified] = useState(false);
 	const [adjustLotQuantities, setAdjustLotQuantities] = useState<
 		Record<string, string>
@@ -251,7 +254,7 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 		});
 
 		if (done) {
-			setAdjustQuantity("1");
+			setAdjustQuantity(initialQuantityInput(item.stockUnitLabel));
 			setIsLotSpecified(false);
 			setAdjustLotQuantities({});
 		}

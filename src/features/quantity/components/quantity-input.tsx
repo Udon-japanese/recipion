@@ -23,6 +23,8 @@ type QuantityInputProps = {
 	unitLabel?: string | null;
 	// 入力欄の右に並べるもの（単位の選択など）。ボタンは、その下に、横幅いっぱいで並ぶ。
 	trailing?: ReactNode;
+	// 単位のボタンの前に置く、決まった値のボタン（在庫の「今ある分」など）。単位にボタンがなくても出す。
+	presetButton?: { label: string; value: string };
 };
 
 // 数量の入力欄。「1/2」「1と1/2」「0.5」のように、分数でも小数でも入力できる。
@@ -38,6 +40,7 @@ export function QuantityInput({
 	"aria-label": ariaLabel,
 	unitLabel,
 	trailing,
+	presetButton,
 }: QuantityInputProps) {
 	const buttons = getQuantityButtons(unitLabel);
 	const parsed = parseQuantityInput(value);
@@ -74,8 +77,17 @@ export function QuantityInput({
 				<span className={styles.hint}>= {parsed}</span>
 			) : null}
 
-			{buttons.length > 0 ? (
+			{buttons.length > 0 || presetButton ? (
 				<div className={styles.fractionButtons}>
+					{presetButton ? (
+						<Chip
+							size="qty"
+							disabled={disabled}
+							onClick={() => onChange(presetButton.value)}
+						>
+							{presetButton.label}
+						</Chip>
+					) : null}
 					{buttons.map((button) => (
 						<Chip
 							key={describeQuantityButton(button)}

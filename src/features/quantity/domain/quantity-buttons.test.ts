@@ -3,6 +3,7 @@ import {
 	applyQuantityButton,
 	describeQuantityButton,
 	getQuantityButtons,
+	initialQuantityInput,
 } from "./quantity-buttons";
 
 const cases: [unit: string | null | undefined, expected: string[]][] = [
@@ -43,4 +44,19 @@ describe("applyQuantityButton", () => {
 		);
 		expect(applyQuantityButton("abc", { kind: "add", amount: 50 })).toBe("50");
 	});
+});
+
+describe("initialQuantityInput", () => {
+	it.each([
+		["g", ""],
+		["ml", ""],
+		["個", "1"],
+		["枚", "1"],
+		[null, "1"],
+	])(
+		"%s のはじめの値は「%s」（足すボタンがある単位は空）",
+		(unit, expected) => {
+			expect(initialQuantityInput(unit)).toBe(expected);
+		},
+	);
 });
