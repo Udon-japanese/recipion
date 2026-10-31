@@ -37,7 +37,7 @@ export const box = style({
 	transition: `background-color var(--duration-fast) var(--ease-standard)`,
 
 	selectors: {
-		[`${input}:checked + &`]: {
+		[`${input}:is(:checked, :indeterminate) + &`]: {
 			background: "var(--color-primary)",
 			borderColor: "var(--color-text)",
 		},
@@ -53,12 +53,24 @@ export const box = style({
 });
 
 export const mark = style({
-	// 行の高さで上にずれないよう、中央に置く。
+	// 行の高さで上にずれないよう、中央に置く。✓と横線は、同じ位置に重ねる。
+	gridArea: "1 / 1",
 	display: "grid",
 	placeItems: "center",
 	lineHeight: 0,
 	opacity: 0,
 	selectors: {
-		[`${input}:checked + ${box} &`]: { opacity: 1 },
+		[`${input}:checked:not(:indeterminate) + ${box} &`]: { opacity: 1 },
+	},
+});
+
+export const dash = style({
+	gridArea: "1 / 1",
+	display: "grid",
+	placeItems: "center",
+	lineHeight: 0,
+	opacity: 0,
+	selectors: {
+		[`${input}:indeterminate + ${box} &`]: { opacity: 1 },
 	},
 });
