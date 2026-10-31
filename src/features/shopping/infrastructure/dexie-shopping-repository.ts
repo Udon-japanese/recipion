@@ -27,6 +27,14 @@ export const dexieShoppingRepository = {
 		await getLocalDatabase().shoppingItems.delete(id);
 	},
 
+	async removeAll(ids) {
+		const database = getLocalDatabase();
+
+		await database.transaction("rw", database.shoppingItems, async () => {
+			await database.shoppingItems.bulkDelete([...ids]);
+		});
+	},
+
 	watch(onChange, onError) {
 		const subscription = liveQuery(() =>
 			getLocalDatabase().shoppingItems.orderBy("sortOrder").toArray(),

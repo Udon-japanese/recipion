@@ -1,7 +1,13 @@
 import type { ShoppingRepository } from "#/features/shopping/application/shopping-repository";
 import type { ShoppingItem } from "#/features/shopping/domain/shopping-item";
 
-type RepositoryMethod = "list" | "findById" | "save" | "saveAll" | "remove";
+type RepositoryMethod =
+	| "list"
+	| "findById"
+	| "save"
+	| "saveAll"
+	| "remove"
+	| "removeAll";
 
 export type FakeShoppingRepository = ShoppingRepository & {
 	// いま保存されている項目（並び順は sortOrder）。結果の状態を確かめるのに使う。
@@ -70,6 +76,14 @@ export function createFakeShoppingRepository(
 			guard("remove");
 			stored = new Map(stored);
 			stored.delete(id);
+		},
+
+		async removeAll(ids) {
+			guard("removeAll");
+			stored = new Map(stored);
+			for (const id of ids) {
+				stored.delete(id);
+			}
 		},
 	};
 

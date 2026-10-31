@@ -116,6 +116,30 @@ const rangePattern = new RegExp(
 	"u",
 );
 
+const rangeCapturePattern = new RegExp(
+	String.raw`(?<min>${numericToken})\s*${rangeSeparator}\s*(?<max>${numericToken})`,
+	"u",
+);
+
+export type AmountRange = { min: number; max: number };
+
+// 分量の原文が範囲（「60~70g」「大さじ二〜三」）のとき、その下限と上限。範囲でなければ null。
+// 材料の数量は、範囲を1つの数値にしない（null）。買い物で、上限を使って比べるために読む。
+export function parseAmountRange(amountText: string): AmountRange | null {
+	const match = convertKanjiAmount(amountText.normalize("NFKC")).match(
+		rangeCapturePattern,
+	);
+
+	if (!match?.groups) {
+		return null;
+	}
+
+	const first = parseNumericQuantity(match.groups.min);
+	const second = parseNumericQuantity(match.groups.max);
+
+	return { min: Math.min(first, second), max: Math.max(first, second) };
+}
+
 function parseNumericQuantity(value: string): number {
 	const normalizedValue = value.trim().replace("と", " ");
 

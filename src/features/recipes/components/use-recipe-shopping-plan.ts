@@ -20,6 +20,7 @@ import {
 	flattenRecipeIngredients,
 	planShoppingFromRecipe,
 	type RecipeShoppingRow,
+	withRangeUpperBound,
 } from "../domain/plan-shopping-from-recipe";
 import type { RecipeEditorIngredientNode } from "../domain/recipe-editor-document";
 import type { RecipeLinkView } from "../domain/recipe-links";
@@ -91,12 +92,15 @@ export function useRecipeShoppingPlan({
 	);
 
 	// 同じ食材の行（「オリーブオイル 大さじ1」と「オリーブオイル 少し」など）は、1行にまとめる。
+	// 範囲の分量（60~70g）は、上限で比べる。
 	const needs = useMemo(
 		() =>
-			mergeRecipeNeeds([
-				...resolvedNeeds.filter((need) => !need.linkedRecipe),
-				...linkedSections.sections.flatMap((section) => section.needs),
-			]),
+			mergeRecipeNeeds(
+				[
+					...resolvedNeeds.filter((need) => !need.linkedRecipe),
+					...linkedSections.sections.flatMap((section) => section.needs),
+				].map(withRangeUpperBound),
+			),
 		[resolvedNeeds, linkedSections],
 	);
 

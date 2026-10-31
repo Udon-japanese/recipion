@@ -115,6 +115,26 @@ export function describeAmount(
 		: `${text}${unitLabel ?? ""}`;
 }
 
+// 範囲の分量の表記（「120~140g」「大さじ2~3」）。
+export function describeAmountRange(
+	range: { min: number; max: number },
+	unitLabel: string | null,
+): string {
+	const isLeading = unitLabel !== null && leadingUnits.has(unitLabel);
+	const unitLength = unitLabel?.length ?? 0;
+	// 数量の書き方（g の分数を使わない、など）は、describeAmount にそろえ、単位だけを外す。
+	const format = (quantity: number) => {
+		const text = describeAmount(quantity, unitLabel);
+
+		return isLeading
+			? text.slice(unitLength)
+			: text.slice(0, text.length - unitLength);
+	};
+	const text = `${format(range.min)}~${format(range.max)}`;
+
+	return isLeading ? `${unitLabel}${text}` : `${text}${unitLabel ?? ""}`;
+}
+
 /**
  * 同じ食材の行（別名を含む。同じまとまり＝リンク先のレシピごと、の中だけ）を、1行にまとめる。
  * - 数量を同じ単位に換算できる行は、合算する（大さじ2＋大さじ1＝大さじ3。大さじ1＋小さじ1＝20ml）。
@@ -192,8 +212,11 @@ export function mergeRecipeNeeds(
 			const supplements = index === 0 ? unquantifiedTexts : [];
 			const base = describeAmount(quantity, unitLabel);
 
+			// まとめた行は、範囲ではない（上限を足した数量になる）。
+			const { range: _range, ...rest } = first as RecipeShoppingNeed;
+
 			return {
-				...(first as RecipeShoppingNeed),
+				...rest,
 				quantity,
 				unitLabel,
 				amountText:

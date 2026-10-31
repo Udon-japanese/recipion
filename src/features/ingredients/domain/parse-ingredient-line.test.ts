@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseIngredientLine } from "./parse-ingredient-line";
+import { parseAmountRange, parseIngredientLine } from "./parse-ingredient-line";
 
 describe("parseIngredientLine", () => {
 	it.each([
@@ -280,4 +280,27 @@ describe("parseIngredientLine（リンク先の割合）", () => {
 		expect(parseIngredientLine("牛乳 2")?.status).toBe("missing-amount");
 		expect(parseIngredientLine("半分")?.status).toBe("missing-amount");
 	});
+});
+
+describe("parseAmountRange", () => {
+	it.each([
+		["60~70g", { min: 60, max: 70 }],
+		["60-70g", { min: 60, max: 70 }],
+		["60〜70g", { min: 60, max: 70 }],
+		["70から80g", { min: 70, max: 80 }],
+		["大さじ4〜5", { min: 4, max: 5 }],
+		["大さじ二〜三", { min: 2, max: 3 }],
+		["1/2〜1個", { min: 0.5, max: 1 }],
+		["約200~250ml", { min: 200, max: 250 }],
+		["８０～１００ｇ", { min: 80, max: 100 }],
+	])("%sの下限と上限を読む", (amountText, range) => {
+		expect(parseAmountRange(amountText)).toEqual(range);
+	});
+
+	it.each(["200g", "大さじ1と1/2", "少々", "適量"])(
+		"%sは、範囲ではない",
+		(amountText) => {
+			expect(parseAmountRange(amountText)).toBeNull();
+		},
+	);
 });

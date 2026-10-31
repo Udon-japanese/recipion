@@ -109,6 +109,21 @@ export function ShoppingList({
 	const isDesktop = useMediaQuery("(min-width: 768px)");
 	const [isAddingItem, setIsAddingItem] = useState(false);
 	const [isCreatingBranch, setIsCreatingBranch] = useState(false);
+	// チェックしたものを、購入確定せずに消す（買わないことにしたもの）。数と対象は、購入確定と同じ。
+	const checkedItems = items.filter((item) => item.status === "checked");
+	const [isAskingRemoveChecked, setIsAskingRemoveChecked] = useState(false);
+	const [isRemovingChecked, setIsRemovingChecked] = useState(false);
+
+	async function removeCheckedItems() {
+		setIsRemovingChecked(true);
+
+		try {
+			await shopping.removeItems(checkedItems.map((item) => item.id));
+		} finally {
+			setIsRemovingChecked(false);
+			setIsAskingRemoveChecked(false);
+		}
+	}
 
 	// レシピの材料を入れたあと、保存済みの一覧を読み直す（購読できない保存先でも、画面に反映する）。
 	async function reloadItems() {
@@ -525,6 +540,19 @@ export function ShoppingList({
 					: `チェックした${purchase.checkedTrackedItems.length}件を購入済みにして、在庫に入れます。`}
 			</ConfirmDialog>
 
+			<ConfirmDialog
+				open={isAskingRemoveChecked}
+				title="チェックしたものを削除しますか"
+				cancelLabel="やめる"
+				confirmLabel="削除する"
+				danger
+				pending={isRemovingChecked}
+				onCancel={() => setIsAskingRemoveChecked(false)}
+				onConfirm={() => void removeCheckedItems()}
+			>
+				{`チェックした${checkedItems.length}件を、買い物メモから削除します。在庫には入りません。`}
+			</ConfirmDialog>
+
 			{purchase.isReviewingConversion ? (
 				<PurchaseConversionSheet
 					items={purchase.conversionReviewItems.filter(
@@ -688,15 +716,26 @@ export function ShoppingList({
 					items={purchasedItems}
 					renderItem={(item) => renderItem(item)}
 					onClear={async (targets) => {
-						for (const target of targets) {
-							await shopping.removeItem(target.id);
-						}
+						await shopping.removeItems(targets.map((target) => target.id));
 					}}
 				/>
 			)}
 
 			{purchase.checkedItemCount > 0 && !isLoading ? (
 				<div className={styles.purchaseBar}>
+					<span className={styles.purchaseBarRemove}>
+						<Button
+							variant="secondary"
+							size="lg"
+							leadingIcon={<Icon name="trash" size={20} />}
+							aria-label={`チェックした${checkedItems.length}件を削除`}
+							disabled={purchase.isConfirmingPurchase}
+							onClick={() => setIsAskingRemoveChecked(true)}
+						>
+							削除
+						</Button>
+					</span>
+
 					<Button
 						size="lg"
 						fullWidth

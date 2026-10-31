@@ -9,6 +9,7 @@ import {
 	formatQuantityForUnit,
 	formatStockAmount,
 } from "#/features/quantity/domain/format-quantity";
+import { describeAmount } from "../domain/merge-recipe-needs";
 import type {
 	DuplicateMode,
 	RecipeShoppingRow,
@@ -150,6 +151,15 @@ export function RecipeShoppingRows({
 			/>
 
 			<ul className={styles.card}>
+				{rows.length > 1 ? (
+					<GroupHeading
+						plan={plan}
+						title="すべて"
+						label="すべての材料をまとめて買い物メモに入れる"
+						group={rows}
+					/>
+				) : null}
+
 				{rows.map((row, index) => {
 					const stock = describeStock(row);
 					const existingText = describeExisting(row);
@@ -163,9 +173,10 @@ export function RecipeShoppingRows({
 						<Fragment key={row.need.id}>
 							{row.need.sectionTitle &&
 							row.need.sectionTitle !== rows[index - 1]?.need.sectionTitle ? (
-								<SectionHeading
+								<GroupHeading
 									plan={plan}
 									title={row.need.sectionTitle}
+									label={`${row.need.sectionTitle}をまとめて買い物メモに入れる`}
 									group={rows.filter(
 										(other) =>
 											other.need.sectionTitle === row.need.sectionTitle,
@@ -201,6 +212,12 @@ export function RecipeShoppingRows({
 									>
 										{stock.text}
 									</span>
+
+									{row.need.range ? (
+										<span className={styles.status}>
+											{`多い方の${describeAmount(row.need.range.max, row.need.unitLabel)}で比べています`}
+										</span>
+									) : null}
 
 									{row.need.mergedAmountTexts &&
 									row.need.mergedAmountTexts.length > 1 ? (
@@ -253,20 +270,21 @@ export function RecipeShoppingRows({
 	);
 }
 
-type SectionHeadingProps = {
+type GroupHeadingProps = {
 	plan: ReturnType<typeof useRecipeShoppingPlan>;
 	title: string;
+	label: string;
 	group: readonly RecipeShoppingRow[];
 };
 
-// リンクした料理の材料の見出し。見出しのチェックで、その料理の材料を、まとめて選ぶ・外す。
-function SectionHeading({ plan, title, group }: SectionHeadingProps) {
+// まとめのチェックの見出し（一覧の先頭の「すべて」と、リンクした料理の材料）。見出しのチェックで、まとめて選ぶ・外す。
+function GroupHeading({ plan, title, label, group }: GroupHeadingProps) {
 	const state = plan.getGroupCheckState(group);
 
 	return (
 		<li className={styles.sectionHeading}>
 			<Checkbox
-				label={`${title}をまとめて買い物メモに入れる`}
+				label={label}
 				checked={state === "all"}
 				indeterminate={state === "some"}
 				disabled={group.every((row) => row.plan === "keep")}

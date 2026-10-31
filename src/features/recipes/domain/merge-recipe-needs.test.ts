@@ -144,4 +144,18 @@ describe("mergeRecipeNeeds", () => {
 
 		expect(mergeRecipeNeeds([linked, linked])).toEqual([linked, linked]);
 	});
+
+	it("上限にした範囲の行と、ほかの行をまとめると、範囲の情報は残さない（内訳に原文を残す）", () => {
+		const [merged] = mergeRecipeNeeds([
+			need("a", "豚こま肉", 70, "g", "60~70g", { range: { min: 60, max: 70 } }),
+			need("b", "豚こま肉", 100, "g", "100g"),
+		]);
+
+		expect(merged).toMatchObject({
+			quantity: 170,
+			amountText: "170g",
+			mergedAmountTexts: ["60~70g", "100g"],
+		});
+		expect(merged?.range).toBeUndefined();
+	});
 });
