@@ -83,7 +83,7 @@ export function ShoppingPurchasedSection({
 				onConfirm={() => void clear()}
 			>
 				購入済みの{items.length}
-				件を、買い物メモから削除します。在庫には影響しません。
+				件を買い物メモから削除します。在庫には影響しません。
 			</ConfirmDialog>
 		</section>
 	);

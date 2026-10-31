@@ -34,13 +34,13 @@ export function AccountDeletionSection({
 			}
 
 			setErrorMessage(
-				"確認のメールを送れませんでした。時間をおいて、もう一度お試しください。",
+				"確認のメールを送れませんでした。時間をおいてもう一度お試しください。",
 			);
 
 			return false;
 		} catch {
 			setErrorMessage(
-				"確認のメールを送れませんでした。時間をおいて、もう一度お試しください。",
+				"確認のメールを送れませんでした。時間をおいてもう一度お試しください。",
 			);
 
 			return false;
@@ -54,7 +54,7 @@ export function AccountDeletionSection({
 			{step === "closed" ? (
 				<>
 					<p className={styles.note}>
-						アカウントと、保存した情報を削除します。削除は、すぐに行われ、取り消せません。
+						アカウントと保存した情報を削除します。削除はすぐに行われ、取り消せません。
 					</p>
 					<div className={styles.actions}>
 						<Button variant="danger" onClick={() => setStep("confirming")}>
@@ -76,7 +76,7 @@ export function AccountDeletionSection({
 						<li>
 							残るもの：他の人から受けた通報の記録（あなたの情報は含みません）。
 						</li>
-						<li>この端末の買い物メモなどのデータも、削除されます。</li>
+						<li>この端末の買い物メモなどのデータも削除されます。</li>
 					</ul>
 					<Field label={`確認のため、ハンドル（${handle}）を入力してください`}>
 						{(control) => (
@@ -118,7 +118,7 @@ export function AccountDeletionSection({
 
 			{step === "sent" ? (
 				<Note tone="success">
-					確認のメールを送りました。メールのリンクを、このブラウザで開くと、アカウントが削除されます（1時間以内）。メールが届かないときは、しばらく待ってから、もう一度お試しください。リンクを開かなければ、何も削除されません。
+					確認のメールを送りました。メールのリンクをこのブラウザで開くと、アカウントが削除されます（1時間以内）。メールが届かないときは、しばらく待ってからもう一度お試しください。リンクを開かなければ、何も削除されません。
 				</Note>
 			) : null}
 		</section>

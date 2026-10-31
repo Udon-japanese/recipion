@@ -33,7 +33,7 @@ describe("AdminHistoryList", () => {
 
 		expect(screen.getByText("対応済みの通報（0件）")).toBeInTheDocument();
 		expect(
-			screen.getByText("対応済みのものは、まだありません。"),
+			screen.getByText("対応済みのものはまだありません。"),
 		).toBeInTheDocument();
 	});
 });

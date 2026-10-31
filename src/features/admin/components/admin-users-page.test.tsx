@@ -73,7 +73,7 @@ describe("AdminUsersPage", () => {
 		await user.click(screen.getByRole("button", { name: "停止する…" }));
 
 		expect(
-			screen.getByLabelText(/公開のレシピを、すべて非公開にする/u),
+			screen.getByLabelText(/公開のレシピをすべて非公開にする/u),
 		).toBeChecked();
 
 		await user.click(screen.getByRole("button", { name: "停止する" }));
@@ -102,7 +102,7 @@ describe("AdminUsersPage", () => {
 		await user.click(screen.getByRole("button", { name: "停止する…" }));
 		await user.type(screen.getByLabelText("太郎の停止の理由"), "悪質");
 		await user.click(
-			screen.getByLabelText(/公開のレシピを、すべて非公開にする/u),
+			screen.getByLabelText(/公開のレシピをすべて非公開にする/u),
 		);
 		await user.click(screen.getByRole("button", { name: "永久停止にする" }));
 
@@ -140,7 +140,7 @@ describe("AdminUsersPage", () => {
 		await user.click(screen.getByRole("button", { name: "停止する" }));
 
 		expect(await screen.findByRole("alert")).toHaveTextContent(
-			"管理者のアカウントは、停止できません",
+			"管理者のアカウントは停止できません",
 		);
 	});
 

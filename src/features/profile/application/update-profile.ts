@@ -67,7 +67,7 @@ export async function updateProfile(
 	if (result === "handle-taken") {
 		return {
 			ok: false,
-			errors: { handle: "このハンドルは、すでに使われています。" },
+			errors: { handle: "このハンドルはすでに使われています。" },
 		};
 	}
 

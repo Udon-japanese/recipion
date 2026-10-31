@@ -866,7 +866,7 @@ export function DishCoverEditor({
 						) : (
 							<p className={styles.swatchNote}>
 								{selectedPlacement
-									? "この部品は、色を選べません。"
+									? "この部品は色を選べません。"
 									: "パーツで色を選べるものは、ここで変えられます。"}
 							</p>
 						)}

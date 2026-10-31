@@ -276,7 +276,7 @@ export function ShoppingBulkAdd({
 
 		if (added < lines.length) {
 			setErrorMessage(
-				`${added}件を追加したところで、止まりました。残りは、もう一度、追加してください。`,
+				`${added}件を追加したところで止まりました。残りはもう一度追加してください。`,
 			);
 
 			return false;
@@ -291,7 +291,7 @@ export function ShoppingBulkAdd({
 		<div className={styles.bulkPane}>
 			<Field
 				label="買うもの（1行に1つ）"
-				hint="「卵 10個」「牛乳 2」のように書けます。数字だけなら「個」、数量を書かなければ1つになります。店の名前だけの行から下は、その店になり、「卵 @イオン」のように、行ごとにも店を指定できます。"
+				hint="「卵 10個」「牛乳 2」のように書けます。数字だけなら「個」、数量を書かなければ1つになります。店の名前だけの行から下は、その店になり、「卵 @イオン」のように行ごとにも店を指定できます。"
 			>
 				{(control) => (
 					<TextArea
@@ -411,7 +411,7 @@ export function ShoppingBulkAdd({
 							) : null}
 							{line.unknownStoreName ? (
 								<Tag tone="warn">
-									「{line.unknownStoreName}」は、登録のない店です
+									「{line.unknownStoreName}」は登録のない店です
 								</Tag>
 							) : null}
 						</li>
@@ -419,7 +419,7 @@ export function ShoppingBulkAdd({
 				</ul>
 			) : (
 				<p className={styles.bulkEmpty}>
-					書いた内容が、ここに、読み取った結果として出ます。
+					書いた内容を読み取った結果が、ここに出ます。
 				</p>
 			)}
 		</div>
@@ -475,7 +475,6 @@ export function ShoppingBulkAdd({
 				}
 			}}
 			title={title}
-			placement="bottom"
 			snapPoints={[0.92]}
 			footer={footer}
 		>

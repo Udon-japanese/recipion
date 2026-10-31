@@ -9,7 +9,7 @@ import {
 	isAuthRequiredError,
 } from "./user-facing-error";
 
-const RETRY_GUIDANCE = "時間をおいて、もう一度お試しください。";
+const RETRY_GUIDANCE = "時間をおいてもう一度お試しください。";
 
 type RouteErrorProps = ErrorComponentProps & {
 	// 何を表示できなかったか（例：「レシピ」）。

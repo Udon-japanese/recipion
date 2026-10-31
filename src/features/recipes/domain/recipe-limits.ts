@@ -77,7 +77,7 @@ export function findRecipeLimitViolation(
 	const limits = recipeLimits;
 
 	if (length(document.name) > limits.nameMaxLength) {
-		return `レシピ名は、${format(limits.nameMaxLength)}文字までです。`;
+		return `レシピ名は${format(limits.nameMaxLength)}文字までです。`;
 	}
 
 	const stats: IngredientStats = {
@@ -92,23 +92,23 @@ export function findRecipeLimitViolation(
 	collectIngredientStats(document.ingredients, stats);
 
 	if (stats.ingredients > limits.maxIngredients) {
-		return `材料は、${format(limits.maxIngredients)}件までです。`;
+		return `材料は${format(limits.maxIngredients)}件までです。`;
 	}
 
 	if (stats.groups > limits.maxIngredientGroups) {
-		return `材料のグループは、${format(limits.maxIngredientGroups)}個までです。`;
+		return `材料のグループは${format(limits.maxIngredientGroups)}個までです。`;
 	}
 
 	if (stats.tooLongName) {
-		return `材料の名前は、${format(limits.ingredientNameMaxLength)}文字までです。`;
+		return `材料の名前は${format(limits.ingredientNameMaxLength)}文字までです。`;
 	}
 
 	if (stats.tooLongAmount || stats.tooLongRawText) {
-		return `材料の分量は、${format(limits.ingredientAmountMaxLength)}文字までです。`;
+		return `材料の分量は${format(limits.ingredientAmountMaxLength)}文字までです。`;
 	}
 
 	if (document.preparations.length > limits.maxPreparations) {
-		return `下準備は、${format(limits.maxPreparations)}件までです。`;
+		return `下準備は${format(limits.maxPreparations)}件までです。`;
 	}
 
 	if (
@@ -116,11 +116,11 @@ export function findRecipeLimitViolation(
 			(preparation) => length(preparation.text) > limits.preparationMaxLength,
 		)
 	) {
-		return `下準備の1件は、${format(limits.preparationMaxLength)}文字までです。`;
+		return `下準備の1件は${format(limits.preparationMaxLength)}文字までです。`;
 	}
 
 	if (document.instructions.length > limits.maxInstructions) {
-		return `作り方は、${format(limits.maxInstructions)}件までです。`;
+		return `作り方は${format(limits.maxInstructions)}件までです。`;
 	}
 
 	if (
@@ -128,11 +128,11 @@ export function findRecipeLimitViolation(
 			(instruction) => length(instruction.text) > limits.instructionMaxLength,
 		)
 	) {
-		return `作り方の1つの工程は、${format(limits.instructionMaxLength)}文字までです。`;
+		return `作り方の1つの工程は${format(limits.instructionMaxLength)}文字までです。`;
 	}
 
 	if (length(document.note) > limits.noteMaxLength) {
-		return `メモは、${format(limits.noteMaxLength)}文字までです。`;
+		return `メモは${format(limits.noteMaxLength)}文字までです。`;
 	}
 
 	const total =
@@ -149,7 +149,7 @@ export function findRecipeLimitViolation(
 		length(document.note);
 
 	if (total > limits.totalMaxLength) {
-		return `レシピ全体で、${format(limits.totalMaxLength)}文字までです（いま、${format(total)}文字）。`;
+		return `レシピ全体で${format(limits.totalMaxLength)}文字までです（いま${format(total)}文字）。`;
 	}
 
 	return null;
@@ -158,6 +158,6 @@ export function findRecipeLimitViolation(
 // 1人が持てるレシピの数に、新しい1件を足せるか。足せないときは、画面に出す文。
 export function findRecipeCountViolation(currentCount: number): string | null {
 	return currentCount >= recipeLimits.maxRecipesPerUser
-		? `レシピは、${format(recipeLimits.maxRecipesPerUser)}件までです。不要なレシピを削除してから、お試しください。`
+		? `レシピは${format(recipeLimits.maxRecipesPerUser)}件までです。不要なレシピを削除してからお試しください。`
 		: null;
 }

@@ -250,7 +250,7 @@ export function ShoppingBranchConditionEditor({
 			</div>
 
 			<fieldset className={styles.group}>
-				<legend className={styles.groupLabel}>何が、どうなったら</legend>
+				<legend className={styles.groupLabel}>何がどうなったら</legend>
 				<div className={styles.sentence}>
 					<button
 						type="button"

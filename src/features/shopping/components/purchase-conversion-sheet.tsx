@@ -29,7 +29,7 @@ export function PurchaseConversionSheet({
 	onConfirm,
 	onCancel,
 }: PurchaseConversionSheetProps) {
-	const isRight = useMediaQuery("(min-width: 1024px)");
+	const isWide = useMediaQuery("(min-width: 768px)");
 
 	const footer = (
 		<div className={styles.actions}>
@@ -51,7 +51,7 @@ export function PurchaseConversionSheet({
 	const body = (
 		<div className={styles.container}>
 			<p className={styles.hint}>
-				買ったものが、在庫でいくつになるかを、教えてください。パッケージの内容量を見て、数と単位を入れてください。
+				買ったものが在庫でいくつになるかを教えてください。パッケージの内容量を見て、数と単位を入れてください。
 			</p>
 
 			<ul className={styles.list}>
@@ -84,7 +84,7 @@ export function PurchaseConversionSheet({
 
 	const title = "在庫に入れる量を教えてください";
 
-	if (isRight) {
+	if (isWide) {
 		return (
 			<Modal
 				narrow
@@ -111,7 +111,6 @@ export function PurchaseConversionSheet({
 				}
 			}}
 			title={title}
-			placement="bottom"
 			dismissible={!isConfirming}
 			footer={footer}
 		>

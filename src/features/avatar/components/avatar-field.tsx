@@ -87,7 +87,7 @@ export function AvatarField({ userId, avatar, onSave }: AvatarFieldProps) {
 				setOpen(false);
 			} else {
 				setErrorMessage(
-					"保存できませんでした。時間をおいて、もう一度お試しください。",
+					"保存できませんでした。時間をおいてもう一度お試しください。",
 				);
 			}
 		} finally {

@@ -20,23 +20,23 @@ export function describePublishRefusal(
 		case "suspended":
 			return "アカウントが停止されています。";
 		case "locked-today":
-			return "今日は、公開できなくなっています。日本時間の0時を過ぎてから、お試しください。";
+			return "今日は公開できなくなっています。日本時間の0時を過ぎてからお試しください。";
 		case "ai-limit":
-			return "今日の、内容の確認の上限に達しました。明日、お試しください。";
+			return "今日の、内容の確認の上限に達しました。明日お試しください。";
 		case "unavailable":
-			return "いま、内容の確認ができません。時間をおいて、お試しください。";
+			return "いま内容の確認ができません。時間をおいてお試しください。";
 		case "rejected": {
 			const base = `公開できない内容が含まれています（${describeTargets(result.reasons)}）。`;
 
 			switch (result.warning) {
 				case "warned":
-					return `${base}次に公開できない内容を送ると、今日は、公開ができなくなります。`;
+					return `${base}次に公開できない内容を送ると、今日は公開ができなくなります。`;
 				case "locked":
-					return `${base}今日は、これ以上、公開できません。`;
+					return `${base}今日はこれ以上公開できません。`;
 				case "suspended":
 					return `${base}繰り返されたため、アカウントを停止しました。`;
 				default:
-					return `${base}内容を直してから、もう一度お試しください。`;
+					return `${base}内容を直してからもう一度お試しください。`;
 			}
 		}
 	}
@@ -46,7 +46,7 @@ export function describePublishRefusal(
 export function describeFlagRefusal(
 	reasons: readonly ModerationReason[],
 ): string {
-	return `${describeTargets(reasons)}に、使えない内容が含まれている可能性があります。別の内容にしてください。`;
+	return `${describeTargets(reasons)}に使えない内容が含まれている可能性があります。別の内容にしてください。`;
 }
 
 // 管理者の画面に載せる、自動検知の説明（欄と種類だけ。語は含まない）。

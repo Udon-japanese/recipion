@@ -521,8 +521,8 @@ export function ShoppingList({
 				onConfirm={purchase.confirmAskedPurchase}
 			>
 				{ownerScope === "guest"
-					? `チェックした${purchase.checkedTrackedItems.length}件を、購入済みにします。ログインすると、在庫に入れられます。`
-					: `チェックした${purchase.checkedTrackedItems.length}件を、購入済みにして、在庫に入れます。`}
+					? `チェックした${purchase.checkedTrackedItems.length}件を購入済みにします。ログインすると在庫に入れられます。`
+					: `チェックした${purchase.checkedTrackedItems.length}件を購入済みにして、在庫に入れます。`}
 			</ConfirmDialog>
 
 			{purchase.isReviewingConversion ? (

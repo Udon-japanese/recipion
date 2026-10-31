@@ -112,7 +112,7 @@ const displayNameMessages: Record<DisplayNameError, string> = {
 	empty: "表示名を入力してください。",
 	"too-long": `表示名は${displayNameMaxLength}文字以内にしてください。`,
 	"contains-at":
-		"表示名に、@ は使えません（メールアドレスを入れないためです）。",
+		"表示名に @ は使えません（メールアドレスを入れないためです）。",
 	"control-characters": "表示名に使えない文字が含まれています。",
 };
 

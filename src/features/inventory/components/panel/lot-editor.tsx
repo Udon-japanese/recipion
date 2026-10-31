@@ -109,7 +109,7 @@ export function LotEditor({
 							onChange={setSaveAsDefault}
 						/>
 						<span aria-hidden="true">
-							保存方法・期限の種類を、この食材の初期値にする
+							保存方法・期限の種類をこの食材の初期値にする
 						</span>
 					</div>
 				}
