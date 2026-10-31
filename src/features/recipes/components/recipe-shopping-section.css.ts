@@ -1,18 +1,24 @@
 import { style } from "@vanilla-extract/css";
 
+// 作り方のカードの一番下：「つくった！」と、その左の調整のボタン。
 export const container = style({
 	display: "grid",
-	gap: 8,
-	width: "min(100% - 32px, 640px)",
-	marginInline: "auto",
-	marginBottom: 16,
+	gap: 4,
 	color: "var(--color-text)",
 });
 
-export const checkRow = style({
+export const madeBar = style({
 	display: "flex",
 	alignItems: "center",
+	justifyContent: "flex-end",
 	gap: 8,
+});
+
+export const madeNote = style({
+	margin: 0,
+	color: "var(--color-text-muted)",
+	fontSize: "var(--font-size-xs)",
+	textAlign: "right",
 });
 
 export const hint = style({

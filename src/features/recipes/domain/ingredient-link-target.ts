@@ -31,3 +31,19 @@ export function collectIngredientLinkTargetIds(
 		return target ? [target.publicId] : [];
 	});
 }
+
+// 前もって取っておくリンク先（材料のリンクを先に、次に本文のリンク）。同じレシピは1度だけ。
+export function collectRecipeLinkTargetIds(recipe: {
+	publicId: string;
+	ingredients: readonly RecipeEditorIngredientNode[];
+	linkViews: readonly RecipeLinkView[];
+}): string[] {
+	const ids = [
+		...collectIngredientLinkTargetIds(recipe.ingredients, recipe.linkViews),
+		...recipe.linkViews.flatMap((view) =>
+			view.target ? [view.target.publicId] : [],
+		),
+	];
+
+	return [...new Set(ids)].filter((publicId) => publicId !== recipe.publicId);
+}

@@ -1,4 +1,11 @@
-import { type KeyboardEvent, useEffect, useRef, useState } from "react";
+import {
+	type KeyboardEvent,
+	type RefObject,
+	useEffect,
+	useEffectEvent,
+	useRef,
+	useState,
+} from "react";
 import { Button } from "#/components/button/button";
 import { Icon } from "#/components/icon/icon";
 import { IconButton } from "#/components/icon-button/icon-button";
@@ -264,19 +271,56 @@ export function IngredientPreviewNode({
 	);
 }
 
+// 入力行の外を押したら、閉じる（書きかけの文字は残し、もう一度開くと戻る）。
+// 押し下げではなくクリックで閉じる：押し下げで閉じると、行が縮んで、隣の「＋ グループを追加」などが動き、そのクリックが外れるため。
+function useCloseOnOutsidePointer(
+	isOpen: boolean,
+	rowRef: RefObject<HTMLElement | null>,
+	onClose: () => void,
+) {
+	const handleClose = useEffectEvent(onClose);
+
+	useEffect(() => {
+		if (!isOpen) return;
+
+		function handleClick(event: MouseEvent) {
+			if (
+				event.target instanceof Node &&
+				!rowRef.current?.contains(event.target)
+			) {
+				handleClose();
+			}
+		}
+
+		// 開いたクリック自体では、閉じない（そのクリックが終わってから、受け始める）。
+		const timer = window.setTimeout(() =>
+			document.addEventListener("click", handleClick),
+		);
+
+		return () => {
+			window.clearTimeout(timer);
+			document.removeEventListener("click", handleClick);
+		};
+	}, [isOpen, rowRef]);
+}
+
 type AddIngredientRowProps = {
 	// どこへ足すか（グループ名。グループ外なら空）。読み上げる名前に使う。
 	scope?: string;
 	onAdd: (name: string, amountText: string) => void;
 };
 
-// 「＋ 材料を追加」。押すと、名前と分量の入力が開く。Enter で足して、続けて足せる。Esc で閉じる。
+// 「＋ 材料を追加」。押すと、名前と分量の入力が開く。Enter で足して、続けて足せる。
+// Esc・×は、書きかけを消して閉じる。外を押したときは、書きかけを残して閉じる。
 export function AddIngredientRow({ scope = "", onAdd }: AddIngredientRowProps) {
 	const [isOpen, setIsOpen] = useState(false);
 	const [name, setName] = useState("");
 	const [amount, setAmount] = useState("");
+	const rowRef = useRef<HTMLDivElement>(null);
 	const nameRef = useRef<HTMLInputElement>(null);
 	const triggerRef = useRef<HTMLButtonElement>(null);
+
+	useCloseOnOutsidePointer(isOpen, rowRef, () => setIsOpen(false));
 
 	useEffect(() => {
 		if (isOpen) {
@@ -321,6 +365,7 @@ export function AddIngredientRow({ scope = "", onAdd }: AddIngredientRowProps) {
 				className={styles.addTrigger}
 				type="button"
 				aria-label={scope ? `${scope}に材料を追加` : "材料を追加"}
+				data-draft={name.trim() !== "" || undefined}
 				onClick={() => setIsOpen(true)}
 			>
 				<Icon name="plus" size={20} />
@@ -330,10 +375,10 @@ export function AddIngredientRow({ scope = "", onAdd }: AddIngredientRowProps) {
 	}
 
 	return (
-		<div className={styles.addRow}>
+		<div ref={rowRef} className={styles.addRow}>
 			<input
 				ref={nameRef}
-				className={styles.input}
+				className={styles.addInput}
 				aria-label={`${scope}追加する材料名`}
 				placeholder="材料名"
 				value={name}
@@ -341,19 +386,14 @@ export function AddIngredientRow({ scope = "", onAdd }: AddIngredientRowProps) {
 				onKeyDown={handleKeyDown}
 			/>
 			<input
-				className={styles.input}
+				className={styles.addInput}
 				aria-label={`${scope}追加する材料の分量`}
-				placeholder="分量なし"
+				placeholder="分量"
 				value={amount}
 				onChange={(event) => setAmount(event.target.value)}
 				onKeyDown={handleKeyDown}
 			/>
-			<Button
-				variant="secondary"
-				size="sm"
-				disabled={name.trim().length === 0}
-				onClick={submit}
-			>
+			<Button size="sm" disabled={name.trim().length === 0} onClick={submit}>
 				追加
 			</Button>
 			<IconButton icon="close" label="閉じる" tone="plain" onClick={close} />
@@ -363,11 +403,14 @@ export function AddIngredientRow({ scope = "", onAdd }: AddIngredientRowProps) {
 
 type AddGroupRowProps = { onAdd: (name: string) => void };
 
-// 「＋ グループを追加」。
+// 「＋ グループを追加」。外を押したときは、書きかけを残して閉じる。
 export function AddGroupRow({ onAdd }: AddGroupRowProps) {
 	const [isOpen, setIsOpen] = useState(false);
 	const [name, setName] = useState("");
+	const rowRef = useRef<HTMLDivElement>(null);
 	const inputRef = useRef<HTMLInputElement>(null);
+
+	useCloseOnOutsidePointer(isOpen, rowRef, () => setIsOpen(false));
 
 	useEffect(() => {
 		if (isOpen) {
@@ -385,6 +428,11 @@ export function AddGroupRow({ onAdd }: AddGroupRowProps) {
 		setIsOpen(false);
 	}
 
+	function close() {
+		setName("");
+		setIsOpen(false);
+	}
+
 	function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
 		if (event.nativeEvent.isComposing) return;
 
@@ -393,8 +441,7 @@ export function AddGroupRow({ onAdd }: AddGroupRowProps) {
 			submit();
 		} else if (event.key === "Escape") {
 			event.preventDefault();
-			setName("");
-			setIsOpen(false);
+			close();
 		}
 	}
 
@@ -403,6 +450,7 @@ export function AddGroupRow({ onAdd }: AddGroupRowProps) {
 			<button
 				className={styles.addTrigger}
 				type="button"
+				data-draft={name.trim() !== "" || undefined}
 				onClick={() => setIsOpen(true)}
 			>
 				<Icon name="plus" size={20} />
@@ -412,33 +460,20 @@ export function AddGroupRow({ onAdd }: AddGroupRowProps) {
 	}
 
 	return (
-		<div className={styles.addRow} data-kind="group">
+		<div ref={rowRef} className={styles.addRow} data-kind="group">
 			<input
 				ref={inputRef}
-				className={styles.input}
+				className={styles.addInput}
 				aria-label="追加するグループ名"
-				placeholder="グループ名"
+				placeholder="グループ名（例：たれ）"
 				value={name}
 				onChange={(event) => setName(event.target.value)}
 				onKeyDown={handleKeyDown}
 			/>
-			<Button
-				variant="secondary"
-				size="sm"
-				disabled={name.trim().length === 0}
-				onClick={submit}
-			>
+			<Button size="sm" disabled={name.trim().length === 0} onClick={submit}>
 				追加
 			</Button>
-			<IconButton
-				icon="close"
-				label="閉じる"
-				tone="plain"
-				onClick={() => {
-					setName("");
-					setIsOpen(false);
-				}}
-			/>
+			<IconButton icon="close" label="閉じる" tone="plain" onClick={close} />
 		</div>
 	);
 }

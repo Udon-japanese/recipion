@@ -49,8 +49,6 @@ type SheetProps = {
 	onSnapChange?: (index: number) => void;
 	// false にすると、つかんで下げても、暗幕を押しても、閉じない。
 	dismissible?: boolean;
-	// bottom：スマホ（下から）／right：PC（右から。つかんで動かす操作はなし）。
-	placement?: "bottom" | "right";
 	// 本文の余白（既定は、あり）。
 	padded?: boolean;
 	// false にすると、暗幕を出さず、後ろの画面を操作できる「浮いたパネル」になる（続けて入力する場面向け）。
@@ -85,11 +83,9 @@ export function Sheet({
 	defaultSnapIndex = 0,
 	onSnapChange,
 	dismissible = true,
-	placement = "bottom",
 	padded = true,
 	modal = true,
 }: SheetProps) {
-	const isBottom = placement === "bottom";
 	const [mounted, setMounted] = useState(open);
 	const [activeIndex, setActiveIndex] = useState(defaultSnapIndex);
 	const [isDragging, setIsDragging] = useState(false);
@@ -120,7 +116,6 @@ export function Sheet({
 		activeIndex: currentIndex,
 		dismissible,
 		open,
-		isBottom,
 	});
 	latest.current = {
 		snaps,
@@ -129,7 +124,6 @@ export function Sheet({
 		activeIndex: currentIndex,
 		dismissible,
 		open,
-		isBottom,
 	};
 
 	useBodyScrollLock(mounted && modal);
@@ -139,11 +133,7 @@ export function Sheet({
 	const place = useCallback((visible: number, animate: boolean) => {
 		const panel = panelRef.current;
 		const scrim = scrimRef.current;
-		const {
-			height: sheetHeight,
-			lowest: lowestSnap,
-			isBottom: bottom,
-		} = latest.current;
+		const { height: sheetHeight, lowest: lowestSnap } = latest.current;
 
 		if (!panel) {
 			return;
@@ -152,45 +142,30 @@ export function Sheet({
 		const reduced = prefersReducedMotion();
 		const transition = `var(--duration-sheet) var(--ease-sheet)`;
 
-		if (bottom) {
-			panel.style.transition = animate
-				? reduced
-					? `opacity ${transition}`
-					: `transform ${transition}`
-				: "none";
-			panel.style.transform = `translate3d(0, ${sheetHeight - visible}px, 0)`;
-			panel.style.opacity = reduced && visible <= 0 ? "0" : "1";
+		panel.style.transition = animate
+			? reduced
+				? `opacity ${transition}`
+				: `transform ${transition}`
+			: "none";
+		panel.style.transform = `translate3d(0, ${sheetHeight - visible}px, 0)`;
+		panel.style.opacity = reduced && visible <= 0 ? "0" : "1";
 
-			// パネルは、最大の高さのまま下へずらしているので、低い位置で止まると、一番下の操作バーが画面の外に出る。
-			// 最も低い位置までは、ずらした分だけ、操作バーを引き上げて、見える範囲の下に置く。
-			// それより下（閉じるとき）は、パネルといっしょに動く。
-			const footer = footerRef.current;
+		// パネルは、最大の高さのまま下へずらしているので、低い位置で止まると、一番下の操作バーが画面の外に出る。
+		// 最も低い位置までは、ずらした分だけ、操作バーを引き上げて、見える範囲の下に置く。
+		// それより下（閉じるとき）は、パネルといっしょに動く。
+		const footer = footerRef.current;
 
-			if (footer) {
-				const hidden = Math.max(0, sheetHeight - Math.max(visible, lowestSnap));
+		if (footer) {
+			const hidden = Math.max(0, sheetHeight - Math.max(visible, lowestSnap));
 
-				footer.style.transition =
-					animate && !reduced ? `transform ${transition}` : "none";
-				footer.style.transform = `translate3d(0, ${-hidden}px, 0)`;
-			}
-		} else {
-			// 右のパネル：幅いっぱいを、横に動かす。
-			const shift = visible <= 0 ? 100 : 0;
-
-			panel.style.transition = animate
-				? reduced
-					? `opacity ${transition}`
-					: `transform ${transition}`
-				: "none";
-			panel.style.transform = `translate3d(${shift}%, 0, 0)`;
-			panel.style.opacity = reduced && visible <= 0 ? "0" : "1";
+			footer.style.transition =
+				animate && !reduced ? `transform ${transition}` : "none";
+			footer.style.transform = `translate3d(0, ${-hidden}px, 0)`;
 		}
 
 		if (scrim) {
 			scrim.style.transition = animate ? `opacity ${transition}` : "none";
-			scrim.style.opacity = String(
-				bottom ? backdropProgress(visible, lowestSnap) : visible <= 0 ? 0 : 1,
-			);
+			scrim.style.opacity = String(backdropProgress(visible, lowestSnap));
 		}
 	}, []);
 
@@ -401,7 +376,7 @@ export function Sheet({
 	useEffect(() => () => stopPointerDrag.current?.(), []);
 
 	function handlePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
-		if (!isBottom || drag.current) {
+		if (drag.current) {
 			return;
 		}
 		if (event.pointerType === "mouse" && event.button !== 0) {
@@ -457,7 +432,7 @@ export function Sheet({
 	useEffect(() => {
 		const scroller = scrollerRef.current;
 
-		if (!mounted || !isBottom || !scroller) {
+		if (!mounted || !scroller) {
 			return;
 		}
 
@@ -539,7 +514,7 @@ export function Sheet({
 			scroller.removeEventListener("touchend", onTouchEnd);
 			scroller.removeEventListener("touchcancel", onTouchEnd);
 		};
-	}, [mounted, isBottom, beginDrag, moveDrag, endDrag]);
+	}, [mounted, beginDrag, moveDrag, endDrag]);
 
 	// 暗幕の上でのスクロールは、背景に伝えない。
 	useEffect(() => {
@@ -581,12 +556,11 @@ export function Sheet({
 				aria-modal={modal}
 				aria-label={title}
 				tabIndex={-1}
-				data-placement={placement}
 				data-modal={modal}
 				data-dragging={isDragging}
 				data-state={open ? "open" : "closed"}
 				style={{
-					height: isBottom ? `${height}px` : undefined,
+					height: `${height}px`,
 					"--sheet-bottom": `${viewport.bottomOffset}px`,
 				}}
 			>
@@ -611,7 +585,7 @@ export function Sheet({
 				<div
 					className={styles.body}
 					ref={scrollerRef}
-					data-scrollable={currentIndex >= lastIndex || !isBottom}
+					data-scrollable={currentIndex >= lastIndex}
 					data-padded={padded}
 				>
 					{children}

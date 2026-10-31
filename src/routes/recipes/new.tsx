@@ -1,4 +1,5 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { ButtonLink } from "#/components/button/button-link";
 import { pageTitle } from "#/config/app";
 import { useOwnerScope } from "#/features/inventory/hooks/use-owner-scope";
 import { RecipeEditor } from "#/features/recipes/components/recipe-editor";
@@ -33,26 +34,33 @@ function loadLinkedRecipes(publicIds: string[]) {
 
 function renderOpenLink(publicId: string) {
 	return (
-		<Link
+		<ButtonLink
 			to="/recipes/$publicId"
 			params={{ publicId }}
 			target="_blank"
 			rel="noreferrer"
+			variant="secondary"
+			size="sm"
 		>
 			レシピを開く
-		</Link>
+		</ButtonLink>
 	);
 }
 
 export const Route = createFileRoute("/recipes/new")({
 	head: () => ({ meta: [{ title: pageTitle("レシピを登録") }] }),
 	ssr: false,
+	// リンクできるレシピは、前もって取る（ログインしていなければ、取らない）。
+	loader: async () => ({
+		linkTargets: await loadLinkTargets().catch(() => undefined),
+	}),
 	component: NewRecipePage,
 });
 
 function NewRecipePage() {
 	const ownerScope = useOwnerScope();
 	const navigate = useNavigate();
+	const { linkTargets } = Route.useLoaderData();
 
 	if (ownerScope === null) return null;
 
@@ -66,6 +74,7 @@ function NewRecipePage() {
 			renderOpenLink={renderOpenLink}
 			loadLinkedRecipes={loadLinkedRecipes}
 			loadLinkTargets={loadLinkTargets}
+			initialLinkTargets={linkTargets}
 			searchLinkableUsers={(query) =>
 				searchLinkableUsersServerFn({ data: { query } })
 			}

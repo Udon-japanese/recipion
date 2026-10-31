@@ -4,8 +4,9 @@ export const row = style({
 	position: "relative",
 	display: "flex",
 	alignItems: "center",
+	gap: 15,
 	minHeight: 64,
-	padding: "12px 4px",
+	padding: "12px",
 	borderTop: "1px solid var(--color-border)",
 	listStyle: "none",
 
@@ -33,7 +34,6 @@ export const main = style({
 	flex: 1,
 	minWidth: 0,
 	gap: 4,
-	padding: "0 8px",
 });
 
 export const actions = style({

@@ -497,7 +497,9 @@ export function InventoryList({
 							/>
 						))}
 					</div>
-					<p className={styles.loadingText}>在庫を読み込んでいます…</p>
+					<Note tone="info" spinning>
+						在庫を読み込んでいます…
+					</Note>
 				</div>
 			) : null}
 

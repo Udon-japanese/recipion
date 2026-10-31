@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import {
 	type ReactNode,
 	type SubmitEvent,
@@ -11,6 +12,7 @@ import {
 import { Button } from "#/components/button/button";
 import { useButtonAction } from "#/components/button/use-button-action";
 import { Checkbox } from "#/components/checkbox/checkbox";
+import { ConfirmDialog } from "#/components/dialog/confirm-dialog";
 import { Field, TextInput } from "#/components/field/field";
 import { IconButton } from "#/components/icon-button/icon-button";
 import { Note } from "#/components/note/note";
@@ -82,10 +84,11 @@ import {
 	preventSubmitOnEnter,
 } from "./recipe-ingredient-preview";
 import { RecipeLinkPreview } from "./recipe-link-preview";
+import { RecipeSettingsCard } from "./recipe-settings-card";
 import { RecipeText } from "./recipe-text";
 import { RecipeTitleInput } from "./recipe-title-input";
+import * as viewStyles from "./recipe-view.css";
 import type { LoadLinkedRecipes } from "./recipe-view-with-tree";
-import { RecipeVisibilityField } from "./recipe-visibility-field";
 
 type SavedRecipe = { publicId: string };
 
@@ -98,6 +101,10 @@ type RecipeEditorProps = {
 	publicId?: string;
 	// リンクできるレシピ（自分のレシピ。編集中のレシピ自身は、除く）を取ってくる。渡すと、リンクの入力（補完・ボタン）が使える。
 	loadLinkTargets?: () => Promise<RecipeLinkTarget[]>;
+	// 画面の読み込み（loader）で、前もって取ったリンクできるレシピ。あれば、開いてから取らない。
+	initialLinkTargets?: readonly RecipeLinkTarget[];
+	// 画面の読み込みで、前もって取ったリンク先のレシピ（保存前の確認のプレビューで、すぐに出す）。
+	preloadedLinkedRecipes?: Readonly<Record<string, RecipeDetail>>;
 	// 保存前の確認で、リンクを押したとき、リンク先のレシピのプレビューを開く（取ってくる方法と、「レシピを開く」のリンク）。
 	loadLinkedRecipe?: (publicId: string) => Promise<RecipeDetail | null>;
 	renderOpenLink?: (publicId: string) => ReactNode;
@@ -168,6 +175,8 @@ export function RecipeEditor({
 	initialDocument,
 	publicId,
 	loadLinkTargets,
+	initialLinkTargets,
+	preloadedLinkedRecipes,
 	loadLinkedRecipe,
 	renderOpenLink,
 	loadLinkedRecipes,
@@ -175,7 +184,6 @@ export function RecipeEditor({
 	loadUserRecipes,
 }: RecipeEditorProps) {
 	const templateCheckboxId = useId();
-	const stocksWhenMadeCheckboxId = useId();
 	const isEditing = initialDocument !== undefined;
 	const [initialState] = useState(() => createInitialState(initialDocument));
 	const [title, setTitle] = useState(initialDocument?.name ?? "");
@@ -200,6 +208,11 @@ export function RecipeEditor({
 	const [useTemplate, setUseTemplate] = useState(true);
 	const [activeTab, setActiveTab] = useState<ActiveTab>("input");
 	const saveAction = useButtonAction();
+	// 公開していないレシピを、公開して保存するときの確認（同意の文は、ここで出す）。
+	const [isConfirmingPublish, setIsConfirmingPublish] = useState(false);
+	const needsPublishConsent =
+		visibility !== "private" &&
+		(initialDocument?.visibility ?? "private") === "private";
 	// 消した直前の状態（「元に戻す」用）。8秒たつか、別の操作で消える。
 	const [deletion, setDeletion] = useState<{
 		message: string;
@@ -231,11 +244,15 @@ export function RecipeEditor({
 		initialDocument?.links ?? [],
 	);
 	const [linkTargets, setLinkTargets] = useState<readonly RecipeLinkTarget[]>(
-		[],
+		initialLinkTargets ?? [],
 	);
 	const [linkTargetsStatus, setLinkTargetsStatus] = useState<
 		"loading" | "ready" | "error"
-	>("loading");
+	>(initialLinkTargets ? "ready" : "loading");
+	// プレビューで使う、取ってあるリンク先（前もって取った分と、本文でリンクを選んだときに取った分）。
+	const [linkedRecipeCache, setLinkedRecipeCache] = useState<
+		Readonly<Record<string, RecipeDetail>>
+	>(preloadedLinkedRecipes ?? {});
 
 	const sections = useMemo(() => splitRecipeSections(text), [text]);
 	const preparations = useMemo(
@@ -324,7 +341,7 @@ export function RecipeEditor({
 
 	// リンクできるレシピの一覧を、最初に1回、取ってくる。
 	const loadTargets = useEffectEvent(() => {
-		if (!loadLinkTargets) {
+		if (!loadLinkTargets || initialLinkTargets) {
 			return () => {};
 		}
 
@@ -351,11 +368,21 @@ export function RecipeEditor({
 	useEffect(() => loadTargets(), []);
 
 	// リンクを、ラベルごとに1つだけ持つ（同じラベルは、入れ替える）。
+	// 選んだリンク先は、その場で取り始める（保存前の確認で、押したときにすぐに出す）。
 	function handleLinkSelected(link: RecipeLinkReference) {
 		setLinks((current) => [
 			...current.filter((existing) => existing.label !== link.label),
 			link,
 		]);
+
+		if (loadLinkedRecipes && !linkedRecipeCache[link.targetPublicId]) {
+			loadLinkedRecipes([link.targetPublicId])
+				.then((recipes) =>
+					setLinkedRecipeCache((current) => ({ ...current, ...recipes })),
+				)
+				// 取れなければ、押したときに取る。
+				.catch(() => {});
+		}
 	}
 
 	// 端末に保存した「雛形なし」の設定を、表示のあとに反映する（localStorage は、サーバーでは読めない）。
@@ -530,6 +557,11 @@ export function RecipeEditor({
 			setErrorMessage(
 				"材料のないグループがあります。材料を移すか、グループを削除してください。",
 			);
+			return;
+		}
+
+		if (needsPublishConsent) {
+			setIsConfirmingPublish(true);
 			return;
 		}
 
@@ -724,14 +756,14 @@ export function RecipeEditor({
 							<div className={styles.checkRow}>
 								<Checkbox
 									id={templateCheckboxId}
-									label="新規登録で、見出しを最初から入れる"
+									label="新規登録で見出しを最初から入れる"
 									checked={useTemplate}
 									onChange={(event) =>
 										handleTemplateToggle(event.target.checked)
 									}
 								/>
 								<label htmlFor={templateCheckboxId} aria-hidden="true">
-									新規登録で、見出しを最初から入れる
+									新規登録で見出しを最初から入れる
 								</label>
 							</div>
 						)}
@@ -748,15 +780,15 @@ export function RecipeEditor({
 						aria-labelledby="recipe-editor-tab-preview"
 						data-active={activeTab === "preview"}
 					>
-						<h3>保存前の確認</h3>
+						<h3 className={styles.previewTitle}>保存前の確認</h3>
 
 						{preparations.length === 0 ? null : (
 							<>
-								<h4>下準備</h4>
-								<ul className={styles.list}>
+								<h4 className={styles.previewSectionTitle}>下準備</h4>
+								<ul className={viewStyles.bulletList}>
 									{preparations.map((preparation, index) => (
 										// biome-ignore lint/suspicious/noArrayIndexKey: 文章から作る表示用の一覧で、並びは入力順のまま。
-										<li key={index}>
+										<li key={index} className={viewStyles.bulletItem}>
 											<RecipeText
 												text={preparation}
 												linkViews={linkViews}
@@ -768,8 +800,10 @@ export function RecipeEditor({
 							</>
 						)}
 
-						<h4>材料</h4>
-						{ingredients.length === 0 ? <p>材料はまだありません。</p> : null}
+						<h4 className={styles.previewSectionTitle}>材料</h4>
+						{ingredients.length === 0 ? (
+							<p className={styles.hint}>材料はまだありません。</p>
+						) : null}
 						<ul className={styles.ingredientCard}>
 							{ingredients.map((node) => (
 								<IngredientPreviewNode
@@ -807,32 +841,37 @@ export function RecipeEditor({
 									onOpenLink={handleOpenLink}
 								/>
 							))}
+							<li className={styles.addFooter}>
+								<AddIngredientRow
+									onAdd={(name, amount) => addIngredient(null, name, amount)}
+								/>
+								<AddGroupRow onAdd={addGroup} />
+							</li>
 						</ul>
 
-						<div className={styles.addActions}>
-							<AddIngredientRow
-								onAdd={(name, amount) => addIngredient(null, name, amount)}
-							/>
-							<AddGroupRow onAdd={addGroup} />
-						</div>
-
-						<h4>作り方</h4>
-						<ol className={styles.list}>
-							{instructions.map((instruction, index) => (
-								// biome-ignore lint/suspicious/noArrayIndexKey: 文章から作る表示用の一覧で、並びは入力順のまま。
-								<li key={index}>
-									<RecipeText
-										text={instruction}
-										linkViews={linkViews}
-										onOpenLink={handleOpenLink}
-									/>
-								</li>
-							))}
-						</ol>
+						{instructions.length === 0 ? null : (
+							<>
+								<h4 className={styles.previewSectionTitle}>作り方</h4>
+								<ol className={viewStyles.steps}>
+									{instructions.map((instruction, index) => (
+										// biome-ignore lint/suspicious/noArrayIndexKey: 文章から作る表示用の一覧で、並びは入力順のまま。
+										<li key={index} className={viewStyles.step}>
+											<span className={viewStyles.stepText}>
+												<RecipeText
+													text={instruction}
+													linkViews={linkViews}
+													onOpenLink={handleOpenLink}
+												/>
+											</span>
+										</li>
+									))}
+								</ol>
+							</>
+						)}
 
 						{sections.note === "" ? null : (
 							<>
-								<h4>メモ</h4>
+								<h4 className={styles.previewSectionTitle}>メモ</h4>
 								<p className={styles.note}>
 									<RecipeText
 										text={sections.note}
@@ -845,7 +884,9 @@ export function RecipeEditor({
 
 						{sections.unclassifiedBlocks.length > 0 ? (
 							<div className={styles.unclassified}>
-								<h4>分類できなかった文章</h4>
+								<h4 className={styles.previewSectionTitle}>
+									分類できなかった文章
+								</h4>
 								<p>
 									見出し（＜材料＞＜作り方＞など）を付けると、保存されます。いまは、保存されません。
 								</p>
@@ -859,25 +900,13 @@ export function RecipeEditor({
 					</div>
 				</div>
 
-				<RecipeVisibilityField
-					value={visibility}
-					onChange={(next) => {
-						setVisibility(next);
-					}}
+				<RecipeSettingsCard
+					visibility={visibility}
+					onVisibilityChange={setVisibility}
 					hasSourceUrl={sourceUrl.trim() !== ""}
+					stocksWhenMade={stocksWhenMade}
+					onStocksWhenMadeChange={setStocksWhenMade}
 				/>
-
-				<div className={styles.checkRow}>
-					<Checkbox
-						id={stocksWhenMadeCheckboxId}
-						label="作り置きのレシピ（「つくった」で、できあがりを在庫に入れるのを、初めから選んでおく）"
-						checked={stocksWhenMade}
-						onChange={(event) => setStocksWhenMade(event.target.checked)}
-					/>
-					<label htmlFor={stocksWhenMadeCheckboxId} aria-hidden="true">
-						作り置きのレシピ（「つくった」で、できあがりを在庫に入れるのを、初めから選んでおく）
-					</label>
-				</div>
 
 				<Button
 					type="submit"
@@ -894,6 +923,28 @@ export function RecipeEditor({
 				{errorMessage ? <Note tone="error">{errorMessage}</Note> : null}
 			</form>
 
+			<ConfirmDialog
+				open={isConfirmingPublish}
+				title={`${visibility === "public" ? "全体公開" : "限定公開"}で保存しますか？`}
+				cancelLabel="やめる"
+				confirmLabel="公開して保存"
+				onCancel={() => setIsConfirmingPublish(false)}
+				onConfirm={() => {
+					setIsConfirmingPublish(false);
+					void saveAction.run(save);
+				}}
+			>
+				自分で考えたか、自分の言葉で書いたレシピだけを公開してください。レシピと一緒に、アバター・表示名・ハンドルも公開されます（メールアドレスは見えません。
+				<Link to="/profile" target="_blank" rel="noreferrer">
+					プロフィール
+				</Link>
+				で変えられます）。内容は公開の前に自動で確認します（
+				<Link to="/terms" target="_blank" rel="noreferrer">
+					利用規約
+				</Link>
+				）。
+			</ConfirmDialog>
+
 			{deletion ? (
 				<div className={styles.undoToast}>
 					<Toast action={{ label: "元に戻す", onClick: undoDeletion }}>
@@ -908,6 +959,7 @@ export function RecipeEditor({
 					loadRecipe={loadLinkedRecipe}
 					renderOpenLink={renderOpenLink}
 					loadLinkedRecipes={loadLinkedRecipes}
+					preloadedRecipes={linkedRecipeCache}
 					onClose={() => {
 						setOpenedLinkPublicId(null);
 						linkTriggerRef.current?.focus();

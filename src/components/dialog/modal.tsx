@@ -15,6 +15,8 @@ type ModalProps = {
 	footer?: ReactNode;
 	// 読む文章や、縦に並べる入力の画面は、幅を狭くする（広い表は、狭くしない）。
 	narrow?: boolean;
+	// 題名の左に置くもの（「戻る」など）。
+	headerLeading?: ReactNode;
 };
 
 // 幅の広いモーダル（PC で、入力と確認を並べるような、広い作業の画面）。中央に出す。
@@ -26,6 +28,7 @@ export function Modal({
 	children,
 	footer,
 	narrow = false,
+	headerLeading,
 }: ModalProps) {
 	const titleId = useId();
 	const portalRef = useRef<HTMLDivElement>(null);
@@ -64,6 +67,7 @@ export function Modal({
 				onKeyDown={handleKeyDown}
 			>
 				<div className={styles.header}>
+					{headerLeading}
 					<h2 className={styles.title} id={titleId}>
 						{title}
 					</h2>

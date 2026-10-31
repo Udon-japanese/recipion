@@ -41,6 +41,8 @@ export const header = style({
 });
 
 export const title = style({
+	flex: 1,
+	minWidth: 0,
 	margin: 0,
 	fontSize: "var(--font-size-lg)",
 	fontWeight: "var(--font-weight-bold)",

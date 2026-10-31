@@ -1,18 +1,18 @@
 import {
 	createFileRoute,
-	Link,
 	useNavigate,
 	useRouter,
 } from "@tanstack/react-router";
 import { useCallback } from "react";
+import { ButtonLink } from "#/components/button/button-link";
 import { Tag } from "#/components/tag/tag";
 import { pageTitle } from "#/config/app";
-import { AvatarArt } from "#/features/avatar/components/avatar-art";
 import type { Avatar } from "#/features/avatar/domain/avatar";
 import {
 	findIngredientCatalogEntry,
 	getDefaultStockUnitLabel,
 } from "#/features/ingredients/domain/ingredient-catalog";
+import type { InventoryListItem } from "#/features/inventory/application/inventory-query-repository";
 import { loadInventoryItemsWithCache } from "#/features/inventory/application/load-inventory-items-with-cache";
 import { useOwnerScope } from "#/features/inventory/hooks/use-owner-scope";
 import { createDexieInventoryCacheRepository } from "#/features/inventory/infrastructure/dexie-inventory-cache-repository";
@@ -30,7 +30,9 @@ import {
 	undoRecipeConsumptionWithCache,
 } from "#/features/recipes/application/consume-recipe-ingredients";
 import type { RecipeDetail } from "#/features/recipes/application/recipe-repository";
+import { RecipeAuthorByline } from "#/features/recipes/components/recipe-author-byline";
 import { RecipeConsumeSection } from "#/features/recipes/components/recipe-consume-section";
+import * as styles from "#/features/recipes/components/recipe-detail-page.css";
 import { RecipeKeepAwake } from "#/features/recipes/components/recipe-keep-awake";
 import { RecipeOwnerActions } from "#/features/recipes/components/recipe-owner-actions";
 import { RecipePassphraseSection } from "#/features/recipes/components/recipe-passphrase-section";
@@ -38,6 +40,7 @@ import { RecipeRouteError } from "#/features/recipes/components/recipe-route-err
 import { RecipeShoppingSection } from "#/features/recipes/components/recipe-shopping-section";
 import { RecipeUnlockForm } from "#/features/recipes/components/recipe-unlock-form";
 import { RecipeViewWithLinks } from "#/features/recipes/components/recipe-view-with-links";
+import { collectRecipeLinkTargetIds } from "#/features/recipes/domain/ingredient-link-target";
 import { recipeVisibilityLabels } from "#/features/recipes/domain/recipe-visibility-label";
 import { deleteRecipeServerFn } from "#/features/recipes/server/delete-recipe";
 import { getLinkedRecipesServerFn } from "#/features/recipes/server/get-linked-recipes";
@@ -50,15 +53,39 @@ import {
 	unlockRecipeServerFn,
 	viewRecipeServerFn,
 } from "#/features/recipes/server/view-recipe";
-import { ReportRecipeForm } from "#/features/reports/components/report-recipe-form";
-import { ReportUserForm } from "#/features/reports/components/report-user-form";
+import { ReportMenu } from "#/features/reports/components/report-menu";
 import { createReportServerFn } from "#/features/reports/server/create-report";
 import { createUserNameReportServerFn } from "#/features/reports/server/create-user-report";
 
+// 前もって取るリンク先の数の上限（getLinkedRecipesServerFn の入力の上限と同じ）。
+const maxPreloadedLinkTargets = 30;
+
 export const Route = createFileRoute("/recipes/$publicId/")({
 	// 見てはいけないレシピと、存在しないレシピは、どちらも null（パスフレーズの入力画面になる）。
-	loader: ({ params }) =>
-		viewRecipeServerFn({ data: { publicId: params.publicId } }),
+	// リンク先（材料の下に開く分と、プレビューで見る分）と、在庫（買い物メモへ・つくった の判定）も、前もって取る。
+	// 在庫は、つくった・元に戻す・「ある」の登録のあとに、読み直す（router.invalidate）。
+	loader: async ({ params }) => {
+		const viewable = await viewRecipeServerFn({
+			data: { publicId: params.publicId },
+		});
+
+		if (!viewable) {
+			return null;
+		}
+
+		const linkTargetIds = collectRecipeLinkTargetIds(viewable.recipe).slice(
+			0,
+			maxPreloadedLinkTargets,
+		);
+		const [linkedRecipes, inventoryItems] = await Promise.all([
+			linkTargetIds.length > 0
+				? getLinkedRecipesServerFn({ data: { publicIds: linkTargetIds } })
+				: {},
+			listInventoryItemsServerFn(),
+		]);
+
+		return { ...viewable, linkedRecipes, inventoryItems };
+	},
 	head: ({ loaderData }) => ({
 		meta: [
 			{
@@ -74,14 +101,29 @@ export const Route = createFileRoute("/recipes/$publicId/")({
 	component: RecipePage,
 });
 
-// 見る人によらない、画面の支え（リンク先の取得、在庫、「ある」の登録）。
-function useRecipeViewSupport(recipe: RecipeDetail) {
-	const ownerScope = useOwnerScope();
+type RecipePreload = {
+	linkedRecipes: Readonly<Record<string, RecipeDetail>>;
+	inventoryItems: InventoryListItem[];
+};
 
-	// リンク先のレシピ（プレビューと、買い物メモへの展開で使う）。
+// 見る人によらない、画面の支え（リンク先の取得、在庫、「ある」の登録）。
+function useRecipeViewSupport(
+	recipe: RecipeDetail,
+	{ linkedRecipes, inventoryItems }: RecipePreload,
+) {
+	const ownerScope = useOwnerScope();
+	const router = useRouter();
+	// 在庫が変わったら、loader を読み直す（前もって取った在庫を、新しくする）。
+	const refreshInventory = useCallback(() => {
+		void router.invalidate();
+	}, [router]);
+
+	// リンク先のレシピ（プレビューと、買い物メモへの展開で使う）。前もって取ってあれば、それを使う。
 	const loadLinkedRecipe = useCallback(
-		(publicId: string) => getRecipeServerFn({ data: { publicId } }),
-		[],
+		async (publicId: string) =>
+			linkedRecipes[publicId] ??
+			(await getRecipeServerFn({ data: { publicId } })),
+		[linkedRecipes],
 	);
 
 	// 材料のリンク先を、リンク先の中のリンクもたどって、まとめて取る（材料の下に、その場で開く）。
@@ -103,7 +145,7 @@ function useRecipeViewSupport(recipe: RecipeDetail) {
 		[recipe.publicId],
 	);
 
-	// ログインしているとき、在庫の一覧を取得する（通信できなければ、保存済みの一覧）。
+	// 在庫の一覧（loader で取ったもの）。端末の保存済みの一覧も、新しくしておく。
 	const loadInventoryItems = useCallback(async () => {
 		if (!ownerScope || ownerScope === "guest") {
 			throw new Error("在庫を取得できるユーザーではありません");
@@ -111,30 +153,34 @@ function useRecipeViewSupport(recipe: RecipeDetail) {
 
 		const result = await loadInventoryItemsWithCache(
 			ownerScope,
-			() => listInventoryItemsServerFn(),
+			async () => inventoryItems,
 			createDexieInventoryCacheRepository(),
 		);
 
 		return result.items;
-	}, [ownerScope]);
+	}, [ownerScope, inventoryItems]);
 
 	// 塩・醤油のように、量を追わない食材を、「ある」で登録する。
-	const registerAvailable = useCallback(async (ingredientName: string) => {
-		const entry = findIngredientCatalogEntry(ingredientName);
-		const stockUnitCode = entry?.stockUnitCode ?? "count";
+	const registerAvailable = useCallback(
+		async (ingredientName: string) => {
+			const entry = findIngredientCatalogEntry(ingredientName);
+			const stockUnitCode = entry?.stockUnitCode ?? "count";
 
-		await registerInventoryItemServerFn({
-			data: {
-				transactionId: crypto.randomUUID(),
-				ingredientName,
-				stockUnitCode,
-				stockUnitLabel: getDefaultStockUnitLabel(stockUnitCode),
-				trackingMode: entry?.defaultTrackingMode ?? "estimated",
-				initialQuantity: 0,
-				markAsAvailable: true,
-			},
-		});
-	}, []);
+			await registerInventoryItemServerFn({
+				data: {
+					transactionId: crypto.randomUUID(),
+					ingredientName,
+					stockUnitCode,
+					stockUnitLabel: getDefaultStockUnitLabel(stockUnitCode),
+					trackingMode: entry?.defaultTrackingMode ?? "estimated",
+					initialQuantity: 0,
+					markAsAvailable: true,
+				},
+			});
+			refreshInventory();
+		},
+		[refreshInventory],
+	);
 
 	// 「作った」：在庫から引く（キャッシュも更新）。
 	const consume = useCallback(
@@ -146,15 +192,19 @@ function useRecipeViewSupport(recipe: RecipeDetail) {
 				throw new Error("在庫を操作できるユーザーではありません");
 			}
 
-			return runRecipeConsumption(
-				ownerScope,
-				operation,
-				(command) => adjustInventoryServerFn({ data: command }),
-				createDexieInventoryCacheRepository(),
-				onlyNeedIds,
-			);
+			try {
+				return await runRecipeConsumption(
+					ownerScope,
+					operation,
+					(command) => adjustInventoryServerFn({ data: command }),
+					createDexieInventoryCacheRepository(),
+					onlyNeedIds,
+				);
+			} finally {
+				refreshInventory();
+			}
 		},
-		[ownerScope],
+		[ownerScope, refreshInventory],
 	);
 
 	const undoConsumption = useCallback(
@@ -163,24 +213,29 @@ function useRecipeViewSupport(recipe: RecipeDetail) {
 				throw new Error("在庫を操作できるユーザーではありません");
 			}
 
-			return undoRecipeConsumptionWithCache(
-				ownerScope,
-				sourceId,
-				(id) => undoRecipeConsumptionServerFn({ data: { sourceId: id } }),
-				createDexieInventoryCacheRepository(),
-			);
+			try {
+				return await undoRecipeConsumptionWithCache(
+					ownerScope,
+					sourceId,
+					(id) => undoRecipeConsumptionServerFn({ data: { sourceId: id } }),
+					createDexieInventoryCacheRepository(),
+				);
+			} finally {
+				refreshInventory();
+			}
 		},
-		[ownerScope],
+		[ownerScope, refreshInventory],
 	);
 
-	// 作り置きのレシピ：「作った」で、できあがりを在庫に入れる（一覧は、次に開くときに、サーバーから取り直す）。
+	// 作り置きのレシピ：「作った」で、できあがりを在庫に入れる。
 	const produce = useCallback(
 		async (input: { sourceId: string; transactionId: string }) => {
 			await stockMadeRecipeServerFn({
 				data: { recipePublicId: recipe.publicId, ...input },
 			});
+			refreshInventory();
 		},
-		[recipe.publicId],
+		[recipe.publicId, refreshInventory],
 	);
 
 	return {
@@ -197,7 +252,13 @@ function useRecipeViewSupport(recipe: RecipeDetail) {
 	};
 }
 
-function OwnRecipePage({ recipe }: { recipe: RecipeDetail }) {
+function OwnRecipePage({
+	recipe,
+	preload,
+}: {
+	recipe: RecipeDetail;
+	preload: RecipePreload;
+}) {
 	const navigate = useNavigate();
 	const {
 		ownerScope,
@@ -210,11 +271,10 @@ function OwnRecipePage({ recipe }: { recipe: RecipeDetail }) {
 		consume,
 		undoConsumption,
 		produce,
-	} = useRecipeViewSupport(recipe);
+	} = useRecipeViewSupport(recipe, preload);
 
 	return (
-		<>
-			<RecipeKeepAwake />
+		<div className={styles.page}>
 			{/* 別のレシピへ移ったとき、開いているプレビューを、閉じる（key で、状態を作り直す）。 */}
 			<RecipeViewWithLinks
 				key={recipe.publicId}
@@ -230,60 +290,70 @@ function OwnRecipePage({ recipe }: { recipe: RecipeDetail }) {
 						{recipeVisibilityLabels[recipe.visibility ?? "private"]}
 					</Tag>
 				}
+				actions={
+					<RecipeOwnerActions
+						publicId={recipe.publicId}
+						onDelete={async () => {
+							await deleteRecipeServerFn({
+								data: { publicId: recipe.publicId },
+							});
+							await navigate({ to: "/recipes" });
+						}}
+					/>
+				}
+				headerExtra={
+					recipe.visibility === "unlisted" ? (
+						<RecipePassphraseSection
+							loadPassphrase={loadPassphrase}
+							regeneratePassphrase={regeneratePassphrase}
+						/>
+					) : null
+				}
+				instructionsAction={<RecipeKeepAwake />}
+				ingredientsAction={
+					<RecipeShoppingSection
+						ingredients={recipe.ingredients}
+						linkViews={recipe.linkViews}
+						loadLinkedRecipe={loadLinkedRecipe}
+						ownerScope={ownerScope}
+						loadInventoryItems={loadInventoryItems}
+						registerAvailable={registerAvailable}
+					/>
+				}
+				madeAction={
+					<RecipeConsumeSection
+						recipePublicId={recipe.publicId}
+						ingredients={recipe.ingredients}
+						linkViews={recipe.linkViews}
+						loadLinkedRecipe={loadLinkedRecipe}
+						ownerScope={ownerScope}
+						loadInventoryItems={loadInventoryItems}
+						consume={consume}
+						undo={undoConsumption}
+						madeRecipe={{
+							name: recipe.name,
+							defaultChecked: recipe.stocksWhenMade ?? false,
+							produce,
+						}}
+					/>
+				}
 				loadLinkedRecipe={loadLinkedRecipe}
 				loadLinkedRecipes={loadLinkedRecipes}
-				renderOpenLink={(publicId) => (
-					<Link to="/recipes/$publicId" params={{ publicId }}>
-						レシピを開く
-					</Link>
-				)}
+				preloadedLinkedRecipes={preload.linkedRecipes}
+				renderOpenLink={renderOpenLink}
 			/>
-			{recipe.visibility === "unlisted" ? (
-				<RecipePassphraseSection
-					loadPassphrase={loadPassphrase}
-					regeneratePassphrase={regeneratePassphrase}
-				/>
-			) : null}
-			<RecipeShoppingSection
-				ingredients={recipe.ingredients}
-				linkViews={recipe.linkViews}
-				loadLinkedRecipe={loadLinkedRecipe}
-				ownerScope={ownerScope}
-				loadInventoryItems={loadInventoryItems}
-				registerAvailable={registerAvailable}
-			/>
-			<RecipeConsumeSection
-				recipePublicId={recipe.publicId}
-				ingredients={recipe.ingredients}
-				linkViews={recipe.linkViews}
-				loadLinkedRecipe={loadLinkedRecipe}
-				ownerScope={ownerScope}
-				loadInventoryItems={loadInventoryItems}
-				consume={consume}
-				undo={undoConsumption}
-				madeRecipe={{
-					name: recipe.name,
-					defaultChecked: recipe.stocksWhenMade ?? false,
-					produce,
-				}}
-			/>
-			<RecipeOwnerActions
-				publicId={recipe.publicId}
-				onDelete={async () => {
-					await deleteRecipeServerFn({ data: { publicId: recipe.publicId } });
-					await navigate({ to: "/recipes" });
-				}}
-			/>
-		</>
+		</div>
 	);
 }
 
 function SharedRecipePage({
 	recipe,
 	author,
+	preload,
 }: {
 	recipe: RecipeDetail;
 	author: { name: string; handle: string; avatar: Avatar };
+	preload: RecipePreload;
 }) {
 	const {
 		ownerScope,
@@ -293,61 +363,77 @@ function SharedRecipePage({
 		registerAvailable,
 		consume,
 		undoConsumption,
-	} = useRecipeViewSupport(recipe);
+	} = useRecipeViewSupport(recipe, preload);
 
 	return (
-		<>
-			<RecipeKeepAwake />
+		<div className={styles.page}>
 			<RecipeViewWithLinks
 				key={recipe.publicId}
 				recipe={recipe}
 				badges={
-					<Tag>
-						<AvatarArt avatar={author.avatar} size={18} />
-						作者：{author.name}（@{author.handle}）
-					</Tag>
+					<RecipeAuthorByline
+						name={author.name}
+						handle={author.handle}
+						avatar={author.avatar}
+					/>
+				}
+				actions={
+					<ReportMenu
+						onReportRecipe={(input) =>
+							createReportServerFn({
+								data: { recipePublicId: recipe.publicId, ...input },
+							})
+						}
+						onReportUser={(input) =>
+							createUserNameReportServerFn({
+								data: { handle: author.handle, ...input },
+							})
+						}
+					/>
+				}
+				instructionsAction={<RecipeKeepAwake />}
+				ingredientsAction={
+					<RecipeShoppingSection
+						ingredients={recipe.ingredients}
+						linkViews={recipe.linkViews}
+						loadLinkedRecipe={loadLinkedRecipe}
+						ownerScope={ownerScope}
+						loadInventoryItems={loadInventoryItems}
+						registerAvailable={registerAvailable}
+					/>
+				}
+				madeAction={
+					<RecipeConsumeSection
+						recipePublicId={recipe.publicId}
+						ingredients={recipe.ingredients}
+						linkViews={recipe.linkViews}
+						loadLinkedRecipe={loadLinkedRecipe}
+						ownerScope={ownerScope}
+						loadInventoryItems={loadInventoryItems}
+						consume={consume}
+						undo={undoConsumption}
+					/>
 				}
 				loadLinkedRecipe={loadLinkedRecipe}
 				loadLinkedRecipes={loadLinkedRecipes}
-				renderOpenLink={(publicId) => (
-					<Link to="/recipes/$publicId" params={{ publicId }}>
-						レシピを開く
-					</Link>
-				)}
+				preloadedLinkedRecipes={preload.linkedRecipes}
+				renderOpenLink={renderOpenLink}
 			/>
-			<RecipeShoppingSection
-				ingredients={recipe.ingredients}
-				linkViews={recipe.linkViews}
-				loadLinkedRecipe={loadLinkedRecipe}
-				ownerScope={ownerScope}
-				loadInventoryItems={loadInventoryItems}
-				registerAvailable={registerAvailable}
-			/>
-			<RecipeConsumeSection
-				recipePublicId={recipe.publicId}
-				ingredients={recipe.ingredients}
-				linkViews={recipe.linkViews}
-				loadLinkedRecipe={loadLinkedRecipe}
-				ownerScope={ownerScope}
-				loadInventoryItems={loadInventoryItems}
-				consume={consume}
-				undo={undoConsumption}
-			/>
-			<ReportUserForm
-				onReport={(input) =>
-					createUserNameReportServerFn({
-						data: { handle: author.handle, ...input },
-					})
-				}
-			/>
-			<ReportRecipeForm
-				onReport={(input) =>
-					createReportServerFn({
-						data: { recipePublicId: recipe.publicId, ...input },
-					})
-				}
-			/>
-		</>
+		</div>
+	);
+}
+
+// リンク先のプレビューの「レシピを開く」。
+function renderOpenLink(publicId: string) {
+	return (
+		<ButtonLink
+			to="/recipes/$publicId"
+			params={{ publicId }}
+			variant="secondary"
+			size="sm"
+		>
+			レシピを開く
+		</ButtonLink>
 	);
 }
 
@@ -369,8 +455,12 @@ function RecipePage() {
 	}
 
 	return viewable.isOwn ? (
-		<OwnRecipePage recipe={viewable.recipe} />
+		<OwnRecipePage recipe={viewable.recipe} preload={viewable} />
 	) : (
-		<SharedRecipePage recipe={viewable.recipe} author={viewable.author} />
+		<SharedRecipePage
+			recipe={viewable.recipe}
+			author={viewable.author}
+			preload={viewable}
+		/>
 	);
 }

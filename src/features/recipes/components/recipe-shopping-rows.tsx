@@ -128,7 +128,11 @@ export function RecipeShoppingRows({
 					: "在庫と比べて、足りないものを選んでいます。人数による量の調整は、していません（レシピの量のままです）。"}
 			</p>
 
-			{plan.isLoading ? <p className={styles.hint}>読み込んでいます…</p> : null}
+			{plan.isLoading ? (
+				<Note tone="info" spinning>
+					読み込んでいます…
+				</Note>
+			) : null}
 
 			{plan.madeUses.map((use) => (
 				<p className={styles.hint} key={use.publicId}>

@@ -8,6 +8,7 @@ import { Icon } from "#/components/icon/icon";
 import { IconButton } from "#/components/icon-button/icon-button";
 import { Mascot } from "#/components/mascot/mascot";
 import { Menu, type MenuItem } from "#/components/menu/menu";
+import { Note } from "#/components/note/note";
 import { SegmentedControl } from "#/components/segmented-control/segmented-control";
 import { Tag } from "#/components/tag/tag";
 import { useMediaQuery } from "#/components/use-media-query";
@@ -543,7 +544,9 @@ export function ShoppingList({
 			{isLoading ? (
 				<div className={styles.center}>
 					<Mascot size={56} />
-					<p className={styles.centerText}>読み込んでいます…</p>
+					<Note tone="info" spinning>
+						読み込んでいます…
+					</Note>
 				</div>
 			) : null}
 

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Note } from "#/components/note/note";
 import {
 	type AdminHistoryItem,
 	AdminHistoryList,
@@ -197,7 +198,11 @@ export function AdminReportsPage({
 								</button>
 							</div>
 
-							{recipe === "loading" ? <p>読み込んでいます…</p> : null}
+							{recipe === "loading" ? (
+								<Note tone="info" spinning>
+									読み込んでいます…
+								</Note>
+							) : null}
 							{recipe ? (
 								<div className={styles.preview}>
 									{recipe === "loading" ? null : <RecipeView recipe={recipe} />}

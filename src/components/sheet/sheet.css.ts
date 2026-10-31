@@ -40,17 +40,6 @@ export const panel = style({
 			border: "1px solid var(--color-border-strong)",
 			boxShadow: "var(--shadow-md)",
 		},
-		// PC：右から出る 400px のパネル。
-		'&[data-placement="right"]': {
-			left: "auto",
-			top: 0,
-			bottom: 0,
-			width: "min(400px, 100vw)",
-			height: "auto",
-			maxHeight: "none",
-			borderRadius: "var(--radius-dialog) 0 0 var(--radius-dialog)",
-			boxShadow: "var(--shadow-md)",
-		},
 	},
 });
 
@@ -64,7 +53,6 @@ export const dragZone = style({
 
 	selectors: {
 		'[data-dragging="true"] &': { cursor: "grabbing" },
-		'[data-placement="right"] &': { cursor: "default", touchAction: "auto" },
 	},
 });
 
@@ -74,10 +62,6 @@ export const grabber = style({
 	justifyContent: "center",
 	height: 20,
 	paddingTop: 8,
-
-	selectors: {
-		'[data-placement="right"] &': { display: "none" },
-	},
 });
 
 export const grabBar = style({

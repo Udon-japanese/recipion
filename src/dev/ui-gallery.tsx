@@ -820,7 +820,6 @@ function BranchGallery() {
 function SheetGallery() {
 	const [single, setSingle] = useState(false);
 	const [double, setDouble] = useState(false);
-	const [panel, setPanel] = useState(false);
 	const [floating, setFloating] = useState(false);
 	const [cornerShort, setCornerShort] = useState(false);
 	const [cornerLong, setCornerLong] = useState(false);
@@ -851,9 +850,6 @@ function SheetGallery() {
 				</Button>
 				<Button variant="secondary" onClick={() => setDouble(true)}>
 					2段（62% ⇄ 92%）
-				</Button>
-				<Button variant="secondary" onClick={() => setPanel(true)}>
-					右のパネル（PC）
 				</Button>
 				<Button variant="secondary" onClick={() => setFloating(true)}>
 					浮いたパネル（暗幕なし）
@@ -1015,16 +1011,6 @@ function SheetGallery() {
 				onOpenChange={setDouble}
 				title="鶏むね肉"
 				snapPoints={snapPointsTwo}
-			>
-				{longBody}
-			</Sheet>
-
-			<Sheet
-				open={panel}
-				onOpenChange={setPanel}
-				title="在庫に追加"
-				placement="right"
-				footer={<Button size="lg">在庫に追加</Button>}
 			>
 				{longBody}
 			</Sheet>

@@ -1,8 +1,9 @@
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { IconButton } from "#/components/icon-button/icon-button";
-import { Sheet } from "#/components/sheet/sheet";
-import { useMediaQuery } from "#/components/use-media-query";
+import { Note } from "#/components/note/note";
 import type { RecipeDetail } from "../application/recipe-repository";
+import { RecipeAuthorByline } from "./recipe-author-byline";
+import { RecipeDialog } from "./recipe-dialog";
 import * as styles from "./recipe-link-preview.css";
 import {
 	type LoadLinkedRecipes,
@@ -23,6 +24,8 @@ type RecipeLinkPreviewProps = {
 	renderOpenLink: (publicId: string) => ReactNode;
 	// 材料のリンク先を、まとめて取ってくる（材料の下に、その場で開く）。
 	loadLinkedRecipes?: LoadLinkedRecipes;
+	// 前もって取ってあるレシピ（あれば、読み込みを待たずに出す）。
+	preloadedRecipes?: Readonly<Record<string, RecipeDetail>>;
 	onClose: () => void;
 };
 
@@ -32,11 +35,20 @@ export function RecipeLinkPreview({
 	loadRecipe,
 	renderOpenLink,
 	loadLinkedRecipes,
+	preloadedRecipes,
 	onClose,
 }: RecipeLinkPreviewProps) {
 	const [stack, setStack] = useState<string[]>([initialPublicId]);
-	const [states, setStates] = useState<Record<string, LoadState>>({});
-	const isRight = useMediaQuery("(min-width: 1024px)");
+	const [states, setStates] = useState<Record<string, LoadState>>(() =>
+		Object.fromEntries(
+			Object.entries(preloadedRecipes ?? {}).map(
+				([publicId, recipe]): [string, LoadState] => [
+					publicId,
+					{ status: "ready", recipe },
+				],
+			),
+		),
+	);
 	const current = stack.at(-1) ?? initialPublicId;
 	const state: LoadState = states[current] ?? { status: "loading" };
 
@@ -73,58 +85,84 @@ export function RecipeLinkPreview({
 		}
 	}, [current, load]);
 
-	return (
-		<Sheet
-			open
-			onOpenChange={(open) => {
-				if (!open) {
-					onClose();
+	const title =
+		state.status === "ready" ? state.recipe.name : "レシピのプレビュー";
+	const handleOpenChange = (open: boolean) => {
+		if (!open) {
+			onClose();
+		}
+	};
+	const backButton =
+		stack.length > 1 ? (
+			<IconButton
+				icon="chevron-left"
+				label="戻る"
+				size="std"
+				tone="plain"
+				onClick={() => setStack((current) => current.slice(0, -1))}
+			/>
+		) : null;
+	// 「レシピを開く」を押したら、このプレビューは閉じる（別のタブで開いたとき、元のタブに開いたまま残さない）。
+	// リンクの移動が済んでから閉じる（先に消すと、リンクが働かない）。
+	const footer = (
+		// biome-ignore lint/a11y/noStaticElementInteractions: 中のリンクの押下を受けて閉じるだけ（操作は中のリンク）。
+		// biome-ignore lint/a11y/useKeyWithClickEvents: キーボードで押したリンクも click になる。
+		<div
+			className={styles.footer}
+			onClick={(event) => {
+				if (event.target instanceof Element && event.target.closest("a")) {
+					window.setTimeout(onClose);
 				}
 			}}
-			title={
-				state.status === "ready" ? state.recipe.name : "レシピのプレビュー"
-			}
-			placement={isRight ? "right" : "bottom"}
-			snapPoints={isRight ? [0.92] : [0.7, 0.92]}
-			headerLeading={
-				stack.length > 1 ? (
-					<IconButton
-						icon="chevron-left"
-						label="戻る"
-						size="std"
-						tone="plain"
-						onClick={() => setStack((current) => current.slice(0, -1))}
-					/>
-				) : null
-			}
-			footer={<div className={styles.footer}>{renderOpenLink(current)}</div>}
 		>
+			{renderOpenLink(current)}
+		</div>
+	);
+	const body = (
+		<>
 			{state.status === "loading" ? (
-				<p className={styles.message}>読み込んでいます…</p>
+				<Note tone="info" spinning>
+					読み込んでいます…
+				</Note>
 			) : null}
 			{state.status === "missing" ? (
-				<p className={styles.message}>レシピが見つかりません。</p>
+				<Note>レシピが見つかりません。</Note>
 			) : null}
 			{state.status === "error" ? (
-				<p className={styles.message} role="alert">
-					レシピを読み込めませんでした。
-				</p>
-			) : null}
-			{state.status === "ready" && state.recipe.author ? (
-				<p className={styles.message}>
-					作者：{state.recipe.author.name}（@{state.recipe.author.handle}）
-				</p>
+				<Note tone="error">レシピを読み込めませんでした。</Note>
 			) : null}
 			{state.status === "ready" ? (
 				<RecipeViewWithTree
 					loadLinkedRecipes={loadLinkedRecipes}
+					preloadedLinkedRecipes={preloadedRecipes}
 					recipe={state.recipe}
 					hideTitle
+					compact
+					badges={
+						state.recipe.author ? (
+							<RecipeAuthorByline
+								name={state.recipe.author.name}
+								handle={state.recipe.author.handle}
+							/>
+						) : undefined
+					}
 					onOpenLink={(publicId) =>
 						setStack((currentStack) => [...currentStack, publicId])
 					}
 				/>
 			) : null}
-		</Sheet>
+		</>
+	);
+
+	return (
+		<RecipeDialog
+			open
+			onOpenChange={handleOpenChange}
+			title={title}
+			headerLeading={backButton}
+			footer={footer}
+		>
+			{body}
+		</RecipeDialog>
 	);
 }

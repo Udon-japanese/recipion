@@ -79,13 +79,10 @@ describe("RecipeView", () => {
 		expect(screen.getByText("人数を変えるときはたれを調整する")).toBeTruthy();
 	});
 
-	it("人数は「材料」の見出しの横に出し、グループに入っていない材料は枠の外に出す", () => {
+	it("人数は題名の下に出し、グループに入っていない材料は枠の外に出す", () => {
 		render(<RecipeView recipe={recipe} />);
 
-		const heading = screen.getByRole("heading", { name: "材料" });
-		expect(
-			within(heading.parentElement as HTMLElement).getByText("2人分"),
-		).toBeTruthy();
+		expect(screen.getByText("2人分").closest("header")).not.toBeNull();
 
 		const group = screen.getByText("たれ").closest("section") as HTMLElement;
 		expect(within(group).queryByText("ベーコン")).toBeNull();
@@ -138,6 +135,58 @@ describe("RecipeView", () => {
 		expect(screen.queryByRole("heading", { name: "下準備" })).toBeNull();
 		expect(screen.queryByRole("heading", { name: "作り方" })).toBeNull();
 		expect(screen.queryByRole("heading", { name: "メモ" })).toBeNull();
+	});
+
+	it("材料がなければ、材料の見出しも人数も出さない。中身が何もなければ、その旨を1つだけ出す", () => {
+		const { unmount } = render(
+			<RecipeView recipe={{ ...recipe, ingredients: [] }} />,
+		);
+
+		expect(screen.queryByRole("heading", { name: "材料" })).toBeNull();
+		expect(screen.queryByText("2人分")).toBeNull();
+		// 下準備はあるので、出す
+		expect(screen.getByRole("heading", { name: "下準備" })).toBeTruthy();
+
+		unmount();
+		render(
+			<RecipeView
+				recipe={{
+					...recipe,
+					ingredients: [],
+					preparations: [],
+					instructions: [],
+					note: "",
+					sourceUrl: null,
+				}}
+			/>,
+		);
+
+		expect(screen.getByText("まだ中身がありません。")).toBeTruthy();
+		expect(screen.queryByRole("button", { name: "そろえる" })).toBeNull();
+	});
+
+	it("作り方の見出しの右に、渡したもの（画面をつけたまま）を出す。作り方がなければ出さない", () => {
+		const { unmount } = render(
+			<RecipeView
+				recipe={recipe}
+				instructionsAction={<span>つけたまま</span>}
+			/>,
+		);
+
+		const heading = screen.getByRole("heading", { name: "作り方" });
+		expect(
+			within(heading.parentElement as HTMLElement).getByText("つけたまま"),
+		).toBeTruthy();
+
+		unmount();
+		render(
+			<RecipeView
+				recipe={{ ...recipe, instructions: [] }}
+				instructionsAction={<span>つけたまま</span>}
+			/>,
+		);
+
+		expect(screen.queryByText("つけたまま")).toBeNull();
 	});
 
 	it("本文と材料の [[ラベル]] を、リンクとして出す（押すと onOpenLink、見つからなければ、その旨）", async () => {
@@ -228,10 +277,15 @@ describe("RecipeView", () => {
 			c: linkRecipe("c", "C", ["塩", "[[root]]"]),
 		};
 
-		it("2段目まで最初から開き、3段目からは閉じていて、押すと開く。輪になるリンクは「上で表示済み」", async () => {
+		it("2段目まで最初から開き、3段目からは閉じていて、行を押すと開く。輪になるリンクは「上で表示済み」", async () => {
 			const user = userEvent.setup();
 
 			render(<RecipeView recipe={root} linkedRecipes={linked} />);
+
+			expect(screen.getByRole("button", { name: "Aの材料" })).toHaveAttribute(
+				"aria-expanded",
+				"true",
+			);
 
 			// 1段目（A）・2段目（B）は開いている
 			expect(screen.getByText("醤油")).toBeVisible();
@@ -239,15 +293,32 @@ describe("RecipeView", () => {
 			// 3段目（C）は閉じている
 			expect(screen.queryByText("塩")).toBeNull();
 
-			await user.click(screen.getByRole("button", { name: "Cの材料を開く" }));
+			await user.click(screen.getByRole("button", { name: "Cの材料" }));
 
 			expect(screen.getByText("塩")).toBeVisible();
 			// C の中の、元のレシピへのリンクは、もう一度開かない
 			expect(screen.getByText("（上で表示済み）")).toBeVisible();
 
-			await user.click(screen.getByRole("button", { name: "Aの材料を閉じる" }));
+			await user.click(screen.getByRole("button", { name: "Aの材料" }));
 
 			expect(screen.queryByText("醤油")).toBeNull();
+		});
+
+		it("開いた箱の中から、リンク先のプレビューを開ける", async () => {
+			const user = userEvent.setup();
+			const onOpenLink = vi.fn();
+
+			render(
+				<RecipeView
+					recipe={root}
+					linkedRecipes={linked}
+					onOpenLink={onOpenLink}
+				/>,
+			);
+
+			await user.click(screen.getByRole("button", { name: "Aのレシピを見る" }));
+
+			expect(onOpenLink).toHaveBeenCalledWith("a", expect.anything());
 		});
 	});
 });
