@@ -171,6 +171,17 @@ export function useShoppingItems(repository: ShoppingRepository) {
 		});
 	}
 
+	function removeItems(ids: readonly string[]): Promise<boolean> {
+		const removedIds = new Set(ids);
+
+		return run(async () => {
+			await repository.removeAll(ids);
+			setItems((currentItems) =>
+				currentItems.filter((item) => !removedIds.has(item.id)),
+			);
+		});
+	}
+
 	async function reorder(
 		createOrder: (currentItems: ShoppingItem[]) => ShoppingItem[],
 	): Promise<boolean> {
@@ -233,6 +244,7 @@ export function useShoppingItems(repository: ShoppingRepository) {
 		changeItem,
 		updateItem,
 		removeItem,
+		removeItems,
 		clearStore,
 		moveItem,
 		sortByCategory,

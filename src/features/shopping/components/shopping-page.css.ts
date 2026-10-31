@@ -254,8 +254,10 @@ export const draggingHandle = style({
 });
 
 // 購入確定のバー（チェックが入っているときだけ出る）。スマホは、下のナビの上に、いつも貼り付く（内容の量に関係なく）。
-// PC は、画面の下に貼り付く。
+// PC は、画面の下に貼り付く。左に「削除」（文字の幅）、残りの幅を「購入を確定」。
 export const purchaseBar = style({
+	display: "flex",
+	gap: 12,
 	position: "fixed",
 	left: 0,
 	right: 0,
@@ -329,6 +331,11 @@ export const fab = style({
 });
 
 // 件数は、黄色の地に、文字のまま添える（濃い丸の札は、黄色には重い）。
+// 購入確定のバーの「削除」。隣の「購入を確定」（幅いっぱい）に押されて縮み、はみ出さないようにする。
+export const purchaseBarRemove = style({
+	flexShrink: 0,
+});
+
 export const purchaseCount = style({
 	// ボタンの中の間（8px）を打ち消す（全角の括弧に、もう余白がある）。
 	marginLeft: -8,

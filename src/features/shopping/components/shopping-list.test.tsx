@@ -104,6 +104,61 @@ describe("ShoppingList", () => {
 		).toBeInTheDocument();
 	});
 
+	it("チェックしたものだけを、確認のあと、まとめて削除する（チェックなし・購入済みは残る）", async () => {
+		const user = userEvent.setup();
+		const repository = createFakeShoppingRepository([
+			{ ...storedItem, id: "egg", name: "卵", status: "checked" },
+			{ ...storedItem, id: "milk", name: "牛乳", status: "checked" },
+			{ ...storedItem, id: "tofu", name: "豆腐", status: "pending" },
+			{ ...storedItem, id: "rice", name: "米", status: "purchased" },
+		]);
+
+		render(<ShoppingList repository={repository} />);
+
+		// やめると、何も消さない
+		await user.click(
+			await screen.findByRole("button", { name: "チェックした2件を削除" }),
+		);
+		await user.click(screen.getByRole("button", { name: "やめる" }));
+		expect(repository.items).toHaveLength(4);
+
+		await user.click(
+			screen.getByRole("button", { name: "チェックした2件を削除" }),
+		);
+		await user.click(screen.getByRole("button", { name: "削除する" }));
+
+		await waitFor(() =>
+			expect(repository.items.map((item) => item.name).sort()).toEqual([
+				"米",
+				"豆腐",
+			]),
+		);
+		expect(screen.queryByRole("checkbox", { name: "卵をチェック" })).toBeNull();
+		expect(screen.queryByRole("button", { name: /購入を確定/ })).toBeNull();
+	});
+
+	it("まとめての削除に失敗したら、どれも消さず、一覧にも残す", async () => {
+		const user = userEvent.setup();
+		const repository = createFakeShoppingRepository([
+			{ ...storedItem, id: "egg", name: "卵", status: "checked" },
+			{ ...storedItem, id: "milk", name: "牛乳", status: "checked" },
+		]);
+
+		render(<ShoppingList repository={repository} />);
+
+		await user.click(
+			await screen.findByRole("button", { name: "チェックした2件を削除" }),
+		);
+		repository.failNext("removeAll");
+		await user.click(screen.getByRole("button", { name: "削除する" }));
+
+		expect(await screen.findByRole("alert")).toBeInTheDocument();
+		expect(repository.items).toHaveLength(2);
+		expect(
+			screen.getByRole("checkbox", { name: "卵をチェック" }),
+		).toBeInTheDocument();
+	});
+
 	it("名前が空のまま追加を押すと、入力を促して、何も追加しない", async () => {
 		const user = userEvent.setup();
 		const repository = createFakeShoppingRepository();

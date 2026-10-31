@@ -3,6 +3,10 @@ import {
 	getFixedShapeStandInCatalogEntryIds,
 	getStandInCatalogEntryIds,
 } from "#/features/ingredients/domain/ingredient-catalog";
+import {
+	type AmountRange,
+	parseAmountRange,
+} from "#/features/ingredients/domain/parse-ingredient-line";
 import { findInventoryItemByName } from "#/features/inventory/domain/build-expiry-prefill";
 import type { InventoryTrackingMode } from "#/features/inventory/domain/inventory-tracking-mode";
 import type { InventoryUnitCode } from "#/features/inventory/domain/inventory-unit";
@@ -21,6 +25,8 @@ export type RecipeShoppingNeed = {
 	quantity: number | null;
 	unitLabel: string | null;
 	amountText: string | null;
+	// 分量が範囲（「60~70g」）のとき、その下限と上限（quantity は null のまま）。買い物では、上限で比べる（withRangeUpperBound）。
+	range?: AmountRange;
 	// 材料が、他のレシピへのリンクのとき、そのレシピ（そのレシピの材料を、展開して使う。この行自体は、買い物の候補にしない）。
 	linkedRecipe?: { publicId: string; name: string };
 	// リンク先のレシピから展開した材料のとき、そのレシピの名前（一覧で、まとめて表示する）。
@@ -100,17 +106,33 @@ export function flattenRecipeIngredients(
 		if (node.type === "group") {
 			needs.push(...flattenRecipeIngredients(node.children));
 		} else if (node.name.trim() !== "") {
+			const range =
+				node.quantity === null && node.amountText !== null
+					? parseAmountRange(node.amountText)
+					: null;
+
 			needs.push({
 				id: node.id,
 				name: node.name,
 				quantity: node.quantity,
 				unitLabel: node.unitLabel,
 				amountText: node.amountText,
+				...(range ? { range } : {}),
 			});
 		}
 	}
 
 	return needs;
+}
+
+// 範囲の分量（「60~70g」）を、上限の数量にする（買い物は、多めに見積もる）。原文の分量は、そのまま残す。
+// 「作った」で在庫から引くときは、使わない（範囲の材料は、今どおり数量なしで扱う）。
+export function withRangeUpperBound(
+	need: RecipeShoppingNeed,
+): RecipeShoppingNeed {
+	return need.quantity === null && need.range
+		? { ...need, quantity: need.range.max }
+		: need;
 }
 
 // レシピの量を、買い物メモの量にする（計量の単位や、数量にできない量は、「1」にする）。

@@ -539,4 +539,75 @@ describe("RecipeShoppingSection", () => {
 			"酢",
 		]);
 	});
+
+	it("先頭の「すべて」のチェックで、全部の材料をまとめて外す・選ぶ（変更しない行は数えない）", async () => {
+		const user = userEvent.setup();
+		const repository = createFakeShoppingRepository([
+			createShoppingItem({ name: "卵", quantity: 10, unitLabel: "個" }),
+		]);
+
+		render(
+			<RecipeShoppingSection
+				ingredients={ingredients}
+				ownerScope="guest"
+				shoppingRepository={repository}
+			/>,
+		);
+
+		const panel = within(await openPanel(user));
+		const all = panel.getByLabelText(
+			"すべての材料をまとめて買い物メモに入れる",
+		);
+		const button = (count: number) =>
+			panel.getByRole("button", { name: `選んだものを入れる（${count}件）` });
+
+		// 卵は、メモの数量で足りている（変更しない）。ほかの2件が選ばれている
+		await waitFor(() => expect(all).toBeChecked());
+		expect(button(2)).toBeInTheDocument();
+
+		await user.click(all);
+		expect(all).not.toBeChecked();
+		expect(
+			panel.getByLabelText("玉ねぎを買い物メモに入れる"),
+		).not.toBeChecked();
+		expect(panel.getByLabelText("塩を買い物メモに入れる")).not.toBeChecked();
+
+		await user.click(panel.getByLabelText("塩を買い物メモに入れる"));
+		expect(all).toBePartiallyChecked();
+
+		await user.click(all);
+		expect(all).toBeChecked();
+		expect(button(2)).toBeInTheDocument();
+	});
+
+	it("範囲の分量（60~70g）は、多い方で在庫と比べ、足りない分を入れる", async () => {
+		const user = userEvent.setup();
+		const repository = createFakeShoppingRepository();
+
+		render(
+			<RecipeShoppingSection
+				ingredients={[ingredient("i1", "豚こま肉", null, "g", "60~70g")]}
+				ownerScope="user:user-id"
+				loadInventoryItems={async () => [stockItem("豚こま肉", 50, "g", "g")]}
+				shoppingRepository={repository}
+			/>,
+		);
+
+		const panel = within(await openPanel(user));
+
+		expect(await panel.findByText("あと 20g")).toBeInTheDocument();
+		expect(panel.getByText("60~70g")).toBeInTheDocument();
+		expect(panel.getByText("多い方の70gで比べています")).toBeInTheDocument();
+
+		await user.click(
+			panel.getByRole("button", { name: "選んだものを入れる（1件）" }),
+		);
+
+		await waitFor(() => expect(repository.items).toHaveLength(1));
+		expect(repository.items[0]).toMatchObject({
+			name: "豚こま肉",
+			quantity: 20,
+			unitLabel: "g",
+		});
+	});
 });

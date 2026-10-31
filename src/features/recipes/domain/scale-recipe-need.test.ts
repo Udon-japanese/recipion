@@ -22,6 +22,36 @@ describe("scaleRecipeNeed", () => {
 		});
 	});
 
+	it.each([
+		[
+			{ min: 60, max: 70 },
+			"g",
+			"60~70g",
+			2,
+			{ min: 120, max: 140 },
+			"120~140g",
+		],
+		[
+			{ min: 4, max: 5 },
+			"大さじ",
+			"大さじ4〜5",
+			0.5,
+			{ min: 2, max: 2.5 },
+			"大さじ2~2と1/2",
+		],
+	])(
+		"範囲（%o %s）は、下限と上限を掛け、表示も直す",
+		(range, unitLabel, amountText, ratio, scaled, scaledText) => {
+			expect(
+				scaleRecipeNeed({ ...need(null, unitLabel, amountText), range }, ratio),
+			).toMatchObject({
+				quantity: null,
+				range: scaled,
+				amountText: scaledText,
+			});
+		},
+	);
+
 	it("割合が1、または数量のない材料は、そのまま", () => {
 		const plain = need(null, null, "適量");
 

@@ -4,6 +4,7 @@ import {
 	type PlanShoppingFromRecipeInput,
 	planShoppingFromRecipe,
 	type RecipeShoppingNeed,
+	withRangeUpperBound,
 } from "./plan-shopping-from-recipe";
 import type { RecipeEditorIngredientNode } from "./recipe-editor-document";
 
@@ -364,5 +365,61 @@ describe("planShoppingFromRecipe：有無だけで管理している食材", () 
 
 		expect(row?.stock).toMatchObject({ judgment: { status: "short" } });
 		expect(row?.defaultChecked).toBe(true);
+	});
+});
+
+describe("範囲の分量（60~70g）", () => {
+	it("材料を展開するとき、範囲の下限と上限を読む（数量は null のまま）", () => {
+		const [pork, salt] = flattenRecipeIngredients([
+			{
+				type: "ingredient",
+				id: "1",
+				status: "parsed",
+				rawText: "豚こま肉 60~70g",
+				name: "豚こま肉",
+				amountText: "60~70g",
+				quantity: null,
+				unitLabel: "g",
+			},
+			{
+				type: "ingredient",
+				id: "2",
+				status: "parsed",
+				rawText: "塩 少々",
+				name: "塩",
+				amountText: "少々",
+				quantity: null,
+				unitLabel: null,
+			},
+		] as RecipeEditorIngredientNode[]);
+
+		expect(pork).toMatchObject({ quantity: null, range: { min: 60, max: 70 } });
+		expect(salt?.range).toBeUndefined();
+	});
+
+	it("買い物では、上限で在庫と比べ、足りない分を入れる（原文の分量は残す）", () => {
+		const [row] = plan({
+			needs: [
+				withRangeUpperBound({
+					...need("豚こま肉", null, "g"),
+					amountText: "60~70g",
+					range: { min: 60, max: 70 },
+				}),
+			],
+			stockItems: [
+				{
+					name: "豚こま肉",
+					quantity: 50,
+					stockUnitCode: "g",
+					stockUnitLabel: "g",
+				},
+			],
+		});
+
+		expect(row).toMatchObject({
+			need: { amountText: "60~70g" },
+			amount: { quantity: 20, unitLabel: "g" },
+			defaultChecked: true,
+		});
 	});
 });
