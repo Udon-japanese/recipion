@@ -51,7 +51,6 @@ import {
 import { ShoppingBranchCreate } from "./shopping-branch-create";
 import { ShoppingBulkAdd } from "./shopping-bulk-add";
 import { ShoppingItemEditSheet } from "./shopping-item-edit-sheet";
-import { ShoppingItemInventoryConversionForm } from "./shopping-item-inventory-conversion-form";
 import { ShoppingItemRow } from "./shopping-item-row";
 import * as styles from "./shopping-page.css";
 import { ShoppingPurchasedSection } from "./shopping-purchased-section";
@@ -512,22 +511,6 @@ export function ShoppingList({
 				</ConfirmDialog>
 			) : null}
 
-			{purchase.conversionItem ? (
-				<ShoppingItemInventoryConversionForm
-					item={purchase.conversionItem}
-					isSaving={purchase.isSavingConversion}
-					onSave={(configuration) =>
-						purchase.conversionItem
-							? purchase.saveInventoryConfiguration(
-									purchase.conversionItem,
-									configuration,
-								)
-							: Promise.resolve()
-					}
-					onCancel={purchase.cancelConversion}
-				/>
-			) : null}
-
 			<ConfirmDialog
 				open={purchase.isAskingPurchase}
 				title="購入を確定しますか"
@@ -543,13 +526,15 @@ export function ShoppingList({
 
 			{purchase.isReviewingConversion ? (
 				<PurchaseConversionSheet
-					items={purchase.checkedTrackedItems.filter(
+					items={purchase.conversionReviewItems.filter(
 						(item) => item.id in purchase.conversionDrafts,
 					)}
 					drafts={purchase.conversionDrafts}
 					errors={purchase.conversionErrors}
 					onChangeDraft={purchase.changeAmountDraft}
-					isConfirming={purchase.isConfirmingPurchase}
+					isConfirming={
+						purchase.isConfirmingPurchase || purchase.isSavingConversion
+					}
 					onConfirm={() => void purchase.confirmWithConversions()}
 					onCancel={purchase.cancelReview}
 				/>

@@ -14,13 +14,13 @@ import {
 import { useExpiryEstimateLevel } from "#/features/inventory/hooks/use-expiry-estimate-level";
 import { useIngredientExpiryDefaults } from "#/features/inventory/hooks/use-ingredient-expiry-defaults";
 import { getLearnedRemainingDays } from "#/features/inventory/infrastructure/expiry-hints-storage";
-import type { ShoppingItemInventoryConfiguration } from "../components/shopping-item-inventory-conversion-form";
 import {
 	type AmountDraft,
 	buildAmountConfiguration,
 	describeAmountDraftError,
 	initialAmountDraft,
 } from "../domain/amount-draft";
+import type { ShoppingItemInventoryConfiguration } from "../domain/conversion-draft";
 import {
 	isSameConversionDefault,
 	type ShoppingConversionDefault,
@@ -86,7 +86,6 @@ export function useShoppingPurchase({
 	conversionMemory,
 }: UseShoppingPurchaseOptions) {
 	const [isConfirmingPurchase, setIsConfirmingPurchase] = useState(false);
-	const [conversionItemId, setConversionItemId] = useState<string | null>(null);
 	const [isSavingConversion, setIsSavingConversion] = useState(false);
 	// 記憶と違う換算を設定したとき、答えを待つあいだ（複数あるときは、1件ずつ聞く）。
 	const [overwriteQueue, setOverwriteQueue] = useState<
@@ -104,6 +103,8 @@ export function useShoppingPurchase({
 
 	// 在庫換算が足りない商品があるとき、購入確定の前に、量を聞く画面。
 	const [isReviewingConversion, setIsReviewingConversion] = useState(false);
+	// 量を聞く商品（画面で見つけたもの。保存の直前の確かめで見つかったものも）。
+	const [reviewItems, setReviewItems] = useState<ShoppingItem[]>([]);
 	// 換算がそろっているとき、購入確定の前に、確かめる確認。
 	const [isAskingPurchase, setIsAskingPurchase] = useState(false);
 	// 在庫換算の設定などで、購入確定をやり直すときに、期限の目安を使い回す。
@@ -119,9 +120,11 @@ export function useShoppingPurchase({
 	const checkedTrackedItems = items.filter(
 		(item) => item.status === "checked" && isInventoryTrackedShoppingItem(item),
 	);
-	const conversionItem = conversionItemId
-		? items.find((item) => item.id === conversionItemId)
-		: undefined;
+	// 量を聞く商品は、画面の一覧の新しい内容で見る（一覧にまだ届いていなければ、見つけたときの内容）。
+	const conversionReviewItems = reviewItems.map(
+		(reviewItem) =>
+			items.find((item) => item.id === reviewItem.id) ?? reviewItem,
+	);
 
 	// 期限の確認画面の、1商品分の初期値（目安の自動入力。設定がオフなら、種類の初期値だけ）。
 	function buildPrefillFor(
@@ -161,12 +164,14 @@ export function useShoppingPurchase({
 		setErrorMessage(null);
 		setConversionErrors({});
 
+		const missingItems = checkedTrackedItems.filter(
+			(item) => !item.inventoryConversion,
+		);
 		const drafts = Object.fromEntries(
-			checkedTrackedItems
-				.filter((item) => !item.inventoryConversion)
-				.map((item) => [item.id, initialAmountDraft(item)]),
+			missingItems.map((item) => [item.id, initialAmountDraft(item)]),
 		);
 
+		setReviewItems(missingItems);
 		setAmountDrafts(drafts);
 
 		// 在庫に入る商品がない（日用品だけ）ときは、在庫に影響しないので、確認なしで確定する。
@@ -195,7 +200,7 @@ export function useShoppingPurchase({
 
 	// 量を聞く画面で「購入確定」を押したとき。足りない換算を、先にすべて保存して、確定する。
 	async function confirmWithConversions() {
-		const missingItems = checkedTrackedItems.filter(
+		const missingItems = conversionReviewItems.filter(
 			(item) => item.id in conversionDrafts,
 		);
 		const configurations: {
@@ -274,6 +279,7 @@ export function useShoppingPurchase({
 
 		pendingLotsRef.current = buildLotsFromPrefill();
 		setIsReviewingConversion(false);
+		setReviewItems([]);
 		setAmountDrafts({});
 
 		if (overwrites.length > 0) {
@@ -302,21 +308,21 @@ export function useShoppingPurchase({
 				return;
 			}
 
+			// 画面で聞いたあとに、換算のない商品が見つかった（別の画面でチェックした、換算の保存が途中で失敗した、など）。
+			// その商品の量を、同じ「在庫に入れる量」の画面で聞く。
 			if (result.status === "missing-conversion") {
-				const firstMissingItem = result.items[0];
-
-				setConversionItemId(firstMissingItem?.id ?? null);
-
-				setErrorMessage(
-					firstMissingItem
-						? `${firstMissingItem.name}の在庫換算を設定してください`
-						: "在庫換算を設定してください",
+				setReviewItems(result.items);
+				setAmountDrafts(
+					Object.fromEntries(
+						result.items.map((item) => [item.id, initialAmountDraft(item)]),
+					),
 				);
+				setConversionErrors({});
+				setIsReviewingConversion(true);
 
 				return;
 			}
 
-			setConversionItemId(null);
 			pendingLotsRef.current = {};
 			applyPurchasedItems(result.items);
 
@@ -344,57 +350,6 @@ export function useShoppingPurchase({
 		}
 	}
 
-	async function saveInventoryConfiguration(
-		item: ShoppingItem,
-		configuration: ShoppingItemInventoryConfiguration,
-	) {
-		setIsSavingConversion(true);
-
-		try {
-			const updatedItem = await saveConversion(() =>
-				updateShoppingItem(item, {
-					name: item.name,
-					quantity: configuration.quantity,
-					unitLabel: configuration.unitLabel,
-					inventoryConversion: configuration.inventoryConversion,
-				}),
-			);
-
-			if (!updatedItem) {
-				return;
-			}
-
-			setConversionItemId(null);
-
-			// 決めた換算は、次から同じ食材の初期値にするため、覚える。
-			// 記憶と違うときは、覚え直すかを聞いてから、購入確定をやり直す。
-			const next: ShoppingConversionDefault = {
-				unitLabel: configuration.unitLabel,
-				inventoryConversion: configuration.inventoryConversion,
-			};
-			const previous = conversionMemory.lookup(
-				item.name,
-				configuration.unitLabel,
-			);
-
-			if (!previous) {
-				await conversionMemory.remember(item.name, next);
-			} else if (!isSameConversionDefault(previous, next)) {
-				setOverwriteQueue([{ itemName: item.name, previous, next }]);
-
-				return;
-			}
-
-			/*
-			 * Dexieへの換算保存が完了しているため、
-			 * 購入確定を最初から再試行する。
-			 */
-			await confirm();
-		} finally {
-			setIsSavingConversion(false);
-		}
-	}
-
 	// 記憶と違う換算の確認への答え。「変える」なら記憶を置き換える。残りがなければ、購入確定を続ける。
 	async function answerConversionOverwrite(choice: "replace" | "once") {
 		const request = overwriteRequest;
@@ -414,16 +369,12 @@ export function useShoppingPurchase({
 		}
 	}
 
-	function cancelConversion() {
-		setConversionItemId(null);
-		setErrorMessage(null);
-	}
-
 	return {
 		checkedItemCount,
 		checkedTrackedItems,
-		conversionItem,
+		conversionReviewItems,
 		isConfirmingPurchase,
+		// 量を聞く画面で、足りない換算を保存しているあいだ（二重に押されないように）。
 		isSavingConversion,
 		isReviewingConversion,
 		isAskingPurchase,
@@ -431,6 +382,7 @@ export function useShoppingPurchase({
 		cancelAskedPurchase: () => setIsAskingPurchase(false),
 		cancelReview: () => {
 			setIsReviewingConversion(false);
+			setReviewItems([]);
 			setAmountDrafts({});
 			setConversionErrors({});
 		},
@@ -440,9 +392,7 @@ export function useShoppingPurchase({
 			setAmountDrafts((current) => ({ ...current, [itemId]: draft })),
 		requestPurchase,
 		confirmWithConversions,
-		saveInventoryConfiguration,
 		overwriteRequest,
 		answerConversionOverwrite,
-		cancelConversion,
 	};
 }
