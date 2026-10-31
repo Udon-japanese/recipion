@@ -56,8 +56,7 @@ function InventoryPage() {
 	const [inventoryRefreshKey, setInventoryRefreshKey] = useState(0);
 
 	const ownerScope = useOwnerScope();
-	const [expiryEstimateLevel, setExpiryEstimateLevel] =
-		useExpiryEstimateLevel();
+	const [expiryEstimateLevel] = useExpiryEstimateLevel();
 	const lookupIngredientDefaults = useIngredientExpiryDefaults(ownerScope);
 
 	const loadInventoryItems = useCallback(async () => {
@@ -222,7 +221,6 @@ function InventoryPage() {
 			registration={{
 				registerInventoryItem,
 				expiryEstimateLevel,
-				onExpiryEstimateLevelChange: setExpiryEstimateLevel,
 				lookupIngredientDefaults,
 			}}
 			notices={

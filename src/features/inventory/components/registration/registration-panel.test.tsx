@@ -2,8 +2,10 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { displayedDate, typeDate } from "#/test/date-field-helpers";
-import { expectExpiryKind } from "#/test/expiry-fields-helpers";
-import { formatDateWithWeekday } from "../../domain/expiry-labels";
+import {
+	expectExpiryKind,
+	openExpiryDetails,
+} from "#/test/expiry-fields-helpers";
 import { addDays, toDateString } from "../../domain/inventory-lot";
 import { InventoryRegistrationPanel } from "./registration-panel";
 import { useInventoryRegistration } from "./use-inventory-registration";
@@ -19,9 +21,31 @@ function Harness(props: HarnessProps) {
 			open
 			onOpenChange={() => {}}
 			registration={registration}
-			expiryEstimate={{ level: "reliable", onChange: () => {} }}
 		/>
 	);
+}
+
+type User = ReturnType<typeof userEvent.setup>;
+
+// 数え方は、保存方法・期限と一緒に、たたんだ行の中にある。
+async function chooseTrackingMode(user: User, label: string) {
+	await openExpiryDetails(user);
+	await user.click(
+		within(screen.getByRole("group", { name: "数え方" })).getByRole("button", {
+			name: label,
+		}),
+	);
+}
+
+function expectTrackingMode(label: string) {
+	expect(
+		screen.getByRole("button", { name: /^保存方法・期限・数え方/u }),
+	).toHaveTextContent(label);
+}
+
+// 入れたもの（続けて追加したときの一覧）。
+async function findAddedList() {
+	return (await screen.findByText(/入れたもの/u)).closest("output");
 }
 
 afterEach(() => {
@@ -48,12 +72,10 @@ describe("InventoryRegistrationPanel", () => {
 		expect(screen.getByRole("combobox", { name: "在庫の単位" })).toHaveValue(
 			"count:個",
 		);
-		expect(screen.getByRole("button", { name: /^数え方/u })).toHaveTextContent(
-			"正確",
-		);
+		expectTrackingMode("正確");
 
 		await user.type(screen.getByLabelText(/^数量/u), "6");
-		await user.click(screen.getByRole("button", { name: "在庫に追加" }));
+		await user.click(screen.getByRole("button", { name: "追加" }));
 
 		await waitFor(() =>
 			expect(registerInventoryItem).toHaveBeenCalledWith(
@@ -68,9 +90,7 @@ describe("InventoryRegistrationPanel", () => {
 			),
 		);
 		expect(onRegistered).toHaveBeenCalledTimes(1);
-		expect(
-			await screen.findByText("卵を在庫に追加しました"),
-		).toBeInTheDocument();
+		expect(await findAddedList()).toHaveTextContent("卵 6個");
 		expect(screen.getByLabelText("食材名")).toHaveValue("");
 	});
 
@@ -86,7 +106,7 @@ describe("InventoryRegistrationPanel", () => {
 		);
 
 		await user.type(screen.getByLabelText("食材名"), "醤油");
-		await user.click(screen.getByRole("button", { name: "在庫に追加" }));
+		await user.click(screen.getByRole("button", { name: "追加" }));
 
 		await waitFor(() =>
 			expect(registerInventoryItem).toHaveBeenCalledWith(
@@ -112,12 +132,54 @@ describe("InventoryRegistrationPanel", () => {
 
 		await user.type(screen.getByLabelText("食材名"), "薄力粉");
 		await user.type(screen.getByLabelText(/^数量/u), "-5");
-		await user.click(screen.getByRole("button", { name: "在庫に追加" }));
+		await user.click(screen.getByRole("button", { name: "追加" }));
 
 		expect((await screen.findByRole("alert")).textContent).toContain(
 			"数量を確認してください",
 		);
 		expect(registerInventoryItem).not.toHaveBeenCalled();
+	});
+
+	it("食材名が空なら、送信せずに理由を表示する", async () => {
+		const user = userEvent.setup();
+		const registerInventoryItem = vi.fn();
+
+		render(
+			<Harness
+				registerInventoryItem={registerInventoryItem}
+				onRegistered={() => {}}
+			/>,
+		);
+
+		await user.click(screen.getByRole("button", { name: "追加" }));
+
+		expect((await screen.findByRole("alert")).textContent).toContain(
+			"食材名を入力してください",
+		);
+		expect(registerInventoryItem).not.toHaveBeenCalled();
+	});
+
+	it("続けて追加すると、入れたものを順に並べる（数量のないものは、名前だけ）", async () => {
+		const user = userEvent.setup();
+		const registerInventoryItem = vi.fn().mockResolvedValue({});
+
+		render(
+			<Harness
+				registerInventoryItem={registerInventoryItem}
+				onRegistered={() => {}}
+			/>,
+		);
+
+		await user.type(screen.getByLabelText("食材名"), "卵");
+		await user.type(screen.getByLabelText(/^数量/u), "6");
+		await user.click(screen.getByRole("button", { name: "追加" }));
+		await waitFor(() => expect(registerInventoryItem).toHaveBeenCalledTimes(1));
+
+		await user.type(screen.getByLabelText("食材名"), "塩");
+		await user.click(screen.getByRole("button", { name: "追加" }));
+		await waitFor(() => expect(registerInventoryItem).toHaveBeenCalledTimes(2));
+
+		expect(await findAddedList()).toHaveTextContent("卵 6個、塩");
 	});
 
 	it("登録に失敗したら、入力を残して、失敗を表示する", async () => {
@@ -132,7 +194,7 @@ describe("InventoryRegistrationPanel", () => {
 		);
 
 		await user.type(screen.getByLabelText("食材名"), "塩");
-		await user.click(screen.getByRole("button", { name: "在庫に追加" }));
+		await user.click(screen.getByRole("button", { name: "追加" }));
 
 		expect((await screen.findByRole("alert")).textContent).toContain(
 			"在庫に追加できませんでした",
@@ -141,7 +203,7 @@ describe("InventoryRegistrationPanel", () => {
 		expect(onRegistered).not.toHaveBeenCalled();
 	});
 
-	it("「量は数えない」にして登録すると、数量を入れず、有無だけで登録する", async () => {
+	it("数え方を「数えない」にして登録すると、数量を入れず、有無だけで登録する", async () => {
 		const user = userEvent.setup();
 		const registerInventoryItem = vi.fn().mockResolvedValue({});
 		const onRegistered = vi.fn();
@@ -154,8 +216,8 @@ describe("InventoryRegistrationPanel", () => {
 		);
 
 		await user.type(screen.getByLabelText("食材名"), "薄力粉");
-		await user.click(screen.getByRole("switch", { name: "量は数えない" }));
-		await user.click(screen.getByRole("button", { name: "在庫に追加" }));
+		await chooseTrackingMode(user, "数えない");
+		await user.click(screen.getByRole("button", { name: "追加" }));
 
 		await waitFor(() =>
 			expect(registerInventoryItem).toHaveBeenCalledWith(
@@ -168,9 +230,7 @@ describe("InventoryRegistrationPanel", () => {
 			),
 		);
 		expect(onRegistered).toHaveBeenCalledTimes(1);
-		expect(
-			await screen.findByText("薄力粉を「ある」で登録しました"),
-		).toBeInTheDocument();
+		expect(await findAddedList()).toHaveTextContent("薄力粉");
 	});
 
 	it("調味料は、最初から「有無だけ」になり、数量の欄がない。小麦粉は、量を追う", async () => {
@@ -180,22 +240,17 @@ describe("InventoryRegistrationPanel", () => {
 
 		await user.type(screen.getByLabelText("食材名"), "塩");
 
-		expect(screen.getByRole("switch", { name: "量は数えない" })).toBeChecked();
+		expectTrackingMode("数えない");
 		expect(screen.queryByLabelText(/^数量/u)).toBeNull();
 
 		await user.clear(screen.getByLabelText("食材名"));
 		await user.type(screen.getByLabelText("食材名"), "薄力粉");
 
-		expect(
-			screen.getByRole("switch", { name: "量は数えない" }),
-		).not.toBeChecked();
-		expect(screen.getByRole("button", { name: /^数え方/u })).toHaveTextContent(
-			"だいたい",
-		);
+		expectTrackingMode("だいたい");
 		expect(screen.getByLabelText(/^数量/u)).toBeInTheDocument();
 	});
 
-	it("「量は数えない」にすると、数量の欄を隠し、登録は「ある」になる", async () => {
+	it("「数えない」にすると、数量の欄を隠し、登録は「ある」になる", async () => {
 		const user = userEvent.setup();
 		const registerInventoryItem = vi.fn().mockResolvedValue({});
 
@@ -207,11 +262,11 @@ describe("InventoryRegistrationPanel", () => {
 		);
 
 		await user.type(screen.getByLabelText("食材名"), "薄力粉");
-		await user.click(screen.getByRole("switch", { name: "量は数えない" }));
+		await chooseTrackingMode(user, "数えない");
 
 		expect(screen.queryByLabelText(/^数量/u)).toBeNull();
 
-		await user.click(screen.getByRole("button", { name: "在庫に追加" }));
+		await user.click(screen.getByRole("button", { name: "追加" }));
 
 		await waitFor(() =>
 			expect(registerInventoryItem).toHaveBeenCalledWith(
@@ -260,7 +315,7 @@ describe("InventoryRegistrationPanel", () => {
 		);
 		await user.type(screen.getByLabelText("単位の呼び名"), "缶");
 		await user.type(screen.getByLabelText(/^数量/u), "2");
-		await user.click(screen.getByRole("button", { name: "在庫に追加" }));
+		await user.click(screen.getByRole("button", { name: "追加" }));
 
 		await waitFor(() =>
 			expect(registerInventoryItem).toHaveBeenCalledWith(
@@ -291,16 +346,6 @@ describe("InventoryRegistrationPanel", () => {
 	describe("期限の目安", () => {
 		const today = toDateString(new Date());
 
-		it("期限の欄の横に、今日の日付（曜日つき）を、小さく表示する", async () => {
-			render(
-				<Harness registerInventoryItem={vi.fn()} onRegistered={() => {}} />,
-			);
-
-			expect(
-				screen.getByText(`今日 ${formatDateWithWeekday(today)}`),
-			).toBeInTheDocument();
-		});
-
 		it("目安を付けられる食材は、日付を自動で入れ、「約」の注意を出し、出所を目安として送る", async () => {
 			const user = userEvent.setup();
 			const registerInventoryItem = vi.fn().mockResolvedValue({});
@@ -319,9 +364,9 @@ describe("InventoryRegistrationPanel", () => {
 				displayedDate(addDays(today, 90)),
 			);
 			expectExpiryKind("賞味期限");
-			expect(screen.getByText(/目安の日付（約）です/u)).toBeInTheDocument();
+			expect(screen.getByText(/目安（約）の日付です/u)).toBeInTheDocument();
 
-			await user.click(screen.getByRole("button", { name: "在庫に追加" }));
+			await user.click(screen.getByRole("button", { name: "追加" }));
 
 			await waitFor(() =>
 				expect(registerInventoryItem).toHaveBeenCalledWith(
@@ -350,9 +395,9 @@ describe("InventoryRegistrationPanel", () => {
 			await user.type(screen.getByLabelText("食材名"), "冷凍ブロッコリー");
 			await typeDate(user, "期限", addDays(today, 1));
 
-			expect(screen.queryByText(/目安の日付（約）です/u)).toBeNull();
+			expect(screen.queryByText(/目安（約）の日付です/u)).toBeNull();
 
-			await user.click(screen.getByRole("button", { name: "在庫に追加" }));
+			await user.click(screen.getByRole("button", { name: "追加" }));
 
 			await waitFor(() =>
 				expect(registerInventoryItem).toHaveBeenCalledWith(
@@ -401,7 +446,7 @@ describe("InventoryRegistrationPanel", () => {
 
 			// 買ってから3日後の期限を入力して、登録する
 			await typeDate(user, "期限", addDays(today, 3));
-			await user.click(screen.getByRole("button", { name: "在庫に追加" }));
+			await user.click(screen.getByRole("button", { name: "追加" }));
 			await waitFor(() => expect(registerInventoryItem).toHaveBeenCalled());
 
 			// もう一度、同じ食材：覚えた3日で、目安が入る
@@ -412,7 +457,7 @@ describe("InventoryRegistrationPanel", () => {
 					displayedDate(addDays(today, 3)),
 				),
 			);
-			expect(screen.getByText(/目安の日付（約）です/u)).toBeInTheDocument();
+			expect(screen.getByText(/目安（約）の日付です/u)).toBeInTheDocument();
 		});
 
 		it("ユーザーが期限の欄を触ったら、食材名を変えても、上書きしない", async () => {
@@ -450,5 +495,31 @@ describe("InventoryRegistrationPanel", () => {
 
 			expectExpiryKind("賞味期限");
 		});
+	});
+
+	it("1つ入れたら、カードの「閉じる」が「完了」になる", async () => {
+		const user = userEvent.setup();
+		const registerInventoryItem = vi.fn().mockResolvedValue({});
+
+		render(
+			<Harness
+				registerInventoryItem={registerInventoryItem}
+				onRegistered={() => {}}
+			/>,
+		);
+
+		const dialog = screen.getByRole("dialog", { name: "在庫に追加" });
+
+		expect(
+			within(dialog).getByRole("button", { name: "閉じる" }),
+		).toBeVisible();
+
+		await user.type(screen.getByLabelText("食材名"), "卵");
+		await user.click(within(dialog).getByRole("button", { name: "追加" }));
+
+		expect(
+			await within(dialog).findByRole("button", { name: "完了" }),
+		).toBeVisible();
+		expect(await findAddedList()).toHaveTextContent("卵");
 	});
 });

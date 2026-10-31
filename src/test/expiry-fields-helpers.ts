@@ -4,9 +4,14 @@ import { expect } from "vitest";
 
 type User = ReturnType<typeof userEvent.setup>;
 
-// 保存方法・期限の種類は、たたまれていることがあるので、閉じていれば、開いてから探す。
-async function openDetails(user: User) {
-	const toggle = screen.getByRole("button", { name: /保存方法・期限の種類/u });
+// 保存方法・期限の種類の、たたんだ行（在庫に追加では、数え方も一緒）。
+function getDetailsToggle() {
+	return screen.getByRole("button", { name: /^保存方法・期限/u });
+}
+
+// 保存方法・期限の種類は、たたまれているので、閉じていれば、開いてから探す。
+export async function openExpiryDetails(user: User) {
+	const toggle = getDetailsToggle();
 
 	if (toggle.getAttribute("aria-expanded") === "false") {
 		await user.click(toggle);
@@ -14,7 +19,7 @@ async function openDetails(user: User) {
 }
 
 async function getGroup(user: User, name: "期限の種類" | "保存方法") {
-	await openDetails(user);
+	await openExpiryDetails(user);
 
 	return within(await screen.findByRole("group", { name }));
 }
@@ -33,13 +38,7 @@ export async function chooseExpiryStorage(user: User, label: string) {
 	);
 }
 
-// 期限の種類が、選ばれているか。
+// 期限の種類が、選ばれているか（たたんだ行の要約で確かめる）。
 export function expectExpiryKind(label: string) {
-	// 種類が選ばれているときは、自動で開いている。
-	expect(
-		within(screen.getByRole("group", { name: "期限の種類" })).getByRole(
-			"button",
-			{ name: label },
-		),
-	).toHaveAttribute("aria-pressed", "true");
+	expect(getDetailsToggle()).toHaveTextContent(label);
 }

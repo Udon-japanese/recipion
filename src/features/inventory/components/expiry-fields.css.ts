@@ -26,6 +26,7 @@ export const groupLabel = style({
 	lineHeight: "var(--line-height-tight)",
 });
 
+// 保存方法・期限の種類の、たたんだ行（買い物メモのカテゴリの行と同じ形）。行のどこを押しても開く。
 export const detailsToggle = style({
 	boxSizing: "border-box",
 	display: "flex",
@@ -33,10 +34,11 @@ export const detailsToggle = style({
 	gap: 8,
 	width: "100%",
 	minHeight: 44,
-	padding: 0,
+	padding: "6px 14px",
 	color: "var(--color-text)",
-	background: "none",
+	background: "var(--color-surface-muted)",
 	border: "none",
+	borderRadius: "var(--radius-card)",
 	font: "inherit",
 	textAlign: "start",
 	cursor: "pointer",
@@ -50,30 +52,26 @@ export const detailsToggle = style({
 
 export const detailsTitle = style({
 	flex: "none",
-	fontSize: "var(--font-size-sm)",
-	fontWeight: "var(--font-weight-semibold)",
+	color: "var(--color-text-muted)",
+	fontSize: "var(--font-size-xs)",
+	fontWeight: "var(--font-weight-bold)",
 });
 
 export const detailsSummary = style({
 	flex: 1,
 	minWidth: 0,
-	color: "var(--color-text-muted)",
 	fontSize: "var(--font-size-sm)",
+	fontWeight: "var(--font-weight-bold)",
 	overflow: "hidden",
 	textOverflow: "ellipsis",
 	whiteSpace: "nowrap",
 });
 
-export const chevron = style({
+export const detailsAction = style({
 	flex: "none",
-	display: "grid",
-	placeItems: "center",
-	transition: "transform 0.15s ease",
-	selectors: {
-		"&[data-open='true']": {
-			transform: "rotate(180deg)",
-		},
-	},
+	color: "var(--color-accent-text)",
+	fontSize: "var(--font-size-sm)",
+	fontWeight: "var(--font-weight-bold)",
 });
 
 export const details = style({
