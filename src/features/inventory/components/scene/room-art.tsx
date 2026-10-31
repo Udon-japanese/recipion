@@ -4,6 +4,9 @@ import * as styles from "./scene.css";
 
 const INK = "var(--color-text)";
 const STROKE = 2.5;
+// 内側の細い線（輪郭より細く、薄く。線に強弱を付ける）。
+const DETAIL = 1.5;
+const DETAIL_OPACITY = 0.45;
 
 export type OpenPart = "top" | "veg" | "freezer" | null;
 
@@ -33,6 +36,10 @@ const dayColors = {
 	leaf: "#6fb77a",
 	leafLight: "#8bcb92",
 	pot: "#d98b5f",
+	soil: "#6b4a35",
+	rug: "#e9cfa3",
+	rugBorder: "#c98f58",
+	clock: "#fffdf7",
 	// 床に落ちる影の濃さ。
 	shadow: 0.14,
 };
@@ -64,18 +71,25 @@ const nightColors: RoomColors = {
 	leaf: "#4f9168",
 	leafLight: "#69a87c",
 	pot: "#b06f55",
+	soil: "#4a3428",
+	rug: "#b49a86",
+	rugBorder: "#8f6a52",
+	clock: "#dfe1ee",
 	shadow: 0.28,
 };
 
+// テーブルの上に置く食材の足もと（奥の4つ、手前の2つ）。
 const tableSlots = [
-	{ x: 84, y: 486 },
-	{ x: 124, y: 480 },
-	{ x: 164, y: 480 },
-	{ x: 204, y: 486 },
-	{ x: 104, y: 512 },
-	{ x: 178, y: 514 },
+	{ x: 70, y: 496 },
+	{ x: 116, y: 492 },
+	{ x: 164, y: 492 },
+	{ x: 210, y: 496 },
+	{ x: 100, y: 524 },
+	{ x: 180, y: 524 },
 ];
+const TABLE_ART_SIZE = 60;
 
+// 観葉植物：葉は、輪郭を太く、葉脈を細く。鉢には、縁と土。
 function Plant({
 	x,
 	y,
@@ -87,35 +101,67 @@ function Plant({
 	scale?: number;
 	c: RoomColors;
 }) {
+	const leaves = [
+		{
+			d: "M0 0C-30 -14 -40 -48 -26 -72C-14 -46 -4 -24 0 0Z",
+			vein: "M0 0Q-14 -30 -24 -66",
+			fill: c.leaf,
+		},
+		{
+			d: "M0 0C28 -12 42 -44 32 -70C16 -46 4 -24 0 0Z",
+			vein: "M0 0Q14 -30 30 -64",
+			fill: c.leafDark,
+		},
+		{
+			d: "M0 0C-12 -10 -22 -30 -18 -46C-8 -30 -2 -16 0 0Z",
+			vein: "M0 0Q-8 -20 -16 -42",
+			fill: c.leafDark,
+		},
+		{
+			d: "M0 0C-8 -30 -2 -64 6 -90C18 -62 12 -28 0 0Z",
+			vein: "M0 0Q4 -44 6 -84",
+			fill: c.leafLight,
+		},
+	];
+
 	return (
 		<g transform={`translate(${x} ${y}) scale(${scale})`}>
+			{leaves.map((leaf) => (
+				<g key={leaf.d}>
+					<path
+						d={leaf.d}
+						fill={leaf.fill}
+						stroke={INK}
+						strokeWidth={STROKE}
+						strokeLinejoin="round"
+					/>
+					<path
+						d={leaf.vein}
+						fill="none"
+						stroke={INK}
+						strokeWidth={DETAIL}
+						strokeLinecap="round"
+						opacity={DETAIL_OPACITY}
+					/>
+				</g>
+			))}
+			<ellipse cx="0" cy="2" rx="17" ry="3.5" fill={c.soil} />
 			<path
-				d="M0 0C-26 -20 -28 -54 -10 -70C-4 -40 4 -22 0 0Z"
-				fill={c.leaf}
-				stroke={INK}
-				strokeWidth={STROKE}
-				strokeLinejoin="round"
-			/>
-			<path
-				d="M0 0C24 -16 34 -48 22 -68C10 -44 0 -26 0 0Z"
-				fill={c.leafDark}
-				stroke={INK}
-				strokeWidth={STROKE}
-				strokeLinejoin="round"
-			/>
-			<path
-				d="M0 0C-4 -28 4 -58 2 -84C16 -58 12 -26 0 0Z"
-				fill={c.leafLight}
-				stroke={INK}
-				strokeWidth={STROKE}
-				strokeLinejoin="round"
-			/>
-			<path
-				d="M-18 0H18L14 30H-14Z"
+				d="M-17 6H17L13 32Q13 34 11 34H-11Q-13 34 -13 32Z"
 				fill={c.pot}
 				stroke={INK}
 				strokeWidth={STROKE}
 				strokeLinejoin="round"
+			/>
+			<rect
+				x="-21"
+				y="-1"
+				width="42"
+				height="9"
+				rx="3"
+				fill={c.pot}
+				stroke={INK}
+				strokeWidth={STROKE}
 			/>
 		</g>
 	);
@@ -179,7 +225,27 @@ export function RoomArt({
 			))}
 			<path d="M-200 400H600" stroke={INK} strokeWidth={STROKE} />
 
-			{/* 窓 */}
+			{/* ランプの光：壁と床だけを照らす（物の線の上に重ねると、線が濁る）。夜は、テーブルのあたりの床も */}
+			<rect
+				className={styles.fade}
+				x="-200"
+				width="800"
+				height="640"
+				fill="url(#lampGlow)"
+				style={{ opacity: night ? 0.75 : 0.35 }}
+				pointerEvents="none"
+			/>
+			<rect
+				className={styles.fade}
+				x="-200"
+				width="800"
+				height="640"
+				fill="url(#tableLight)"
+				style={{ opacity: night ? 1 : 0 }}
+				pointerEvents="none"
+			/>
+
+			{/* 窓：ガラス（昼の光り・夜の月）、桟、カーテン（ひだ・留め帯）、窓台 */}
 			<g>
 				<rect x="28" y="108" width="112" height="124" rx="10" fill="#cfeaf7" />
 				<rect
@@ -200,6 +266,14 @@ export function RoomArt({
 					fill="#fff6c8"
 					style={{ opacity: night ? 1 : 0 }}
 				/>
+				<path
+					className={styles.fade}
+					d="M44 150L66 124M48 162L60 148M98 210L120 186"
+					stroke="#ffffff"
+					strokeWidth="3"
+					strokeLinecap="round"
+					style={{ opacity: night ? 0 : 0.8 }}
+				/>
 				<rect
 					x="28"
 					y="108"
@@ -210,39 +284,115 @@ export function RoomArt({
 					stroke={INK}
 					strokeWidth="3"
 				/>
-				<path d="M84 108V232M28 170H140" stroke={INK} strokeWidth="3" />
+				<rect
+					x="33"
+					y="113"
+					width="102"
+					height="114"
+					rx="7"
+					fill="none"
+					stroke={INK}
+					strokeWidth={DETAIL}
+					strokeLinecap="round"
+					opacity={DETAIL_OPACITY}
+				/>
+				<path d="M84 108V232M28 170H140" stroke={INK} strokeWidth={STROKE} />
 				<path
 					d="M20 100H148"
 					stroke={INK}
 					strokeWidth="4"
 					strokeLinecap="round"
 				/>
+				<circle cx="20" cy="100" r="4" fill={INK} />
+				<circle cx="148" cy="100" r="4" fill={INK} />
 				<path
-					d="M30 104Q44 150 34 230H20Q22 160 30 104Z"
+					d="M28 104Q46 140 40 176Q36 206 32 230H20Q24 160 28 104Z"
 					fill={c.fabric}
 					stroke={INK}
-					strokeWidth="2.5"
+					strokeWidth={STROKE}
 					strokeLinejoin="round"
 				/>
 				<path
-					d="M138 104Q124 150 134 230H148Q146 160 138 104Z"
+					d="M140 104Q122 140 128 176Q132 206 136 230H148Q144 160 140 104Z"
 					fill={c.fabric}
 					stroke={INK}
-					strokeWidth="2.5"
+					strokeWidth={STROKE}
 					strokeLinejoin="round"
+				/>
+				<path
+					d="M30 118Q36 150 30 222M140 118Q134 150 140 222"
+					fill="none"
+					stroke={INK}
+					strokeWidth={DETAIL}
+					strokeLinecap="round"
+					opacity={DETAIL_OPACITY}
+				/>
+				<path
+					d="M21 172H40M127 172H147"
+					stroke={c.wood}
+					strokeWidth="5"
+					strokeLinecap="round"
 				/>
 				<rect
-					x="24"
-					y="232"
-					width="120"
-					height="8"
+					x="22"
+					y="230"
+					width="124"
+					height="9"
 					rx="3"
 					fill={c.wood}
 					stroke={INK}
-					strokeWidth="2.5"
+					strokeWidth={STROKE}
 				/>
 			</g>
-			<Plant x={90} y={217} scale={0.5} c={c} />
+
+			{/* 壁の時計 */}
+			<g>
+				<circle
+					cx="196"
+					cy="182"
+					r="17"
+					fill={c.clock}
+					stroke={INK}
+					strokeWidth={STROKE}
+				/>
+				<path
+					d="M196 168V171M196 193V196M182 182H185M207 182H210"
+					stroke={INK}
+					strokeWidth={DETAIL}
+					strokeLinecap="round"
+					opacity={DETAIL_OPACITY}
+				/>
+				<path
+					d="M196 182V173M196 182L203 186"
+					stroke={INK}
+					strokeWidth="2"
+					strokeLinecap="round"
+				/>
+			</g>
+			<Plant x={90} y={213} scale={0.5} c={c} />
+
+			{/* テーブルの下の、丸いラグ */}
+			<g>
+				<ellipse
+					cx="150"
+					cy="606"
+					rx="178"
+					ry="34"
+					fill={c.rug}
+					stroke={INK}
+					strokeWidth={STROKE}
+				/>
+				<ellipse
+					cx="150"
+					cy="606"
+					rx="160"
+					ry="26"
+					fill="none"
+					stroke={c.rugBorder}
+					strokeWidth="3"
+					strokeDasharray="10 6"
+				/>
+			</g>
 
 			{/* 床に落ちる影（物が、床に立って見えるように） */}
 			<g fill={INK} opacity={c.shadow}>
@@ -473,7 +623,7 @@ export function RoomArt({
 				<rect x="342" y="404" width="22" height="8" rx="3" fill={INK} />
 			</g>
 
-			{/* クッション（れしぽよの寝床） */}
+			{/* クッション（れしぽよの寝床）：縫い目と、まんなかのボタン */}
 			<g>
 				<ellipse
 					cx="300"
@@ -484,10 +634,22 @@ export function RoomArt({
 					stroke={INK}
 					strokeWidth={STROKE}
 				/>
-				<ellipse cx="300" cy="591" rx="38" ry="8" fill={c.fabricLight} />
+				<ellipse cx="300" cy="591" rx="40" ry="8" fill={c.fabricLight} />
+				<ellipse
+					cx="300"
+					cy="594"
+					rx="46"
+					ry="10"
+					fill="none"
+					stroke={INK}
+					strokeWidth={DETAIL}
+					strokeDasharray="4 4"
+					opacity={DETAIL_OPACITY}
+				/>
+				<circle cx="300" cy="592" r="3" fill={c.wood} />
 			</g>
 
-			{/* 丸いテーブル（手前） */}
+			{/* 丸いテーブル（手前）：天板の木目、脚、台座 */}
 			<g>
 				<ellipse
 					cx="140"
@@ -506,7 +668,15 @@ export function RoomArt({
 					strokeLinejoin="round"
 				/>
 				<path
-					d="M20 506V520Q20 548 140 548Q260 548 260 520V506Z"
+					d="M132 548L130 596"
+					stroke={INK}
+					strokeWidth={DETAIL}
+					strokeLinecap="round"
+					opacity={DETAIL_OPACITY}
+				/>
+				{/* 天板の側面：天板の楕円を、厚みの分だけ下へずらした下半分（どこでも同じ厚み） */}
+				<path
+					d="M20 502V516A120 40 0 0 0 260 516V502Z"
 					fill={c.tableSide}
 					stroke={INK}
 					strokeWidth={STROKE}
@@ -523,12 +693,20 @@ export function RoomArt({
 				/>
 				<ellipse
 					cx="140"
-					cy="498"
-					rx="96"
-					ry="28"
+					cy="500"
+					rx="104"
+					ry="31"
 					fill="none"
 					stroke={c.tableRim}
 					strokeWidth="2"
+				/>
+				<path
+					d="M64 494Q100 484 132 490M150 512Q186 518 214 508M90 512Q110 516 124 514"
+					fill="none"
+					stroke={INK}
+					strokeWidth={DETAIL}
+					strokeLinecap="round"
+					opacity={DETAIL_OPACITY}
 				/>
 			</g>
 			{tableTiles.slice(0, tableSlots.length).map((tile, index) => {
@@ -540,14 +718,15 @@ export function RoomArt({
 						tile={tile}
 						x={slot.x}
 						y={slot.y}
-						size={40}
+						size={TABLE_ART_SIZE}
 					/>
 				) : null;
 			})}
 
-			{/* 天井のランプ */}
+			{/* 天井のランプ：コード、笠（縁の線）、電球 */}
 			<g>
-				<path d="M170 0V40" stroke={INK} strokeWidth="3" />
+				<path d="M170 0V40" stroke={INK} strokeWidth="2" />
+				<rect x="164" y="34" width="12" height="8" rx="2" fill={INK} />
 				<ellipse
 					cx="170"
 					cy="68"
@@ -558,33 +737,20 @@ export function RoomArt({
 					strokeWidth="2"
 				/>
 				<path
-					d="M146 66L156 40H184L194 66Z"
+					d="M144 66L156 40H184L196 66Z"
 					fill="#e9a900"
 					stroke={INK}
 					strokeWidth={STROKE}
 					strokeLinejoin="round"
 				/>
+				<path
+					d="M150 60H190"
+					stroke={INK}
+					strokeWidth={DETAIL}
+					strokeLinecap="round"
+					opacity={DETAIL_OPACITY}
+				/>
 			</g>
-
-			{/* ランプの光：昼は、ほのかに。夜は、ランプのまわりと、テーブルのあたりだけを照らす */}
-			<rect
-				className={styles.fade}
-				x="-200"
-				width="800"
-				height="640"
-				fill="url(#lampGlow)"
-				style={{ opacity: night ? 0.75 : 0.35 }}
-				pointerEvents="none"
-			/>
-			<rect
-				className={styles.fade}
-				x="-200"
-				width="800"
-				height="640"
-				fill="url(#tableLight)"
-				style={{ opacity: night ? 1 : 0 }}
-				pointerEvents="none"
-			/>
 		</svg>
 	);
 }
