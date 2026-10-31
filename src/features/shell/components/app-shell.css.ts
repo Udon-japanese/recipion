@@ -99,7 +99,7 @@ export const content = style({
 	marginInline: "auto",
 });
 
-// スマホの下のナビ。
+// スマホの下のナビ。選んでいる所は、塗りのアイコンと太字で示す（背景の飾りは付けない）。
 export const bottomNav = style({
 	position: "sticky",
 	bottom: 0,
@@ -107,9 +107,8 @@ export const bottomNav = style({
 	display: "grid",
 	gridTemplateColumns: "repeat(3, 1fr)",
 	flex: "none",
-	minHeight: 64,
 	paddingBottom: "env(safe-area-inset-bottom)",
-	background: "var(--color-surface)",
+	background: "var(--color-background)",
 	borderTop: "1px solid var(--color-border)",
 
 	"@media": {
@@ -123,35 +122,22 @@ export const bottomItem = style({
 	alignItems: "center",
 	justifyContent: "center",
 	gap: 2,
-	minHeight: 64,
-	fontSize: 12,
-	fontWeight: "var(--font-weight-medium)",
+	minHeight: 56,
+	fontSize: 11,
 	color: "var(--color-text-muted)",
 	textDecoration: "none",
+	WebkitTapHighlightColor: "transparent",
+	transition: "transform var(--duration-fast) var(--ease-standard)",
 
 	selectors: {
 		'&[aria-current="page"]': {
 			color: "var(--color-text)",
-			fontWeight: "var(--font-weight-semibold)",
+			fontWeight: "var(--font-weight-bold)",
 		},
+		"&:active": { transform: "scale(0.94)" },
 		"&:focus-visible": {
 			outline: "3px solid var(--color-focus)",
 			outlineOffset: -3,
-		},
-	},
-});
-
-export const pill = style({
-	display: "grid",
-	placeItems: "center",
-	width: 56,
-	height: 32,
-	borderRadius: 9999,
-
-	selectors: {
-		[`${bottomItem}[aria-current="page"] &`]: {
-			background: "var(--color-primary)",
-			color: "var(--color-on-primary)",
 		},
 	},
 });
@@ -192,37 +178,29 @@ export const brand = style({
 export const sideNav = style({
 	display: "flex",
 	flexDirection: "column",
-	gap: 4,
+	gap: 2,
 });
 
+// 選んでいる所は、塗りのアイコンと太字で示す（背景の飾りは付けない）。
 export const sideItem = style({
-	position: "relative",
 	display: "flex",
 	alignItems: "center",
-	gap: 12,
+	gap: 16,
 	minHeight: 48,
-	padding: "0 16px",
-	borderRadius: 9999,
+	padding: "0 12px",
+	borderRadius: 12,
 	fontSize: 16,
 	color: "var(--color-text-muted)",
 	textDecoration: "none",
 
 	selectors: {
-		"&:hover": { background: "var(--color-surface-muted)" },
-		'&[aria-current="page"]': {
-			background: "var(--color-primary-soft)",
+		"&:hover": {
+			background: "var(--color-surface-muted)",
 			color: "var(--color-text)",
-			fontWeight: "var(--font-weight-semibold)",
 		},
-		'&[aria-current="page"]::before': {
-			content: '""',
-			position: "absolute",
-			left: 0,
-			top: 12,
-			width: 4,
-			height: 24,
-			borderRadius: "0 4px 4px 0",
-			background: "var(--color-text)",
+		'&[aria-current="page"]': {
+			color: "var(--color-text)",
+			fontWeight: "var(--font-weight-bold)",
 		},
 		"&:focus-visible": {
 			outline: "3px solid var(--color-focus)",
@@ -243,7 +221,7 @@ export const me = style({
 	gap: 12,
 	minHeight: 52,
 	padding: 8,
-	borderRadius: 16,
+	borderRadius: 12,
 	fontSize: 14,
 	color: "var(--color-text)",
 	textDecoration: "none",

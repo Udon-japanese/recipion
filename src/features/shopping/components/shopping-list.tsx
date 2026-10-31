@@ -699,13 +699,12 @@ export function ShoppingList({
 						fullWidth
 						status={purchase.isConfirmingPurchase ? "pending" : "idle"}
 						pendingLabel="購入確定中"
-						aria-label={`購入を確定（${purchase.checkedItemCount}件）`}
 						disabled={ownerScope === null}
 						onClick={purchase.requestPurchase}
 					>
 						購入を確定
 						<span className={styles.purchaseCount}>
-							{purchase.checkedItemCount}
+							（{purchase.checkedItemCount}件）
 						</span>
 					</Button>
 				</div>

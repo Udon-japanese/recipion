@@ -328,16 +328,12 @@ export const fab = style({
 	},
 });
 
+// 件数は、黄色の地に、文字のまま添える（濃い丸の札は、黄色には重い）。
 export const purchaseCount = style({
-	display: "inline-grid",
-	placeItems: "center",
-	minWidth: 28,
-	height: 28,
-	padding: "0 8px",
-	borderRadius: 9999,
-	background: "var(--color-on-primary)",
-	color: "var(--color-primary)",
-	fontSize: 14,
+	// ボタンの中の間（8px）を打ち消す（全角の括弧に、もう余白がある）。
+	marginLeft: -8,
+	fontWeight: "var(--font-weight-medium)",
+	fontVariantNumeric: "tabular-nums",
 });
 
 // 分類ごとのカード（条件つきのメモのブロックと、行の一覧が入る）。
