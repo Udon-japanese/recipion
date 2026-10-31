@@ -303,6 +303,19 @@ describe("InventoryList", () => {
 		).toBeInTheDocument();
 	});
 
+	it("「更新」を押したときだけ、更新したことを、お知らせで伝える", async () => {
+		const user = userEvent.setup();
+
+		renderList([]);
+
+		expect(await screen.findByText("在庫はまだありません。")).toBeVisible();
+		expect(screen.queryByText("在庫を更新しました")).not.toBeInTheDocument();
+
+		await user.click(screen.getByRole("button", { name: "更新" }));
+
+		expect(await screen.findByText("在庫を更新しました")).toBeVisible();
+	});
+
 	it("更新番号が変わると在庫を再取得する", async () => {
 		const loadInventoryItems = vi
 			.fn()

@@ -19,7 +19,7 @@ function Harness(props: HarnessProps) {
 			open
 			onOpenChange={() => {}}
 			registration={registration}
-			onOpenSettings={() => {}}
+			expiryEstimate={{ level: "reliable", onChange: () => {} }}
 		/>
 	);
 }

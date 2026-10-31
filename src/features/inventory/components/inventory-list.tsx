@@ -115,13 +115,16 @@ export function InventoryList({
 	const [isLoading, setIsLoading] = useState(false);
 	const [hasLoaded, setHasLoaded] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
+	// 「更新」を押したときだけ、お知らせを出す（最初の読み込みや、登録のあとの再取得では出さない）。
+	const [refreshStatus, setRefreshStatus] = useState<
+		"idle" | "refreshing" | "done"
+	>("idle");
 	const [itemsSource, setItemsSource] = useState<"network" | "cache">(
 		"network",
 	);
 	const [cachedAt, setCachedAt] = useState<string | null>(null);
 	const [selection, setSelection] = useState<Selection | null>(null);
 	const [isRegistrationOpen, setIsRegistrationOpen] = useState(false);
-	const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 	const [view, setView] = useState<InventoryView>("list");
 	const [night, setNight] = useState(false);
 	const [petVisible, setPetVisible] = useState(true);
@@ -182,7 +185,7 @@ export function InventoryList({
 			setCachedAt(null);
 			setErrorMessage(null);
 
-			return;
+			return true;
 		}
 
 		setIsLoading(true);
@@ -196,12 +199,31 @@ export function InventoryList({
 			setCachedAt(result.cachedAt);
 			setHasLoaded(true);
 			setOrderEpoch((epoch) => epoch + 1);
+
+			return true;
 		} catch {
 			setErrorMessage("在庫を読み込めませんでした");
+
+			return false;
 		} finally {
 			setIsLoading(false);
 		}
 	}, [ownerScope, loadInventoryItems]);
+
+	async function refresh() {
+		setRefreshStatus("refreshing");
+		setRefreshStatus((await loadItems()) ? "done" : "idle");
+	}
+
+	useEffect(() => {
+		if (refreshStatus !== "done") {
+			return;
+		}
+
+		const timer = window.setTimeout(() => setRefreshStatus("idle"), 3000);
+
+		return () => window.clearTimeout(timer);
+	}, [refreshStatus]);
 
 	// biome-ignore lint: refreshKeyが変化したら再取得
 	useEffect(() => {
@@ -402,21 +424,11 @@ export function InventoryList({
 			<span className={styles.tools} data-tools>
 				{view === "scene" ? (
 					<IconButton
-						icon="eye"
-						label={`${MASCOT_DISPLAY_NAME}を表示`}
+						icon={petVisible ? "mascot-shown" : "mascot-hidden"}
+						label={`${MASCOT_DISPLAY_NAME}を${petVisible ? "かくす" : "だす"}`}
 						size="std"
 						tone={petVisible ? "on" : "plain"}
-						aria-pressed={petVisible}
 						onClick={() => changePetVisible(!petVisible)}
-					/>
-				) : null}
-
-				{isMember && registration ? (
-					<IconButton
-						icon="sliders"
-						label="期限の目安の設定"
-						size="std"
-						onClick={() => setIsSettingsOpen(true)}
 					/>
 				) : null}
 
@@ -426,7 +438,7 @@ export function InventoryList({
 						label="更新"
 						size="std"
 						disabled={isLoading}
-						onClick={() => void loadItems()}
+						onClick={() => void refresh()}
 					/>
 				) : null}
 			</span>
@@ -469,6 +481,16 @@ export function InventoryList({
 			) : null}
 
 			{errorMessage ? <Note tone="error">{errorMessage}</Note> : null}
+
+			{refreshStatus === "refreshing" ? (
+				<Note tone="info" icon="refresh" spinning>
+					在庫を更新しています…
+				</Note>
+			) : null}
+
+			{refreshStatus === "done" ? (
+				<Note tone="success">在庫を更新しました</Note>
+			) : null}
 
 			{isOffline && hasItems ? (
 				<Note tone="neutral" icon="wifi-off">
@@ -560,8 +582,6 @@ export function InventoryList({
 					config={registration}
 					isOpen={isRegistrationOpen}
 					onOpenChange={handleRegistrationOpenChange}
-					isSettingsOpen={isSettingsOpen}
-					onSettingsOpenChange={setIsSettingsOpen}
 					onRegistered={handleRegistered}
 					showFab={hasItems}
 				/>
