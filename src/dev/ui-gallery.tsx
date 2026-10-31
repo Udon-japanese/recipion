@@ -7,6 +7,7 @@ import { Card } from "#/components/card/card";
 import { Checkbox } from "#/components/checkbox/checkbox";
 import { Chip, ChipGroup, ChipUnit } from "#/components/chip/chip";
 import { CornerSheet } from "#/components/corner-sheet/corner-sheet";
+import { DateField } from "#/components/date-picker/date-picker";
 import { ConfirmDialog } from "#/components/dialog/confirm-dialog";
 import {
 	Field,
@@ -408,9 +409,25 @@ function PartsGallery() {
 	const [checked, setChecked] = useState(false);
 	const [toggled, setToggled] = useState(true);
 	const [text, setText] = useState("");
+	const [date, setDate] = useState("");
 
 	return (
 		<>
+			<Section
+				title="日付の欄"
+				description="PC は、打って入れられる欄＋カレンダー（ポップオーバー）。スマホ（幅 768px 未満）は、欄を押すと、下のシートでカレンダーが開く。"
+			>
+				<div style={{ maxWidth: 360 }}>
+					<DateField
+						aria-label="日付の欄の例"
+						value={date}
+						today="2026-10-31"
+						onChange={setDate}
+					/>
+				</div>
+				<p style={{ margin: 0 }}>選んだ日：{date === "" ? "（なし）" : date}</p>
+			</Section>
+
 			<Section
 				title="部品（第1弾）：ボタン類"
 				description="アイコンボタン（見た目 36px・押せる範囲 44px）、タグ（枠なし＝押せない）、チップ（枠あり＝押せる）。"

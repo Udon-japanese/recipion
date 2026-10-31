@@ -1,12 +1,7 @@
-import {
-	fireEvent,
-	render,
-	screen,
-	waitFor,
-	within,
-} from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { displayedDate, typeDate } from "#/test/date-field-helpers";
 import { expectExpiryKind } from "#/test/expiry-fields-helpers";
 import { formatDateWithWeekday } from "../../domain/expiry-labels";
 import { addDays, toDateString } from "../../domain/inventory-lot";
@@ -320,7 +315,9 @@ describe("InventoryRegistrationPanel", () => {
 			await user.type(screen.getByLabelText("食材名"), "冷凍ブロッコリー");
 
 			// 冷凍野菜：90日（短め）
-			expect(screen.getByLabelText("期限")).toHaveValue(addDays(today, 90));
+			expect(screen.getByLabelText("期限")).toHaveValue(
+				displayedDate(addDays(today, 90)),
+			);
 			expectExpiryKind("賞味期限");
 			expect(screen.getByText(/目安の日付（約）です/u)).toBeInTheDocument();
 
@@ -351,9 +348,7 @@ describe("InventoryRegistrationPanel", () => {
 			);
 
 			await user.type(screen.getByLabelText("食材名"), "冷凍ブロッコリー");
-			fireEvent.change(screen.getByLabelText("期限"), {
-				target: { value: addDays(today, 1) },
-			});
+			await typeDate(user, "期限", addDays(today, 1));
 
 			expect(screen.queryByText(/目安の日付（約）です/u)).toBeNull();
 
@@ -405,9 +400,7 @@ describe("InventoryRegistrationPanel", () => {
 			expectExpiryKind("消費期限");
 
 			// 買ってから3日後の期限を入力して、登録する
-			fireEvent.change(screen.getByLabelText("期限"), {
-				target: { value: addDays(today, 3) },
-			});
+			await typeDate(user, "期限", addDays(today, 3));
 			await user.click(screen.getByRole("button", { name: "在庫に追加" }));
 			await waitFor(() => expect(registerInventoryItem).toHaveBeenCalled());
 
@@ -415,7 +408,9 @@ describe("InventoryRegistrationPanel", () => {
 			await user.type(screen.getByLabelText("食材名"), "鶏もも肉");
 
 			await waitFor(() =>
-				expect(screen.getByLabelText("期限")).toHaveValue(addDays(today, 3)),
+				expect(screen.getByLabelText("期限")).toHaveValue(
+					displayedDate(addDays(today, 3)),
+				),
 			);
 			expect(screen.getByText(/目安の日付（約）です/u)).toBeInTheDocument();
 		});
@@ -428,13 +423,13 @@ describe("InventoryRegistrationPanel", () => {
 			);
 
 			await user.type(screen.getByLabelText("食材名"), "冷凍ブロッコリー");
-			fireEvent.change(screen.getByLabelText("期限"), {
-				target: { value: addDays(today, 1) },
-			});
+			await typeDate(user, "期限", addDays(today, 1));
 			await user.clear(screen.getByLabelText("食材名"));
 			await user.type(screen.getByLabelText("食材名"), "冷凍コーン");
 
-			expect(screen.getByLabelText("期限")).toHaveValue(addDays(today, 1));
+			expect(screen.getByLabelText("期限")).toHaveValue(
+				displayedDate(addDays(today, 1)),
+			);
 		});
 
 		it("ユーザーが決めた期限の種類を、初期値にする", async () => {

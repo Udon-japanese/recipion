@@ -1,14 +1,9 @@
-import {
-	fireEvent,
-	render,
-	screen,
-	waitFor,
-	within,
-} from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { buildInventoryListItem } from "#/test/builders/build-inventory-list-item";
+import { typeDate } from "#/test/date-field-helpers";
 import { chooseExpiryKind } from "#/test/expiry-fields-helpers";
 import type { InventoryListItem } from "../application/inventory-query-repository";
 import {
@@ -570,9 +565,7 @@ describe("InventoryList", () => {
 					name: "10/1に入れた分の期限を編集",
 				}),
 			);
-			fireEvent.change(screen.getByLabelText("期限"), {
-				target: { value: addDays(toDateString(new Date()), 1) },
-			});
+			await typeDate(user, "期限", addDays(toDateString(new Date()), 1));
 			await chooseExpiryKind(user, "消費期限");
 			await user.click(screen.getByLabelText(/この食材の初期値にする/u));
 			await user.click(screen.getByRole("button", { name: "保存" }));

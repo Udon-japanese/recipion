@@ -1,6 +1,7 @@
 import { useId, useState } from "react";
 import { Chip, ChipGroup } from "#/components/chip/chip";
-import { Field, TextInput } from "#/components/field/field";
+import { DateField } from "#/components/date-picker/date-picker";
+import { Field } from "#/components/field/field";
 import { Icon } from "#/components/icon/icon";
 import type { IconName } from "#/components/icon/icon-definitions";
 import { SegmentedControl } from "#/components/segmented-control/segmented-control";
@@ -78,12 +79,12 @@ export function ExpiryFields({
 			<div className={styles.group}>
 				<Field label="期限" hint={`今日 ${formatDateWithWeekday(today)}`}>
 					{(control) => (
-						<TextInput
+						<DateField
 							{...control}
-							type="date"
 							value={value.expiresOn}
+							today={today}
 							disabled={disabled}
-							onChange={(event) => setDate(event.target.value)}
+							onChange={setDate}
 						/>
 					)}
 				</Field>
