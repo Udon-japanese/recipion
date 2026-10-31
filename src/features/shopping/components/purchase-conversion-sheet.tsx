@@ -29,7 +29,7 @@ export function PurchaseConversionSheet({
 	onConfirm,
 	onCancel,
 }: PurchaseConversionSheetProps) {
-	const isRight = useMediaQuery("(min-width: 1024px)");
+	const isWide = useMediaQuery("(min-width: 768px)");
 
 	const footer = (
 		<div className={styles.actions}>
@@ -84,7 +84,7 @@ export function PurchaseConversionSheet({
 
 	const title = "在庫に入れる量を教えてください";
 
-	if (isRight) {
+	if (isWide) {
 		return (
 			<Modal
 				narrow
@@ -111,7 +111,6 @@ export function PurchaseConversionSheet({
 				}
 			}}
 			title={title}
-			placement="bottom"
 			dismissible={!isConfirming}
 			footer={footer}
 		>

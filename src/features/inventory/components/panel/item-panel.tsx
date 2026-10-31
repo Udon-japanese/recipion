@@ -626,7 +626,6 @@ export function ItemPanel({
 			headerLeading={back}
 			headerTrailing={menu}
 			footer={bar ?? undefined}
-			placement="bottom"
 			snapPoints={view.name === "main" ? [0.62, 0.92] : [0.92]}
 		>
 			{content}

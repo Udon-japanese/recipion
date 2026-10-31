@@ -121,7 +121,7 @@ export function InventoryList({
 	const today = useMemo(() => toDateString(new Date()), []);
 
 	// 広い画面：ドラッグで動かせる浮いたパネル（一覧を見ながら操作できる）。狭い画面：下のシート。
-	const isWide = useMediaQuery("(min-width: 1024px)");
+	const isWide = useMediaQuery("(min-width: 768px)");
 	const panelMode: ItemPanelMode = isWide ? "floating" : "sheet-bottom";
 
 	// 最後に選んだ表示を覚える（読み込めなければ、リスト）。時間は、描画のあとに見る。

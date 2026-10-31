@@ -475,7 +475,6 @@ export function ShoppingBulkAdd({
 				}
 			}}
 			title={title}
-			placement="bottom"
 			snapPoints={[0.92]}
 			footer={footer}
 		>
