@@ -14,8 +14,8 @@ export type InventoryRegistrationConfig = {
 	registerInventoryItem: (
 		input: RegisterInventoryItemInput,
 	) => Promise<unknown>;
+	// 期限の目安の自動入力（設定の画面で変える）。
 	expiryEstimateLevel: ExpiryEstimateLevel;
-	onExpiryEstimateLevelChange: (level: ExpiryEstimateLevel) => void;
 	lookupIngredientDefaults?: (
 		ingredientName: string,
 	) => IngredientExpiryDefaults | null;
@@ -63,10 +63,6 @@ export function InventoryRegistrationController({
 				open={isOpen}
 				onOpenChange={onOpenChange}
 				registration={registration}
-				expiryEstimate={{
-					level: config.expiryEstimateLevel,
-					onChange: config.onExpiryEstimateLevelChange,
-				}}
 			/>
 		</>
 	);

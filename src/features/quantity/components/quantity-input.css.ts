@@ -5,6 +5,17 @@ export const container = style({
 	gap: 8,
 });
 
+export const inputLine = style({
+	display: "flex",
+	alignItems: "center",
+	gap: 8,
+});
+
+export const inputMain = style({
+	flex: 1,
+	minWidth: 0,
+});
+
 export const hint = style({
 	paddingLeft: 4,
 	color: "var(--color-text-muted)",

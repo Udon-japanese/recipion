@@ -68,6 +68,22 @@ export const avatarLink = style({
 	},
 });
 
+// ヘッダーの右の、アイコンだけのリンク（設定）。押せる範囲は 44px。
+export const headerIconLink = style({
+	display: "grid",
+	placeItems: "center",
+	width: 44,
+	height: 44,
+	color: "var(--color-text-muted)",
+	borderRadius: "50%",
+	selectors: {
+		"&:focus-visible": {
+			outline: "3px solid var(--color-focus)",
+			outlineOffset: -2,
+		},
+	},
+});
+
 export const main = style({
 	flex: 1,
 	minWidth: 0,
@@ -215,12 +231,16 @@ export const sideItem = style({
 	},
 });
 
+// 設定は、機能の並びから離して、下のアカウントの上に置く。
+export const sideSettings = style({
+	marginTop: "auto",
+});
+
 export const me = style({
 	boxSizing: "border-box",
 	display: "flex",
 	alignItems: "center",
 	gap: 12,
-	marginTop: "auto",
 	minHeight: 52,
 	padding: 8,
 	borderRadius: 16,
@@ -246,6 +266,5 @@ export const meName = style({
 });
 
 export const guestSlot = style({
-	marginTop: "auto",
 	padding: 8,
 });

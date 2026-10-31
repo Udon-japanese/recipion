@@ -11,6 +11,7 @@ import {
 	listStockUnitOptions,
 	type StockUnitOption,
 } from "#/features/ingredients/domain/list-stock-unit-options";
+import { formatQuantityForUnit } from "#/features/quantity/domain/format-quantity";
 import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
 import {
 	parseRegisterInventoryItemInput,
@@ -100,9 +101,8 @@ export function useInventoryRegistration({
 	const submitAction = useButtonAction();
 	const isSubmitting = submitAction.isPending;
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
-	const [successMessage, setSuccessMessage] = useState<string | null>(null);
-	// 開いている間に追加した件数（連続して登録していることの目印）。
-	const [addedCount, setAddedCount] = useState(0);
+	// 開いている間に追加したもの（「卵 6個」「塩」。連続して登録していることの手応え）。
+	const [added, setAdded] = useState<readonly string[]>([]);
 
 	// 食材名・目安の設定が変わったとき、期限の欄（触っていなければ）に、目安を入れ直す。
 	// biome-ignore lint/correctness/useExhaustiveDependencies: 食材名と設定が変わったときだけ、入れ直す。
@@ -184,6 +184,12 @@ export function useInventoryRegistration({
 
 		setErrorMessage(null);
 
+		if (ingredientName.trim() === "") {
+			setErrorMessage("食材名を入力してください");
+
+			return false;
+		}
+
 		// 数量が、数として読めないとき（負の数、文字など）は、送らない。
 		if (
 			!markAsAvailable &&
@@ -221,12 +227,12 @@ export function useInventoryRegistration({
 		try {
 			const result = await registerInventoryItem(input);
 
-			setSuccessMessage(
-				markAsAvailable
-					? `${input.ingredientName}を「ある」で登録しました`
-					: `${input.ingredientName}を在庫に追加しました`,
-			);
-			setAddedCount((count) => count + 1);
+			setAdded((current) => [
+				...current,
+				markAsAvailable || input.initialQuantity === 0
+					? input.ingredientName
+					: `${input.ingredientName} ${formatQuantityForUnit(input.initialQuantity, input.stockUnitLabel)}${input.stockUnitLabel}`,
+			]);
 			// 食材名・数量・期限は空に戻す。管理方法と、期限の自動入力の設定は、そのまま（続けて登録しやすいように）。
 			setIngredientName("");
 			setInitialQuantity("");
@@ -253,10 +259,20 @@ export function useInventoryRegistration({
 		}
 	}
 
+	// 管理方法が「有無だけ」なら、数量はなく、「ある」で登録する。
+	function submitCurrent() {
+		void submitAction.run(() => submit(trackingMode === "presence"));
+	}
+
 	function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
 		event.preventDefault();
-		// 管理方法が「有無だけ」なら、数量はなく、「ある」で登録する。
-		void submitAction.run(() => submit(trackingMode === "presence"));
+		submitCurrent();
+	}
+
+	// 閉じたら、追加したものの一覧と、失敗の文を消す（入力は残す）。
+	function resetSession() {
+		setAdded([]);
+		setErrorMessage(null);
 	}
 
 	return {
@@ -280,10 +296,11 @@ export function useInventoryRegistration({
 		isSubmitting,
 		submitAction,
 		errorMessage,
-		successMessage,
-		addedCount,
+		added,
 		submit,
+		submitCurrent,
 		handleSubmit,
+		resetSession,
 	};
 }
 

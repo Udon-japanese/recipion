@@ -1,19 +1,14 @@
-import { useId, useState } from "react";
+import { type ReactNode, useId, useState } from "react";
 import { Chip, ChipGroup } from "#/components/chip/chip";
 import { DateField } from "#/components/date-picker/date-picker";
 import { Field } from "#/components/field/field";
 import { Icon } from "#/components/icon/icon";
 import type { IconName } from "#/components/icon/icon-definitions";
-import { SegmentedControl } from "#/components/segmented-control/segmented-control";
 import {
 	type ExpiryFieldsValue,
 	emptyExpiryFields,
 } from "../domain/build-expiry-prefill";
-import {
-	expiryKindLabels,
-	formatDateWithWeekday,
-	storageLabels,
-} from "../domain/expiry-labels";
+import { expiryKindLabels, storageLabels } from "../domain/expiry-labels";
 import type {
 	InventoryExpiryKind,
 	InventoryExpirySource,
@@ -29,24 +24,26 @@ type ExpiryFieldsProps = {
 	// 「今日」を基準にするクイック入力のための、今日の日付（YYYY-MM-DD）。
 	today: string;
 	disabled?: boolean;
+	// たたんだ行に、保存方法・期限の種類と一緒にまとめる、ほかの欄（在庫に追加の、数え方など）。
+	detailsTitle?: string;
+	extraSummary?: string;
+	extraDetails?: ReactNode;
 };
 
 const storageOptions: readonly {
-	value: ExpiryFieldsValue["storage"];
+	value: InventoryStorage;
 	label: string;
-	icon?: IconName;
+	icon: IconName;
 }[] = [
-	{ value: "", label: "指定しない" },
 	{ value: "room", label: storageLabels.room, icon: "zone-table" },
 	{ value: "fridge", label: storageLabels.fridge, icon: "zone-fridge" },
 	{ value: "freezer", label: storageLabels.freezer, icon: "zone-freezer" },
 ];
 
 const kindOptions: readonly {
-	value: ExpiryFieldsValue["expiryKind"];
+	value: InventoryExpiryKind;
 	label: string;
 }[] = [
-	{ value: "", label: "指定しない" },
 	{ value: "use-by", label: expiryKindLabels["use-by"] },
 	{ value: "best-before", label: expiryKindLabels["best-before"] },
 	{ value: "none", label: expiryKindLabels.none },
@@ -54,16 +51,17 @@ const kindOptions: readonly {
 
 // 期限（日付・消費/賞味）と、保存方法の入力欄。すべて任意。
 // 日付をユーザーが入れる（クイック入力を含む）と、出所は「入力」になる。自動の目安は、「約」と示す。
+// 保存方法・期限の種類は、1行の要約にたたみ、「変える」で開く。選んだチップをもう一度押すと、外れる。
 export function ExpiryFields({
 	value,
 	onChange,
 	today,
 	disabled,
+	detailsTitle = "保存方法・期限の種類",
+	extraSummary,
+	extraDetails,
 }: ExpiryFieldsProps) {
-	// 保存方法・期限の種類は、決めてあれば開いておき、そうでなければ、たたんでおく（ユーザーが開閉したら、それに従う）。
-	const [userOpen, setUserOpen] = useState<boolean | null>(null);
-	const hasDetails = value.storage !== "" || value.expiryKind !== "";
-	const isDetailsOpen = userOpen ?? hasDetails;
+	const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 	const detailsId = useId();
 
 	function setDate(expiresOn: string) {
@@ -77,7 +75,7 @@ export function ExpiryFields({
 	return (
 		<div className={styles.container}>
 			<div className={styles.group}>
-				<Field label="期限" hint={`今日 ${formatDateWithWeekday(today)}`}>
+				<Field label="期限">
 					{(control) => (
 						<DateField
 							{...control}
@@ -93,7 +91,7 @@ export function ExpiryFields({
 			{value.expirySource === "estimated" && value.expiresOn !== "" ? (
 				<p className={styles.estimateNote}>
 					<Icon name="info-circle" size={16} />
-					目安の日付（約）です。パックや袋の表示がある場合は、その日付を入れてください。
+					目安（約）の日付です。袋やパックの日付があれば、そちらに直してください。
 				</p>
 			) : null}
 
@@ -103,14 +101,14 @@ export function ExpiryFields({
 					type="button"
 					aria-expanded={isDetailsOpen}
 					aria-controls={detailsId}
-					onClick={() => setUserOpen(!isDetailsOpen)}
+					onClick={() => setIsDetailsOpen(!isDetailsOpen)}
 				>
-					<span className={styles.detailsTitle}>保存方法・期限の種類</span>
+					<span className={styles.detailsTitle}>{detailsTitle}</span>
 					<span className={styles.detailsSummary}>
-						{summarizeDetails(value)}
+						{summarizeDetails(value, extraSummary)}
 					</span>
-					<span className={styles.chevron} data-open={isDetailsOpen}>
-						<Icon name="chevron-down" size={20} />
+					<span className={styles.detailsAction} aria-hidden="true">
+						{isDetailsOpen ? "閉じる" : "変える"}
 					</span>
 				</button>
 
@@ -129,7 +127,11 @@ export function ExpiryFields({
 										icon={option.icon}
 										disabled={disabled}
 										onClick={() =>
-											onChange({ ...value, storage: option.value })
+											onChange({
+												...value,
+												storage:
+													value.storage === option.value ? "" : option.value,
+											})
 										}
 									>
 										{option.label}
@@ -143,13 +145,27 @@ export function ExpiryFields({
 								期限の種類
 							</span>
 
-							<SegmentedControl
-								label="期限の種類"
-								value={value.expiryKind}
-								onChange={(expiryKind) => onChange({ ...value, expiryKind })}
-								options={kindOptions}
-							/>
+							<ChipGroup label="期限の種類">
+								{kindOptions.map((option) => (
+									<Chip
+										key={option.value}
+										pressed={value.expiryKind === option.value}
+										disabled={disabled}
+										onClick={() =>
+											onChange({
+												...value,
+												expiryKind:
+													value.expiryKind === option.value ? "" : option.value,
+											})
+										}
+									>
+										{option.label}
+									</Chip>
+								))}
+							</ChipGroup>
 						</div>
+
+						{extraDetails}
 					</div>
 				) : null}
 			</div>
@@ -157,11 +173,15 @@ export function ExpiryFields({
 	);
 }
 
-// たたんだ行に出す、保存方法と期限の種類の要約（例：「冷蔵・賞味期限」。どちらも未指定なら「未設定」）。
-function summarizeDetails(value: ExpiryFieldsValue): string {
+// たたんだ行に出す、保存方法と期限の種類（と、ほかの欄）の要約（例：「冷蔵・賞味期限」。どれもなければ「未設定」）。
+function summarizeDetails(
+	value: ExpiryFieldsValue,
+	extraSummary: string | undefined,
+): string {
 	const parts = [
 		value.storage === "" ? null : storageLabels[value.storage],
 		value.expiryKind === "" ? null : expiryKindLabels[value.expiryKind],
+		extraSummary ?? null,
 	].filter((part) => part !== null);
 
 	return parts.length === 0 ? "未設定" : parts.join("・");

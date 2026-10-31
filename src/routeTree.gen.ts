@@ -16,6 +16,7 @@ import { Route as InventoryRouteImport } from './routes/inventory'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ShoppingRouteImport } from './routes/shopping'
 import { Route as TeapotRouteImport } from './routes/teapot'
 import { Route as TermsRouteImport } from './routes/terms'
@@ -64,6 +65,11 @@ const PrivacyRoute = PrivacyRouteImport.update({
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ShoppingRoute = ShoppingRouteImport.update({
@@ -145,6 +151,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
+  '/settings': typeof SettingsRoute
   '/shopping': typeof ShoppingRoute
   '/teapot': typeof TeapotRoute
   '/terms': typeof TermsRoute
@@ -167,6 +174,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
+  '/settings': typeof SettingsRoute
   '/shopping': typeof ShoppingRoute
   '/teapot': typeof TeapotRoute
   '/terms': typeof TermsRoute
@@ -191,6 +199,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
+  '/settings': typeof SettingsRoute
   '/shopping': typeof ShoppingRoute
   '/teapot': typeof TeapotRoute
   '/terms': typeof TermsRoute
@@ -216,6 +225,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/privacy'
     | '/profile'
+    | '/settings'
     | '/shopping'
     | '/teapot'
     | '/terms'
@@ -238,6 +248,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/privacy'
     | '/profile'
+    | '/settings'
     | '/shopping'
     | '/teapot'
     | '/terms'
@@ -261,6 +272,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/privacy'
     | '/profile'
+    | '/settings'
     | '/shopping'
     | '/teapot'
     | '/terms'
@@ -285,6 +297,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   PrivacyRoute: typeof PrivacyRoute
   ProfileRoute: typeof ProfileRoute
+  SettingsRoute: typeof SettingsRoute
   ShoppingRoute: typeof ShoppingRoute
   TeapotRoute: typeof TeapotRoute
   TermsRoute: typeof TermsRoute
@@ -345,6 +358,13 @@ declare module '@tanstack/react-router' {
       path: '/profile'
       fullPath: '/profile'
       preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/shopping': {
@@ -474,6 +494,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   PrivacyRoute: PrivacyRoute,
   ProfileRoute: ProfileRoute,
+  SettingsRoute: SettingsRoute,
   ShoppingRoute: ShoppingRoute,
   TeapotRoute: TeapotRoute,
   TermsRoute: TermsRoute,

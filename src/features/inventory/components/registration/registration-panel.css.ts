@@ -2,58 +2,18 @@ import { style } from "@vanilla-extract/css";
 
 export const form = style({
 	display: "grid",
-	gap: 20,
+	gap: 16,
 });
 
-export const fieldGroup = style({
+export const group = style({
 	display: "grid",
 	gap: 8,
 });
 
-export const label = style({
-	fontSize: "var(--font-size-sm)",
+export const groupLabel = style({
+	color: "var(--color-text-muted)",
+	fontSize: "var(--font-size-xs)",
 	fontWeight: "var(--font-weight-bold)",
-});
-
-export const quantityLine = style({
-	display: "flex",
-	alignItems: "center",
-	gap: 8,
-});
-
-export const unitSuffix = style({
-	flex: "none",
-	color: "var(--color-text-muted)",
-});
-
-export const hint = style({
-	margin: 0,
-	color: "var(--color-text-muted)",
-	fontSize: 14,
-	lineHeight: 1.6,
-});
-
-export const presetList = style({
-	display: "flex",
-	flexWrap: "wrap",
-	gap: 8,
-});
-
-export const switchRow = style({
-	display: "flex",
-	alignItems: "center",
-	justifyContent: "space-between",
-	gap: 12,
-});
-
-export const switchText = style({
-	display: "grid",
-	gap: 2,
-});
-
-export const quantityMain = style({
-	flex: 1,
-	minWidth: 0,
 });
 
 export const unitSelect = style({
@@ -61,28 +21,35 @@ export const unitSelect = style({
 	width: 120,
 });
 
-// 下に固定する操作バー（結果の文・失敗の文の下に、2つのボタン）。
-export const footer = style({
-	display: "grid",
-	gap: 8,
+export const hint = style({
+	margin: 0,
+	color: "var(--color-text-muted)",
+	fontSize: "var(--font-size-sm)",
 });
 
-export const result = style({
+// 入れたもの（続けて入れているときの手応え。買い物メモの追加と同じ）。
+export const added = style({
 	margin: 0,
+	padding: "10px 14px",
+	color: "var(--color-text-muted)",
+	background: "var(--color-success-soft)",
+	borderRadius: "var(--radius-card)",
+	fontSize: "var(--font-size-sm)",
+	lineHeight: 1.5,
+});
+
+export const addedLabel = style({
 	color: "var(--color-text)",
-	fontSize: 14,
+	fontWeight: "var(--font-weight-bold)",
 });
 
 export const error = style({
 	margin: 0,
+	display: "flex",
+	alignItems: "center",
+	gap: 8,
 	color: "var(--color-error)",
-	fontSize: 14,
-});
-
-export const bar = style({
-	display: "grid",
-	gridTemplateColumns: "1fr",
-	gap: 12,
+	fontSize: "var(--font-size-sm)",
 });
 
 // 右下の「在庫に追加」（スマホ）。下部ナビ（64px）の上 16px。
@@ -114,13 +81,4 @@ export const fab = style({
 		// 広い画面では、タイトルの行の主ボタンを使う。
 		"(min-width: 768px)": { display: "none" },
 	},
-});
-
-export const srOnly = style({
-	position: "absolute",
-	width: 1,
-	height: 1,
-	overflow: "hidden",
-	clip: "rect(0 0 0 0)",
-	whiteSpace: "nowrap",
 });

@@ -59,6 +59,13 @@ export function AppShell({ children }: { children: ReactNode }) {
 					<Mascot size={22} />
 					{APP_DISPLAY_NAME}
 				</Link>
+				<Link
+					to="/settings"
+					className={styles.headerIconLink}
+					aria-label="設定"
+				>
+					<Icon name="sliders" size={24} />
+				</Link>
 				<HeaderAccount />
 			</header>
 
@@ -130,6 +137,14 @@ function SideNav() {
 					</Link>
 				))}
 			</nav>
+
+			<Link
+				to="/settings"
+				className={`${styles.sideItem} ${styles.sideSettings}`}
+			>
+				<Icon name="sliders" size={24} />
+				設定
+			</Link>
 
 			{isPending ? null : session ? (
 				<Link to="/profile" className={styles.me}>

@@ -1,9 +1,14 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildInventoryListItem } from "#/test/builders/build-inventory-list-item";
 import type { InventoryListItem } from "../application/inventory-query-repository";
 import { InventoryList } from "./inventory-list";
+
+// 入れたもの（続けて追加したときの一覧）。
+async function findAddedList() {
+	return (await screen.findByText(/入れたもの/u)).closest("output");
+}
 
 afterEach(() => {
 	localStorage.clear();
@@ -44,7 +49,6 @@ function renderList(
 			registration={{
 				registerInventoryItem,
 				expiryEstimateLevel: "reliable",
-				onExpiryEstimateLevelChange: () => {},
 			}}
 		/>,
 	);
@@ -64,7 +68,7 @@ describe("在庫に追加するパネル", () => {
 		);
 	});
 
-	it("登録しても閉じず、入力を空に戻し、件数と結果の文を残して、在庫を読み直す", async () => {
+	it("登録しても閉じず、入力を空に戻し、入れたものを残して、在庫を読み直す", async () => {
 		const user = userEvent.setup();
 		const registerInventoryItem = vi.fn().mockResolvedValue({});
 		const { loadInventoryItems } = renderList([egg], registerInventoryItem);
@@ -76,17 +80,13 @@ describe("在庫に追加するパネル", () => {
 		const dialog = await screen.findByRole("dialog", { name: "在庫に追加" });
 
 		await user.type(screen.getByLabelText("食材名"), "薄力粉");
-		await user.click(
-			screen
-				.getAllByRole("button", { name: "在庫に追加" })
-				.at(-1) as HTMLElement,
-		);
+		await user.click(within(dialog).getByRole("button", { name: "追加" }));
 
 		await waitFor(() => expect(registerInventoryItem).toHaveBeenCalled());
-		expect(await screen.findByText("薄力粉を在庫に追加しました")).toBeVisible();
+		expect(await findAddedList()).toHaveTextContent("薄力粉");
 		expect(dialog).toBeInTheDocument();
 		expect(screen.getByLabelText("食材名")).toHaveValue("");
-		expect(screen.getByText("追加した件数 1")).toBeInTheDocument();
+
 		await waitFor(() => expect(loadInventoryItems).toHaveBeenCalledTimes(2));
 		await waitFor(() => expect(screen.getByLabelText("食材名")).toHaveFocus());
 	});
@@ -144,12 +144,8 @@ describe("在庫に追加するパネル", () => {
 			(await screen.findAllByRole("button", { name: "在庫に追加" }))[0],
 		);
 		await user.type(await screen.findByLabelText("食材名"), "卵");
-		await user.click(
-			screen
-				.getAllByRole("button", { name: "在庫に追加" })
-				.at(-1) as HTMLElement,
-		);
-		await screen.findByText("卵を在庫に追加しました");
+		await user.click(screen.getByRole("button", { name: "追加" }));
+		await screen.findByText(/入れたもの/u);
 		await user.keyboard("{Escape}");
 
 		await waitFor(() =>
