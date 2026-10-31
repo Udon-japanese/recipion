@@ -1,6 +1,8 @@
 import {
 	type ReactNode,
+	type RefObject,
 	useEffect,
+	useImperativeHandle,
 	useLayoutEffect,
 	useRef,
 	useState,
@@ -13,6 +15,9 @@ const edge = 8;
 const keyStep = 24;
 
 export type PanelPosition = { x: number; y: number };
+
+// 呼び出し側から、パネルを動かす（横に別のパネルを並べるとき、場所をあける）。
+export type FloatingPanelHandle = { moveTo: (position: PanelPosition) => void };
 
 // 画面の中に収める。
 export function clampPanelPosition(
@@ -33,6 +38,9 @@ export function clampPanelPosition(
 }
 
 type FloatingPanelProps = {
+	// 横に別のパネルを並べるとき、位置を測るための ID。
+	id?: string;
+	handleRef?: RefObject<FloatingPanelHandle | null>;
 	title: string;
 	// 見出しの左（戻るボタン）と、閉じるボタンの左（件数の札など）。
 	headerLeading?: ReactNode;
@@ -50,6 +58,8 @@ type FloatingPanelProps = {
 
 // PC の浮いたパネル（モーダルにしない。後ろの画面を見ながら操作できる）。見出しをつかんで、動かせる。
 export function FloatingPanel({
+	id,
+	handleRef,
 	title,
 	headerLeading,
 	headerTrailing,
@@ -76,6 +86,10 @@ export function FloatingPanel({
 		setPosition(next);
 		onMove?.(next);
 	}
+
+	useImperativeHandle(handleRef, () => ({
+		moveTo: (next) => move(next.x, next.y),
+	}));
 
 	// 開いたら見出しへ。
 	useEffect(() => {
@@ -130,6 +144,7 @@ export function FloatingPanel({
 
 	return (
 		<aside
+			id={id}
 			ref={panelRef}
 			className={styles.panel}
 			aria-label={title}

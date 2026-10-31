@@ -1321,6 +1321,11 @@ describe("InventoryList", () => {
 			expect(screen.queryByLabelText("10/1に入れた分の数量")).toBeNull();
 			expect(screen.getByLabelText("期限")).toBeInTheDocument();
 
+			// 編集は、シートの中身を切り替えて出す。「戻る」で本体に戻り、「閉じる」でパネルを閉じる。
+			await user.click(within(oilDialog).getByRole("button", { name: "戻る" }));
+			expect(
+				within(oilDialog).getByRole("button", { name: "10/1に入れた分を直す" }),
+			).toBeInTheDocument();
 			await user.click(
 				within(oilDialog).getByRole("button", { name: "閉じる" }),
 			);
