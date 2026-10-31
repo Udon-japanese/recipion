@@ -34,6 +34,10 @@ function recipe(
 		createdAt: "2026-10-23T00:00:00.000Z",
 		authorName: "作者",
 		authorHandle: "author",
+		authorAvatar: {
+			background: "mint",
+			placements: [{ partId: "tomato", x: 50, y: 50 }],
+		},
 		...overrides,
 	};
 }

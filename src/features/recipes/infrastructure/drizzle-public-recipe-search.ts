@@ -9,8 +9,8 @@ import {
 	type SQL,
 	sql,
 } from "drizzle-orm";
-
 import type { DB } from "#/db/client";
+import { resolveUserAvatar } from "#/features/avatar/domain/avatar-presets";
 import { parseDishCover } from "#/features/dish-art/domain/dish-cover";
 import { accountSuspension } from "#/features/moderation/infrastructure/moderation.sql";
 import { user } from "#/integrations/better-auth/auth.sql";
@@ -67,6 +67,8 @@ export async function searchPublicRecipes(
 			createdAt: recipe.createdAt,
 			authorName: user.name,
 			authorHandle: user.handle,
+			authorId: user.id,
+			authorAvatar: user.avatar,
 			ingredientCount: sql<number>`(
 				select count(*)::int from ${recipeIngredientNode}
 				where ${recipeIngredientNode.recipeId} = ${recipe.id}
@@ -107,6 +109,7 @@ export async function searchPublicRecipes(
 			createdAt: row.createdAt.toISOString(),
 			authorName: row.authorName,
 			authorHandle: row.authorHandle,
+			authorAvatar: resolveUserAvatar(row.authorId, row.authorAvatar),
 		})),
 		nextCursor:
 			rows.length > publicRecipePageSize && last

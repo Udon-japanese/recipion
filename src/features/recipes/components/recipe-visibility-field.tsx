@@ -61,7 +61,7 @@ export function RecipeVisibilityField({
 						）。
 					</p>
 					<p>
-						公開されるのは、レシピと、あなたの表示名・ハンドルだけです（メールアドレスは、見えません）。表示名・ハンドルは、
+						公開されるのは、レシピと、あなたのアバター・表示名・ハンドルだけです（メールアドレスは、見えません）。アバター・表示名・ハンドルは、
 						<Link to="/profile" target="_blank" rel="noreferrer">
 							プロフィール
 						</Link>

@@ -1,5 +1,6 @@
 import { MASCOT_DISPLAY_NAME } from "#/config/app";
 import { extraDishColors } from "./dish-colors-extra";
+import { faceParts } from "./dish-parts-face";
 import { pantryParts } from "./dish-parts-pantry";
 import { produceParts } from "./dish-parts-produce";
 import { proteinParts } from "./dish-parts-protein";
@@ -5225,6 +5226,7 @@ export const dishParts: readonly DishPart[] = [
 	...produceParts,
 	...proteinParts,
 	...pantryParts,
+	...faceParts,
 ];
 
 export function findDishPart(id: string): DishPart | undefined {

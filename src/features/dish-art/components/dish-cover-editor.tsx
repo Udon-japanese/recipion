@@ -1,6 +1,7 @@
 import {
 	type KeyboardEvent,
 	type PointerEvent,
+	type ReactNode,
 	useEffect,
 	useLayoutEffect,
 	useRef,
@@ -8,7 +9,7 @@ import {
 } from "react";
 import { IconButton } from "#/components/icon-button/icon-button";
 import { SegmentedControl } from "#/components/segmented-control/segmented-control";
-import type { DishPlacement } from "../domain/dish-cover";
+import { type DishPlacement, dishCoverLimits } from "../domain/dish-cover";
 import { dishArtViewSize, findDishPart } from "../domain/dish-part";
 import {
 	type DishPartCategory,
@@ -20,7 +21,7 @@ import {
 	boundsCorners,
 	type Point,
 } from "../domain/dish-placement-geometry";
-import { dishPresets } from "../domain/dish-preset";
+import { type DishPreset, dishPresets } from "../domain/dish-preset";
 import {
 	addDishPart,
 	duplicateDishPart,
@@ -40,9 +41,27 @@ import {
 import { DishArt, DishArtLayers, DishPartPreview } from "./dish-art";
 import * as styles from "./dish-cover-editor.css";
 
+// 「セット」に並べる組み合わせ。background は、見本の地の色（アバターの背景など）。
+export type DishEditorPreset = DishPreset & { background?: string };
+
 type DishCoverEditorProps = {
 	placements: readonly DishPlacement[];
 	onChange: (placements: DishPlacement[]) => void;
+	// ここから下は、料理の絵以外（アバター）で使うときの設定。省略すると、料理の絵のまま。
+	maxParts?: number;
+	presets?: readonly DishEditorPreset[];
+	// セットを選んだとき（背景も一緒に変えるときなど）。
+	onChoosePreset?: (preset: DishEditorPreset) => void;
+	// 絵の地の色。
+	background?: string;
+	// 丸く切り抜いて使う絵（丸の外を薄く暗くして、見える範囲を示す）。
+	round?: boolean;
+	// 最初に開く、部品の分類。
+	initialCategoryId?: string;
+	// 編集面の読み上げの名前（最初の文）。
+	label?: string;
+	// 「色」の下に足す欄（背景の色など）。
+	extra?: ReactNode;
 };
 
 // 指・ポインターの操作の種類。
@@ -102,6 +121,14 @@ function keepInside(point: Point, margin: number): Point {
 export function DishCoverEditor({
 	placements,
 	onChange,
+	maxParts = dishCoverLimits.maxParts,
+	presets = dishPresets,
+	onChoosePreset,
+	background,
+	round = false,
+	initialCategoryId,
+	label = "料理の絵。",
+	extra,
 }: DishCoverEditorProps) {
 	const [selected, setSelected] = useState(-1);
 	// 触って動かしている間の cursor（つまみから指・マウスが離れても、変わらないようにする）。
@@ -110,7 +137,9 @@ export function DishCoverEditor({
 	const [tab, setTab] = useState<Tab>(
 		placements.length === 0 ? "sets" : "parts",
 	);
-	const [categoryId, setCategoryId] = useState(dishPartCategories[0]?.id ?? "");
+	const [categoryId, setCategoryId] = useState(
+		initialCategoryId ?? dishPartCategories[0]?.id ?? "",
+	);
 	// 戻す・進む用。変える前の並びを積む。
 	const [history, setHistory] = useState<DishPlacement[][]>([]);
 	const [future, setFuture] = useState<DishPlacement[][]>([]);
@@ -495,7 +524,7 @@ export function DishCoverEditor({
 	}
 
 	function addAt(partId: string, point?: Point) {
-		const added = addDishPart(placements, partId);
+		const added = addDishPart(placements, partId, maxParts);
 
 		if (added.length === placements.length) return;
 
@@ -726,7 +755,7 @@ export function DishCoverEditor({
 				<div
 					className={styles.canvasFrame}
 					role="application"
-					aria-label="料理の絵。部品を触って動かせます。矢印キーで動かし、プラスとマイナスで大きさを変え、Delete で消します。"
+					aria-label={`${label}部品を触って動かせます。矢印キーで動かし、プラスとマイナスで大きさを変え、Delete で消します。`}
 					// biome-ignore lint/a11y/noNoninteractiveTabindex: 矢印キーで部品を動かす編集面なので、キーボードの対象にする
 					tabIndex={0}
 					onKeyDown={handleKeyDown}
@@ -737,13 +766,25 @@ export function DishCoverEditor({
 						viewBox={`0 0 ${dishArtViewSize} ${dishArtViewSize}`}
 						aria-hidden="true"
 						data-sheet-no-drag
-						style={dragCursor ? { cursor: dragCursor } : undefined}
+						style={{
+							...(dragCursor ? { cursor: dragCursor } : {}),
+							...(background ? { background } : {}),
+						}}
 						onPointerDown={handlePointerDown}
 						onPointerMove={handlePointerMove}
 						onPointerUp={handlePointerEnd}
 						onPointerCancel={handlePointerEnd}
 					>
 						<DishArtLayers placements={placements} />
+						{round ? (
+							// 丸の外（切り抜かれる所）を薄く暗くする。
+							<path
+								d={`M0 0H${dishArtViewSize}V${dishArtViewSize}H0Z M50 0A50 50 0 1 0 50 ${dishArtViewSize}A50 50 0 1 0 50 0Z`}
+								fillRule="evenodd"
+								fill="var(--color-overlay)"
+								pointerEvents="none"
+							/>
+						) : null}
 						{selectedPlacement ? renderFrame(selectedPlacement) : null}
 					</svg>
 				</div>
@@ -776,7 +817,7 @@ export function DishCoverEditor({
 							label="複製"
 							disabled={!selectedPlacement}
 							onClick={() => {
-								const next = duplicateDishPart(placements, selected);
+								const next = duplicateDishPart(placements, selected, maxParts);
 
 								commit(next);
 								setSelected(next.length - 1);
@@ -830,6 +871,7 @@ export function DishCoverEditor({
 							</p>
 						)}
 					</div>
+					{extra}
 				</div>
 			</div>
 
@@ -885,7 +927,7 @@ export function DishCoverEditor({
 					</>
 				) : (
 					<div className={styles.presets}>
-						{dishPresets.map((preset) => (
+						{presets.map((preset) => (
 							<button
 								key={preset.id}
 								type="button"
@@ -893,9 +935,14 @@ export function DishCoverEditor({
 								onClick={() => {
 									commit([...preset.placements]);
 									setSelected(-1);
+									onChoosePreset?.(preset);
 								}}
 							>
-								<DishArt placements={preset.placements} size={88} />
+								<DishArt
+									placements={preset.placements}
+									size={88}
+									background={preset.background}
+								/>
 								{preset.label}
 							</button>
 						))}

@@ -6,7 +6,9 @@ import { AppShell } from "./app-shell";
 const mocks = vi.hoisted(() => ({
 	pathname: "/shopping",
 	session: {
-		data: null as null | { user: { name: string } },
+		data: null as null | {
+			user: { id: string; name: string; avatar: null };
+		},
 		isPending: false,
 	},
 }));
@@ -65,7 +67,7 @@ describe("AppShell", () => {
 
 	it("ログイン中は、アバターがプロフィールへのリンクになる", () => {
 		mocks.session = {
-			data: { user: { name: "れしぴょなー" } },
+			data: { user: { id: "u1", name: "れしぴょなー", avatar: null } },
 			isPending: false,
 		};
 

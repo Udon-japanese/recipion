@@ -16,7 +16,7 @@ const coordinate = v.pipe(
 );
 
 // 置いた部品。x・y は部品の中心（0〜100）、scale は 1 が等倍。
-const dishPlacementSchema = v.object({
+export const dishPlacementSchema = v.object({
 	partId: v.pipe(
 		v.string(),
 		v.check((id) => findDishPart(id) !== undefined, "知らない部品です。"),

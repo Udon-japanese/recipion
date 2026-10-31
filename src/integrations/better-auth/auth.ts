@@ -78,9 +78,10 @@ export function createAuth(db: DB) {
 			backgroundTasks: { handler: (promise) => waitUntil(promise) },
 		},
 		user: {
-			// ハンドル。クライアントからは書けない（input: false）。更新は、プロフィールの検証つきのサーバー関数で行う。
+			// ハンドルとアバター。クライアントからは書けない（input: false）。更新は、検証つきのサーバー関数で行う。
 			additionalFields: {
 				handle: { type: "string", required: false, input: false },
+				avatar: { type: "json", required: false, input: false },
 			},
 			// アカウントの削除。確認のメールのリンクを開いたときに、すぐに削除する（取り消せない）。
 			// 連鎖で消えるもの・残るものは、DB の外部キーで決まっている（プライバシーポリシーの「保存と削除」を参照）。

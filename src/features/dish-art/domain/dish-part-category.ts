@@ -228,6 +228,22 @@ export const dishPartCategories: readonly DishPartCategory[] = [
 			"fork",
 		],
 	},
+	{
+		id: "face",
+		label: "顔",
+		partIds: [
+			"face-eyes",
+			"face-eyes-smile",
+			"face-eyes-wink",
+			"face-eyes-sparkle",
+			"face-eyes-closed",
+			"face-cheeks",
+			"face-mouth-smile",
+			"face-mouth-open",
+			"face-mouth-cat",
+			"chef-hat",
+		],
+	},
 ];
 
 // 棚に並べるための、部品の一覧（見つからない ID は除く）。

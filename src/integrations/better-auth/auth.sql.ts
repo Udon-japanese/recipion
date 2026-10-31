@@ -3,11 +3,13 @@ import {
 	boolean,
 	check,
 	index,
+	jsonb,
 	pgTable,
 	text,
 	timestamp,
 	unique,
 } from "drizzle-orm/pg-core";
+import type { Avatar } from "#/features/avatar/domain/avatar";
 
 export const user = pgTable(
 	"user",
@@ -17,9 +19,12 @@ export const user = pgTable(
 		name: text("name").notNull(),
 		email: text("email").notNull().unique(),
 		emailVerified: boolean("email_verified").default(false).notNull(),
-		image: text("image"),
 		// ハンドル（公開される。一意）。半角の小文字・数字・_・- の3〜20文字。新規ユーザーは、自動で付く。
+		// 使わない（アバターは avatar）。Better Auth の中心の欄で、起動時の確認が列を求めるため、残している。
+		image: text("image"),
 		handle: text("handle").notNull(),
+		// アバター（公開される）。料理の絵の部品の並びと背景。null は、ユーザーごとに決まったプリセット。
+		avatar: jsonb("avatar").$type<Avatar>(),
 		createdAt: timestamp("created_at").defaultNow().notNull(),
 		updatedAt: timestamp("updated_at")
 			.defaultNow()

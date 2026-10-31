@@ -7,6 +7,8 @@ import {
 import { useCallback } from "react";
 import { Tag } from "#/components/tag/tag";
 import { pageTitle } from "#/config/app";
+import { AvatarArt } from "#/features/avatar/components/avatar-art";
+import type { Avatar } from "#/features/avatar/domain/avatar";
 import {
 	findIngredientCatalogEntry,
 	getDefaultStockUnitLabel,
@@ -281,7 +283,7 @@ function SharedRecipePage({
 	author,
 }: {
 	recipe: RecipeDetail;
-	author: { name: string; handle: string };
+	author: { name: string; handle: string; avatar: Avatar };
 }) {
 	const {
 		ownerScope,
@@ -301,6 +303,7 @@ function SharedRecipePage({
 				recipe={recipe}
 				badges={
 					<Tag>
+						<AvatarArt avatar={author.avatar} size={18} />
 						作者：{author.name}（@{author.handle}）
 					</Tag>
 				}

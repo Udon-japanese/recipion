@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { pageTitle } from "#/config/app";
 import { SignOutButton } from "#/features/auth/components/sign-out-button";
+import { AvatarField } from "#/features/avatar/components/avatar-field";
+import { updateAvatarServerFn } from "#/features/avatar/server/update-avatar";
 import { AccountDeletionSection } from "#/features/profile/components/account-deletion-section";
 import { ProfileForm } from "#/features/profile/components/profile-form";
 import {
@@ -22,7 +24,7 @@ export const Route = createFileRoute("/profile")({
 
 function ProfilePage() {
 	const profile = Route.useLoaderData();
-	const { refetch } = useAppSession();
+	const { data: session, refetch } = useAppSession();
 
 	return (
 		<ProfilePageLayout>
@@ -30,6 +32,25 @@ function ProfilePage() {
 				profile={profile}
 				onSave={(input) => updateProfileServerFn({ data: input })}
 				onChanged={() => void refetch()}
+				avatar={
+					session ? (
+						<AvatarField
+							userId={session.user.id}
+							avatar={session.user.avatar}
+							onSave={async (avatar) => {
+								try {
+									await updateAvatarServerFn({ data: { avatar } });
+									// ヘッダーなどの表示を、新しいアバターにする。
+									await refetch();
+
+									return true;
+								} catch {
+									return false;
+								}
+							}}
+						/>
+					) : null
+				}
 			/>
 			<ProfileSignOutArea>
 				<SignOutButton />

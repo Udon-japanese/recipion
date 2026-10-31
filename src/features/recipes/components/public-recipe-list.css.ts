@@ -29,6 +29,9 @@ export const link = style({
 });
 
 export const author = style({
+	display: "inline-flex",
+	alignItems: "center",
+	gap: 6,
 	color: "var(--color-text-muted)",
 	fontSize: 14,
 });
