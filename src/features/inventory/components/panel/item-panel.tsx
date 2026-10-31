@@ -8,7 +8,9 @@ import { input as fieldInput } from "#/components/field/field.css";
 import {
 	clampPanelPosition,
 	FloatingPanel,
+	type FloatingPanelHandle,
 	floatingPanelWidth,
+	type PanelPosition,
 } from "#/components/floating-panel/floating-panel";
 import { Icon } from "#/components/icon/icon";
 import type { IconName } from "#/components/icon/icon-definitions";
@@ -112,6 +114,30 @@ export function ItemPanel({
 	const [isFlashing, setIsFlashing] = useState(false);
 	// 内訳のうち、その場で直している行。
 	const [editingLotId, setEditingLotId] = useState<string | null>(null);
+	// PC：入れた分の編集を、本体の横に出す位置（開くときに決める）。
+	const mainPanelRef = useRef<FloatingPanelHandle>(null);
+	const editorPanelRef = useRef<FloatingPanelHandle>(null);
+	const editorPositionRef = useRef<PanelPosition>({ x: 0, y: 0 });
+
+	function toggleLotEditor(lotId: string) {
+		if (editingLotId === lotId) {
+			setEditingLotId(null);
+
+			return;
+		}
+
+		if (mode === "floating") {
+			const placement = placeBesidePanel(mainPanelId);
+
+			editorPositionRef.current = placement.editor;
+
+			if (placement.main) {
+				mainPanelRef.current?.moveTo(placement.main);
+			}
+		}
+
+		setEditingLotId(lotId);
+	}
 	const previousQuantity = useRef(item.quantity);
 
 	const displayName = item.displayName ?? item.name;
@@ -448,9 +474,7 @@ export function ItemPanel({
 												className={styles.lotButton}
 												aria-label={`${lotLabel(lot)}を直す`}
 												aria-expanded={isEditing}
-												onClick={guard(() =>
-													setEditingLotId(isEditing ? null : lot.id),
-												)}
+												onClick={guard(() => toggleLotEditor(lot.id))}
 											>
 												<span className={styles.lotSummary}>{summary}</span>
 												<Icon
@@ -461,18 +485,6 @@ export function ItemPanel({
 										) : (
 											<div className={styles.lotSummary}>{summary}</div>
 										)}
-
-										{isEditing ? (
-											<LotEditor
-												item={item}
-												lot={lot}
-												label={lotLabel(lot)}
-												today={panel.today}
-												isPresence={isPresence || !actions.setLotQuantity}
-												onSave={(edits) => panel.run.saveLotEdits(lot, edits)}
-												onClose={() => setEditingLotId(null)}
-											/>
-										) : null}
 									</li>
 								);
 							})}
@@ -538,13 +550,15 @@ export function ItemPanel({
 			/>
 		) : null;
 
+	const errorNote = panel.errorMessage ? (
+		<div className={styles.formStack}>
+			<Note tone="error">{panel.errorMessage}</Note>
+		</div>
+	) : null;
+
 	const content = (
 		<>
-			{panel.errorMessage ? (
-				<div className={styles.formStack}>
-					<Note tone="error">{panel.errorMessage}</Note>
-				</div>
-			) : null}
+			{editingLotId ? null : errorNote}
 			{body}
 			<ConfirmDialog
 				open={isDeleting}
@@ -590,21 +604,89 @@ export function ItemPanel({
 			<IconButton icon="chevron-left" label="戻る" onClick={panel.goMain} />
 		);
 
+	// 入れた分の編集：PC は、本体のパネルの横に、もう1枚。スマホは、同じシートの中身を切り替える（シートは重ねない）。
+	const editingLot = editingLotId
+		? item.lots.find((lot) => lot.id === editingLotId)
+		: undefined;
+
+	function closeLotEditor() {
+		const label = editingLot ? lotLabel(editingLot) : null;
+
+		setEditingLotId(null);
+		panel.setErrorMessage(null);
+
+		// 閉じたら、押した行へ、フォーカスを戻す。
+		if (label) {
+			window.setTimeout(() => {
+				document
+					.querySelector<HTMLElement>(
+						`button[aria-label="${CSS.escape(`${label}を直す`)}"]`,
+					)
+					?.focus({ preventScroll: true });
+			}, 0);
+		}
+	}
+
+	// 編集の失敗は、編集の側に出す（スマホでは、本体が隠れているため）。
+	const lotEditor = editingLot ? (
+		<>
+			{errorNote}
+			<LotEditor
+				key={editingLot.id}
+				item={item}
+				lot={editingLot}
+				label={lotLabel(editingLot)}
+				today={panel.today}
+				isPresence={isPresence || !actions.setLotQuantity}
+				onSave={(edits) => panel.run.saveLotEdits(editingLot, edits)}
+				onClose={closeLotEditor}
+			/>
+		</>
+	) : null;
+
 	if (mode === "floating") {
 		return (
-			<FloatingPanel
-				title={heading}
-				headerLeading={back}
-				headerTrailing={menu}
-				footer={bar}
-				getInitialPosition={() =>
-					anchoredPosition(anchorTileKey, anchorPlacement)
-				}
-				onEscape={() => (view.name === "main" ? onClose() : panel.goMain())}
-				onClose={onClose}
-			>
-				{content}
-			</FloatingPanel>
+			<>
+				<FloatingPanel
+					id={mainPanelId}
+					handleRef={mainPanelRef}
+					// 本体を動かしたら、横の編集も、付いて動く。
+					onMove={(position) =>
+						editorPanelRef.current?.moveTo(besidePosition(position))
+					}
+					title={heading}
+					headerLeading={back}
+					headerTrailing={menu}
+					footer={bar}
+					getInitialPosition={() =>
+						anchoredPosition(anchorTileKey, anchorPlacement)
+					}
+					onEscape={() =>
+						editingLot
+							? closeLotEditor()
+							: view.name === "main"
+								? onClose()
+								: panel.goMain()
+					}
+					onClose={onClose}
+				>
+					{content}
+				</FloatingPanel>
+
+				{editingLot ? (
+					<FloatingPanel
+						key={editingLot.id}
+						title={lotLabel(editingLot)}
+						handleRef={editorPanelRef}
+						getInitialPosition={() => editorPositionRef.current}
+						// Esc は、本体のパネルの側で、こちらを先に閉じる。
+						onEscape={() => {}}
+						onClose={closeLotEditor}
+					>
+						{lotEditor}
+					</FloatingPanel>
+				) : null}
+			</>
 		);
 	}
 
@@ -616,20 +698,32 @@ export function ItemPanel({
 					return;
 				}
 
-				// 1回目は、フォームを閉じて本体に戻る。もう1回で、パネルを閉じる。
-				if (view.name === "main") {
+				// 1回目は、編集やフォームを閉じて本体に戻る。もう1回で、パネルを閉じる。
+				if (editingLot) {
+					closeLotEditor();
+				} else if (view.name === "main") {
 					onClose();
 				} else {
 					panel.goMain();
 				}
 			}}
-			title={heading}
-			headerLeading={back}
-			headerTrailing={menu}
-			footer={bar ?? undefined}
-			snapPoints={view.name === "main" ? [0.62, 0.92] : [0.92]}
+			title={editingLot ? lotLabel(editingLot) : heading}
+			headerLeading={
+				editingLot ? (
+					<IconButton
+						icon="chevron-left"
+						label="戻る"
+						onClick={closeLotEditor}
+					/>
+				) : (
+					back
+				)
+			}
+			headerTrailing={editingLot ? undefined : menu}
+			footer={editingLot ? undefined : (bar ?? undefined)}
+			snapPoints={view.name === "main" && !editingLot ? [0.62, 0.92] : [0.92]}
 		>
-			{content}
+			{editingLot ? lotEditor : content}
 		</Sheet>
 	);
 }
@@ -748,6 +842,55 @@ function AdjustForm({
 const edge = 8;
 
 // 開く位置：押した行と同じ高さ。overlap は、パネルの中央が行（リスト）の右端、beside は、行の右隣。
+const mainPanelId = "inventory-item-panel";
+const panelGap = 12;
+
+// 本体を動かしたときの、横の編集の位置（右に入れば右、入らなければ左）。
+function besidePosition(main: PanelPosition): PanelPosition {
+	const right = main.x + floatingPanelWidth + panelGap;
+
+	return {
+		x:
+			right + floatingPanelWidth <= window.innerWidth - panelGap
+				? right
+				: main.x - panelGap - floatingPanelWidth,
+		y: main.y,
+	};
+}
+
+// 本体のパネルの横に、もう1枚を置く位置。右、左の順に探し、どちらにも入らなければ、本体を左へずらして、右に並べる。
+// 戻り値の main は、本体を動かす先（動かさなくてよければ null）。
+function placeBesidePanel(id: string): {
+	editor: PanelPosition;
+	main: PanelPosition | null;
+} {
+	const rect = document.getElementById(id)?.getBoundingClientRect();
+
+	if (!rect) {
+		return { editor: { x: window.innerWidth, y: 80 }, main: null };
+	}
+
+	const limit = window.innerWidth - panelGap;
+	const right = rect.right + panelGap;
+
+	if (right + floatingPanelWidth <= limit) {
+		return { editor: { x: right, y: rect.top }, main: null };
+	}
+
+	const left = rect.left - panelGap - floatingPanelWidth;
+
+	if (left >= panelGap) {
+		return { editor: { x: left, y: rect.top }, main: null };
+	}
+
+	const mainX = Math.max(panelGap, limit - floatingPanelWidth * 2 - panelGap);
+
+	return {
+		editor: { x: mainX + floatingPanelWidth + panelGap, y: rect.top },
+		main: { x: mainX, y: rect.top },
+	};
+}
+
 function anchoredPosition(
 	tileKey: string | undefined,
 	placement: "overlap" | "beside",
