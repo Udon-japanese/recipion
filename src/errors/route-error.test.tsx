@@ -59,4 +59,25 @@ describe("RouteError", () => {
 			screen.getByRole("button", { name: "もう一度読み込む" }),
 		).toBeTruthy();
 	});
+
+	it("原因が分からないときは、「うまく処理できませんでした」を重ねず、案内を1回だけ出す", async () => {
+		await renderError(new Error('Failed query: select "x" from "recipe"'));
+
+		expect(
+			screen.getByText(
+				"レシピを表示できませんでした。時間をおいて、もう一度お試しください。",
+			),
+		).toBeTruthy();
+		expect(screen.queryByText(/うまく処理できませんでした/u)).toBeNull();
+	});
+
+	it("伝えてよい原因があるときは、それを添える", async () => {
+		await renderError(new UserFacingError("このレシピは、見られません"));
+
+		expect(
+			screen.getByText(
+				"レシピを表示できませんでした。このレシピは、見られません",
+			),
+		).toBeTruthy();
+	});
 });

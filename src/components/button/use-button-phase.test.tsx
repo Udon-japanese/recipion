@@ -95,4 +95,23 @@ describe("useButtonPhase", () => {
 		rerender({ status: "idle" });
 		expect(result.current).toBe("idle");
 	});
+
+	it("表示されたときから、すでに完了だったものは、完了の動きを演じない（前の操作の結果が、残っているだけ）", () => {
+		const { result } = setup("success");
+
+		advance(BUTTON_TIMINGS.expandDelayMs + 10);
+		expect(result.current).toBe("idle");
+	});
+
+	it("表示されたときから失敗だったものも、演じない。そのあと、新しい操作を始めたら、ふつうに動く", () => {
+		const { result, rerender } = setup("error");
+
+		advance(BUTTON_TIMINGS.expandDelayMs + 10);
+		expect(result.current).toBe("idle");
+
+		rerender({ status: "pending" });
+		advance(50);
+		rerender({ status: "success" });
+		expect(result.current).toBe("success");
+	});
 });

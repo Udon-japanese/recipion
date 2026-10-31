@@ -68,10 +68,10 @@ export const lotAmount = style({
 	fontVariantNumeric: "tabular-nums",
 });
 
+// 内訳の行の「直す」（右に寄せる）。
 export const lotButtons = style({
-	display: "grid",
-	gridTemplateColumns: "1fr 1fr",
-	gap: 8,
+	display: "flex",
+	justifyContent: "flex-end",
 });
 
 // 「ほかの操作」の行ボタン。
@@ -163,4 +163,60 @@ export const primaryActions = style({
 	display: "grid",
 	gridTemplateColumns: "1fr 1fr",
 	gap: 8,
+});
+
+// 内訳の1行を、その場で直すところ。
+export const lotEditor = style({
+	display: "grid",
+	gap: 12,
+	paddingTop: 8,
+});
+
+export const lotField = style({
+	display: "grid",
+	gap: 6,
+});
+
+export const lotFieldLabel = style({
+	color: "var(--color-text-muted)",
+	fontSize: "var(--font-size-sm)",
+	fontWeight: "var(--font-weight-semibold)",
+});
+
+export const lotQuantityLine = style({
+	display: "flex",
+	alignItems: "center",
+	gap: 8,
+});
+
+export const lotQuantityInput = style({
+	width: 140,
+});
+
+export const lotEditorActions = style({
+	display: "flex",
+	alignItems: "center",
+	justifyContent: "flex-end",
+	gap: 8,
+});
+
+// 「期限の種類・初期値」（文字だけのボタン。左に寄せる）。
+export const lotDetailsButton = style({
+	marginInlineEnd: "auto",
+	minHeight: 44,
+	padding: 0,
+	color: "var(--color-text-muted)",
+	background: "none",
+	border: "none",
+	font: "inherit",
+	fontSize: "var(--font-size-sm)",
+	textDecoration: "underline",
+	cursor: "pointer",
+	selectors: {
+		"&:hover": { color: "var(--color-text)" },
+		"&:focus-visible": {
+			outline: "3px solid var(--color-focus)",
+			outlineOffset: 2,
+		},
+	},
 });
