@@ -50,7 +50,7 @@ import {
 } from "./shopping-branch-cards";
 import { ShoppingBranchCreate } from "./shopping-branch-create";
 import { ShoppingBulkAdd } from "./shopping-bulk-add";
-import { ShoppingItemEditForm } from "./shopping-item-edit-form";
+import { ShoppingItemEditSheet } from "./shopping-item-edit-sheet";
 import { ShoppingItemInventoryConversionForm } from "./shopping-item-inventory-conversion-form";
 import { ShoppingItemRow } from "./shopping-item-row";
 import * as styles from "./shopping-page.css";
@@ -101,6 +101,8 @@ export function ShoppingList({
 	const { items, isLoading, isReordering, errorMessage, setErrorMessage } =
 		shopping;
 	const [editingItemId, setEditingItemId] = useState<string | null>(null);
+	// 直している項目（消された・購入済みになったときは、閉じる）。
+	const editingItem = items.find((item) => item.id === editingItemId) ?? null;
 	const [view, setView] = useStorageItem(shoppingViewStorage);
 	const [isPickingRecipe, setIsPickingRecipe] = useState(false);
 	const [isBulkAdding, setIsBulkAdding] = useState(false);
@@ -176,29 +178,6 @@ export function ShoppingList({
 			isLast?: boolean;
 		} = {},
 	) {
-		if (editingItemId === item.id) {
-			return (
-				<li className={styles.editRow} ref={position.rowRef} key={item.id}>
-					<ShoppingItemEditForm
-						item={item}
-						stores={stores}
-						onCreateStore={storeState.addStore}
-						onCancel={() => setEditingItemId(null)}
-						onSave={async (target, input) => {
-							const updated = await shopping.updateItem(target, input);
-
-							if (updated) {
-								await storeState.rememberStore(updated.name, updated.storeId);
-								setEditingItemId(null);
-							}
-
-							return updated !== null;
-						}}
-					/>
-				</li>
-			);
-		}
-
 		return (
 			<ShoppingItemRow
 				item={item}
@@ -460,6 +439,28 @@ export function ShoppingList({
 				/>
 			) : null}
 
+			{editingItem ? (
+				<ShoppingItemEditSheet
+					// 別の項目を直すときは、入力を作り直す。
+					key={editingItem.id}
+					item={editingItem}
+					errorMessage={errorMessage}
+					stores={stores}
+					onCreateStore={storeState.addStore}
+					onClose={() => setEditingItemId(null)}
+					onSave={async (target, input) => {
+						const updated = await shopping.updateItem(target, input);
+
+						if (updated) {
+							await storeState.rememberStore(updated.name, updated.storeId);
+							setEditingItemId(null);
+						}
+
+						return updated !== null;
+					}}
+				/>
+			) : null}
+
 			{isCreatingBranch ? (
 				<ShoppingBranchCreate
 					stores={stores}
@@ -668,7 +669,7 @@ export function ShoppingList({
 									<SortableShoppingItem
 										id={item.id}
 										index={index}
-										disabled={isReordering || editingItemId === item.id}
+										disabled={isReordering}
 										key={item.id}
 									>
 										{({ rowRef, handleRef, isDragging }) =>

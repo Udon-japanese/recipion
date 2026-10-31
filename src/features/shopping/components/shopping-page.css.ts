@@ -213,31 +213,6 @@ export const listCard = style({
 	boxShadow: "var(--shadow-sm)",
 });
 
-// 編集中の行。
-export const editRow = style({
-	listStyle: "none",
-	padding: "4px 0",
-	borderTop: "1px solid var(--color-border)",
-	selectors: {
-		"&:first-child": { borderTop: 0 },
-	},
-});
-
-export const editCard = style({
-	display: "grid",
-	gap: 14,
-	margin: "8px 0",
-	padding: 16,
-	background: "var(--color-surface)",
-	border: "2px solid var(--color-text)",
-	borderRadius: "var(--radius-card)",
-});
-
-export const editButtons = style({
-	display: "flex",
-	gap: 8,
-});
-
 export const storeFilter = style({
 	display: "grid",
 	gap: 8,

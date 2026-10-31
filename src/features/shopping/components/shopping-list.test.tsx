@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
@@ -317,6 +317,42 @@ describe("ShoppingList", () => {
 
 		expect(screen.getByText("3袋")).toBeInTheDocument();
 		expect(screen.getByText("600g")).toBeInTheDocument();
+	});
+
+	it("「編集」で、追加と同じシートが開き、直して保存すると、一覧に反映されて閉じる", async () => {
+		const user = userEvent.setup();
+		const repository = createFakeShoppingRepository([
+			buildShoppingItem({ name: "卵", quantity: 1, unitLabel: "パック" }),
+		]);
+
+		render(<ShoppingList repository={repository} />);
+
+		await user.click(await screen.findByRole("button", { name: "卵のその他" }));
+		await user.click(screen.getByRole("menuitem", { name: "編集" }));
+
+		const sheet = await screen.findByRole("dialog", { name: "卵を直す" });
+
+		expect(within(sheet).getByLabelText("商品名")).toHaveValue("卵");
+
+		await user.clear(within(sheet).getByLabelText("数量"));
+		await user.type(within(sheet).getByLabelText("数量"), "2");
+		await user.click(within(sheet).getByRole("button", { name: "保存" }));
+
+		await waitFor(() => {
+			expect(repository.items).toEqual([
+				expect.objectContaining({
+					name: "卵",
+					quantity: 2,
+					unitLabel: "パック",
+				}),
+			]);
+		});
+		await waitFor(() => {
+			expect(
+				screen.queryByRole("dialog", { name: "卵を直す" }),
+			).not.toBeInTheDocument();
+		});
+		expect(screen.getByText("2パック")).toBeInTheDocument();
 	});
 
 	it("買い物項目を上下に並び替えられる", async () => {
