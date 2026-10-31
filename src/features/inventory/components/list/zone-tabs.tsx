@@ -1,4 +1,3 @@
-import { Icon } from "#/components/icon/icon";
 import type { IconName } from "#/components/icon/icon-definitions";
 import {
 	type InventoryZoneId,
@@ -35,7 +34,7 @@ type ZoneTabsProps = {
 	onChange: (zone: InventoryZoneId | null) => void;
 };
 
-// 場所の縦タブ（一覧の左に縦に積む）。
+// 場所のタブ（庫内のカードの上に横に並べ、選んでいる場所に墨の下線を引く）。
 export function ZoneTabs({ value, counts, onChange }: ZoneTabsProps) {
 	return (
 		<fieldset className={styles.zoneTabs} aria-label="場所">
@@ -48,7 +47,11 @@ export function ZoneTabs({ value, counts, onChange }: ZoneTabsProps) {
 					onClick={() => onChange(id === value ? null : id)}
 					onKeyDown={(event) => {
 						const step =
-							event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0;
+							event.key === "ArrowRight"
+								? 1
+								: event.key === "ArrowLeft"
+									? -1
+									: 0;
 
 						if (step === 0) {
 							return;
@@ -65,7 +68,6 @@ export function ZoneTabs({ value, counts, onChange }: ZoneTabsProps) {
 						tabs[(index + step + tabs.length) % tabs.length]?.focus();
 					}}
 				>
-					<Icon name={zoneIcons[id]} size={24} />
 					{zoneLabels[id]}
 					<span className={styles.zoneTabCount}>{counts[id] ?? 0}</span>
 				</button>

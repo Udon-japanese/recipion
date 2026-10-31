@@ -106,7 +106,7 @@ describe("InventoryScene", () => {
 		);
 	});
 
-	it("庫内の縦タブで、別の場所の一覧に切り替わり、開いていた食材のパネルは閉じる", async () => {
+	it("庫内のタブで、別の場所の一覧に切り替わり、開いていた食材のパネルは閉じる", async () => {
 		const user = userEvent.setup();
 		const onDismissPanel = vi.fn();
 
@@ -122,9 +122,13 @@ describe("InventoryScene", () => {
 			await screen.findByRole("button", { name: /^醤油、/u }),
 		).toBeInTheDocument();
 		expect(screen.queryByRole("button", { name: /^卵、/u })).toBeNull();
+		// 見出しは見えないが、読み上げでは、選んでいる場所の名前になる。
+		expect(
+			screen.getByRole("heading", { level: 2, name: "ドア" }),
+		).toBeInTheDocument();
 	});
 
-	it("スマホでは、縦タブの代わりに、見出しを押して、場所をシートで選ぶ", async () => {
+	it("スマホでは、タブの代わりに、見出しを押して、場所をシートで選ぶ", async () => {
 		vi.stubGlobal(
 			"matchMedia",
 			vi.fn().mockImplementation((query: string) => ({
@@ -142,7 +146,7 @@ describe("InventoryScene", () => {
 		await user.click(screen.getByRole("button", { name: /^冷蔵室をひらく/u }));
 		await screen.findByRole("button", { name: /^卵、/u }, { timeout: 3000 });
 
-		// 縦タブ（場所の一覧）は、出ない。
+		// タブ（場所の一覧）は、出ない。
 		expect(screen.queryByRole("group", { name: "場所" })).toBeNull();
 
 		await user.click(

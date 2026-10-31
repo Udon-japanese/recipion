@@ -131,51 +131,56 @@ export const sectionCount = style({
 	color: "var(--color-text-muted)",
 });
 
-// 場所の縦タブ。
+// 場所のタブ（横に並べ、選んでいる場所に墨の下線）。リスト表示の見出しと同じ考え方。
 export const zoneTabs = style({
 	display: "flex",
-	flexDirection: "column",
-	flexShrink: 0,
-	position: "sticky",
-	top: 8,
-	gap: 6,
+	flex: 1,
+	minWidth: 0,
 	margin: 0,
 	padding: 0,
 	border: 0,
-	minWidth: 0,
+	borderBottom: "1px solid var(--color-border)",
+	overflowX: "auto",
+	scrollbarWidth: "none",
 });
 
 export const zoneTab = style({
 	boxSizing: "border-box",
-	display: "grid",
-	justifyItems: "center",
-	gap: 2,
-	width: 64,
-	padding: "8px 2px",
-	border: "1.5px solid var(--color-control-border)",
-	borderRadius: 16,
-	background: "var(--color-surface)",
-	color: "var(--color-text)",
+	display: "inline-flex",
+	alignItems: "baseline",
+	justifyContent: "center",
+	gap: 4,
+	flex: "1 0 auto",
+	minHeight: 44,
+	padding: "12px 8px 8px",
+	// 下の細い線に重ねて、太い線を引く。
+	marginBottom: -1,
+	border: "none",
+	borderBottom: "2px solid transparent",
+	background: "none",
+	color: "var(--color-text-muted)",
 	font: "inherit",
-	fontSize: 12,
+	fontSize: "var(--font-size-md)",
 	fontWeight: "var(--font-weight-semibold)",
-	lineHeight: 1.25,
+	whiteSpace: "nowrap",
 	cursor: "pointer",
 	selectors: {
+		"&:hover": { color: "var(--color-text)" },
 		"&:focus-visible": {
 			outline: "3px solid var(--color-focus)",
-			outlineOffset: 2,
+			outlineOffset: -3,
+			borderRadius: 8,
 		},
 		'&[aria-pressed="true"]': {
-			borderColor: "var(--color-text)",
-			background: "var(--color-primary-soft)",
-			boxShadow: "0 0 0 1px var(--color-text)",
+			borderBottomColor: "var(--color-text)",
+			color: "var(--color-text)",
+			fontWeight: "var(--font-weight-extrabold)",
 		},
 	},
 });
 
 export const zoneTabCount = style({
-	fontSize: 11,
+	fontSize: "var(--font-size-xs)",
 	fontWeight: "var(--font-weight-regular)",
 	color: "var(--color-text-muted)",
 });
