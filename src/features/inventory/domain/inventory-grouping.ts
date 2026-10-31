@@ -42,7 +42,7 @@ const kanaRows = [
 
 const otherKana = "他";
 
-function toHiragana(text: string): string {
+export function toHiragana(text: string): string {
 	return text.replace(/[ァ-ヶ]/g, (char) =>
 		String.fromCharCode(char.charCodeAt(0) - 0x60),
 	);

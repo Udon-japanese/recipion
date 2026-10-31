@@ -18,6 +18,7 @@ import {
 	listInventoryGroups,
 	pickUseSoonTiles,
 } from "../../domain/inventory-grouping";
+import { matchesInventorySearch } from "../../domain/inventory-search";
 import { InventoryRow } from "./inventory-row";
 import * as styles from "./list.css";
 import { zoneIcons } from "./zone-tabs";
@@ -129,16 +130,13 @@ export function InventoryListView({
 }: InventoryListViewProps) {
 	const useSoonHeadingId = useId();
 
-	const searched = useMemo(() => {
-		const text = query.trim();
-
-		return zones
-			.flatMap((zone) => zone.tiles)
-			.filter(
-				(tile) =>
-					tile.name.includes(text) || tile.ingredientName.includes(text),
-			);
-	}, [zones, query]);
+	const searched = useMemo(
+		() =>
+			zones
+				.flatMap((zone) => zone.tiles)
+				.filter((tile) => matchesInventorySearch(tile, query)),
+		[zones, query],
+	);
 
 	const sections = useMemo(() => {
 		// 場所は、画面を開いたときに決めた並びのまま。ほかは、まとめ方の並び。
