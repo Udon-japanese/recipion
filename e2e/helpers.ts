@@ -18,6 +18,19 @@ export async function openRecipe(page: Page, name: string) {
 	await page.goto("/recipes");
 	await page.getByRole("link", { name }).click();
 	await expect(page.getByRole("heading", { name, level: 2 })).toBeVisible();
-	// 画面が読み込まれてから操作する（その前のクリックは、効かないことがある）。
-	await expect(page.getByRole("button", { name: "つくった！" })).toBeEnabled();
+	await showMadeButton(page);
+}
+
+// 「つくった！」が押せるまで待つ。狭い画面では「作りかた」のタブの中にあるので、先に切り替える。
+// 画面が読み込まれる前のクリックは効かないことがあるので、押せるようになるまで押し直す。
+export async function showMadeButton(page: Page) {
+	const cookTab = page.getByRole("button", { name: "作りかた" });
+	const made = page.getByRole("button", { name: "つくった！" });
+
+	await expect(async () => {
+		if (await cookTab.isVisible()) {
+			await cookTab.click();
+		}
+		await expect(made).toBeEnabled({ timeout: 1_000 });
+	}).toPass();
 }
