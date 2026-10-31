@@ -33,13 +33,6 @@ export const inventoryItem = pgTable(
 		sourceRecipeId: uuid("source_recipe_id").references(() => recipe.id, {
 			onDelete: "set null",
 		}),
-		// 満タンの量（これまでの合計の最大値。食材の在庫の単位）。冷蔵庫のタイルの水位の基準。
-		capacity: numeric("capacity", {
-			precision: 18,
-			scale: 6,
-		})
-			.default("0")
-			.notNull(),
 		createdAt: timestamp("created_at", {
 			withTimezone: true,
 		})
@@ -75,7 +68,6 @@ export const inventoryItem = pgTable(
 			"inventory_item_display_name_valid",
 			sql`${table.displayName} is null or char_length(btrim(${table.displayName})) between 1 and 50`,
 		),
-		check("inventory_item_capacity_valid", sql`${table.capacity} >= 0`),
 		check(
 			"inventory_item_tracking_mode_valid",
 			sql`${table.trackingMode} in ('exact', 'estimated', 'presence')`,

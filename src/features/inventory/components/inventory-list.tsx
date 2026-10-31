@@ -75,26 +75,6 @@ type Selection = {
 	tileKey: string;
 };
 
-// 満タンの量：単位が変わったときは、量の変わった割合で直す。いまの量が超えたら、引き上げる（サーバーと同じ）。
-function nextCapacity(
-	item: InventoryListItem,
-	update: Partial<InventoryListItem>,
-): number {
-	const quantity = update.quantity ?? item.quantity;
-	const isUnitChanged =
-		(update.stockUnitCode !== undefined &&
-			update.stockUnitCode !== item.stockUnitCode) ||
-		(update.stockUnitLabel !== undefined &&
-			update.stockUnitLabel !== item.stockUnitLabel);
-	const base = isUnitChanged
-		? item.quantity > 0
-			? (item.capacity * quantity) / item.quantity
-			: 0
-		: (update.capacity ?? item.capacity);
-
-	return Math.max(base, quantity);
-}
-
 // 期限の並びが変わったかを見る鍵（期限を直したときだけ、並べ直す）。
 function expiryFingerprint(item: InventoryListItem | undefined): string {
 	return (item?.lots ?? [])
@@ -288,7 +268,6 @@ export function InventoryList({
 						? {
 								...item,
 								...update,
-								capacity: nextCapacity(item, update),
 							}
 						: item,
 				),

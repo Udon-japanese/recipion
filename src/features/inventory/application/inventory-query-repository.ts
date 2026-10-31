@@ -15,8 +15,6 @@ export type InventoryListItem = {
 	displayName: string | null;
 	// ロットの数量の合計。
 	quantity: number;
-	// 満タンの量（これまでの合計の最大値。在庫の単位）。タイルの水位の基準。
-	capacity: number;
 	// 在庫のあるロット（期限の早い順）。
 	lots: InventoryLot[];
 	stockUnitCode: InventoryUnitCode;

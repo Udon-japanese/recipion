@@ -25,7 +25,6 @@ const egg: InventoryListItem = {
 	name: "卵",
 	displayName: null,
 	quantity: 6,
-	capacity: 6,
 	lots: [],
 	stockUnitCode: "count",
 	stockUnitLabel: "個",
