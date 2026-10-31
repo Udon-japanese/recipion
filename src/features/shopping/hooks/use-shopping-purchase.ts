@@ -3,7 +3,6 @@ import type { InventoryPurchaseOwnerScope } from "#/features/inventory/applicati
 import type { SyncInventoryPurchaseOutboxResult } from "#/features/inventory/application/sync-inventory-purchase-outbox";
 import {
 	type ExpiryFieldsValue,
-	emptyExpiryFields,
 	toLotInput,
 } from "#/features/inventory/components/expiry-fields";
 import { buildExpiryPrefill } from "#/features/inventory/domain/build-expiry-prefill";
@@ -14,17 +13,14 @@ import {
 } from "#/features/inventory/domain/inventory-lot";
 import { useExpiryEstimateLevel } from "#/features/inventory/hooks/use-expiry-estimate-level";
 import { useIngredientExpiryDefaults } from "#/features/inventory/hooks/use-ingredient-expiry-defaults";
-import {
-	getLearnedRemainingDays,
-	recordExpiryHint,
-} from "#/features/inventory/infrastructure/expiry-hints-storage";
+import { getLearnedRemainingDays } from "#/features/inventory/infrastructure/expiry-hints-storage";
 import type { ShoppingItemInventoryConfiguration } from "../components/shopping-item-inventory-conversion-form";
 import {
-	buildConversionConfiguration,
-	type ConversionDraft,
-	describeConversionDraftError,
-	initialConversionDraft,
-} from "../domain/conversion-draft";
+	type AmountDraft,
+	buildAmountConfiguration,
+	describeAmountDraftError,
+	initialAmountDraft,
+} from "../domain/amount-draft";
 import {
 	isSameConversionDefault,
 	type ShoppingConversionDefault,
@@ -99,23 +95,19 @@ export function useShoppingPurchase({
 	const overwriteRequest = overwriteQueue[0] ?? null;
 
 	// 購入確定の確認画面で、換算が足りない商品の、入力途中の換算（商品の ID ごと）と、その誤り。
-	const [conversionDrafts, setConversionDrafts] = useState<
-		Record<string, ConversionDraft>
+	const [conversionDrafts, setAmountDrafts] = useState<
+		Record<string, AmountDraft>
 	>({});
 	const [conversionErrors, setConversionErrors] = useState<
 		Record<string, string>
 	>({});
 
-	// 購入確定の前に、期限・保存方法を確認する画面（任意入力）。
-	const [isReviewingExpiry, setIsReviewingExpiry] = useState(false);
-	const [expiryValues, setExpiryValues] = useState<
-		Record<string, ExpiryFieldsValue>
-	>({});
-	// 在庫換算の設定などで、購入確定をやり直すときに、入力済みの期限を使い回す。
+	// 在庫換算が足りない商品があるとき、購入確定の前に、量を聞く画面。
+	const [isReviewingConversion, setIsReviewingConversion] = useState(false);
+	// 在庫換算の設定などで、購入確定をやり直すときに、期限の目安を使い回す。
 	const pendingLotsRef = useRef<Record<string, InventoryLotInput>>({});
 	const today = useMemo(() => toDateString(new Date()), []);
-	const [expiryEstimateLevel, setExpiryEstimateLevel] =
-		useExpiryEstimateLevel();
+	const [expiryEstimateLevel] = useExpiryEstimateLevel();
 	const lookupIngredientDefaults = useIngredientExpiryDefaults(ownerScope);
 
 	const checkedItemCount = items.filter(
@@ -143,26 +135,22 @@ export function useShoppingPurchase({
 		});
 	}
 
-	// 目安の設定を変えたとき、ユーザーが日付を入力していない商品だけ、目安を入れ直す。
-	function changeEstimateLevel(level: ExpiryEstimateLevel) {
-		setExpiryEstimateLevel(level);
-		setExpiryValues((current) =>
-			Object.fromEntries(
-				checkedTrackedItems.map((item) => {
-					const currentValue = current[item.id];
+	// 在庫に入る商品の、期限と保存方法の初期値（自動の目安）。直したいときは、在庫の画面で直す。
+	function buildLotsFromPrefill(): Record<string, InventoryLotInput> {
+		const lotsByItemId: Record<string, InventoryLotInput> = {};
 
-					return [
-						item.id,
-						currentValue?.expirySource === "entered"
-							? currentValue
-							: buildPrefillFor(item, level),
-					];
-				}),
-			),
-		);
+		for (const item of checkedTrackedItems) {
+			const lot = toLotInput(buildPrefillFor(item, expiryEstimateLevel));
+
+			if (Object.keys(lot).length > 0) {
+				lotsByItemId[item.id] = lot;
+			}
+		}
+
+		return lotsByItemId;
 	}
 
-	// 「チェック済みを購入確定」：在庫に入る商品があれば、先に、期限の確認画面を出す。なければ、そのまま確定する。
+	// 「チェック済みを購入確定」：在庫換算が足りない商品があれば、先に、量を聞く画面を出す。なければ、そのまま確定する。
 	function requestPurchase() {
 		if (!ownerScope) {
 			return;
@@ -170,36 +158,27 @@ export function useShoppingPurchase({
 
 		setErrorMessage(null);
 		setConversionErrors({});
-		setConversionDrafts(
-			Object.fromEntries(
-				checkedTrackedItems
-					.filter((item) => !item.inventoryConversion)
-					.map((item) => [item.id, initialConversionDraft(item)]),
-			),
+
+		const drafts = Object.fromEntries(
+			checkedTrackedItems
+				.filter((item) => !item.inventoryConversion)
+				.map((item) => [item.id, initialAmountDraft(item)]),
 		);
 
-		if (checkedTrackedItems.length === 0) {
-			pendingLotsRef.current = {};
+		setAmountDrafts(drafts);
+
+		if (Object.keys(drafts).length === 0) {
+			pendingLotsRef.current = buildLotsFromPrefill();
 			void confirm();
 
 			return;
 		}
 
-		// 開くたびに、目安を入れる。入力済みの値（前に開いたときに入れたもの）は、残す。
-		setExpiryValues((current) => ({
-			...Object.fromEntries(
-				checkedTrackedItems.map((item) => [
-					item.id,
-					buildPrefillFor(item, expiryEstimateLevel),
-				]),
-			),
-			...current,
-		}));
-		setIsReviewingExpiry(true);
+		setIsReviewingConversion(true);
 	}
 
-	// 確認の画面で「購入確定」を押したとき。足りない換算を、先にすべて保存して、入力のある期限を載せて確定する。
-	async function confirmWithExpiry() {
+	// 量を聞く画面で「購入確定」を押したとき。足りない換算を、先にすべて保存して、確定する。
+	async function confirmWithConversions() {
 		const missingItems = checkedTrackedItems.filter(
 			(item) => item.id in conversionDrafts,
 		);
@@ -219,10 +198,10 @@ export function useShoppingPurchase({
 			try {
 				configurations.push({
 					item,
-					configuration: buildConversionConfiguration(item, draft),
+					configuration: buildAmountConfiguration(item, draft),
 				});
 			} catch (error) {
-				errors[item.id] = describeConversionDraftError(error);
+				errors[item.id] = describeAmountDraftError(error);
 			}
 		}
 
@@ -277,31 +256,9 @@ export function useShoppingPurchase({
 			}
 		}
 
-		const lotsByItemId: Record<string, InventoryLotInput> = {};
-
-		for (const item of checkedTrackedItems) {
-			const lot = toLotInput(expiryValues[item.id] ?? emptyExpiryFields);
-
-			if (Object.keys(lot).length > 0) {
-				lotsByItemId[item.id] = lot;
-			}
-
-			// 入力した期限（目安ではないもの）は、次の目安のために、覚える。
-			const value = expiryValues[item.id];
-
-			if (value?.expirySource === "entered" && value.expiresOn !== "") {
-				recordExpiryHint({
-					ingredientName: item.name,
-					acquiredOn: today,
-					expiresOn: value.expiresOn,
-					storage: value.storage === "" ? null : value.storage,
-				});
-			}
-		}
-
-		pendingLotsRef.current = lotsByItemId;
-		setIsReviewingExpiry(false);
-		setConversionDrafts({});
+		pendingLotsRef.current = buildLotsFromPrefill();
+		setIsReviewingConversion(false);
+		setAmountDrafts({});
 
 		if (overwrites.length > 0) {
 			setOverwriteQueue(overwrites);
@@ -345,7 +302,6 @@ export function useShoppingPurchase({
 
 			setConversionItemId(null);
 			pendingLotsRef.current = {};
-			setExpiryValues({});
 			applyPurchasedItems(result.items);
 
 			if (ownerScope === "guest" || !syncPurchases) {
@@ -453,23 +409,18 @@ export function useShoppingPurchase({
 		conversionItem,
 		isConfirmingPurchase,
 		isSavingConversion,
-		isReviewingExpiry,
-		expiryValues,
-		expiryEstimateLevel,
-		today,
-		setExpiryValues,
-		cancelExpiryReview: () => {
-			setIsReviewingExpiry(false);
-			setConversionDrafts({});
+		isReviewingConversion,
+		cancelReview: () => {
+			setIsReviewingConversion(false);
+			setAmountDrafts({});
 			setConversionErrors({});
 		},
 		conversionDrafts,
 		conversionErrors,
-		changeConversionDraft: (itemId: string, draft: ConversionDraft) =>
-			setConversionDrafts((current) => ({ ...current, [itemId]: draft })),
-		changeEstimateLevel,
+		changeAmountDraft: (itemId: string, draft: AmountDraft) =>
+			setAmountDrafts((current) => ({ ...current, [itemId]: draft })),
 		requestPurchase,
-		confirmWithExpiry,
+		confirmWithConversions,
 		saveInventoryConfiguration,
 		overwriteRequest,
 		answerConversionOverwrite,

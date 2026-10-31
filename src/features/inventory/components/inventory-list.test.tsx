@@ -1,4 +1,10 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import {
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+	within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -564,9 +570,9 @@ describe("InventoryList", () => {
 					name: "10/1に入れた分の期限を編集",
 				}),
 			);
-			await user.click(
-				screen.getByRole("button", { name: "期限を明日にする" }),
-			);
+			fireEvent.change(screen.getByLabelText("期限"), {
+				target: { value: addDays(toDateString(new Date()), 1) },
+			});
 			await chooseExpiryKind(user, "消費期限");
 			await user.click(screen.getByLabelText(/この食材の初期値にする/u));
 			await user.click(screen.getByRole("button", { name: "保存" }));

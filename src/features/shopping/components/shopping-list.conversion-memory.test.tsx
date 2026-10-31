@@ -47,8 +47,7 @@ const checkedItem: ShoppingItem = buildShoppingItem({
 	quantity: 1,
 	unitLabel: null,
 	status: "checked",
-	// 確認の画面では換算が足りている商品。サーバーが「足りない」と返したときの、設定のシートを確かめる。
-	inventoryConversion: sixPackConversion,
+	inventoryConversion: null,
 	categoryAssignment: "manual",
 });
 
@@ -60,7 +59,7 @@ const purchasedItem: ShoppingItem = {
 	status: "purchased",
 };
 
-// 購入確定 →（期限の確認）→ 換算が足りない → 「6個」を選ぶ、までを進める。
+// 購入確定 → 換算が足りない（量を聞く画面）→ 「6個」を選んで、確定、までを進める。
 async function setUpAndChooseSixPack(initial: ShoppingConversionDefaults = {}) {
 	const user = userEvent.setup();
 	const repository = createFakeShoppingRepository([checkedItem]);
@@ -68,11 +67,7 @@ async function setUpAndChooseSixPack(initial: ShoppingConversionDefaults = {}) {
 		createFakeShoppingConversionDefaultRepository(initial);
 	const confirmPurchases = vi
 		.fn()
-		.mockResolvedValueOnce({
-			status: "missing-conversion",
-			items: [checkedItem],
-		})
-		.mockResolvedValueOnce({ status: "confirmed", items: [purchasedItem] });
+		.mockResolvedValue({ status: "confirmed", items: [purchasedItem] });
 
 	render(
 		<ShoppingList
@@ -85,11 +80,8 @@ async function setUpAndChooseSixPack(initial: ShoppingConversionDefaults = {}) {
 	await user.click(
 		await screen.findByRole("button", { name: "購入を確定（1件）" }),
 	);
-	await user.click(
-		await screen.findByRole("button", { name: /^購入確定（\d+件）$/u }),
-	);
-	await screen.findByRole("heading", { name: "たまごを在庫へ追加する方法" });
-	await user.click(screen.getByRole("button", { name: "6個" }));
+	await user.click(await screen.findByRole("button", { name: "6個" }));
+	await user.click(screen.getByRole("button", { name: "購入確定" }));
 
 	return { user, conversionDefaultRepository, confirmPurchases };
 }
@@ -99,7 +91,7 @@ describe("ShoppingList の在庫換算の記憶", () => {
 		const { conversionDefaultRepository, confirmPurchases } =
 			await setUpAndChooseSixPack();
 
-		await waitFor(() => expect(confirmPurchases).toHaveBeenCalledTimes(2));
+		await waitFor(() => expect(confirmPurchases).toHaveBeenCalledTimes(1));
 		expect(conversionDefaultRepository.defaults[key]).toMatchObject({
 			unitLabel: "個",
 			inventoryConversion: sixPackConversion,
@@ -112,7 +104,7 @@ describe("ShoppingList の在庫換算の記憶", () => {
 			remembered({ unitLabel: "個", inventoryConversion: sixPackConversion }),
 		);
 
-		await waitFor(() => expect(confirmPurchases).toHaveBeenCalledTimes(2));
+		await waitFor(() => expect(confirmPurchases).toHaveBeenCalledTimes(1));
 		expect(screen.queryByRole("alertdialog")).toBeNull();
 	});
 
@@ -138,11 +130,11 @@ describe("ShoppingList の在庫換算の記憶", () => {
 		expect(dialog.textContent).toContain("1個＝2個");
 		expect(dialog.textContent).toContain("1個＝1個");
 		// 答えるまで、購入確定は、やり直さない。
-		expect(confirmPurchases).toHaveBeenCalledTimes(1);
+		expect(confirmPurchases).not.toHaveBeenCalled();
 
 		await user.click(screen.getByRole("button", { name: "今回だけ" }));
 
-		await waitFor(() => expect(confirmPurchases).toHaveBeenCalledTimes(2));
+		await waitFor(() => expect(confirmPurchases).toHaveBeenCalledTimes(1));
 		expect(conversionDefaultRepository.defaults[key]).toMatchObject(different);
 	});
 
@@ -152,7 +144,7 @@ describe("ShoppingList の在庫換算の記憶", () => {
 
 		await user.click(await screen.findByRole("button", { name: "変える" }));
 
-		await waitFor(() => expect(confirmPurchases).toHaveBeenCalledTimes(2));
+		await waitFor(() => expect(confirmPurchases).toHaveBeenCalledTimes(1));
 		expect(conversionDefaultRepository.defaults[key]).toMatchObject({
 			unitLabel: "個",
 			inventoryConversion: sixPackConversion,
@@ -173,7 +165,7 @@ describe("ShoppingList の在庫換算の記憶", () => {
 				}),
 			);
 
-		await waitFor(() => expect(confirmPurchases).toHaveBeenCalledTimes(2));
+		await waitFor(() => expect(confirmPurchases).toHaveBeenCalledTimes(1));
 		expect(screen.queryByRole("alertdialog")).toBeNull();
 		expect(Object.keys(conversionDefaultRepository.defaults)).toHaveLength(2);
 	});

@@ -1,4 +1,10 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import {
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+	within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { expectExpiryKind } from "#/test/expiry-fields-helpers";
@@ -345,9 +351,9 @@ describe("InventoryRegistrationPanel", () => {
 			);
 
 			await user.type(screen.getByLabelText("食材名"), "冷凍ブロッコリー");
-			await user.click(
-				screen.getByRole("button", { name: "期限を明日にする" }),
-			);
+			fireEvent.change(screen.getByLabelText("期限"), {
+				target: { value: addDays(today, 1) },
+			});
 
 			expect(screen.queryByText(/目安の日付（約）です/u)).toBeNull();
 
@@ -399,9 +405,9 @@ describe("InventoryRegistrationPanel", () => {
 			expectExpiryKind("消費期限");
 
 			// 買ってから3日後の期限を入力して、登録する
-			await user.click(
-				screen.getByRole("button", { name: "期限を3日後にする" }),
-			);
+			fireEvent.change(screen.getByLabelText("期限"), {
+				target: { value: addDays(today, 3) },
+			});
 			await user.click(screen.getByRole("button", { name: "在庫に追加" }));
 			await waitFor(() => expect(registerInventoryItem).toHaveBeenCalled());
 
@@ -422,9 +428,9 @@ describe("InventoryRegistrationPanel", () => {
 			);
 
 			await user.type(screen.getByLabelText("食材名"), "冷凍ブロッコリー");
-			await user.click(
-				screen.getByRole("button", { name: "期限を明日にする" }),
-			);
+			fireEvent.change(screen.getByLabelText("期限"), {
+				target: { value: addDays(today, 1) },
+			});
 			await user.clear(screen.getByLabelText("食材名"));
 			await user.type(screen.getByLabelText("食材名"), "冷凍コーン");
 

@@ -150,17 +150,3 @@ export function describeConversionDraftError(error: unknown): string {
 
 	return "換算設定を保存できませんでした";
 }
-
-// 入力途中の換算が、そのまま保存できるか（確認の画面の「あと○件」の数え方に使う）。
-export function isConversionDraftReady(
-	item: ShoppingItem,
-	draft: ConversionDraft,
-): boolean {
-	try {
-		buildConversionConfiguration(item, draft);
-
-		return true;
-	} catch {
-		return false;
-	}
-}

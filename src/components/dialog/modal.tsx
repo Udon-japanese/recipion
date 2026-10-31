@@ -13,6 +13,8 @@ type ModalProps = {
 	children: ReactNode;
 	// 下に固定する操作（右寄せ）。
 	footer?: ReactNode;
+	// 読む文章や、縦に並べる入力の画面は、幅を狭くする（広い表は、狭くしない）。
+	narrow?: boolean;
 };
 
 // 幅の広いモーダル（PC で、入力と確認を並べるような、広い作業の画面）。中央に出す。
@@ -23,6 +25,7 @@ export function Modal({
 	title,
 	children,
 	footer,
+	narrow = false,
 }: ModalProps) {
 	const titleId = useId();
 	const portalRef = useRef<HTMLDivElement>(null);
@@ -52,6 +55,7 @@ export function Modal({
 			/>
 			<div
 				className={styles.modal}
+				data-narrow={narrow}
 				ref={dialogRef}
 				role="dialog"
 				aria-modal="true"

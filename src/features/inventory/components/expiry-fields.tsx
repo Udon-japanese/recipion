@@ -13,11 +13,10 @@ import {
 	formatDateWithWeekday,
 	storageLabels,
 } from "../domain/expiry-labels";
-import {
-	addDays,
-	type InventoryExpiryKind,
-	type InventoryExpirySource,
-	type InventoryStorage,
+import type {
+	InventoryExpiryKind,
+	InventoryExpirySource,
+	InventoryStorage,
 } from "../domain/inventory-lot";
 import * as styles from "./expiry-fields.css";
 
@@ -52,13 +51,6 @@ const kindOptions: readonly {
 	{ value: "none", label: expiryKindLabels.none },
 ];
 
-const quickOptions = [
-	{ label: "今日", days: 0 },
-	{ label: "明日", days: 1 },
-	{ label: "3日後", days: 3 },
-	{ label: "1週間後", days: 7 },
-] as const;
-
 // 期限（日付・消費/賞味）と、保存方法の入力欄。すべて任意。
 // 日付をユーザーが入れる（クイック入力を含む）と、出所は「入力」になる。自動の目安は、「約」と示す。
 export function ExpiryFields({
@@ -84,26 +76,6 @@ export function ExpiryFields({
 	return (
 		<div className={styles.container}>
 			<div className={styles.group}>
-				<ChipGroup label="期限のクイック入力">
-					{quickOptions.map((option) => (
-						<Chip
-							key={option.label}
-							pressed={value.expiresOn === addDays(today, option.days)}
-							disabled={disabled}
-							aria-label={`期限を${option.label}にする`}
-							onClick={() => setDate(addDays(today, option.days))}
-						>
-							{option.label}
-						</Chip>
-					))}
-
-					{value.expiresOn !== "" ? (
-						<Chip icon="close" disabled={disabled} onClick={() => setDate("")}>
-							期限を消す
-						</Chip>
-					) : null}
-				</ChipGroup>
-
 				<Field label="期限" hint={`今日 ${formatDateWithWeekday(today)}`}>
 					{(control) => (
 						<TextInput
