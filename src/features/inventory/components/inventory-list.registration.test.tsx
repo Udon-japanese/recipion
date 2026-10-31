@@ -91,6 +91,29 @@ describe("在庫に追加するパネル", () => {
 		await waitFor(() => expect(screen.getByLabelText("食材名")).toHaveFocus());
 	});
 
+	it("食材のパネルと追加のパネルは、どちらか一方だけが開く", async () => {
+		const user = userEvent.setup();
+
+		renderList([egg], vi.fn());
+
+		await user.click(await screen.findByRole("button", { name: /^卵、/u }));
+		expect(await screen.findByRole("dialog", { name: /卵/u })).toBeVisible();
+
+		await user.click(screen.getAllByRole("button", { name: "在庫に追加" })[0]);
+		expect(
+			await screen.findByRole("dialog", { name: "在庫に追加" }),
+		).toBeVisible();
+		await waitFor(() =>
+			expect(screen.queryByRole("dialog", { name: /卵/u })).toBeNull(),
+		);
+
+		await user.click(screen.getByRole("button", { name: /^卵、/u }));
+		expect(await screen.findByRole("dialog", { name: /卵/u })).toBeVisible();
+		await waitFor(() =>
+			expect(screen.queryByRole("dialog", { name: "在庫に追加" })).toBeNull(),
+		);
+	});
+
 	it("閉じても入力は残り、開き直すと戻る", async () => {
 		const user = userEvent.setup();
 

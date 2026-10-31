@@ -39,71 +39,33 @@ export const presetList = style({
 	gap: 8,
 });
 
-// 期限・保存方法の、たたむ行（52px）。たたんでいても、入っている内容が分かる。
-export const expiryRow = style({
-	boxSizing: "border-box",
-	display: "flex",
-	alignItems: "center",
-	gap: 8,
-	width: "100%",
-	minHeight: 52,
-	padding: "0 8px 0 14px",
-	color: "var(--color-text)",
-	background: "var(--color-surface)",
-	border: "1.5px solid var(--color-control-border)",
-	borderRadius: 16,
-	font: "inherit",
-	textAlign: "start",
-	cursor: "pointer",
-	selectors: {
-		"&:hover": { borderColor: "var(--color-border-strong)" },
-		"&:focus-visible": {
-			outline: "3px solid var(--color-focus)",
-			outlineOffset: 2,
-		},
-	},
-});
-
-export const expiryTitle = style({
-	flex: "none",
-	fontWeight: "var(--font-weight-bold)",
-});
-
-export const expirySummary = style({
-	flex: 1,
-	minWidth: 0,
-	color: "var(--color-text-muted)",
-	fontSize: 14,
-	overflow: "hidden",
-	textOverflow: "ellipsis",
-	whiteSpace: "nowrap",
-});
-
-export const chevron = style({
-	flex: "none",
-	display: "grid",
-	placeItems: "center",
-	width: 28,
-	height: 28,
-	transition: "transform var(--duration-fast) var(--ease-standard)",
-	selectors: {
-		'[aria-expanded="true"] > &': { transform: "rotate(180deg)" },
-	},
-});
-
-export const expiryBlock = style({
-	display: "grid",
-	gap: 8,
-});
-
 export const expiryHeader = style({
 	display: "flex",
 	alignItems: "center",
+	justifyContent: "space-between",
 	gap: 4,
 });
 
-export const expiryBody = style({
-	padding: "4px 2px 0",
+export const switchRow = style({
+	display: "flex",
+	alignItems: "center",
+	justifyContent: "space-between",
+	gap: 12,
+});
+
+export const switchText = style({
+	display: "grid",
+	gap: 2,
+});
+
+export const quantityMain = style({
+	flex: 1,
+	minWidth: 0,
+});
+
+export const unitSelect = style({
+	flex: "none",
+	width: 120,
 });
 
 // 下に固定する操作バー（結果の文・失敗の文の下に、2つのボタン）。
@@ -126,7 +88,7 @@ export const error = style({
 
 export const bar = style({
 	display: "grid",
-	gridTemplateColumns: "1fr 1.5fr",
+	gridTemplateColumns: "1fr",
 	gap: 12,
 });
 

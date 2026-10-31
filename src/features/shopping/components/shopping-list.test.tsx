@@ -6,10 +6,6 @@ import {
 	toDateString,
 } from "#/features/inventory/domain/inventory-lot";
 import { buildShoppingItem } from "#/test/builders/build-shopping-item";
-import {
-	chooseExpiryKind,
-	chooseExpiryStorage,
-} from "#/test/expiry-fields-helpers";
 import { createFakeShoppingRepository } from "#/test/fakes/fake-shopping-repository";
 import type { ShoppingItem } from "../domain/shopping-item";
 import { ShoppingList } from "./shopping-list";
@@ -668,8 +664,6 @@ describe("ShoppingList", () => {
 				name: "購入を確定（1件）",
 			}),
 		);
-
-		// 期限の確認画面（入力は任意）で、そのまま確定する。
 		await user.click(await screen.findByRole("button", { name: "購入確定" }));
 
 		expect(confirmPurchases).toHaveBeenCalledWith("guest", {
@@ -741,7 +735,7 @@ describe("ShoppingList", () => {
 		});
 	});
 
-	it("在庫換算がない商品は購入確定せず案内する", async () => {
+	it("在庫換算がない商品があれば、購入確定の前に、在庫に入れる量を聞く", async () => {
 		const user = userEvent.setup();
 
 		const checkedItem: ShoppingItem = {
@@ -750,38 +744,25 @@ describe("ShoppingList", () => {
 			status: "checked",
 			inventoryConversion: null,
 		};
-
-		const repository = createFakeShoppingRepository([checkedItem]);
-
-		const confirmPurchases = vi.fn().mockResolvedValue({
-			status: "missing-conversion",
-			items: [checkedItem],
-		});
+		const confirmPurchases = vi.fn();
 
 		render(
 			<ShoppingList
-				repository={repository}
+				repository={createFakeShoppingRepository([checkedItem])}
 				confirmPurchases={confirmPurchases}
 			/>,
 		);
 
 		await user.click(
-			await screen.findByRole("button", {
-				name: "購入を確定（1件）",
-			}),
+			await screen.findByRole("button", { name: "購入を確定（1件）" }),
 		);
 
-		// 期限の確認画面（入力は任意）で、そのまま確定する。
-		await user.click(await screen.findByRole("button", { name: "購入確定" }));
-
-		expect(await screen.findByRole("alert")).toHaveTextContent(
-			"謎の商品の在庫換算を設定してください",
-		);
 		expect(
-			screen.getByRole("checkbox", {
-				name: "謎の商品をチェック",
+			await screen.findByRole("heading", {
+				name: "在庫に入れる量を教えてください",
 			}),
-		).not.toBeDisabled();
+		).toBeInTheDocument();
+		expect(confirmPurchases).not.toHaveBeenCalled();
 	});
 
 	it("ログイン済みなら購入確定後に在庫同期を試す", async () => {
@@ -830,8 +811,6 @@ describe("ShoppingList", () => {
 				name: "購入を確定（1件）",
 			}),
 		);
-
-		// 期限の確認画面（入力は任意）で、そのまま確定する。
 		await user.click(await screen.findByRole("button", { name: "購入確定" }));
 
 		await waitFor(() => {
@@ -842,65 +821,7 @@ describe("ShoppingList", () => {
 		});
 	});
 
-	it("購入確定の前に期限を入力すると、購入の記録に期限・保存方法を載せる", async () => {
-		const user = userEvent.setup();
-
-		const checkedItem: ShoppingItem = {
-			...storedItem,
-			name: "鶏もも肉",
-			quantity: 1,
-			unitLabel: "パック",
-			status: "checked",
-			inventoryConversion: {
-				inputUnitCode: "pack",
-				stockUnitCode: "g",
-				stockUnitLabel: "g",
-				stockQuantityPerInputUnit: 300,
-				trackingMode: "estimated",
-			},
-		};
-
-		const confirmPurchases = vi.fn().mockResolvedValue({
-			status: "confirmed",
-			items: [{ ...checkedItem, status: "purchased" }],
-		});
-
-		render(
-			<ShoppingList
-				repository={createFakeShoppingRepository([checkedItem])}
-				confirmPurchases={confirmPurchases}
-			/>,
-		);
-
-		await user.click(
-			await screen.findByRole("button", {
-				name: "購入を確定（1件）",
-			}),
-		);
-
-		// 期限の確認画面：明日の期限、消費期限、冷蔵
-		await user.click(
-			await screen.findByRole("button", { name: "期限を明日にする" }),
-		);
-		await chooseExpiryKind(user, "消費期限");
-		await chooseExpiryStorage(user, "冷蔵");
-		await user.click(screen.getByRole("button", { name: "購入確定" }));
-
-		await waitFor(() =>
-			expect(confirmPurchases).toHaveBeenCalledWith("guest", {
-				lotsByItemId: {
-					[checkedItem.id]: {
-						expiresOn: addDays(toDateString(new Date()), 1),
-						expirySource: "entered",
-						expiryKind: "use-by",
-						storage: "fridge",
-					},
-				},
-			}),
-		);
-	});
-
-	it("目安を付けられる食材は、期限の確認画面に、約の日付が入っていて、目安として記録する", async () => {
+	it("目安を付けられる食材は、確認のあとで購入確定し、期限を目安として記録する", async () => {
 		const user = userEvent.setup();
 
 		const checkedItem: ShoppingItem = {
@@ -931,20 +852,12 @@ describe("ShoppingList", () => {
 		);
 
 		await user.click(
-			await screen.findByRole("button", {
-				name: "購入を確定（1件）",
-			}),
+			await screen.findByRole("button", { name: "購入を確定（1件）" }),
 		);
+		await user.click(await screen.findByRole("button", { name: "購入確定" }));
 
 		// 冷凍野菜：購入から90日（短め）
 		const today = toDateString(new Date());
-
-		expect(await screen.findByLabelText("期限")).toHaveValue(
-			addDays(today, 90),
-		);
-		expect(screen.getByText(/目安の日付（約）です/u)).toBeInTheDocument();
-
-		await user.click(screen.getByRole("button", { name: "購入確定" }));
 
 		await waitFor(() =>
 			expect(confirmPurchases).toHaveBeenCalledWith("guest", {
@@ -959,28 +872,67 @@ describe("ShoppingList", () => {
 		);
 	});
 
-	it("期限の確認画面で、目安をオフにすると、日付が消え、そのまま確定すると、期限なしで記録する", async () => {
+	it("換算が足りない商品は、確認の画面で、換算を入れて、まとめて購入確定する", async () => {
 		const user = userEvent.setup();
 
 		const checkedItem: ShoppingItem = {
 			...storedItem,
-			name: "冷凍ブロッコリー",
+			name: "はなげ",
 			quantity: 1,
 			unitLabel: "袋",
 			status: "checked",
-			inventoryConversion: {
-				inputUnitCode: "bag",
-				stockUnitCode: "g",
-				stockUnitLabel: "g",
-				stockQuantityPerInputUnit: 500,
-				trackingMode: "estimated",
-			},
+			inventoryConversion: null,
 		};
 
+		const repository = createFakeShoppingRepository([checkedItem]);
 		const confirmPurchases = vi.fn().mockResolvedValue({
 			status: "confirmed",
 			items: [{ ...checkedItem, status: "purchased" }],
 		});
+
+		render(
+			<ShoppingList
+				repository={repository}
+				confirmPurchases={confirmPurchases}
+			/>,
+		);
+
+		await user.click(
+			await screen.findByRole("button", { name: "購入を確定（1件）" }),
+		);
+
+		const quantity = await screen.findByLabelText("はなげの1袋あたりの数");
+
+		await user.clear(quantity);
+		await user.type(quantity, "300");
+		await user.selectOptions(
+			screen.getByLabelText("はなげの在庫で使う単位"),
+			"g",
+		);
+		await user.click(screen.getByRole("button", { name: "購入確定" }));
+
+		await waitFor(() => expect(confirmPurchases).toHaveBeenCalledTimes(1));
+		expect(repository.items[0]?.inventoryConversion).toMatchObject({
+			stockQuantityPerInputUnit: 300,
+		});
+		// 換算のためだけの別のシートは、開かない。
+		expect(
+			screen.queryByRole("heading", { name: /を在庫へ追加する方法/u }),
+		).toBeNull();
+	});
+
+	it("換算の数量が読めないときは、購入確定せず、その行に理由を出す", async () => {
+		const user = userEvent.setup();
+
+		const checkedItem: ShoppingItem = {
+			...storedItem,
+			name: "はなげ",
+			quantity: 1,
+			unitLabel: "袋",
+			status: "checked",
+			inventoryConversion: null,
+		};
+		const confirmPurchases = vi.fn();
 
 		render(
 			<ShoppingList
@@ -990,24 +942,53 @@ describe("ShoppingList", () => {
 		);
 
 		await user.click(
-			await screen.findByRole("button", {
-				name: "購入を確定（1件）",
-			}),
+			await screen.findByRole("button", { name: "購入を確定（1件）" }),
 		);
-		await user.click(
-			await screen.findByRole("button", { name: /期限の目安の自動入力/u }),
-		);
-		await user.click(screen.getByLabelText("オフ（自動で入れない）"));
-
-		expect(screen.getByLabelText("期限")).toHaveValue("");
-
+		await user.clear(await screen.findByLabelText("はなげの1袋あたりの数"));
 		await user.click(screen.getByRole("button", { name: "購入確定" }));
 
-		await waitFor(() =>
-			expect(confirmPurchases).toHaveBeenCalledWith("guest", {
-				lotsByItemId: {},
-			}),
+		expect((await screen.findByRole("alert")).textContent).toContain(
+			"0より大きい数",
 		);
+		expect(confirmPurchases).not.toHaveBeenCalled();
+	});
+
+	it("換算がそろっていても、確認を押すまでは、購入確定しない。「やめる」でも、確定しない", async () => {
+		const user = userEvent.setup();
+
+		const checkedItem: ShoppingItem = {
+			...storedItem,
+			status: "checked",
+			inventoryConversion: {
+				inputUnitCode: "count",
+				stockUnitCode: "count",
+				stockUnitLabel: "個",
+				stockQuantityPerInputUnit: 1,
+				trackingMode: "exact",
+			},
+		};
+		const confirmPurchases = vi.fn();
+
+		render(
+			<ShoppingList
+				repository={createFakeShoppingRepository([checkedItem])}
+				confirmPurchases={confirmPurchases}
+			/>,
+		);
+
+		await user.click(
+			await screen.findByRole("button", { name: "購入を確定（1件）" }),
+		);
+
+		expect(
+			await screen.findByRole("alertdialog", { name: "購入を確定しますか" }),
+		).toBeInTheDocument();
+		expect(confirmPurchases).not.toHaveBeenCalled();
+
+		await user.click(screen.getByRole("button", { name: "やめる" }));
+
+		expect(screen.queryByRole("alertdialog")).toBeNull();
+		expect(confirmPurchases).not.toHaveBeenCalled();
 	});
 
 	it("在庫に入る商品がなければ（日用品だけ）、期限の確認なしで購入確定する", async () => {
@@ -1047,43 +1028,7 @@ describe("ShoppingList", () => {
 		).toBeNull();
 	});
 
-	it("期限の確認画面で、キャンセルすると、購入確定しない", async () => {
-		const user = userEvent.setup();
-
-		const checkedItem: ShoppingItem = {
-			...storedItem,
-			status: "checked",
-			inventoryConversion: {
-				inputUnitCode: "count",
-				stockUnitCode: "count",
-				stockUnitLabel: "個",
-				stockQuantityPerInputUnit: 1,
-				trackingMode: "exact",
-			},
-		};
-		const confirmPurchases = vi.fn();
-
-		render(
-			<ShoppingList
-				repository={createFakeShoppingRepository([checkedItem])}
-				confirmPurchases={confirmPurchases}
-			/>,
-		);
-
-		await user.click(
-			await screen.findByRole("button", {
-				name: "購入を確定（1件）",
-			}),
-		);
-		await user.click(await screen.findByRole("button", { name: "キャンセル" }));
-
-		expect(confirmPurchases).not.toHaveBeenCalled();
-		expect(
-			screen.queryByRole("region", { name: "購入する食材の期限" }),
-		).toBeNull();
-	});
-
-	it("購入確定時に不足している在庫換算を設定できる", async () => {
+	it("購入確定時に不足している在庫換算を、候補から選んで設定できる", async () => {
 		const user = userEvent.setup();
 
 		const checkedItem: ShoppingItem = {
@@ -1108,23 +1053,11 @@ describe("ShoppingList", () => {
 			},
 		};
 
-		const purchasedItem: ShoppingItem = {
-			...configuredItem,
-			status: "purchased",
-		};
-
 		const repository = createFakeShoppingRepository([checkedItem]);
-
-		const confirmPurchases = vi
-			.fn()
-			.mockResolvedValueOnce({
-				status: "missing-conversion",
-				items: [checkedItem],
-			})
-			.mockResolvedValueOnce({
-				status: "confirmed",
-				items: [purchasedItem],
-			});
+		const confirmPurchases = vi.fn().mockResolvedValue({
+			status: "confirmed",
+			items: [{ ...configuredItem, status: "purchased" }],
+		});
 
 		render(
 			<ShoppingList
@@ -1134,25 +1067,10 @@ describe("ShoppingList", () => {
 		);
 
 		await user.click(
-			await screen.findByRole("button", {
-				name: "購入を確定（1件）",
-			}),
+			await screen.findByRole("button", { name: "購入を確定（1件）" }),
 		);
-
-		// 期限の確認画面（入力は任意）で、そのまま確定する。
-		await user.click(await screen.findByRole("button", { name: "購入確定" }));
-
-		expect(
-			await screen.findByRole("heading", {
-				name: "たまごを在庫へ追加する方法",
-			}),
-		).toBeInTheDocument();
-
-		await user.click(
-			screen.getByRole("button", {
-				name: "6個",
-			}),
-		);
+		await user.click(await screen.findByRole("button", { name: "6個" }));
+		await user.click(screen.getByRole("button", { name: "購入確定" }));
 
 		await waitFor(() => {
 			expect(repository.items).toContainEqual(
@@ -1164,7 +1082,7 @@ describe("ShoppingList", () => {
 				}),
 			);
 
-			expect(confirmPurchases).toHaveBeenCalledTimes(2);
+			expect(confirmPurchases).toHaveBeenCalledTimes(1);
 		});
 
 		expect(await screen.findByText("購入済み")).toBeInTheDocument();

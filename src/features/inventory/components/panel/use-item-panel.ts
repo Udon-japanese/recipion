@@ -21,7 +21,7 @@ import type { InventoryActions } from "./inventory-actions";
 // パネルの本体か、本体に差し替える6つのフォーム（削除は確認のダイアログ）。
 export type ItemPanelView =
 	| { name: "main" }
-	| { name: "adjust" }
+	| { name: "adjust"; operation: InventoryOperation }
 	| { name: "lot-quantity"; lotId: string }
 	| { name: "lot-expiry"; lotId: string }
 	| { name: "unit" }
@@ -154,12 +154,12 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 	}
 
 	// ---- フォームを開く ----
-	function openAdjust() {
+	function openAdjust(operation: InventoryOperation) {
 		setErrorMessage(null);
 		setAdjustQuantity("1");
 		setIsLotSpecified(false);
 		setAdjustLotQuantities({});
-		setView({ name: "adjust" });
+		setView({ name: "adjust", operation });
 	}
 
 	function openLotQuantity(lot: InventoryLot) {

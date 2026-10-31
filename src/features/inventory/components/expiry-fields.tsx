@@ -1,3 +1,4 @@
+import { useId, useState } from "react";
 import { Chip, ChipGroup } from "#/components/chip/chip";
 import { Field, TextInput } from "#/components/field/field";
 import { Icon } from "#/components/icon/icon";
@@ -12,11 +13,10 @@ import {
 	formatDateWithWeekday,
 	storageLabels,
 } from "../domain/expiry-labels";
-import {
-	addDays,
-	type InventoryExpiryKind,
-	type InventoryExpirySource,
-	type InventoryStorage,
+import type {
+	InventoryExpiryKind,
+	InventoryExpirySource,
+	InventoryStorage,
 } from "../domain/inventory-lot";
 import * as styles from "./expiry-fields.css";
 
@@ -51,13 +51,6 @@ const kindOptions: readonly {
 	{ value: "none", label: expiryKindLabels.none },
 ];
 
-const quickOptions = [
-	{ label: "今日", days: 0 },
-	{ label: "明日", days: 1 },
-	{ label: "+3日", days: 3 },
-	{ label: "+1週間", days: 7 },
-] as const;
-
 // 期限（日付・消費/賞味）と、保存方法の入力欄。すべて任意。
 // 日付をユーザーが入れる（クイック入力を含む）と、出所は「入力」になる。自動の目安は、「約」と示す。
 export function ExpiryFields({
@@ -66,6 +59,12 @@ export function ExpiryFields({
 	today,
 	disabled,
 }: ExpiryFieldsProps) {
+	// 保存方法・期限の種類は、決めてあれば開いておき、そうでなければ、たたんでおく（ユーザーが開閉したら、それに従う）。
+	const [userOpen, setUserOpen] = useState<boolean | null>(null);
+	const hasDetails = value.storage !== "" || value.expiryKind !== "";
+	const isDetailsOpen = userOpen ?? hasDetails;
+	const detailsId = useId();
+
 	function setDate(expiresOn: string) {
 		onChange({
 			...value,
@@ -77,68 +76,18 @@ export function ExpiryFields({
 	return (
 		<div className={styles.container}>
 			<div className={styles.group}>
-				<span className={styles.groupLabel} aria-hidden="true">
-					保存方法
-				</span>
-
-				<ChipGroup label="保存方法">
-					{storageOptions.map((option) => (
-						<Chip
-							key={option.value}
-							pressed={value.storage === option.value}
-							icon={option.icon}
+				<Field label="期限" hint={`今日 ${formatDateWithWeekday(today)}`}>
+					{(control) => (
+						<TextInput
+							{...control}
+							type="date"
+							value={value.expiresOn}
 							disabled={disabled}
-							onClick={() => onChange({ ...value, storage: option.value })}
-						>
-							{option.label}
-						</Chip>
-					))}
-				</ChipGroup>
+							onChange={(event) => setDate(event.target.value)}
+						/>
+					)}
+				</Field>
 			</div>
-
-			<div className={styles.group}>
-				<span className={styles.groupLabel} aria-hidden="true">
-					期限の種類
-				</span>
-
-				<SegmentedControl
-					label="期限の種類"
-					value={value.expiryKind}
-					onChange={(expiryKind) => onChange({ ...value, expiryKind })}
-					options={kindOptions}
-				/>
-			</div>
-
-			<Field label="期限" hint={`今日 ${formatDateWithWeekday(today)}`}>
-				{(control) => (
-					<TextInput
-						{...control}
-						type="date"
-						value={value.expiresOn}
-						disabled={disabled}
-						onChange={(event) => setDate(event.target.value)}
-					/>
-				)}
-			</Field>
-
-			<ChipGroup label="期限のクイック入力">
-				{quickOptions.map((option) => (
-					<Chip
-						key={option.label}
-						disabled={disabled}
-						aria-label={`期限を${option.label}にする`}
-						onClick={() => setDate(addDays(today, option.days))}
-					>
-						{option.label}
-					</Chip>
-				))}
-
-				{value.expiresOn !== "" ? (
-					<Chip icon="close" disabled={disabled} onClick={() => setDate("")}>
-						期限を消す
-					</Chip>
-				) : null}
-			</ChipGroup>
 
 			{value.expirySource === "estimated" && value.expiresOn !== "" ? (
 				<p className={styles.estimateNote}>
@@ -146,8 +95,75 @@ export function ExpiryFields({
 					目安の日付（約）です。パックや袋の表示がある場合は、その日付を入れてください。
 				</p>
 			) : null}
+
+			<div className={styles.group}>
+				<button
+					className={styles.detailsToggle}
+					type="button"
+					aria-expanded={isDetailsOpen}
+					aria-controls={detailsId}
+					onClick={() => setUserOpen(!isDetailsOpen)}
+				>
+					<span className={styles.detailsTitle}>保存方法・期限の種類</span>
+					<span className={styles.detailsSummary}>
+						{summarizeDetails(value)}
+					</span>
+					<span className={styles.chevron} data-open={isDetailsOpen}>
+						<Icon name="chevron-down" size={20} />
+					</span>
+				</button>
+
+				{isDetailsOpen ? (
+					<div className={styles.details} id={detailsId}>
+						<div className={styles.group}>
+							<span className={styles.groupLabel} aria-hidden="true">
+								保存方法
+							</span>
+
+							<ChipGroup label="保存方法">
+								{storageOptions.map((option) => (
+									<Chip
+										key={option.value}
+										pressed={value.storage === option.value}
+										icon={option.icon}
+										disabled={disabled}
+										onClick={() =>
+											onChange({ ...value, storage: option.value })
+										}
+									>
+										{option.label}
+									</Chip>
+								))}
+							</ChipGroup>
+						</div>
+
+						<div className={styles.group}>
+							<span className={styles.groupLabel} aria-hidden="true">
+								期限の種類
+							</span>
+
+							<SegmentedControl
+								label="期限の種類"
+								value={value.expiryKind}
+								onChange={(expiryKind) => onChange({ ...value, expiryKind })}
+								options={kindOptions}
+							/>
+						</div>
+					</div>
+				) : null}
+			</div>
 		</div>
 	);
+}
+
+// たたんだ行に出す、保存方法と期限の種類の要約（例：「冷蔵・賞味期限」。どちらも未指定なら「未設定」）。
+function summarizeDetails(value: ExpiryFieldsValue): string {
+	const parts = [
+		value.storage === "" ? null : storageLabels[value.storage],
+		value.expiryKind === "" ? null : expiryKindLabels[value.expiryKind],
+	].filter((part) => part !== null);
+
+	return parts.length === 0 ? "未設定" : parts.join("・");
 }
 
 // 入力欄の値を、サーバーに送るロットの条件にする（空の項目は、省略する）。

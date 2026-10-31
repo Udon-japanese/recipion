@@ -22,6 +22,9 @@ export const modal = style({
 	gridTemplateRows: "auto minmax(0, 1fr) auto",
 	width: "min(100%, 1040px)",
 	maxHeight: "calc(100dvh - 48px)",
+	selectors: {
+		'&[data-narrow="true"]': { width: "min(100%, 720px)" },
+	},
 	color: "var(--color-text)",
 	background: "var(--color-surface)",
 	borderRadius: "var(--radius-dialog)",

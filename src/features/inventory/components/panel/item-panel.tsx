@@ -159,7 +159,7 @@ export function ItemPanel({
 	});
 
 	const lotLabel = (lot: InventoryLot) =>
-		`${formatShortDate(lot.acquiredOn)}に追加`;
+		`${formatShortDate(lot.acquiredOn)}に入れた分`;
 
 	// ---- 本文・見出し・操作バーを、いまの画面で決める ----
 	let heading = title;
@@ -174,13 +174,15 @@ export function ItemPanel({
 	const status = primary.status;
 
 	if (view.name === "adjust") {
-		heading = `${displayName}の調整数量`;
+		const isDecrease = view.operation === "decrease";
+
+		heading = `${displayName}の${isDecrease ? "使った量" : "買い足した量"}`;
 		body = (
 			<div className={styles.formStack}>
 				<div className={styles.quantityLine}>
 					<QuantityInput
 						className={fieldInput}
-						aria-label={`${item.name}の調整数量`}
+						aria-label={`${item.name}の${isDecrease ? "使った量" : "買い足した量"}`}
 						value={panel.adjustForm.quantity}
 						onChange={panel.adjustForm.setQuantity}
 						unitLabel={item.stockUnitLabel}
@@ -188,7 +190,7 @@ export function ItemPanel({
 					<span className={styles.unitSuffix}>{item.stockUnitLabel}</span>
 				</div>
 
-				{item.lots.length > 1 ? (
+				{isDecrease && item.lots.length > 1 ? (
 					<div className={styles.lotFieldList}>
 						<label className={styles.checkLine}>
 							<input
@@ -198,7 +200,7 @@ export function ItemPanel({
 									panel.adjustForm.setIsLotSpecified(event.target.checked)
 								}
 							/>
-							ロットを指定して減らす
+							入れた分を指定して減らす
 						</label>
 
 						{panel.adjustForm.isLotSpecified
@@ -210,7 +212,7 @@ export function ItemPanel({
 										{(control) => (
 											<TextInput
 												{...control}
-												aria-label={`${lotLabel(lot)}のロットから減らす数量`}
+												aria-label={`${lotLabel(lot)}から減らす数量`}
 												type="number"
 												inputMode="decimal"
 												min="0"
@@ -232,21 +234,13 @@ export function ItemPanel({
 			</div>
 		);
 		bar = (
-			<div className={styles.bar} data-columns="3">
+			<div className={styles.bar} data-columns="2">
 				{cancel}
 				<Button
-					variant="secondary"
-					disabled={item.quantity === 0}
-					disabledReason="在庫が 0 のため、減らせません。"
-					onClick={() => runPrimary(() => panel.run.adjust("decrease"))}
-				>
-					減らす
-				</Button>
-				<Button
 					status={status}
-					onClick={() => runPrimary(() => panel.run.adjust("increase"))}
+					onClick={() => runPrimary(() => panel.run.adjust(view.operation))}
 				>
-					増やす
+					{isDecrease ? "減らす" : "増やす"}
 				</Button>
 			</div>
 		);
@@ -259,7 +253,7 @@ export function ItemPanel({
 				<div className={styles.quantityLine}>
 					<QuantityInput
 						className={fieldInput}
-						aria-label={`${lot ? lotLabel(lot) : ""}のロットの数量`}
+						aria-label={`${lot ? lotLabel(lot) : ""}の数量`}
 						value={panel.lotQuantityForm.value}
 						onChange={panel.lotQuantityForm.setValue}
 						unitLabel={item.stockUnitLabel}
@@ -352,7 +346,7 @@ export function ItemPanel({
 
 				<div className={styles.lotFieldList}>
 					<p className={styles.subLabel}>
-						ロットごとの量（換算した目安が入っています。違えば直してください）
+						入れた分ごとの量（換算した目安が入っています。違えば直してください）
 					</p>
 					{item.lots.map((lot) => (
 						<div key={lot.id} className={styles.lotFieldList}>
@@ -362,7 +356,7 @@ export function ItemPanel({
 							</span>
 							<QuantityInput
 								className={fieldInput}
-								aria-label={`${lotLabel(lot)}のロットの新しい単位での量`}
+								aria-label={`${lotLabel(lot)}の新しい単位での量`}
 								unitLabel={selected?.stockUnitLabel}
 								value={panel.unitForm.lotQuantities[lot.id] ?? ""}
 								onChange={(value) =>
@@ -435,7 +429,7 @@ export function ItemPanel({
 					<span className={styles.unitSuffix}>{item.stockUnitLabel}</span>
 				</div>
 
-				<Field label="管理方法">
+				<Field label="数え方">
 					{(control) => (
 						<SelectBox
 							{...control}
@@ -498,19 +492,32 @@ export function ItemPanel({
 				) : null}
 
 				{!isPresence && actions.adjustInventoryItem ? (
-					<Button
-						fullWidth
-						disabled={readOnly}
-						disabledReason={offlineMessage}
-						onClick={panel.open.adjust}
-					>
-						調整
-					</Button>
+					<div className={styles.primaryActions}>
+						<Button
+							variant="secondary"
+							fullWidth
+							disabled={readOnly || item.quantity === 0}
+							disabledReason={
+								readOnly ? offlineMessage : "在庫が 0 のため、減らせません。"
+							}
+							onClick={() => panel.open.adjust("decrease")}
+						>
+							使った
+						</Button>
+						<Button
+							fullWidth
+							disabled={readOnly}
+							disabledReason={offlineMessage}
+							onClick={() => panel.open.adjust("increase")}
+						>
+							買い足した
+						</Button>
+					</div>
 				) : null}
 
 				{item.lots.length > 0 ? (
 					<Card>
-						<ul className={styles.lotList} aria-label={`${item.name}のロット`}>
+						<ul className={styles.lotList} aria-label={`${item.name}の内訳`}>
 							{sortedLots.map((lot) => {
 								const expiryText = formatLotExpiry(lot);
 								const badge = findNearestExpiry([lot], panel.today);
@@ -559,10 +566,10 @@ export function ItemPanel({
 														size="sm"
 														disabled={readOnly}
 														disabledReason={offlineMessage}
-														aria-label={`${lotLabel(lot)}のロットの数量を直す`}
+														aria-label={`${lotLabel(lot)}の数量を直す`}
 														onClick={() => panel.open.lotQuantity(lot)}
 													>
-														数量
+														数量を直す
 													</Button>
 												) : null}
 												{actions.updateInventoryLot ? (
@@ -571,10 +578,10 @@ export function ItemPanel({
 														size="sm"
 														disabled={readOnly}
 														disabledReason={offlineMessage}
-														aria-label={`${lotLabel(lot)}のロットの期限を編集`}
+														aria-label={`${lotLabel(lot)}の期限を編集`}
 														onClick={() => panel.open.lotExpiry(lot)}
 													>
-														期限
+														期限を直す
 													</Button>
 												) : null}
 											</div>
@@ -632,22 +639,19 @@ export function ItemPanel({
 								名前を変更
 							</RowButton>
 						) : null}
+						{actions.deleteInventoryItem ? (
+							<RowButton
+								icon="trash"
+								danger
+								readOnly={readOnly}
+								label={`${displayName}を在庫から削除`}
+								onClick={guard(() => setIsDeleting(true))}
+							>
+								削除
+							</RowButton>
+						) : null}
 					</div>
 				</Card>
-
-				{actions.deleteInventoryItem ? (
-					<Card>
-						<RowButton
-							icon="trash"
-							danger
-							readOnly={readOnly}
-							label={`${displayName}を在庫から削除`}
-							onClick={guard(() => setIsDeleting(true))}
-						>
-							削除
-						</RowButton>
-					</Card>
-				) : null}
 			</div>
 		);
 	}
@@ -680,7 +684,7 @@ export function ItemPanel({
 				}}
 			>
 				「{displayName}
-				」を在庫から削除します。ロットと履歴も消えます。よろしいですか。
+				」を在庫から削除します。内訳と履歴も消えます。よろしいですか。
 			</ConfirmDialog>
 		</>
 	);

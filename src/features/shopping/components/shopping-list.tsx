@@ -41,7 +41,7 @@ import { confirmCheckedShoppingItemsPurchase } from "../infrastructure/dexie-sho
 import { dexieShoppingRepository } from "../infrastructure/dexie-shopping-repository";
 import { dexieShoppingStoreRepository } from "../infrastructure/dexie-shopping-store-repository";
 import { shoppingViewStorage } from "../infrastructure/shopping-view-storage";
-import { PurchaseExpiryReview } from "./purchase-expiry-review";
+import { PurchaseConversionSheet } from "./purchase-conversion-sheet";
 import type { RenderRecipePicker } from "./recipe-picker-slot";
 import { ShoppingAddSheet } from "./shopping-add-sheet";
 import {
@@ -521,22 +521,30 @@ export function ShoppingList({
 				/>
 			) : null}
 
-			{purchase.isReviewingExpiry ? (
-				<PurchaseExpiryReview
-					items={purchase.checkedTrackedItems}
-					values={purchase.expiryValues}
-					onChangeValue={(itemId, value) =>
-						purchase.setExpiryValues((current) => ({
-							...current,
-							[itemId]: value,
-						}))
-					}
-					today={purchase.today}
-					estimateLevel={purchase.expiryEstimateLevel}
-					onChangeEstimateLevel={purchase.changeEstimateLevel}
+			<ConfirmDialog
+				open={purchase.isAskingPurchase}
+				title="購入を確定しますか"
+				cancelLabel="やめる"
+				confirmLabel="購入確定"
+				onCancel={purchase.cancelAskedPurchase}
+				onConfirm={purchase.confirmAskedPurchase}
+			>
+				{ownerScope === "guest"
+					? `チェックした${purchase.checkedTrackedItems.length}件を、購入済みにします。ログインすると、在庫に入れられます。`
+					: `チェックした${purchase.checkedTrackedItems.length}件を、購入済みにして、在庫に入れます。`}
+			</ConfirmDialog>
+
+			{purchase.isReviewingConversion ? (
+				<PurchaseConversionSheet
+					items={purchase.checkedTrackedItems.filter(
+						(item) => item.id in purchase.conversionDrafts,
+					)}
+					drafts={purchase.conversionDrafts}
+					errors={purchase.conversionErrors}
+					onChangeDraft={purchase.changeAmountDraft}
 					isConfirming={purchase.isConfirmingPurchase}
-					onConfirm={purchase.confirmWithExpiry}
-					onCancel={purchase.cancelExpiryReview}
+					onConfirm={() => void purchase.confirmWithConversions()}
+					onCancel={purchase.cancelReview}
 				/>
 			) : null}
 

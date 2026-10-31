@@ -1,11 +1,13 @@
-import { useEffect, useState } from "react";
-import { Button } from "#/components/button/button";
-import { Card } from "#/components/card/card";
+import { useCallback, useEffect, useState } from "react";
+import { ConfirmDialog } from "#/components/dialog/confirm-dialog";
 import { Note } from "#/components/note/note";
 
 import type { AdoptGuestInventoryPurchasesResult } from "../application/adopt-guest-inventory-purchases";
 import type { InventoryPurchaseOwnerScope } from "../application/inventory-purchase-outbox";
-import * as styles from "./guest-purchase-adoption.css";
+import {
+	type LastOwnerMemory,
+	localStorageLastOwnerMemory,
+} from "../infrastructure/last-owner-storage";
 
 type LoadGuestPurchaseCount = () => Promise<number>;
 
@@ -17,6 +19,8 @@ type GuestPurchaseAdoptionProps = {
 	ownerScope: InventoryPurchaseOwnerScope | null;
 	loadGuestPurchaseCount: LoadGuestPurchaseCount;
 	adoptGuestPurchases: AdoptGuestPurchases;
+	// この端末で、前にも使った人かを、覚えておく場所。
+	lastOwnerMemory?: LastOwnerMemory;
 };
 
 type AdoptionStatus =
@@ -31,10 +35,35 @@ export function GuestPurchaseAdoption({
 	ownerScope,
 	loadGuestPurchaseCount,
 	adoptGuestPurchases,
+	lastOwnerMemory = localStorageLastOwnerMemory,
 }: GuestPurchaseAdoptionProps) {
 	const [guestPurchaseCount, setGuestPurchaseCount] = useState(0);
 	const [status, setStatus] = useState<AdoptionStatus>("idle");
 	const [isDismissed, setIsDismissed] = useState(false);
+
+	const adopt = useCallback(async () => {
+		if (!ownerScope || ownerScope === "guest") {
+			return;
+		}
+
+		setStatus("adopting");
+
+		try {
+			const result = await adoptGuestPurchases(ownerScope);
+
+			setGuestPurchaseCount(0);
+			lastOwnerMemory.set(ownerScope);
+
+			if (result.syncResult?.failedEntryId) {
+				setStatus("waiting");
+				return;
+			}
+
+			setStatus("adopted");
+		} catch {
+			setStatus("error");
+		}
+	}, [ownerScope, adoptGuestPurchases, lastOwnerMemory]);
 
 	useEffect(() => {
 		let isActive = true;
@@ -58,8 +87,18 @@ export function GuestPurchaseAdoption({
 					return;
 				}
 
+				if (count === 0) {
+					// 引き継ぐものがない。この人を、覚えておく（次に、ログイン前の購入があっても、聞かない）。
+					lastOwnerMemory.set(ownerScope);
+				}
+
 				setGuestPurchaseCount(count);
 				setStatus("idle");
+
+				// 前にも、この端末を使った同じ人（オフラインで、ログイン状態が読めなかった、など）は、聞かずに引き継ぐ。
+				if (count > 0 && lastOwnerMemory.get() === ownerScope) {
+					void adopt();
+				}
 			})
 			.catch(() => {
 				if (isActive) {
@@ -70,30 +109,7 @@ export function GuestPurchaseAdoption({
 		return () => {
 			isActive = false;
 		};
-	}, [ownerScope, loadGuestPurchaseCount]);
-
-	async function handleAdopt() {
-		if (!ownerScope || ownerScope === "guest") {
-			return;
-		}
-
-		setStatus("adopting");
-
-		try {
-			const result = await adoptGuestPurchases(ownerScope);
-
-			setGuestPurchaseCount(0);
-
-			if (result.syncResult?.failedEntryId) {
-				setStatus("waiting");
-				return;
-			}
-
-			setStatus("adopted");
-		} catch {
-			setStatus("error");
-		}
-	}
+	}, [ownerScope, loadGuestPurchaseCount, lastOwnerMemory, adopt]);
 
 	if (
 		!ownerScope ||
@@ -107,50 +123,45 @@ export function GuestPurchaseAdoption({
 	if (status === "adopting") {
 		return (
 			<Note tone="info" spinning>
-				ゲスト購入を引き継いでいます…
+				ログインする前に買ったものを、在庫に入れています…
 			</Note>
 		);
 	}
 
 	if (status === "adopted") {
-		return <Note tone="success">ゲスト購入を引き継ぎ、在庫へ反映しました</Note>;
+		return (
+			<Note tone="success">ログインする前に買ったものを、在庫に入れました</Note>
+		);
 	}
 
 	if (status === "waiting") {
 		return (
 			<Note tone="neutral">
-				ゲスト購入を引き継ぎました。在庫への反映は通信復旧後に再試行します
+				ログインする前に買ったものを、受け取りました。在庫への反映は、通信が戻ってから、もう一度試します
 			</Note>
 		);
 	}
 
 	if (status === "error") {
 		return (
-			<Note tone="error">ゲスト購入の確認または引き継ぎに失敗しました</Note>
+			<Note tone="error">
+				ログインする前に買ったものを、在庫に入れられませんでした
+			</Note>
 		);
 	}
 
+	// 質問は、コーナーシートの確認。押すと閉じて、進行中・結果は、上の Note で出る。
 	return (
-		<Card padding="md">
-			<div className={styles.container}>
-				<div>
-					<p className={styles.title}>ゲスト購入を引き継ぎますか？</p>
-					<p className={styles.message}>
-						未反映の購入が
-						{guestPurchaseCount}件あります。
-					</p>
-				</div>
-
-				<div className={styles.actions}>
-					<Button variant="secondary" onClick={() => setIsDismissed(true)}>
-						今回は引き継がない
-					</Button>
-
-					<Button onClick={() => void handleAdopt()}>
-						このアカウントへ引き継ぐ
-					</Button>
-				</div>
-			</div>
-		</Card>
+		<ConfirmDialog
+			open
+			title="ログインする前に買ったものを、在庫に入れますか"
+			cancelLabel="今回は入れない"
+			confirmLabel="在庫に入れる"
+			onCancel={() => setIsDismissed(true)}
+			onConfirm={() => void adopt()}
+		>
+			買い物メモで買ったもの（{guestPurchaseCount}
+			件）を、このアカウントの在庫に入れます。
+		</ConfirmDialog>
 	);
 }

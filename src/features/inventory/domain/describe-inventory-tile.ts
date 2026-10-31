@@ -47,9 +47,5 @@ export function describeInventoryTile(tile: InventoryTile): string {
 		}
 	}
 
-	if (tile.lotCount >= 2) {
-		parts.push(`${tile.lotCount}回分`);
-	}
-
 	return parts.join("、");
 }

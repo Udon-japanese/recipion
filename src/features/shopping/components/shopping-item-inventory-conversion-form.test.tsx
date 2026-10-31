@@ -51,7 +51,7 @@ describe("ShoppingItemInventoryConversionForm", () => {
 		});
 	});
 
-	it("在庫管理方法を「有無だけ」にすると、量の換算を求めず、保存できる", async () => {
+	it("数え方を「有無だけ」にすると、量の換算を求めず、保存できる", async () => {
 		const user = userEvent.setup();
 		const onSave = vi.fn();
 
@@ -64,7 +64,7 @@ describe("ShoppingItemInventoryConversionForm", () => {
 		);
 
 		await user.click(
-			within(screen.getByRole("group", { name: "在庫管理方法" })).getByRole(
+			within(screen.getByRole("group", { name: "数え方" })).getByRole(
 				"button",
 				{ name: "有無だけ" },
 			),
