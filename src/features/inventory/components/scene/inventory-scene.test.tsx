@@ -1,6 +1,6 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildInventoryListItem } from "#/test/builders/build-inventory-list-item";
 import { buildInventoryFridge } from "../../domain/inventory-fridge";
 import type { InventoryLot } from "../../domain/inventory-lot";
@@ -60,6 +60,10 @@ function renderScene(
 	return onOpen;
 }
 
+afterEach(() => {
+	vi.unstubAllGlobals();
+});
+
 describe("InventoryScene", () => {
 	it("場所ごとの件数と、期限が近いものの件数を、ボタンの名前に出す", () => {
 		renderScene();
@@ -112,6 +116,41 @@ describe("InventoryScene", () => {
 		expect(onDismissPanel).not.toHaveBeenCalled();
 
 		await user.click(screen.getByRole("button", { name: /^ドア\s*1$/u }));
+
+		expect(onDismissPanel).toHaveBeenCalledTimes(1);
+		expect(
+			await screen.findByRole("button", { name: /^醤油、/u }),
+		).toBeInTheDocument();
+		expect(screen.queryByRole("button", { name: /^卵、/u })).toBeNull();
+	});
+
+	it("スマホでは、縦タブの代わりに、見出しを押して、場所をシートで選ぶ", async () => {
+		vi.stubGlobal(
+			"matchMedia",
+			vi.fn().mockImplementation((query: string) => ({
+				matches: query.includes("max-width"),
+				media: query,
+				addEventListener: vi.fn(),
+				removeEventListener: vi.fn(),
+			})),
+		);
+
+		const user = userEvent.setup();
+		const onDismissPanel = vi.fn();
+
+		renderScene(vi.fn(), onDismissPanel);
+		await user.click(screen.getByRole("button", { name: /^冷蔵室をひらく/u }));
+		await screen.findByRole("button", { name: /^卵、/u }, { timeout: 3000 });
+
+		// 縦タブ（場所の一覧）は、出ない。
+		expect(screen.queryByRole("group", { name: "場所" })).toBeNull();
+
+		await user.click(
+			screen.getByRole("button", { name: "場所：冷蔵室。場所を選ぶ" }),
+		);
+		const sheet = await screen.findByRole("dialog", { name: "場所" });
+
+		await user.click(within(sheet).getByRole("button", { name: /^ドア/u }));
 
 		expect(onDismissPanel).toHaveBeenCalledTimes(1);
 		expect(

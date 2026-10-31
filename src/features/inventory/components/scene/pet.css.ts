@@ -146,17 +146,23 @@ export const bubble = style({
 	textAlign: "left",
 	pointerEvents: "none",
 	opacity: 0,
-	transform: "translate(-50%, 0.5cqh)",
+	// 横のずれ（--bubble-shift）は、おうちの範囲に収めるため。しっぽは、れしぽよの上に残す。
+	transform: "translate(calc(-50% + var(--bubble-shift, 0px)), 0.5cqh)",
 	transition: "opacity 200ms, transform 200ms",
 	selectors: {
 		'&[data-visible="true"]': {
 			opacity: 1,
-			transform: "translate(-50%, 0)",
+			transform: "translate(calc(-50% + var(--bubble-shift, 0px)), 0)",
+		},
+		// 上に余裕がないときは、れしぽよの下に出す。
+		'&[data-placement="below"]': {
+			bottom: "auto",
+			top: "calc(100% + 1.5cqh)",
 		},
 		"&::after": {
 			content: '""',
 			position: "absolute",
-			left: "50%",
+			left: "calc(50% - var(--bubble-shift, 0px))",
 			bottom: "-0.9cqh",
 			width: "1.5cqh",
 			height: "1.5cqh",
@@ -164,6 +170,14 @@ export const bubble = style({
 			borderRight: "2px solid var(--color-text)",
 			borderBottom: "2px solid var(--color-text)",
 			transform: "translateX(-50%) rotate(45deg)",
+		},
+		'&[data-placement="below"]::after': {
+			bottom: "auto",
+			top: "-0.9cqh",
+			borderRight: "none",
+			borderBottom: "none",
+			borderLeft: "2px solid var(--color-text)",
+			borderTop: "2px solid var(--color-text)",
 		},
 	},
 });

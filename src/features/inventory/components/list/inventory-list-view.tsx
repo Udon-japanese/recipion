@@ -3,6 +3,7 @@ import { Card } from "#/components/card/card";
 import { Chip, ChipGroup } from "#/components/chip/chip";
 import { TextInput } from "#/components/field/field";
 import { SegmentedControl } from "#/components/segmented-control/segmented-control";
+import { useMediaQuery } from "#/components/use-media-query";
 import type {
 	InventoryFridgeZone,
 	InventoryTile,
@@ -17,6 +18,7 @@ import {
 } from "../../domain/inventory-grouping";
 import { InventoryRow } from "./inventory-row";
 import * as styles from "./list.css";
+import { ZonePicker } from "./zone-picker";
 import { ZoneTabs } from "./zone-tabs";
 
 const storageKey = "recipion.inventory.groupBy";
@@ -51,6 +53,8 @@ export function InventoryListView({
 	onOpen,
 }: InventoryListViewProps) {
 	const [query, setQuery] = useState("");
+	// スマホでは、場所の縦タブは、幅をとるので、場所の選択（下のシート）にする。
+	const isCompact = useMediaQuery("(max-width: 767px)");
 	const [by, setBy] = useState<InventoryGroupBy>("zone");
 	const [pick, setPick] = useState<string | null>(null);
 
@@ -127,8 +131,18 @@ export function InventoryListView({
 				options={inventoryGroupByOptions}
 			/>
 
+			{by === "zone" && isCompact ? (
+				<ZonePicker
+					variant="field"
+					value={active as InventoryZoneId | null}
+					counts={Object.fromEntries(counts)}
+					allCount={searched.length}
+					onChange={setPick}
+				/>
+			) : null}
+
 			<div className={styles.body}>
-				{by === "zone" ? (
+				{by === "zone" && !isCompact ? (
 					<ZoneTabs
 						value={active as InventoryZoneId | null}
 						counts={Object.fromEntries(counts)}

@@ -6,7 +6,7 @@ import {
 } from "../../domain/inventory-fridge";
 import * as styles from "./list.css";
 
-const zoneIcons: Record<InventoryZoneId, IconName> = {
+export const zoneIcons: Record<InventoryZoneId, IconName> = {
 	fridge: "zone-fridge",
 	door: "zone-door",
 	vegetable: "zone-vegetable",
@@ -15,7 +15,7 @@ const zoneIcons: Record<InventoryZoneId, IconName> = {
 };
 
 // 冷蔵庫の絵の上から順（野菜室は一番下）。
-const tabOrder: readonly InventoryZoneId[] = [
+export const tabOrder: readonly InventoryZoneId[] = [
 	"fridge",
 	"door",
 	"freezer",
@@ -23,7 +23,7 @@ const tabOrder: readonly InventoryZoneId[] = [
 	"table",
 ];
 
-const zoneLabels = Object.fromEntries(
+export const zoneLabels = Object.fromEntries(
 	inventoryZones.map((zone) => [zone.id, zone.label]),
 ) as Record<InventoryZoneId, string>;
 
