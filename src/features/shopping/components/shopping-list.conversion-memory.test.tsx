@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildShoppingItem } from "#/test/builders/build-shopping-item";
@@ -170,7 +170,7 @@ describe("ShoppingList の在庫換算の記憶", () => {
 		expect(Object.keys(conversionDefaultRepository.defaults)).toHaveLength(2);
 	});
 
-	it("行の換算を押して直すと、聞かずに、その食材×単位の記憶を更新する", async () => {
+	it("編集のシートで換算を直すと、聞かずに、その食材×単位の記憶を更新する", async () => {
 		const user = userEvent.setup();
 		const packItem: ShoppingItem = buildShoppingItem({
 			name: "たまご",
@@ -202,12 +202,21 @@ describe("ShoppingList の在庫換算の記憶", () => {
 		);
 
 		await user.click(
-			await screen.findByRole("button", {
-				name: "たまごの在庫への換算を直す",
-			}),
+			await screen.findByRole("button", { name: "たまごのその他" }),
 		);
-		await screen.findByRole("heading", { name: "たまごを在庫へ追加する方法" });
-		await user.click(screen.getByRole("button", { name: "6個" }));
+		await user.click(screen.getByRole("menuitem", { name: "編集" }));
+
+		const sheet = await screen.findByRole("dialog", { name: "たまごを直す" });
+
+		await user.click(within(sheet).getByRole("button", { name: "変える" }));
+
+		const amount = within(sheet).getByLabelText("たまごの1個あたりの数");
+
+		expect(amount).toHaveValue("2");
+
+		await user.clear(amount);
+		await user.type(amount, "1");
+		await user.click(within(sheet).getByRole("button", { name: "保存" }));
 
 		await waitFor(() =>
 			expect(

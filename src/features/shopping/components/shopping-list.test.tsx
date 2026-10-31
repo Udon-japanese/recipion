@@ -56,8 +56,8 @@ describe("ShoppingList", () => {
 
 		render(<ShoppingList repository={repository} />);
 
-		expect(await screen.findByText("1/3本")).toBeInTheDocument();
-		expect(screen.getByText("333g")).toBeInTheDocument();
+		// 数量と、在庫での量は、1つの文字で見せる（直すのは、編集のシート）。
+		expect(await screen.findByText("1/3本（333g）")).toBeInTheDocument();
 	});
 
 	it("数量のボタンは、入力した単位に合わせて変わる（本は 1/3、g は +50）", async () => {
@@ -315,8 +315,7 @@ describe("ShoppingList", () => {
 			}),
 		).toBeInTheDocument();
 
-		expect(screen.getByText("3袋")).toBeInTheDocument();
-		expect(screen.getByText("600g")).toBeInTheDocument();
+		expect(screen.getByText("3袋（600g）")).toBeInTheDocument();
 	});
 
 	it("「編集」で、追加と同じシートが開き、直して保存すると、一覧に反映されて閉じる", async () => {

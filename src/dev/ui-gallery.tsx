@@ -766,6 +766,7 @@ function BranchGallery() {
 					onEdit={() => setIsEditing(true)}
 					onRemove={() => setMessage("削除の確認を出します")}
 					onRemoveItem={removeItem}
+					onEditItem={() => setMessage("編集のシートを開きます")}
 					onAdd={() => setMessage("追加のシートを開きます")}
 					onBulkAdd={() => setMessage("まとめて追加を開きます")}
 					onAddFromRecipe={() => setMessage("レシピから入れるを開きます")}

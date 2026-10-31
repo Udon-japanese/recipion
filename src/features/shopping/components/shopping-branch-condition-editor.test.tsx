@@ -1,6 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import { buildShoppingItem } from "#/test/builders/build-shopping-item";
+import type { ShoppingItem } from "../domain/shopping-item";
 import {
 	type BranchConditionValue,
 	emptyBranchConditionValue,
@@ -21,13 +23,14 @@ const value: BranchConditionValue = {
 	elseLabel: "生姜焼き",
 };
 
-function setup() {
+function setup(item?: ShoppingItem) {
 	const onSave = vi.fn(async () => true);
 	const onCancel = vi.fn();
 
 	render(
 		<ShoppingBranchConditionEditor
 			value={value}
+			item={item}
 			stores={[
 				{
 					id: "aeon",
@@ -89,7 +92,10 @@ describe("ShoppingBranchConditionEditor", () => {
 		);
 		await user.click(screen.getByRole("button", { name: "保存" }));
 
-		expect(onSave).toHaveBeenCalledWith({ ...value, condition: "安ければ" });
+		expect(onSave).toHaveBeenCalledWith(
+			{ ...value, condition: "安ければ" },
+			{ isConversionEdited: false },
+		);
 	});
 
 	it("材料か、どんな時にが空なら、保存できない", async () => {
@@ -135,9 +141,81 @@ describe("ShoppingBranchConditionEditor", () => {
 
 		expect(onSave).toHaveBeenCalledWith(
 			expect.objectContaining({ name: "牛乳", condition: "売っていたら" }),
+			{ isConversionEdited: false },
 		);
 		expect(
 			toConditionItemInput({ ...emptyBranchConditionValue, name: "牛乳" }),
 		).toMatchObject({ name: "牛乳", quantity: 1, categoryId: null });
+	});
+
+	describe("条件の材料の換算", () => {
+		const conditionItem = buildShoppingItem({
+			name: "合い挽き肉",
+			unitLabel: "パック",
+			categoryId: "meat",
+			storeId: "aeon",
+			branchId: "branch-1",
+			branchSide: "condition",
+			inventoryConversion: {
+				inputUnitCode: "パック",
+				stockUnitCode: "g",
+				stockUnitLabel: "g",
+				stockQuantityPerInputUnit: 300,
+				trackingMode: "estimated",
+			},
+		});
+
+		it("数量の入力で、いまの換算を見せ、直して保存すると、その換算で保存する", async () => {
+			const user = userEvent.setup();
+			const { onSave } = setup(conditionItem);
+
+			await user.click(screen.getByRole("button", { name: "1パック" }));
+
+			expect(screen.getByText("1パック＝300g")).toBeInTheDocument();
+
+			await user.click(screen.getByRole("button", { name: "変える" }));
+
+			const amount = screen.getByLabelText("合い挽き肉の1パックあたりの数");
+
+			await user.clear(amount);
+			await user.type(amount, "400");
+			await user.click(screen.getByRole("button", { name: "保存" }));
+
+			expect(onSave).toHaveBeenCalledWith(
+				expect.objectContaining({
+					presetConversion: expect.objectContaining({
+						stockQuantityPerInputUnit: 400,
+					}),
+				}),
+				{ isConversionEdited: true },
+			);
+		});
+
+		it("直した換算の入力をたたんでも、残っていて、保存に入る", async () => {
+			const user = userEvent.setup();
+			const { onSave } = setup(conditionItem);
+
+			await user.click(screen.getByRole("button", { name: "1パック" }));
+			await user.click(screen.getByRole("button", { name: "変える" }));
+
+			const amount = screen.getByLabelText("合い挽き肉の1パックあたりの数");
+
+			await user.clear(amount);
+			await user.type(amount, "400");
+			await user.click(screen.getByRole("button", { name: "閉じる" }));
+
+			expect(screen.getByText("1パック＝400g")).toBeInTheDocument();
+
+			await user.click(screen.getByRole("button", { name: "保存" }));
+
+			expect(onSave).toHaveBeenCalledWith(
+				expect.objectContaining({
+					presetConversion: expect.objectContaining({
+						stockQuantityPerInputUnit: 400,
+					}),
+				}),
+				{ isConversionEdited: true },
+			);
+		});
 	});
 });

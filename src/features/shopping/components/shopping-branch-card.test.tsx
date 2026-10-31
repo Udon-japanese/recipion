@@ -27,6 +27,7 @@ function setup() {
 		onEdit: vi.fn(),
 		onRemove: vi.fn(),
 		onRemoveItem: vi.fn(),
+		onEditItem: vi.fn(),
 		onAdd: vi.fn(),
 		onBulkAdd: vi.fn(),
 	};
@@ -60,9 +61,9 @@ describe("ShoppingBranchCard", () => {
 		expect(onDecide.mock.calls).toEqual([["then"], ["else"]]);
 	});
 
-	it("中身を見ると、タブで1側ずつ材料が出て、材料を消せる", async () => {
+	it("中身を見ると、タブで1側ずつ材料が出て、材料を直す・消すを選べる", async () => {
 		const user = userEvent.setup();
-		const { onRemoveItem } = setup();
+		const { onRemoveItem, onEditItem } = setup();
 
 		await user.click(screen.getByRole("button", { name: /中身を見る/u }));
 
@@ -73,9 +74,20 @@ describe("ShoppingBranchCard", () => {
 
 		expect(screen.getByText("豚バラ肉")).toBeInTheDocument();
 
-		await user.click(
-			screen.getByRole("button", { name: "豚バラ肉を削除（そうでなければ）" }),
-		);
+		const openItemMenu = () =>
+			user.click(
+				screen.getByRole("button", {
+					name: "豚バラ肉のその他（そうでなければ）",
+				}),
+			);
+
+		await openItemMenu();
+		await user.click(screen.getByRole("menuitem", { name: "編集" }));
+
+		expect(onEditItem).toHaveBeenCalledWith("e1");
+
+		await openItemMenu();
+		await user.click(screen.getByRole("menuitem", { name: "削除" }));
 
 		expect(onRemoveItem).toHaveBeenCalledWith("else", "e1");
 	});

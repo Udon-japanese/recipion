@@ -5,6 +5,7 @@ import { Field, TextInput } from "#/components/field/field";
 import { Icon } from "#/components/icon/icon";
 import { formatQuantity } from "#/features/quantity/domain/format-quantity";
 import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
+import { describeAmountDraftError } from "../domain/amount-draft";
 import {
 	defaultShoppingBranchCondition,
 	maxShoppingBranchConditionLength,
@@ -16,6 +17,7 @@ import {
 } from "../domain/shopping-category";
 import type {
 	CreateShoppingItemInput,
+	ShoppingItem,
 	ShoppingItemInventoryConversion,
 } from "../domain/shopping-item";
 import {
@@ -25,6 +27,11 @@ import {
 } from "../domain/shopping-item-suggestion";
 import type { ShoppingStore } from "../domain/shopping-store";
 import * as styles from "./shopping-branch-condition-editor.css";
+import {
+	type ConversionEdit,
+	resolveEditedConversion,
+	ShoppingConversionField,
+} from "./shopping-conversion-field";
 import {
 	ShoppingCategoryField,
 	ShoppingNameField,
@@ -41,7 +48,7 @@ export type BranchConditionValue = {
 	categoryId: ShoppingCategoryId | "";
 	// カテゴリを、自分で選んだか（選んでいなければ、名前から自動で決める）。
 	isCategoryManual: boolean;
-	// 「よく使う数量」を選んだときだけ（在庫への換算つき）。選ばなければ、null。
+	// 「よく使う数量」を選んだとき・換算を直したときだけ（在庫への換算）。どちらもなければ、null。
 	presetConversion: ShoppingItemInventoryConversion | null;
 	// どんな時に（売っていたら・安ければ）。
 	condition: string;
@@ -83,16 +90,43 @@ export function toConditionItemInput(draft: BranchConditionValue) {
 	} satisfies CreateShoppingItemInput;
 }
 
+// 入力中の内容で見た、条件の材料（換算の入力は、いまの名前・単位・数量に対して聞く）。
+// 名前・単位が元のままなら、元の換算。変えたら、チップで選んだ換算か、なし（保存のときに推定する）。
+function previewConditionItem(
+	item: ShoppingItem,
+	draft: BranchConditionValue,
+): ShoppingItem {
+	const unitLabel = draft.unitLabel.trim() || null;
+	const isSameIdentity =
+		draft.name.trim() === item.name && unitLabel === item.unitLabel;
+
+	return {
+		...item,
+		name: draft.name.trim() || item.name,
+		quantity: parseQuantityInput(draft.quantity) ?? item.quantity,
+		unitLabel,
+		inventoryConversion:
+			draft.presetConversion ??
+			(isSameIdentity ? item.inventoryConversion : null),
+	};
+}
+
 type ShoppingBranchConditionEditorProps = {
 	// 新しく作るか、直すか（見出し・保存のボタン・最初に開く入力が変わる）。
 	mode?: "create" | "edit";
 	// 開くたびに、新しく作る（開いていないときは、描画しない）。
 	value: BranchConditionValue;
+	// 直すときの、条件の材料（在庫への換算を、ここで直せる）。
+	item?: ShoppingItem;
 	stores: readonly ShoppingStore[];
 	onCreateStore: (name: string) => Promise<ShoppingStore | null>;
 	onCancel: () => void;
 	// 保存できたら true（閉じるのは、呼ぶ側）。
-	onSave: (value: BranchConditionValue) => Promise<boolean>;
+	// isConversionEdited：材料の換算を自分で決めた（呼ぶ側が、換算の記憶を更新する）。
+	onSave: (
+		value: BranchConditionValue,
+		options: { isConversionEdited: boolean },
+	) => Promise<boolean>;
 };
 
 // 条件を直す：いまの設定を文章で見せ、直したい部分（店・材料・数量・どんな時に）を押すと、その入力だけが開く。
@@ -100,6 +134,7 @@ type ShoppingBranchConditionEditorProps = {
 export function ShoppingBranchConditionEditor({
 	mode = "edit",
 	value,
+	item,
 	stores,
 	onCreateStore,
 	onCancel,
@@ -111,6 +146,14 @@ export function ShoppingBranchConditionEditor({
 		mode === "create" ? "name" : null,
 	);
 	const [isSaving, setIsSaving] = useState(false);
+	// 材料の換算の入力（「変える」を押すまでは null）。
+	const [conversionEdit, setConversionEdit] = useState<ConversionEdit | null>(
+		null,
+	);
+	const [conversionError, setConversionError] = useState<string>();
+	const preview = item ? previewConditionItem(item, draft) : null;
+	// 日用品は、在庫に入れないので、換算を聞かない。
+	const isTracked = draft.categoryId !== "household";
 	const storeName = stores.find((store) => store.id === draft.storeId)?.name;
 	const amount = `${draft.quantity}${draft.unitLabel}`.trim();
 	const isCreate = mode === "create";
@@ -135,10 +178,36 @@ export function ShoppingBranchConditionEditor({
 	}
 
 	async function handleSave() {
+		let editedConversion: ShoppingItemInventoryConversion | null = null;
+
+		if (preview && isTracked) {
+			try {
+				editedConversion = resolveEditedConversion(preview, conversionEdit);
+			} catch (error) {
+				// 閉じていても、直した入力が読めないときは、開いて、理由を見せる。
+				setConversionError(describeAmountDraftError(error));
+				setConversionEdit((current) =>
+					current ? { ...current, isOpen: true } : current,
+				);
+				setPart("amount");
+
+				return;
+			}
+		}
+
 		setIsSaving(true);
 
 		try {
-			await onSave(draft);
+			await onSave(
+				editedConversion
+					? { ...draft, presetConversion: editedConversion }
+					: draft,
+				{
+					isConversionEdited:
+						isTracked &&
+						(editedConversion !== null || draft.presetConversion !== null),
+				},
+			);
 		} finally {
 			setIsSaving(false);
 		}
@@ -264,21 +333,36 @@ export function ShoppingBranchConditionEditor({
 														unitLabel: draft.unitLabel,
 														inventoryConversion: draft.presetConversion,
 													})}
-													onClick={() =>
+													onClick={() => {
 														update({
 															quantity: formatQuantity(preset.quantity, {
 																grouping: false,
 															}),
 															unitLabel: preset.unitLabel,
 															presetConversion: preset.inventoryConversion,
-														})
-													}
+														});
+														// チップで換算を選んだら、直しかけの換算の入力より、そちらを使う。
+														setConversionEdit(null);
+														setConversionError(undefined);
+													}}
 												>
 													{preset.label}
 												</Chip>
 											))}
 										</div>
 									</fieldset>
+								) : null}
+								{preview && isTracked ? (
+									<ShoppingConversionField
+										item={preview}
+										edit={conversionEdit}
+										onEditChange={(next) => {
+											setConversionEdit(next);
+											setConversionError(undefined);
+										}}
+										error={conversionError}
+										disabled={isSaving}
+									/>
 								) : null}
 							</>
 						) : null}
