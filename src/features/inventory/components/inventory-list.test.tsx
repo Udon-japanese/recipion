@@ -16,6 +16,7 @@ import {
 	toDateString,
 } from "../domain/inventory-lot";
 import {
+	inventoryGroupByStorage,
 	inventoryPetStorage,
 	inventoryViewStorage,
 } from "../infrastructure/inventory-view-storage";
@@ -112,7 +113,7 @@ const eggItem = buildInventoryListItem({
 });
 
 describe("InventoryList", () => {
-	it("ログインユーザーの在庫を、行にして表示し、場所の縦タブに件数を出す", async () => {
+	it("ログインユーザーの在庫を、行にして表示し、場所の見出しに件数を出す", async () => {
 		renderList([
 			stocked({ name: "卵", quantity: 6 }),
 			stocked({
@@ -143,7 +144,7 @@ describe("InventoryList", () => {
 		).toBeInTheDocument();
 		expect(screen.getByRole("heading", { name: "在庫" })).toBeInTheDocument();
 		expect(
-			screen.getByRole("button", { name: /^冷蔵室\s*2$/u }),
+			screen.getByRole("heading", { name: /^冷蔵室\s*2$/u }),
 		).toBeInTheDocument();
 	});
 
@@ -215,7 +216,7 @@ describe("InventoryList", () => {
 		});
 	});
 
-	it("場所の縦タブで絞り、もう一度押すとすべてに戻る。まとめ方を変えると、チップで絞れる", async () => {
+	it("まとめ方の見出しで区切る。まとめ方を選び直すと、見出しが変わり、選んだものを覚える", async () => {
 		const user = userEvent.setup();
 
 		renderList([
@@ -230,22 +231,64 @@ describe("InventoryList", () => {
 		]);
 
 		await screen.findByRole("button", { name: /^卵、/u });
-		await user.click(screen.getByRole("button", { name: /^ドア\s*1$/u }));
 
-		expect(screen.queryByRole("button", { name: /^卵、/u })).toBeNull();
 		expect(
-			screen.getByRole("button", { name: /^醤油、/u }),
-		).toBeInTheDocument();
+			screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent),
+		).toEqual(["冷蔵室1", "ドア1"]);
 
-		await user.click(screen.getByRole("button", { name: /^ドア\s*1$/u }));
+		await user.selectOptions(screen.getByLabelText("まとめ方"), "kana");
 
-		expect(screen.getByRole("button", { name: /^卵、/u })).toBeInTheDocument();
+		expect(
+			screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent),
+		).toEqual(["さ1", "た1"]);
+		expect(inventoryGroupByStorage.read()).toBe("kana");
+	});
 
-		await user.click(screen.getByRole("button", { name: "あいうえお" }));
-		await user.click(screen.getByRole("button", { name: /^た（1）$/u }));
+	it("期限が近いものを「早めに使う」に出し、押すとパネルが開く。期限でまとめているときは出さない", async () => {
+		const user = userEvent.setup();
+		const today = toDateString(new Date());
+		const soon = (id: string, name: string, days: number) =>
+			buildInventoryListItem({
+				inventoryItemId: id,
+				name,
+				lots: [
+					createLot({
+						id: `lot-${id}`,
+						quantity: 1,
+						storage: "fridge",
+						expiresOn: addDays(today, days),
+						expiryKind: "use-by",
+					}),
+				],
+			});
 
-		expect(screen.getByRole("button", { name: /^卵、/u })).toBeInTheDocument();
-		expect(screen.queryByRole("button", { name: /^醤油、/u })).toBeNull();
+		renderList([
+			soon("a", "牛乳", 2),
+			soon("b", "卵", 0),
+			soon("c", "豆腐", -1),
+			soon("d", "納豆", 1),
+		]);
+
+		const section = await screen.findByRole("region", { name: "早めに使う" });
+
+		// 近い順に3件だけ。
+		expect(
+			within(section)
+				.getAllByRole("button")
+				.map((button) => button.getAttribute("aria-label")),
+		).toEqual(["豆腐（期限切れ）", "卵（今日まで）", "納豆（明日まで）"]);
+
+		await user.click(
+			within(section).getByRole("button", { name: "卵（今日まで）" }),
+		);
+
+		expect(await screen.findByRole("dialog")).toBeInTheDocument();
+
+		await user.selectOptions(screen.getByLabelText("まとめ方"), "expiry");
+
+		expect(
+			screen.queryByRole("region", { name: "早めに使う" }),
+		).not.toBeInTheDocument();
 	});
 
 	it("検索で、名前に合う食材だけにする", async () => {
@@ -1115,7 +1158,9 @@ describe("InventoryList", () => {
 
 			// マスタにある単位だけ：鶏もも肉は g（いまの単位）と枚。ml や個は出ない
 			expect(
-				screen.getAllByRole("option").map((option) => option.textContent),
+				within(dialog)
+					.getAllByRole("option")
+					.map((option) => option.textContent),
 			).toEqual(["枚"]);
 
 			await user.click(screen.getByRole("button", { name: "戻る" }));

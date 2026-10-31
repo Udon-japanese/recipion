@@ -4,15 +4,39 @@ import { type InventoryTile, inventoryZoneLabels } from "./inventory-fridge";
 
 const spokenUnits: Record<string, string> = { g: "グラム", ml: "ミリリットル" };
 
+export type TileQuantityParts = {
+	// だいたいで管理（「約」を付ける）。
+	approximate: boolean;
+	amount: string;
+	unit: string;
+};
+
+// 量を、数字と単位に分ける（一覧で、数字を大きく出すため）。有無だけの食材は null。
+export function tileQuantityParts(
+	tile: InventoryTile,
+): TileQuantityParts | null {
+	if (tile.trackingMode === "presence") {
+		return null;
+	}
+
+	return {
+		approximate: tile.trackingMode === "estimated",
+		amount: formatStockAmount(tile.quantity, tile.stockUnitCode),
+		unit: tile.stockUnitLabel,
+	};
+}
+
 // タイルの量の文字（「約 3個」「250g」「あり」）。見た目と読み上げの両方で使う。
 export function describeTileQuantity(tile: InventoryTile): string {
-	if (tile.trackingMode === "presence") {
+	const parts = tileQuantityParts(tile);
+
+	if (!parts) {
 		return tile.isPresent ? "あり" : "なし";
 	}
 
-	const amount = `${formatStockAmount(tile.quantity, tile.stockUnitCode)}${tile.stockUnitLabel}`;
+	const amount = `${parts.amount}${parts.unit}`;
 
-	return tile.trackingMode === "estimated" ? `約 ${amount}` : amount;
+	return parts.approximate ? `約 ${amount}` : amount;
 }
 
 function formatSpokenDate(value: string): string {

@@ -112,3 +112,25 @@ export function compareTilesFor(
 				toHiragana(a.sortReading).localeCompare(toHiragana(b.sortReading), "ja")
 		: compareTiles;
 }
+
+// 「早めに使う」：期限が近い・切れた食材を、近い順に（場所が分かれた食材は、1つにまとめる）。
+export function pickUseSoonTiles(
+	tiles: readonly InventoryTile[],
+	limit = 3,
+): InventoryTile[] {
+	const seen = new Set<string>();
+
+	return tiles
+		.filter((tile) => tile.expiry !== null)
+		.sort((a, b) => (a.expiry?.daysLeft ?? 0) - (b.expiry?.daysLeft ?? 0))
+		.filter((tile) => {
+			if (seen.has(tile.inventoryItemId)) {
+				return false;
+			}
+
+			seen.add(tile.inventoryItemId);
+
+			return true;
+		})
+		.slice(0, limit);
+}
