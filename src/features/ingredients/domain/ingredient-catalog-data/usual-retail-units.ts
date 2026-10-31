@@ -155,6 +155,7 @@ export const usualRetailUnitById: Readonly<
 	"frozen-mushroom-mix": { unitLabel: "袋", quantity: 500 },
 	spaghetti: { unitLabel: "袋", quantity: 500 },
 	somen: { unitLabel: "袋", quantity: 300, approximate: true },
+	rice: { unitLabel: "袋", quantity: 5000, approximate: true },
 	"cooked-rice": { unitLabel: "パック", quantity: 180 },
 	mochi: { unitLabel: "袋", quantity: 10, approximate: true },
 	bread: { unitLabel: "袋", quantity: 6 },

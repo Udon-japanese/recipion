@@ -180,6 +180,9 @@ const rows: Record<string, Row> = {
 	// 主食・麺・缶詰
 	spaghetti: longLifePantry(365),
 	somen: longLifePantry(365),
+	// 精米は、賞味期限の表示がない（表示するのは精米時期）。精米から、春〜夏は約1か月・秋〜冬は約2か月が目安なので、
+	// 常温は短いほう（30日）。冷蔵（野菜室）は、その倍の目安。
+	rice: [N, R, false, null, { room: 30, fridge: 60 }],
 	"cooked-rice": [B, R, true, 180, { room: 180, freezer: 30 }],
 	mochi: longLifePantry(180),
 	bread: [B, R, true, 3, { freezer: 14 }],

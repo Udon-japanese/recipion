@@ -228,7 +228,7 @@ export function InventoryListView({
 								{section.tiles.length}
 							</span>
 						</h2>
-						<ul className={styles.rows}>
+						<ul className={`${styles.rows} ${styles.rowsTwoColumns}`}>
 							{section.tiles.map((tile) => (
 								<li key={tile.key}>
 									<InventoryRow

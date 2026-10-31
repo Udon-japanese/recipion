@@ -180,13 +180,17 @@ export const zoneTabCount = style({
 	color: "var(--color-text-muted)",
 });
 
-// 行の並び：PC は2列。
+// 行の並び（1列）。
 export const rows = style({
 	display: "grid",
 	columnGap: 24,
 	margin: 0,
 	padding: 0,
 	listStyle: "none",
+});
+
+// リスト表示だけ、PC で2列にする（庫内のパネルのような狭い所では、1列のまま）。
+export const rowsTwoColumns = style({
 	"@media": {
 		[wide]: { gridTemplateColumns: "repeat(2, minmax(0, 1fr))" },
 	},

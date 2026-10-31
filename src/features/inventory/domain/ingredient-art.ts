@@ -156,6 +156,7 @@ const artByCatalogId: Record<string, IngredientArt> = {
 	// 主食・麺
 	spaghetti: { partId: "pasta" },
 	somen: { partId: "somen" },
+	rice: { partId: "rice-bag" },
 	"cooked-rice": { partId: "rice" },
 	mochi: { partId: "mochi" },
 	bread: { partId: "shokupan" },

@@ -139,6 +139,7 @@ export const ingredientReadingById: Readonly<Record<string, string>> = {
 	// 主食・麺・缶詰
 	spaghetti: "すぱげってぃ",
 	somen: "そうめん",
+	rice: "こめ",
 	"cooked-rice": "ごはん",
 	mochi: "もち",
 	bread: "しょくぱん",
