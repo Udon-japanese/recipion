@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Button } from "#/components/button/button";
 import { Field, TextInput } from "#/components/field/field";
 import {
 	FloatingPanel,
@@ -16,7 +15,10 @@ import type { RecipePickerContext } from "#/features/shopping/components/recipe-
 import type { RecipeDetail } from "../application/recipe-repository";
 import { filterLinkTargets } from "../domain/filter-link-targets";
 import type { RecipeLinkTarget } from "../domain/recipe-links";
-import { RecipeShoppingRows } from "./recipe-shopping-rows";
+import {
+	RecipeShoppingFooter,
+	RecipeShoppingRows,
+} from "./recipe-shopping-rows";
 import * as styles from "./recipe-to-shopping-picker.css";
 import { useRecipeShoppingPlan } from "./use-recipe-shopping-plan";
 
@@ -123,28 +125,7 @@ export function RecipeToShoppingPicker({
 		/>
 	) : null;
 	const footer = selected ? (
-		<div className={styles.footer}>
-			<Button
-				variant="secondary"
-				size="lg"
-				fullWidth
-				disabled={plan.isApplying}
-				onClick={context.onClose}
-			>
-				閉じる
-			</Button>
-
-			<Button
-				size="lg"
-				fullWidth
-				status={plan.isApplying ? "pending" : "idle"}
-				pendingLabel="追加中"
-				disabled={plan.isLoading}
-				onClick={() => void plan.apply()}
-			>
-				{`選んだものを入れる（${plan.selectedCount}件）`}
-			</Button>
-		</div>
+		<RecipeShoppingFooter plan={plan} onClose={context.onClose} />
 	) : undefined;
 	const body = selected ? (
 		<section aria-label="買い物メモに入れる">

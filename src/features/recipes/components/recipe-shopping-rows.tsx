@@ -4,6 +4,7 @@ import { Checkbox } from "#/components/checkbox/checkbox";
 import { Icon } from "#/components/icon/icon";
 import { Note } from "#/components/note/note";
 import { RadioList } from "#/components/radio-list/radio-list";
+import { useMediaQuery } from "#/components/use-media-query";
 import {
 	formatQuantityForUnit,
 	formatStockAmount,
@@ -162,9 +163,14 @@ export function RecipeShoppingRows({
 						<Fragment key={row.need.id}>
 							{row.need.sectionTitle &&
 							row.need.sectionTitle !== rows[index - 1]?.need.sectionTitle ? (
-								<li className={styles.sectionHeading}>
-									{row.need.sectionTitle}
-								</li>
+								<SectionHeading
+									plan={plan}
+									title={row.need.sectionTitle}
+									group={rows.filter(
+										(other) =>
+											other.need.sectionTitle === row.need.sectionTitle,
+									)}
+								/>
 							) : null}
 
 							<li className={styles.row}>
@@ -243,6 +249,69 @@ export function RecipeShoppingRows({
 					{plan.resultMessage}。{resultLink}
 				</Note>
 			) : null}
+		</div>
+	);
+}
+
+type SectionHeadingProps = {
+	plan: ReturnType<typeof useRecipeShoppingPlan>;
+	title: string;
+	group: readonly RecipeShoppingRow[];
+};
+
+// リンクした料理の材料の見出し。見出しのチェックで、その料理の材料を、まとめて選ぶ・外す。
+function SectionHeading({ plan, title, group }: SectionHeadingProps) {
+	const state = plan.getGroupCheckState(group);
+
+	return (
+		<li className={styles.sectionHeading}>
+			<Checkbox
+				label={`${title}をまとめて買い物メモに入れる`}
+				checked={state === "all"}
+				indeterminate={state === "some"}
+				disabled={group.every((row) => row.plan === "keep")}
+				onChange={(event) => plan.setGroupChecked(group, event.target.checked)}
+			/>
+			<span className={styles.sectionTitle}>{title}</span>
+		</li>
+	);
+}
+
+type RecipeShoppingFooterProps = {
+	plan: ReturnType<typeof useRecipeShoppingPlan>;
+	onClose: () => void;
+};
+
+// 下の操作：閉じる・入れる（主ボタンを右）。PC は右寄せ。スマホは横に並べ、件数まで読めるよう、
+// 入れるは文字の幅にし、文字を一段小さくする（360px の幅で「（12件）」まで、閉じるも切れずに収まる）。
+export function RecipeShoppingFooter({
+	plan,
+	onClose,
+}: RecipeShoppingFooterProps) {
+	const isWide = useMediaQuery("(min-width: 768px)");
+
+	return (
+		<div className={styles.footer}>
+			<Button
+				variant="secondary"
+				size={isWide ? "lg" : "md"}
+				fullWidth={!isWide}
+				disabled={plan.isApplying}
+				onClick={onClose}
+			>
+				閉じる
+			</Button>
+
+			<Button
+				size={isWide ? "lg" : "md"}
+				fullWidth={!isWide}
+				status={plan.isApplying ? "pending" : "idle"}
+				pendingLabel="追加中"
+				disabled={plan.isLoading}
+				onClick={() => void plan.apply()}
+			>
+				{`選んだものを入れる（${plan.selectedCount}件）`}
+			</Button>
 		</div>
 	);
 }

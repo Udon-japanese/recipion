@@ -462,4 +462,81 @@ describe("RecipeShoppingSection", () => {
 			"卵",
 		]);
 	});
+
+	it("リンクした料理の材料は、見出しのチェックで、まとめて選ぶ・外す。状態は全部・一部・なしで、件数と食い違わない", async () => {
+		const user = userEvent.setup();
+		const repository = createFakeShoppingRepository([
+			createShoppingItem({ name: "砂糖", quantity: 300, unitLabel: "g" }),
+		]);
+		const loadLinkedRecipe = vi.fn(async () => ({
+			name: "和風ドレッシング",
+			ingredients: [
+				ingredient("d1", "醤油", 100, "ml", "100ml"),
+				ingredient("d2", "酢", 50, "ml", "50ml"),
+				ingredient("d3", "砂糖", 10, "g", "10g"),
+			],
+			linkViews: [],
+		})) as unknown as (publicId: string) => Promise<RecipeDetail | null>;
+
+		render(
+			<RecipeShoppingSection
+				ingredients={[
+					ingredient("i1", "玉ねぎ", 1, "個", "1個"),
+					ingredient("i2", "[[自家製ドレッシング]]", null, null, null),
+				]}
+				linkViews={[
+					{
+						label: "自家製ドレッシング",
+						target: { publicId: "d", name: "和風ドレッシング" },
+					},
+				]}
+				loadLinkedRecipe={loadLinkedRecipe}
+				ownerScope="user:user-id"
+				loadInventoryItems={async () => [stockItem("酢", 500, "ml", "ml")]}
+				shoppingRepository={repository}
+			/>,
+		);
+
+		const panel = within(await openPanel(user));
+		const group = await panel.findByLabelText(
+			"和風ドレッシングの材料をまとめて買い物メモに入れる",
+		);
+		const button = (count: number) =>
+			panel.getByRole("button", { name: `選んだものを入れる（${count}件）` });
+
+		// 一部：醤油だけ足りない（酢は在庫で足りる。砂糖はメモの数量で足りるので、数えない）
+		await waitFor(() => expect(group).toBePartiallyChecked());
+		expect(button(2)).toBeInTheDocument();
+
+		// 全部：変更しない行（砂糖）は、チェックしない
+		await user.click(group);
+		expect(group).toBeChecked();
+		expect(group).not.toBePartiallyChecked();
+		expect(panel.getByLabelText("醤油を買い物メモに入れる")).toBeChecked();
+		expect(panel.getByLabelText("酢を買い物メモに入れる")).toBeChecked();
+		expect(panel.getByLabelText("砂糖を買い物メモに入れる")).not.toBeChecked();
+		expect(button(3)).toBeInTheDocument();
+
+		// なし：見出しの外の材料（玉ねぎ）は、そのまま
+		await user.click(group);
+		expect(group).not.toBeChecked();
+		expect(group).not.toBePartiallyChecked();
+		expect(panel.getByLabelText("醤油を買い物メモに入れる")).not.toBeChecked();
+		expect(panel.getByLabelText("玉ねぎを買い物メモに入れる")).toBeChecked();
+		expect(button(1)).toBeInTheDocument();
+
+		// 行のチェックで、見出しも一部に戻る
+		await user.click(panel.getByLabelText("酢を買い物メモに入れる"));
+		expect(group).toBePartiallyChecked();
+		expect(button(2)).toBeInTheDocument();
+
+		await user.click(button(2));
+
+		await waitFor(() => expect(repository.items).toHaveLength(3));
+		expect(repository.items.map((item) => item.name).sort()).toEqual([
+			"玉ねぎ",
+			"砂糖",
+			"酢",
+		]);
+	});
 });

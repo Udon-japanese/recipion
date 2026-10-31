@@ -31,6 +31,9 @@ const noLinkedSections: LinkedShoppingSections = {
 	failedNames: [],
 };
 
+// まとめのチェックの状態：全部・一部・なし。
+export type GroupCheckState = "all" | "some" | "none";
+
 type UseRecipeShoppingPlanOptions = {
 	ingredients: readonly RecipeEditorIngredientNode[];
 	// 材料の [[ラベル]] の、リンク先。リンク先が見つからない材料は、候補にしない。
@@ -277,6 +280,34 @@ export function useRecipeShoppingPlan({
 		}));
 	}
 
+	// まとめのチェック（リンクした料理の材料）。変更しない行（keep）は、チェックできないので、数えない。
+	function getGroupCheckState(
+		group: readonly RecipeShoppingRow[],
+	): GroupCheckState {
+		const checkable = group.filter((row) => row.plan !== "keep");
+		const checkedCount = checkable.filter(isChecked).length;
+
+		if (checkable.length === 0 || checkedCount === 0) {
+			return "none";
+		}
+
+		return checkedCount === checkable.length ? "all" : "some";
+	}
+
+	function setGroupChecked(
+		group: readonly RecipeShoppingRow[],
+		checked: boolean,
+	) {
+		setCheckedOverrides((current) => ({
+			...current,
+			...Object.fromEntries(
+				group
+					.filter((row) => row.plan !== "keep")
+					.map((row) => [row.need.id, checked]),
+			),
+		}));
+	}
+
 	async function registerAvailableFor(
 		register: ((ingredientName: string) => Promise<void>) | undefined,
 		ingredientName: string,
@@ -301,6 +332,8 @@ export function useRecipeShoppingPlan({
 		madeUses: linkedSections.madeUses,
 		isChecked,
 		setChecked,
+		getGroupCheckState,
+		setGroupChecked,
 		selectedCount: selectedNeedIds.size,
 		duplicateMode,
 		setDuplicateMode,

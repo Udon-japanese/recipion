@@ -53,9 +53,3 @@ export const recipeName = style({
 	fontSize: "var(--font-size-md)",
 	fontWeight: "var(--font-weight-medium)",
 });
-
-export const footer = style({
-	display: "flex",
-	gap: 8,
-	width: "100%",
-});

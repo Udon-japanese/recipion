@@ -21,15 +21,24 @@ export const card = style({
 	borderRadius: "var(--radius-card)",
 });
 
+// チェックの位置は、材料の行とそろえる（左の余白 4px ＋ 44px の押せる範囲）。
 export const sectionHeading = style({
-	padding: "10px 16px 6px",
-	color: "var(--color-text-muted)",
-	fontSize: "var(--font-size-sm)",
-	fontWeight: "var(--font-weight-bold)",
+	display: "flex",
+	alignItems: "center",
+	gap: 8,
+	padding: "6px 16px 0 4px",
 	borderTop: "1px solid var(--color-border)",
 	selectors: {
 		"&:first-child": { borderTop: 0 },
 	},
+});
+
+export const sectionTitle = style({
+	flex: 1,
+	minWidth: 0,
+	color: "var(--color-text-muted)",
+	fontSize: "var(--font-size-sm)",
+	fontWeight: "var(--font-weight-bold)",
 });
 
 export const row = style({
@@ -92,4 +101,19 @@ export const existing = style({
 
 export const rowAction = style({
 	marginTop: 6,
+});
+
+// スマホ：閉じる（残りの幅）＋入れる（文字の幅。件数が切れないように）。PC：右寄せ。
+export const footer = style({
+	display: "grid",
+	gridTemplateColumns: "minmax(0, 1fr) auto",
+	gap: 8,
+	width: "100%",
+	"@media": {
+		"(min-width: 768px)": {
+			display: "flex",
+			justifyContent: "flex-end",
+			gap: 12,
+		},
+	},
 });

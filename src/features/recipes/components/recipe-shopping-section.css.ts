@@ -100,5 +100,3 @@ export const skippedNames = style({
 	fontSize: "var(--font-size-sm)",
 	lineHeight: "var(--line-height-normal)",
 });
-
-export const footer = style({ display: "grid", gap: 8 });
