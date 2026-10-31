@@ -27,13 +27,6 @@ export const amount = style({
 	},
 });
 
-// カードの中の、行ボタンの並び。
-export const card = style({
-	display: "grid",
-	overflow: "hidden",
-	borderRadius: "var(--radius-card)",
-});
-
 export const lotList = style({
 	display: "grid",
 	margin: 0,
@@ -43,11 +36,44 @@ export const lotList = style({
 
 export const lot = style({
 	display: "grid",
-	gap: 6,
-	padding: "12px 16px",
+	gap: 8,
+	padding: "4px 8px",
 	selectors: {
 		"& + &": { borderTop: "1px solid var(--color-border)" },
 	},
+});
+
+// 内訳の1行（押すと、その場で直す欄が開く）。
+export const lotButton = style({
+	boxSizing: "border-box",
+	display: "flex",
+	alignItems: "center",
+	gap: 8,
+	width: "100%",
+	minHeight: 48,
+	padding: "8px",
+	color: "var(--color-text)",
+	background: "none",
+	border: "none",
+	borderRadius: 12,
+	font: "inherit",
+	textAlign: "start",
+	cursor: "pointer",
+	selectors: {
+		"&:hover": { background: "var(--color-surface-muted)" },
+		"&:focus-visible": {
+			outline: "3px solid var(--color-focus)",
+			outlineOffset: -3,
+		},
+	},
+});
+
+export const lotSummary = style({
+	display: "grid",
+	flex: 1,
+	gap: 4,
+	minWidth: 0,
+	padding: "8px 0",
 });
 
 export const lotLine = style({
@@ -67,42 +93,6 @@ export const lotAmount = style({
 	fontWeight: 700,
 	fontVariantNumeric: "tabular-nums",
 });
-
-// 内訳の行の「直す」（右に寄せる）。
-export const lotButtons = style({
-	display: "flex",
-	justifyContent: "flex-end",
-});
-
-// 「ほかの操作」の行ボタン。
-export const rowButton = style({
-	boxSizing: "border-box",
-	display: "flex",
-	alignItems: "center",
-	gap: 12,
-	width: "100%",
-	minHeight: 48,
-	padding: "0 16px",
-	color: "var(--color-text)",
-	background: "none",
-	border: "none",
-	font: "inherit",
-	fontSize: 16,
-	textAlign: "start",
-	cursor: "pointer",
-	selectors: {
-		"& + &": { borderTop: "1px solid var(--color-border)" },
-		"&:hover": { background: "var(--color-surface-muted)" },
-		"&:focus-visible": {
-			outline: "3px solid var(--color-focus)",
-			outlineOffset: -3,
-		},
-		'&[aria-disabled="true"]': { color: "var(--color-text-disabled)" },
-		'&[data-danger="true"]': { color: "var(--color-error)" },
-	},
-});
-
-export const dangerCard = style({ marginTop: 0 });
 
 export const formStack = style({
 	display: "grid",
@@ -172,27 +162,6 @@ export const lotEditor = style({
 	paddingTop: 8,
 });
 
-export const lotField = style({
-	display: "grid",
-	gap: 6,
-});
-
-export const lotFieldLabel = style({
-	color: "var(--color-text-muted)",
-	fontSize: "var(--font-size-sm)",
-	fontWeight: "var(--font-weight-semibold)",
-});
-
-export const lotQuantityLine = style({
-	display: "flex",
-	alignItems: "center",
-	gap: 8,
-});
-
-export const lotQuantityInput = style({
-	width: 140,
-});
-
 export const lotEditorActions = style({
 	display: "flex",
 	alignItems: "center",
@@ -200,20 +169,25 @@ export const lotEditorActions = style({
 	gap: 8,
 });
 
-// 「期限の種類・初期値」（文字だけのボタン。左に寄せる）。
-export const lotDetailsButton = style({
-	marginInlineEnd: "auto",
+// 使った量・買い足した量の欄（パネルの本体）。
+export const adjust = style({
+	display: "grid",
+	gap: 12,
+});
+
+// 文字だけのボタン（入れた分ごとに減らす、など）。
+export const textButton = style({
+	justifySelf: "start",
 	minHeight: 44,
 	padding: 0,
-	color: "var(--color-text-muted)",
+	color: "var(--color-accent-text)",
 	background: "none",
 	border: "none",
 	font: "inherit",
 	fontSize: "var(--font-size-sm)",
-	textDecoration: "underline",
+	fontWeight: "var(--font-weight-bold)",
 	cursor: "pointer",
 	selectors: {
-		"&:hover": { color: "var(--color-text)" },
 		"&:focus-visible": {
 			outline: "3px solid var(--color-focus)",
 			outlineOffset: 2,

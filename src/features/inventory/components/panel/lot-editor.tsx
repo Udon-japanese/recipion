@@ -1,26 +1,19 @@
 import { useState } from "react";
 import { Button } from "#/components/button/button";
-import { Chip, ChipGroup } from "#/components/chip/chip";
-import { DateField } from "#/components/date-picker/date-picker";
-import { TextInput } from "#/components/field/field";
+import { input as fieldInput } from "#/components/field/field.css";
+import { Toggle } from "#/components/toggle/toggle";
+import { QuantityInput } from "#/features/quantity/components/quantity-input";
 import { formatQuantity } from "#/features/quantity/domain/format-quantity";
 import type { InventoryListItem } from "../../application/inventory-query-repository";
-import { storageLabels } from "../../domain/expiry-labels";
-import type {
-	InventoryLot,
-	InventoryStorage,
-} from "../../domain/inventory-lot";
+import type { InventoryLot } from "../../domain/inventory-lot";
+import { ExpiryFields, type ExpiryFieldsValue } from "../expiry-fields";
 import * as styles from "./item-panel.css";
-
-const storageOptions: readonly InventoryStorage[] = [
-	"room",
-	"fridge",
-	"freezer",
-];
+import { lotExpiryValue } from "./use-item-panel";
 
 export type LotEdits = {
 	quantityText?: string;
-	expiry?: { expiresOn: string; storage: InventoryStorage | "" };
+	expiry?: ExpiryFieldsValue;
+	saveAsDefault?: boolean;
 };
 
 type LotEditorProps = {
@@ -34,11 +27,10 @@ type LotEditorProps = {
 	// 保存する。成功したら true。
 	onSave: (edits: LotEdits) => Promise<boolean>;
 	onClose: () => void;
-	// 期限の種類・「この食材の初期値にする」を直す、別の画面。
-	onOpenDetails: () => void;
 };
 
-// 内訳の1行を、その場で直す（数量・期限・保存方法）。直したときだけ、送る。
+// 内訳の1行を、その場で直す（数量・期限・期限の種類・保存方法・食材の初期値）。直したときだけ、送る。
+// 期限の欄は、在庫に追加と同じ（保存方法・期限の種類は、1行にたたむ）。
 export function LotEditor({
 	item,
 	lot,
@@ -47,17 +39,15 @@ export function LotEditor({
 	isPresence,
 	onSave,
 	onClose,
-	onOpenDetails,
 }: LotEditorProps) {
 	const initialQuantity = formatQuantity(lot.quantity, {
 		grouping: false,
 		allowFractions: item.stockUnitCode === "count",
 	});
+	const initialExpiry = lotExpiryValue(item, lot);
 	const [quantityText, setQuantityText] = useState(initialQuantity);
-	const [expiresOn, setExpiresOn] = useState(lot.expiresOn ?? "");
-	const [storage, setStorage] = useState<InventoryStorage | "">(
-		lot.storage ?? "",
-	);
+	const [expiry, setExpiry] = useState(initialExpiry);
+	const [saveAsDefault, setSaveAsDefault] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
 
 	async function save() {
@@ -68,10 +58,11 @@ export function LotEditor({
 		}
 
 		if (
-			expiresOn !== (lot.expiresOn ?? "") ||
-			storage !== (lot.storage ?? "")
+			saveAsDefault ||
+			JSON.stringify(expiry) !== JSON.stringify(initialExpiry)
 		) {
-			edits.expiry = { expiresOn, storage };
+			edits.expiry = expiry;
+			edits.saveAsDefault = saveAsDefault;
 		}
 
 		if (edits.quantityText === undefined && edits.expiry === undefined) {
@@ -94,59 +85,37 @@ export function LotEditor({
 	return (
 		<div className={styles.lotEditor}>
 			{isPresence ? null : (
-				<div className={styles.lotField}>
-					<span className={styles.lotFieldLabel}>数量</span>
-					<div className={styles.lotQuantityLine}>
-						<div className={styles.lotQuantityInput}>
-							<TextInput
-								inputMode="decimal"
-								aria-label={`${label}の数量`}
-								value={quantityText}
-								disabled={isSaving}
-								onChange={(event) => setQuantityText(event.target.value)}
-							/>
-						</div>
-						<span>{item.stockUnitLabel}</span>
-					</div>
-				</div>
+				<QuantityInput
+					className={fieldInput}
+					aria-label={`${label}の数量`}
+					value={quantityText}
+					disabled={isSaving}
+					onChange={setQuantityText}
+					unitLabel={item.stockUnitLabel}
+					trailing={<span>{item.stockUnitLabel}</span>}
+				/>
 			)}
 
-			<div className={styles.lotField}>
-				<span className={styles.lotFieldLabel}>期限</span>
-				<DateField
-					aria-label={`${label}の期限`}
-					value={expiresOn}
-					today={today}
-					disabled={isSaving}
-					onChange={setExpiresOn}
-				/>
-			</div>
-
-			<div className={styles.lotField}>
-				<span className={styles.lotFieldLabel}>しまう場所</span>
-				<ChipGroup label={`${label}の保存方法`}>
-					{storageOptions.map((option) => (
-						<Chip
-							key={option}
-							pressed={storage === option}
-							disabled={isSaving}
-							onClick={() => setStorage(storage === option ? "" : option)}
-						>
-							{storageLabels[option]}
-						</Chip>
-					))}
-				</ChipGroup>
-			</div>
+			<ExpiryFields
+				value={expiry}
+				onChange={setExpiry}
+				today={today}
+				disabled={isSaving}
+				extraDetails={
+					<div className={styles.checkLine}>
+						<Toggle
+							label="この食材の初期値にする"
+							checked={saveAsDefault}
+							onChange={setSaveAsDefault}
+						/>
+						<span aria-hidden="true">
+							保存方法・期限の種類を、この食材の初期値にする
+						</span>
+					</div>
+				}
+			/>
 
 			<div className={styles.lotEditorActions}>
-				<button
-					className={styles.lotDetailsButton}
-					type="button"
-					disabled={isSaving}
-					onClick={onOpenDetails}
-				>
-					期限の種類・初期値
-				</button>
 				<Button
 					variant="secondary"
 					size="sm"

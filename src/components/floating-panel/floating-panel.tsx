@@ -8,7 +8,7 @@ import {
 import { IconButton } from "#/components/icon-button/icon-button";
 import * as styles from "./floating-panel.css";
 
-export const floatingPanelWidth = 400;
+export const floatingPanelWidth = 440;
 const edge = 8;
 const keyStep = 24;
 
