@@ -214,6 +214,15 @@ export const iconDefinitions = {
 			<path d="M3 17L17 3l4 4L7 21l-4-4zM8 12l2 2M11 9l2 2M14 6l2 2" />
 		) as ReactNode,
 	},
+	settings: {
+		style: "outline",
+		content: (
+			<>
+				<path d="M18.6 9.6L21.3 10L21.3 14L18.6 14.4L18.4 14.9L20 17.2L17.2 20L14.9 18.4L14.4 18.6L14 21.3L10 21.3L9.6 18.6L9.1 18.4L6.8 20L4 17.2L5.6 14.9L5.4 14.4L2.7 14L2.7 10L5.4 9.6L5.6 9.1L4 6.8L6.8 4L9.1 5.6L9.6 5.4L10 2.7L14 2.7L14.4 5.4L14.9 5.6L17.2 4L20 6.8L18.4 9.1z" />
+				<circle cx={12} cy={12} r={3} />
+			</>
+		) as ReactNode,
+	},
 	"shopping-bag": {
 		style: "outline",
 		content: (<path d="M3 9h18l-2 11H5L3 9zM8 9l3-5M16 9l-3-5" />) as ReactNode,

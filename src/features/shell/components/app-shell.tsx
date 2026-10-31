@@ -64,7 +64,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 					className={styles.headerIconLink}
 					aria-label="設定"
 				>
-					<Icon name="sliders" size={24} />
+					<Icon name="settings" size={24} />
 				</Link>
 				<HeaderAccount />
 			</header>
@@ -148,7 +148,7 @@ function SideNav() {
 				to="/settings"
 				className={`${styles.sideItem} ${styles.sideSettings}`}
 			>
-				<Icon name="sliders" size={24} />
+				<Icon name="settings" size={24} />
 				設定
 			</Link>
 
