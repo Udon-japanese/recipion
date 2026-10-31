@@ -243,6 +243,7 @@ describe("読み仮名", () => {
 		["れいとうぶろ", "frozen-broccoli"],
 		["あぶらあ", "fried-tofu-thin"],
 		["ほうれん", "spinach"],
+		["こめ", "rice"],
 	])("ひらがな「%s」の時点で、%s が候補に出る", (query, expectedId) => {
 		expect(
 			searchIngredientCatalog(query, 20).map((entry) => entry.id),

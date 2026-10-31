@@ -28,6 +28,19 @@ export const staplesEntries: readonly IngredientCatalogEntry[] =
 			unitWeights: [{ unit: "束", grams: 50, approximate: true }],
 		}),
 		entry({
+			id: "rice",
+			name: "米",
+			aliases: ["米", "お米", "白米", "精米"],
+			stockUnitCode: "g",
+			presets: presetsFor("g", [
+				{ label: "2kg袋", quantity: 1, unit: "袋", code: "bag", per: 2000 },
+				{ label: "5kg袋", quantity: 1, unit: "袋", code: "bag", per: 5000 },
+				{ label: "10kg袋", quantity: 1, unit: "袋", code: "bag", per: 10000 },
+			]),
+			// 1合（米用の計量カップすりきり、約180ml）の精米の重さ。品種や水分で差がある（パナソニック「お米1合は何グラム？」）。
+			unitWeights: [{ unit: "合", grams: 150, approximate: true }],
+		}),
+		entry({
 			id: "cooked-rice",
 			name: "ご飯",
 			aliases: ["ご飯", "ごはん", "白ごはん"],
