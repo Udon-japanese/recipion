@@ -55,7 +55,6 @@ import { ShoppingItemInventoryConversionForm } from "./shopping-item-inventory-c
 import { ShoppingItemRow } from "./shopping-item-row";
 import * as styles from "./shopping-page.css";
 import { ShoppingPurchasedSection } from "./shopping-purchased-section";
-import { ShoppingQuantitySheet } from "./shopping-quantity-sheet";
 import { ShoppingStoreManager } from "./shopping-store-manager";
 import {
 	type DragHandleRef,
@@ -101,20 +100,15 @@ export function ShoppingList({
 	const { items, isLoading, isReordering, errorMessage, setErrorMessage } =
 		shopping;
 	const [editingItemId, setEditingItemId] = useState<string | null>(null);
-	// 直している項目（消された・購入済みになったときは、閉じる）。
-	const editingItem = items.find((item) => item.id === editingItemId) ?? null;
+	// 直している項目（条件つきのメモの中の項目も、直せる）。消された・購入済みになったときは、閉じる。
+	const editingItem =
+		shopping.allItems.find((item) => item.id === editingItemId) ?? null;
 	const [view, setView] = useStorageItem(shoppingViewStorage);
 	const [isPickingRecipe, setIsPickingRecipe] = useState(false);
 	const [isBulkAdding, setIsBulkAdding] = useState(false);
 	const isDesktop = useMediaQuery("(min-width: 768px)");
 	const [isAddingItem, setIsAddingItem] = useState(false);
 	const [isCreatingBranch, setIsCreatingBranch] = useState(false);
-	// 数量だけを直すシートの項目。
-	const [quantityItem, setQuantityItem] = useState<ShoppingItem | null>(null);
-	// 在庫への換算を直している項目（行の換算を押したとき）。
-	const [conversionEditItem, setConversionEditItem] =
-		useState<ShoppingItem | null>(null);
-	const [isSavingConversionEdit, setIsSavingConversionEdit] = useState(false);
 
 	// レシピの材料を入れたあと、保存済みの一覧を読み直す（購読できない保存先でも、画面に反映する）。
 	async function reloadItems() {
@@ -203,8 +197,6 @@ export function ShoppingList({
 					setErrorMessage(null);
 					setEditingItemId(target.id);
 				}}
-				onEditQuantity={setQuantityItem}
-				onEditConversion={setConversionEditItem}
 				onRemove={(itemId) => void shopping.removeItem(itemId)}
 			/>
 		);
@@ -272,8 +264,13 @@ export function ShoppingList({
 		onAddItems: (branch, side, lines) =>
 			addMemoLines(lines, { branchId: branch.id, side }),
 		onRemoveItem: shopping.removeItem,
+		onEditItem: (itemId) => {
+			setErrorMessage(null);
+			setEditingItemId(itemId);
+		},
 		onUpdateBranch: branchState.updateBranch,
 		onUpdateItem: shopping.updateItem,
+		onRememberConversion: conversionState.remember,
 		repository,
 		renderRecipePicker,
 		onRecipeApplied: (branch, side, recipeName) => {
@@ -448,11 +445,20 @@ export function ShoppingList({
 					stores={stores}
 					onCreateStore={storeState.addStore}
 					onClose={() => setEditingItemId(null)}
-					onSave={async (target, input) => {
+					onSave={async (target, input, { isConversionEdited }) => {
 						const updated = await shopping.updateItem(target, input);
 
 						if (updated) {
 							await storeState.rememberStore(updated.name, updated.storeId);
+
+							// 換算を直したこと自体が意思表示なので、聞かずに、その食材×単位の記憶を更新する。
+							if (isConversionEdited && updated.inventoryConversion) {
+								await conversionState.remember(updated.name, {
+									unitLabel: updated.unitLabel,
+									inventoryConversion: updated.inventoryConversion,
+								});
+							}
+
 							setEditingItemId(null);
 						}
 
@@ -756,53 +762,6 @@ export function ShoppingList({
 					</button>
 				</div>
 			)}
-
-			{conversionEditItem ? (
-				<ShoppingItemInventoryConversionForm
-					item={conversionEditItem}
-					isSaving={isSavingConversionEdit}
-					onSave={async (configuration) => {
-						const target = conversionEditItem;
-
-						setIsSavingConversionEdit(true);
-
-						try {
-							const updated = await shopping.updateItem(target, {
-								name: target.name,
-								quantity: configuration.quantity,
-								unitLabel: configuration.unitLabel,
-								inventoryConversion: configuration.inventoryConversion,
-							});
-
-							if (updated) {
-								// 直したこと自体が意思表示なので、聞かずに、その食材×単位の記憶を更新する。
-								await conversionState.remember(updated.name, {
-									unitLabel: configuration.unitLabel,
-									inventoryConversion: configuration.inventoryConversion,
-								});
-								setConversionEditItem(null);
-							}
-						} finally {
-							setIsSavingConversionEdit(false);
-						}
-					}}
-					onCancel={() => setConversionEditItem(null)}
-				/>
-			) : null}
-
-			<ShoppingQuantitySheet
-				item={quantityItem}
-				onClose={() => setQuantityItem(null)}
-				onSave={async (target, quantity) => {
-					const updated = await shopping.updateItem(target, {
-						name: target.name,
-						quantity,
-						unitLabel: target.unitLabel,
-					});
-
-					return updated !== null;
-				}}
-			/>
 		</main>
 	);
 }

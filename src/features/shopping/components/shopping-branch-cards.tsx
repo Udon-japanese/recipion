@@ -13,7 +13,10 @@ import {
 	type ShoppingBranch,
 	type ShoppingBranchSide,
 } from "../domain/shopping-branch";
-import type { ShoppingConversionDefaults } from "../domain/shopping-conversion-default";
+import type {
+	ShoppingConversionDefault,
+	ShoppingConversionDefaults,
+} from "../domain/shopping-conversion-default";
 import type {
 	CreateShoppingItemInput,
 	ShoppingItem,
@@ -60,6 +63,8 @@ export type ShoppingBranchCardsContext = {
 		lines: readonly ParsedShoppingMemoLine[],
 	) => Promise<number>;
 	onRemoveItem: (itemId: string) => Promise<boolean>;
+	// 中の項目を直す（一覧と同じ、編集のシートを開く）。
+	onEditItem: (itemId: string) => void;
 	// 条件（どんな時に）と、側の呼び名を直す。
 	onUpdateBranch: (
 		branch: ShoppingBranch,
@@ -70,6 +75,11 @@ export type ShoppingBranchCardsContext = {
 		item: ShoppingItem,
 		input: UpdateShoppingItemInput,
 	) => Promise<ShoppingItem | null>;
+	// 条件の材料の換算を、自分で直したとき（その食材×単位の記憶を更新する）。
+	onRememberConversion?: (
+		itemName: string,
+		value: ShoppingConversionDefault,
+	) => Promise<void>;
 	// 「レシピから入れる」の部品（ログイン中だけ渡される）。
 	renderRecipePicker?: RenderRecipePicker;
 	// レシピの材料を、その側に入れたあと（呼び名の設定と、一覧の読み直しに使う）。
@@ -204,6 +214,7 @@ export function ShoppingBranchCards({
 						onEdit={() => setEditingBranch(branch)}
 						onRemove={() => setRemovingBranch(branch)}
 						onRemoveItem={(_side, itemId) => void context.onRemoveItem(itemId)}
+						onEditItem={context.onEditItem}
 						onAdd={(side) => setAddTarget({ branch, side })}
 						onBulkAdd={(side) => setBulkTarget({ branch, side })}
 						onAddFromRecipe={
@@ -260,6 +271,7 @@ export function ShoppingBranchCards({
 
 			{editingBranch && editingItem ? (
 				<ShoppingBranchConditionEditor
+					item={editingItem}
 					value={{
 						storeId: editingItem.storeId,
 						name: editingItem.name,
@@ -277,7 +289,7 @@ export function ShoppingBranchCards({
 					stores={context.stores}
 					onCreateStore={context.onCreateStore}
 					onCancel={() => setEditingBranch(null)}
-					onSave={async (draft) => {
+					onSave={async (draft, { isConversionEdited }) => {
 						const isBranchSaved = await context.onUpdateBranch(editingBranch, {
 							condition: draft.condition,
 							thenLabel: draft.thenLabel,
@@ -294,6 +306,14 @@ export function ShoppingBranchCards({
 						);
 
 						if (updated) {
+							// 換算を直したこと自体が意思表示なので、聞かずに、その食材×単位の記憶を更新する。
+							if (isConversionEdited && updated.inventoryConversion) {
+								await context.onRememberConversion?.(updated.name, {
+									unitLabel: updated.unitLabel,
+									inventoryConversion: updated.inventoryConversion,
+								});
+							}
+
 							setEditingBranch(null);
 						}
 

@@ -1,6 +1,5 @@
 import type { Ref } from "react";
 import { Checkbox } from "#/components/checkbox/checkbox";
-import { Chip } from "#/components/chip/chip";
 import { IconButton } from "#/components/icon-button/icon-button";
 import {
 	ListRow,
@@ -33,14 +32,13 @@ type ShoppingItemRowProps = {
 	isReordering: boolean;
 	onToggle: (item: ShoppingItem) => void;
 	onMove: (itemId: string, direction: ShoppingItemMoveDirection) => void;
+	// 名前・数量・在庫への換算などを直す（編集のシート）。
 	onStartEditing: (item: ShoppingItem) => void;
-	onEditQuantity: (item: ShoppingItem) => void;
-	// 在庫への換算（「1袋＝300g」）を直す。
-	onEditConversion: (item: ShoppingItem) => void;
 	onRemove: (itemId: string) => void;
 };
 
-// 一覧の 1 行（チェック・名前・数量のチップ・店・並べ替え・その他）。
+// 一覧の 1 行（チェック・名前・数量と在庫での量・店・並べ替え・その他）。
+// 数量・換算は、文字で見せるだけ（直すのは、「その他」の「編集」）。
 export function ShoppingItemRow({
 	item,
 	rowRef,
@@ -53,8 +51,6 @@ export function ShoppingItemRow({
 	onToggle,
 	onMove,
 	onStartEditing,
-	onEditQuantity,
-	onEditConversion,
 	onRemove,
 }: ShoppingItemRowProps) {
 	const isPurchased = item.status === "purchased";
@@ -128,25 +124,13 @@ export function ShoppingItemRow({
 			<ListRowName done={isChecked}>{item.name}</ListRowName>
 
 			<ListRowMeta>
-				<Chip
-					aria-label={`${item.name}の数量を変える`}
-					disabled={isPurchased}
-					onClick={() => onEditQuantity(item)}
-				>
+				<span>
 					{formatQuantityForUnit(item.quantity, item.unitLabel)}
 					{item.unitLabel}
-				</Chip>
-
-				{convertedQuantityLabel ? (
-					<Chip
-						aria-label={`${item.name}の在庫への換算を直す`}
-						disabled={isPurchased}
-						onClick={() => onEditConversion(item)}
-					>
-						{item.inventoryConversion?.isApproximate ? "約" : ""}
-						{convertedQuantityLabel}
-					</Chip>
-				) : null}
+					{convertedQuantityLabel
+						? `（${item.inventoryConversion?.isApproximate ? "約" : ""}${convertedQuantityLabel}）`
+						: null}
+				</span>
 
 				<span className={styles.doneTags} data-done={isChecked}>
 					{storeName ? <Tag icon="store">{storeName}</Tag> : null}

@@ -18,6 +18,8 @@ type PurchaseRowQuantityProps = {
 	onChange: (draft: AmountDraft) => void;
 	error: string | undefined;
 	disabled: boolean;
+	// 候補のボタンを出さない（編集のシートでは、上の「よく使う数量」と重なるため）。
+	hidePresets?: boolean;
 };
 
 // 「買った1つが、在庫でいくつになるか」を、数の欄と、単位のプルダウンで入れる（「300」「g」）。
@@ -28,9 +30,10 @@ export function PurchaseRowQuantity({
 	onChange,
 	error,
 	disabled,
+	hidePresets = false,
 }: PurchaseRowQuantityProps) {
 	const unit = item.unitLabel?.trim() || "つ";
-	const presets = getShoppingItemPresets(item.name);
+	const presets = hidePresets ? [] : getShoppingItemPresets(item.name);
 	const total = describeAmountTotal(item, draft);
 	const unitOptions = listUnitOptions(item);
 	const bought = draft.preset?.quantity ?? item.quantity;

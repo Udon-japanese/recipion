@@ -1,7 +1,6 @@
 import { useId, useState } from "react";
 import { Button } from "#/components/button/button";
 import { Icon } from "#/components/icon/icon";
-import { IconButton } from "#/components/icon-button/icon-button";
 import { Menu } from "#/components/menu/menu";
 import { SegmentedControl } from "#/components/segmented-control/segmented-control";
 import { Tag } from "#/components/tag/tag";
@@ -35,6 +34,7 @@ type ShoppingBranchCardProps = {
 	onEdit: () => void;
 	onRemove: () => void;
 	onRemoveItem: (side: BranchCardSide, itemId: string) => void;
+	onEditItem: (itemId: string) => void;
 	onAdd: (side: BranchCardSide) => void;
 	onBulkAdd: (side: BranchCardSide) => void;
 	// ログイン中だけ渡される。
@@ -57,6 +57,7 @@ export function ShoppingBranchCard({
 	onEdit,
 	onRemove,
 	onRemoveItem,
+	onEditItem,
 	onAdd,
 	onBulkAdd,
 	onAddFromRecipe,
@@ -164,11 +165,22 @@ export function ShoppingBranchCard({
 									{item.storeName ? (
 										<Tag icon="store">{item.storeName}</Tag>
 									) : null}
-									<IconButton
-										icon="trash"
-										label={`${item.name}を削除（${sideName(view, side)}）`}
-										tone="plain"
-										onClick={() => onRemoveItem(side, item.id)}
+									<Menu
+										label={`${item.name}のその他（${sideName(view, side)}）`}
+										icon="more-horizontal"
+										items={[
+											{
+												label: "編集",
+												icon: "edit",
+												onSelect: () => onEditItem(item.id),
+											},
+											{
+												label: "削除",
+												icon: "trash",
+												tone: "danger",
+												onSelect: () => onRemoveItem(side, item.id),
+											},
+										]}
 									/>
 								</li>
 							))}

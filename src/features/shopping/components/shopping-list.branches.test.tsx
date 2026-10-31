@@ -189,6 +189,60 @@ describe("ShoppingList の条件つきのメモ", () => {
 		);
 	});
 
+	it("条件が決まる前でも、中の項目を、一覧と同じ編集のシートで直せる（側はそのまま）", async () => {
+		const user = userEvent.setup();
+		const branch = createShoppingBranch({ condition: "売っていたら" }, 0);
+
+		await dexieShoppingBranchRepository.create(
+			branch,
+			createShoppingItem({
+				name: "合い挽き",
+				branchId: branch.id,
+				branchSide: "condition",
+			}),
+		);
+		await dexieShoppingRepository.save(
+			createShoppingItem({
+				name: "玉ねぎ",
+				branchId: branch.id,
+				branchSide: "then",
+			}),
+		);
+
+		render(<ShoppingList repository={dexieShoppingRepository} />);
+
+		const card = (
+			await screen.findByRole("heading", { name: /合い挽き.*が売っていたら/ })
+		).closest("section") as HTMLElement;
+
+		await user.click(within(card).getByRole("button", { name: /中身を見る/ }));
+		await chooseFromMenu(user, card, "玉ねぎのその他（そうなら）", "編集");
+
+		const sheet = await screen.findByRole("dialog", { name: "玉ねぎを直す" });
+
+		await user.clear(within(sheet).getByLabelText("数量"));
+		await user.type(within(sheet).getByLabelText("数量"), "3");
+		await user.click(within(sheet).getByRole("button", { name: "保存" }));
+
+		await waitFor(async () => {
+			const saved = (await getLocalDatabase().shoppingItems.toArray()).find(
+				(item) => item.name === "玉ねぎ",
+			);
+
+			expect(saved).toEqual(
+				expect.objectContaining({
+					quantity: 3,
+					branchId: branch.id,
+					branchSide: "then",
+				}),
+			);
+		});
+		// 中の項目は、決まるまで、通常の一覧には出ない。
+		expect(
+			screen.queryByRole("checkbox", { name: "玉ねぎをチェック" }),
+		).not.toBeInTheDocument();
+	});
+
 	// 条件つきのメモと、条件の材料（店つき）を、保存しておく。
 	async function seedBranch(storeId: string | null, name = "合い挽き") {
 		const now = new Date("2026-10-12T00:00:00.000Z");
