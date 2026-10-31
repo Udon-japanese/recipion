@@ -46,7 +46,6 @@ export function RecipeDialog({
 			open={open}
 			onOpenChange={onOpenChange}
 			title={title}
-			placement="bottom"
 			snapPoints={[0.7, 0.92]}
 			headerLeading={headerLeading}
 			footer={footer}

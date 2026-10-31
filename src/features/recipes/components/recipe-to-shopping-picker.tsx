@@ -171,7 +171,9 @@ export function RecipeToShoppingPicker({
 				)}
 			</Field>
 			{recipes === null && !errorMessage ? (
-				<p className={styles.hint}>読み込んでいます…</p>
+				<Note tone="info" spinning>
+					読み込んでいます…
+				</Note>
 			) : null}
 			{recipes && recipes.length === 0 ? (
 				<p className={styles.hint}>登録したレシピがまだありません。</p>
