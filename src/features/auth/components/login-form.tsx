@@ -51,6 +51,9 @@ export function LoginForm({ onLoggedIn, refetchSession }: LoginFormProps) {
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [notice, setNotice] = useState<string | null>(null);
+	// 再送：メールアドレスの段階に戻り、ボット判定が通ったら、そのまま送る。
+	// （ボット判定は、コードを送るときだけ要る。コードの段階では、回数の制限があるので、出さない）
+	const [isResending, setIsResending] = useState(false);
 
 	// 自動送信（6 桁が揃ったとき）と、ボタンの二重の送信を防ぐ。
 	const isVerifyingRef = useRef(false);
@@ -155,6 +158,22 @@ export function LoginForm({ onLoggedIn, refetchSession }: LoginFormProps) {
 		}
 	}
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: sendCode は、描画ごとに作り直す関数。トークンが届いたときだけ動かす。
+	useEffect(() => {
+		if (step !== "email" || !isResending || !captchaToken) return;
+
+		setIsResending(false);
+		void sendCode();
+	}, [step, isResending, captchaToken]);
+
+	function resend() {
+		setErrorMessage(null);
+		setStep("email");
+		setDigits(createEmptyDigits(OTP_LENGTH));
+		setNotice(null);
+		setIsResending(true);
+	}
+
 	function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
 		event.preventDefault();
 
@@ -169,7 +188,7 @@ export function LoginForm({ onLoggedIn, refetchSession }: LoginFormProps) {
 		}
 	}
 
-	const canResend = cooldown === 0 && captchaToken !== null && !isSubmitting;
+	const canResend = cooldown === 0 && !isSubmitting;
 
 	const isCaptchaReady = captchaToken !== null;
 	const botCheck = (
@@ -217,7 +236,7 @@ export function LoginForm({ onLoggedIn, refetchSession }: LoginFormProps) {
 						type="submit"
 						size="lg"
 						fullWidth
-						status={isSubmitting ? "pending" : "idle"}
+						status={isSubmitting || isResending ? "pending" : "idle"}
 						pendingLabel="送信中"
 						disabled={
 							email.trim() === "" ||
@@ -275,7 +294,7 @@ export function LoginForm({ onLoggedIn, refetchSession }: LoginFormProps) {
 						variant="secondary"
 						fullWidth
 						disabled={!canResend}
-						onClick={() => void sendCode()}
+						onClick={resend}
 					>
 						{cooldown > 0
 							? `コードを再送（あと${cooldown}秒）`
@@ -288,14 +307,12 @@ export function LoginForm({ onLoggedIn, refetchSession }: LoginFormProps) {
 						disabled={isSubmitting}
 						onClick={() => {
 							setErrorMessage(null);
+							setIsResending(false);
 							resetToEmailStep();
 						}}
 					>
 						メールアドレスを変更
 					</Button>
-
-					{/* 再送のためのボット判定は、通ったら隠す（通っていないときだけ見せる）。 */}
-					{!isCaptchaReady || captchaLoadFailed ? botCheck : null}
 				</>
 			)}
 

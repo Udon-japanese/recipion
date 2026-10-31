@@ -191,11 +191,17 @@ it("2段：上へ引くと、高い位置へ。下へゆっくり引くと、低
 	const low = translateY();
 	let start = grabPoint();
 
+	// ゆっくり、高い位置のほうが近くなるまで引いて離す。速さに頼ると、遅い CI では
+	// 離すまでに速さの窓（100ms）が過ぎて、速さが 0 になり、結果が変わる。
+	const rise = Math.round(window.innerHeight * (0.9 - 0.5) * 0.75);
+
 	await mouse("mousePressed", start.x, start.y);
-	await mouse("mouseMoved", start.x, start.y - 40);
-	await mouse("mouseMoved", start.x, start.y - 90);
-	await mouse("mouseMoved", start.x, start.y - 140);
-	await mouse("mouseReleased", start.x, start.y - 140);
+	for (let step = 1; step <= 6; step++) {
+		await mouse("mouseMoved", start.x, start.y - (rise * step) / 6);
+		await sleep(30);
+	}
+	await sleep(200);
+	await mouse("mouseReleased", start.x, start.y - rise);
 	await sleep(700);
 
 	const high = translateY();

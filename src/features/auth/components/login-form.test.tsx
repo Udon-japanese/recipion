@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useEffect } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -263,6 +263,43 @@ describe("LoginForm（メールのワンタイムコード）", () => {
 		expect(
 			screen.queryByRole("textbox", { name: /ログイン用コード/u }),
 		).toBeNull();
+	});
+
+	it("コードの段階では、ボット判定を出さない。再送は、メールアドレスの段階で判定を通してから、同じアドレスに送り直す", async () => {
+		vi.useFakeTimers({ shouldAdvanceTime: true });
+
+		try {
+			const user = userEvent.setup({
+				advanceTimers: vi.advanceTimersByTime,
+			});
+
+			render(<LoginForm refetchSession={mocks.refetch} />);
+			await sendCodeFor(user, "user@example.com");
+
+			expect(screen.queryByTestId("turnstile")).toBeNull();
+
+			// 待ち時間は、1秒ごとに減る（減るたびに、次の1秒を予約する）。
+			for (let second = 0; second < 60; second += 1) {
+				await act(async () => {
+					await vi.advanceTimersByTimeAsync(1000);
+				});
+			}
+			await user.click(screen.getByRole("button", { name: "コードを再送" }));
+
+			await waitFor(() =>
+				expect(mocks.sendVerificationOtp).toHaveBeenCalledTimes(2),
+			);
+			expect(mocks.sendVerificationOtp).toHaveBeenLastCalledWith(
+				{ email: "user@example.com", type: "sign-in" },
+				{ headers: { "x-captcha-response": "captcha-token" } },
+			);
+			expect(
+				await screen.findByRole("textbox", { name: /ログイン用コード/u }),
+			).toBeTruthy();
+			expect(screen.queryByTestId("turnstile")).toBeNull();
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 
 	it("メールアドレスの入力の画面に、利用規約へのリンクと、同意のみなしの表示を出す", () => {
