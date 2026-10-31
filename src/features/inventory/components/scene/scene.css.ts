@@ -9,7 +9,16 @@ export const stage = style({
 
 export const frame = style({
 	position: "relative",
-	vars: { "--h": "min(calc(100dvh - 56px), 160cqw)" },
+	// 画面の高さから、まわりの分（スマホ：上のバー 56・余白 16×2・下のナビ 57。PC：余白 32×2）を引く。
+	// 引く分が足りないと、ページが少しスクロールする（app-shell.css.ts と合わせる）。
+	vars: {
+		"--h": "min(calc(100dvh - 145px - env(safe-area-inset-bottom)), 160cqw)",
+	},
+	"@media": {
+		"(min-width: 768px)": {
+			vars: { "--h": "min(calc(100dvh - 64px), 160cqw)" },
+		},
+	},
 	boxSizing: "border-box",
 	height: "var(--h)",
 	width: "min(100%, calc(var(--h) * 1.25))",

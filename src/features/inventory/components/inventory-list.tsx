@@ -34,11 +34,19 @@ import {
 	InventoryRegistrationController,
 } from "./registration/registration-controller";
 import type { RegisteredInfo } from "./registration/use-inventory-registration";
-import { InventoryScene } from "./scene/inventory-scene";
+import { InventoryScene, InventorySceneLoading } from "./scene/inventory-scene";
 import { type InventoryView, ViewToggle } from "./view-toggle";
 
 const viewStorageKey = "recipion.inventory.view";
 const petStorageKey = "recipion.inventory.pet";
+
+function readPetVisible(): boolean {
+	try {
+		return window.localStorage.getItem(petStorageKey) !== "off";
+	} catch {
+		return true;
+	}
+}
 
 function readView(): InventoryView {
 	try {
@@ -105,9 +113,10 @@ export function InventoryList({
 	const [cachedAt, setCachedAt] = useState<string | null>(null);
 	const [selection, setSelection] = useState<Selection | null>(null);
 	const [isRegistrationOpen, setIsRegistrationOpen] = useState(false);
-	const [view, setView] = useState<InventoryView>("list");
-	const [night, setNight] = useState(false);
-	const [petVisible, setPetVisible] = useState(true);
+	// 最後に選んだ表示（読み込み中の見た目も、これに合わせる）。この画面はサーバーで描かないので、最初から読む。
+	const [view, setView] = useState<InventoryView>(readView);
+	const [night] = useState(() => isNight(new Date()));
+	const [petVisible, setPetVisible] = useState(readPetVisible);
 	// 登録のパネルを開いている間に追加した食材。閉じたあと、タイルに輪を出す。
 	const addedItemIdsRef = useRef(new Set<string>());
 	const [highlightedIds, setHighlightedIds] = useState<ReadonlySet<string>>(
@@ -123,18 +132,6 @@ export function InventoryList({
 	// 広い画面：ドラッグで動かせる浮いたパネル（一覧を見ながら操作できる）。狭い画面：下のシート。
 	const isWide = useMediaQuery("(min-width: 768px)");
 	const panelMode: ItemPanelMode = isWide ? "floating" : "sheet-bottom";
-
-	// 最後に選んだ表示を覚える（読み込めなければ、リスト）。時間は、描画のあとに見る。
-	useEffect(() => {
-		setView(readView());
-		setNight(isNight(new Date()));
-
-		try {
-			setPetVisible(window.localStorage.getItem(petStorageKey) !== "off");
-		} catch {
-			// 読めなければ、表示する。
-		}
-	}, []);
 
 	function changeView(next: InventoryView) {
 		setView(next);
@@ -386,19 +383,20 @@ export function InventoryList({
 	const isOffline = itemsSource === "cache";
 	const hasItems = items.length > 0;
 	const showFridge = isMember && hasItems;
-	// おうちの表示では、操作（見出しは除く）を、絵の上部に重ねる。
-	const isSceneShown = showFridge && view === "scene";
 	const showEmpty =
 		isMember && hasLoaded && !isLoading && !errorMessage && !hasItems;
 	const showSkeleton = isMember && isLoading && !hasItems;
+	// 在庫があるか、読み込み中なら、表示の切り替えと追加を出す（読み込みのあとで、ボタンの位置が動かないように）。
+	const showControls = isMember && (hasItems || showSkeleton);
+	// おうちの表示では、操作を、絵の上部に重ねる。
+	const isSceneShown = (showFridge || showSkeleton) && view === "scene";
 
-	const title = <h1 className={styles.title}>在庫</h1>;
+	// 見出しは、読み上げのためだけ（下のナビに「在庫」とあるので、画面には出さない）。
+	const title = <h1 className={styles.srOnly}>在庫</h1>;
 
 	const toolbar = (
 		<>
-			{isMember && hasItems ? (
-				<ViewToggle value={view} onChange={changeView} />
-			) : null}
+			{showControls ? <ViewToggle value={view} onChange={changeView} /> : null}
 
 			<span className={styles.tools} data-tools>
 				{view === "scene" ? (
@@ -422,7 +420,7 @@ export function InventoryList({
 				) : null}
 			</span>
 
-			{isMember && registration && hasItems ? (
+			{registration && showControls ? (
 				<span className={styles.addButton}>
 					<Button
 						leadingIcon={<Icon name="plus" size={20} />}
@@ -438,10 +436,8 @@ export function InventoryList({
 
 	return (
 		<section className={styles.container}>
-			<div className={styles.header}>
-				{title}
-				{isSceneShown ? null : toolbar}
-			</div>
+			{title}
+			{isSceneShown ? null : <div className={styles.header}>{toolbar}</div>}
 
 			{notices}
 
@@ -487,20 +483,38 @@ export function InventoryList({
 			) : null}
 
 			{showSkeleton ? (
-				<div>
-					<div className={listStyles.skeletonRows} aria-hidden>
-						{Array.from({ length: 6 }, (_, index) => (
-							<div
-								className={listStyles.skeleton}
-								// biome-ignore lint/suspicious/noArrayIndexKey: 同じ形の板が並ぶだけ
-								key={index}
+				<>
+					<output className={styles.srOnly}>在庫を読み込んでいます</output>
+
+					{view === "list" ? (
+						<div className={listStyles.skeletonRows} aria-hidden>
+							<div className={listStyles.skeletonField} />
+							<div className={listStyles.skeletonField} />
+							{Array.from({ length: 6 }, (_, index) => (
+								<div
+									className={listStyles.skeleton}
+									// biome-ignore lint/suspicious/noArrayIndexKey: 同じ形の板が並ぶだけ
+									key={index}
+								/>
+							))}
+						</div>
+					) : (
+						<>
+							{petVisible ? null : (
+								<div className={styles.loadingNote}>
+									<Note tone="info" spinning>
+										在庫を読み込んでいます…
+									</Note>
+								</div>
+							)}
+							<InventorySceneLoading
+								night={night}
+								petVisible={petVisible}
+								toolbar={toolbar}
 							/>
-						))}
-					</div>
-					<Note tone="info" spinning>
-						在庫を読み込んでいます…
-					</Note>
-				</div>
+						</>
+					)}
+				</>
 			) : null}
 
 			{showEmpty ? (
@@ -564,7 +578,7 @@ export function InventoryList({
 					isOpen={isRegistrationOpen}
 					onOpenChange={handleRegistrationOpenChange}
 					onRegistered={handleRegistered}
-					showFab={hasItems}
+					showFab={hasItems || showSkeleton}
 				/>
 			) : null}
 		</section>
