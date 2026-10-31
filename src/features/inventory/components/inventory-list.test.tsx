@@ -4,7 +4,10 @@ import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { buildInventoryListItem } from "#/test/builders/build-inventory-list-item";
 import { typeDate } from "#/test/date-field-helpers";
-import { chooseExpiryKind } from "#/test/expiry-fields-helpers";
+import {
+	chooseExpiryKind,
+	chooseExpiryStorage,
+} from "#/test/expiry-fields-helpers";
 import type { InventoryListItem } from "../application/inventory-query-repository";
 import {
 	addDays,
@@ -57,6 +60,19 @@ async function openPanel(
 	);
 
 	return screen.findByRole("dialog");
+}
+
+// パネルの見出しの「…」から、めったに使わない操作を選ぶ。
+async function chooseFromMenu(
+	user: ReturnType<typeof userEvent.setup>,
+	dialog: HTMLElement,
+	itemName: string,
+	label: string,
+) {
+	await user.click(
+		within(dialog).getByRole("button", { name: `${itemName}のその他` }),
+	);
+	await user.click(await screen.findByRole("menuitem", { name: label }));
 }
 
 // 数量に合う1つのロットを持つ食材（在庫の数量は、ロットの合計で決まる）。
@@ -358,7 +374,7 @@ describe("InventoryList", () => {
 		);
 	});
 
-	it("在庫数量を手動で増やせる（調整のフォームは、パネルの本体に差し替わる）", async () => {
+	it("在庫数量を手動で増やせる（量を打って「買い足した」を押す。欄は、はじめの値に戻る）", async () => {
 		const user = userEvent.setup();
 		const adjustInventoryItem = vi.fn().mockResolvedValue({
 			status: "applied",
@@ -375,16 +391,15 @@ describe("InventoryList", () => {
 		);
 
 		const dialog = await openPanel(user, "卵");
+		const amount = within(dialog).getByRole("textbox", {
+			name: "卵の使った量・買い足した量",
+		});
 
+		await user.clear(amount);
+		await user.type(amount, "2");
 		await user.click(
 			within(dialog).getByRole("button", { name: "買い足した" }),
 		);
-		await user.clear(screen.getByRole("textbox", { name: "卵の買い足した量" }));
-		await user.type(
-			screen.getByRole("textbox", { name: "卵の買い足した量" }),
-			"2",
-		);
-		await user.click(screen.getByRole("button", { name: "増やす" }));
 
 		await waitFor(() =>
 			expect(adjustInventoryItem).toHaveBeenCalledWith(
@@ -399,10 +414,8 @@ describe("InventoryList", () => {
 			),
 		);
 
-		// 本体に戻り、量が変わる。
-		expect(
-			await within(await screen.findByRole("dialog")).findByText("8個"),
-		).toBeInTheDocument();
+		expect(await within(dialog).findByText("8個")).toBeInTheDocument();
+		expect(amount).toHaveValue("1");
 	});
 
 	it("通信できず保存済みの在庫を見ているときは、案内を出し、書き換える操作は理由を出して実行しない", async () => {
@@ -473,8 +486,9 @@ describe("InventoryList", () => {
 
 			const dialog = await openPanel(user, "卵");
 
-			await user.click(within(dialog).getByRole("button", { name: "使った" }));
-			await user.click(screen.getByLabelText("入れた分を指定して減らす"));
+			await user.click(
+				within(dialog).getByRole("button", { name: "入れた分ごとに減らす" }),
+			);
 			await user.type(
 				screen.getByLabelText("10/1に入れた分から減らす数量"),
 				"1",
@@ -483,7 +497,7 @@ describe("InventoryList", () => {
 				screen.getByLabelText("10/3に入れた分から減らす数量"),
 				"1",
 			);
-			await user.click(screen.getByRole("button", { name: "減らす" }));
+			await user.click(within(dialog).getByRole("button", { name: "使った" }));
 
 			await waitFor(() =>
 				expect(adjustInventoryItem).toHaveBeenCalledWith(
@@ -502,7 +516,7 @@ describe("InventoryList", () => {
 			).toBeInTheDocument();
 		});
 
-		it("ロットが1つだけなら、ロットの指定は出さない", async () => {
+		it("ロットが1つだけなら、入れた分ごとに減らす切り替えは出さない", async () => {
 			const user = userEvent.setup();
 
 			renderList(
@@ -512,11 +526,9 @@ describe("InventoryList", () => {
 
 			const dialog = await openPanel(user, "卵");
 
-			await user.click(
-				within(dialog).getByRole("button", { name: "買い足した" }),
-			);
-
-			expect(screen.queryByLabelText("入れた分を指定して減らす")).toBeNull();
+			expect(
+				within(dialog).queryByRole("button", { name: "入れた分ごとに減らす" }),
+			).toBeNull();
 		});
 
 		it("期限と保存方法を表示する（目安は「約」付き）。期限の近いロットを先に並べる", async () => {
@@ -576,16 +588,8 @@ describe("InventoryList", () => {
 			await user.click(
 				within(dialog).getByRole("button", { name: "10/1に入れた分を直す" }),
 			);
-			await typeDate(
-				user,
-				"10/1に入れた分の期限",
-				addDays(toDateString(new Date()), 1),
-			);
-			await user.click(
-				within(
-					screen.getByRole("group", { name: "10/1に入れた分の保存方法" }),
-				).getByRole("button", { name: "冷蔵" }),
-			);
+			await typeDate(user, "期限", addDays(toDateString(new Date()), 1));
+			await chooseExpiryStorage(user, "冷蔵");
 			await user.click(screen.getByRole("button", { name: "保存" }));
 
 			await waitFor(() =>
@@ -600,7 +604,7 @@ describe("InventoryList", () => {
 			);
 			// 編集の欄は、閉じる。
 			await waitFor(() =>
-				expect(screen.queryByLabelText("10/1に入れた分の期限")).toBeNull(),
+				expect(screen.queryByRole("button", { name: "保存" })).toBeNull(),
 			);
 		});
 
@@ -618,18 +622,18 @@ describe("InventoryList", () => {
 			await user.click(screen.getByRole("button", { name: "保存" }));
 
 			expect(updateInventoryLot).not.toHaveBeenCalled();
-			expect(screen.queryByLabelText("10/1に入れた分の期限")).toBeNull();
+			expect(screen.queryByRole("button", { name: "保存" })).toBeNull();
 
 			await user.click(
 				within(dialog).getByRole("button", { name: "10/1に入れた分を直す" }),
 			);
-			await typeDate(user, "10/1に入れた分の期限", "2026-12-24");
+			await typeDate(user, "期限", "2026-12-24");
 			await user.click(screen.getByRole("button", { name: "やめる" }));
 
 			expect(updateInventoryLot).not.toHaveBeenCalled();
 		});
 
-		it("期限の種類と「この食材の初期値にする」は、「期限の種類・初期値」の別の画面で直す", async () => {
+		it("期限の種類と「この食材の初期値にする」も、その場の欄で直す", async () => {
 			const user = userEvent.setup();
 			const updateInventoryLot = vi.fn().mockResolvedValue({
 				inventoryItemId: eggItem.inventoryItemId,
@@ -645,9 +649,6 @@ describe("InventoryList", () => {
 
 			await user.click(
 				within(dialog).getByRole("button", { name: "10/1に入れた分を直す" }),
-			);
-			await user.click(
-				screen.getByRole("button", { name: "期限の種類・初期値" }),
 			);
 			await typeDate(user, "期限", addDays(toDateString(new Date()), 1));
 			await chooseExpiryKind(user, "消費期限");
@@ -669,20 +670,19 @@ describe("InventoryList", () => {
 		it("フォームの「戻る」で、パネルの本体に戻る", async () => {
 			const user = userEvent.setup();
 
-			renderList([eggItem], { adjustInventoryItem: vi.fn() });
+			renderList([eggItem], {
+				adjustInventoryItem: vi.fn(),
+				renameInventoryItem: vi.fn(),
+			});
 
 			const dialog = await openPanel(user, "卵");
 
-			await user.click(
-				within(dialog).getByRole("button", { name: "買い足した" }),
-			);
-			expect(
-				screen.getByRole("textbox", { name: "卵の買い足した量" }),
-			).toBeInTheDocument();
+			await chooseFromMenu(user, dialog, "卵", "名前を変更");
+			expect(screen.getByLabelText("卵の呼び名")).toBeInTheDocument();
 
 			await user.click(screen.getByRole("button", { name: "戻る" }));
 
-			expect(screen.queryByLabelText("卵の買い足した量")).toBeNull();
+			expect(screen.queryByLabelText("卵の呼び名")).toBeNull();
 			expect(
 				screen.getByRole("button", { name: "買い足した" }),
 			).toBeInTheDocument();
@@ -776,8 +776,11 @@ describe("InventoryList", () => {
 
 			const dialog = await openPanel(user, "オリーブオイル");
 
-			await user.click(
-				within(dialog).getByRole("button", { name: "量を追う管理にする" }),
+			await chooseFromMenu(
+				user,
+				dialog,
+				"オリーブオイル",
+				"量を追う管理にする",
 			);
 			await user.type(
 				screen.getByRole("textbox", { name: "オリーブオイルのいまの量" }),
@@ -799,7 +802,7 @@ describe("InventoryList", () => {
 			});
 		});
 
-		it("量を追う食材は、「有無だけにする」で、数量を出さなくなる", async () => {
+		it("量を追う食材は、確認のあと「有無だけにする」で、数量を出さなくなる。やめれば変えない", async () => {
 			const user = userEvent.setup();
 			const changeTrackingMode = vi.fn().mockResolvedValue({
 				inventoryItemId: oilId,
@@ -814,9 +817,12 @@ describe("InventoryList", () => {
 
 			const dialog = await openPanel(user, "オリーブオイル");
 
-			await user.click(
-				within(dialog).getByRole("button", { name: "有無だけにする" }),
-			);
+			await chooseFromMenu(user, dialog, "オリーブオイル", "有無だけにする");
+			await user.click(screen.getByRole("button", { name: "やめる" }));
+			expect(changeTrackingMode).not.toHaveBeenCalled();
+
+			await chooseFromMenu(user, dialog, "オリーブオイル", "有無だけにする");
+			await user.click(screen.getByRole("button", { name: "有無だけにする" }));
 
 			expect(
 				await within(await screen.findByRole("dialog")).findByText("あり"),
@@ -851,9 +857,7 @@ describe("InventoryList", () => {
 
 			const dialog = await openPanel(user, "鶏もも肉");
 
-			await user.click(
-				within(dialog).getByRole("button", { name: "鶏もも肉を在庫から削除" }),
-			);
+			await chooseFromMenu(user, dialog, "鶏もも肉", "削除");
 
 			expect(deleteInventoryItem).not.toHaveBeenCalled();
 			expect(screen.getByText(/内訳と履歴も消えます/u)).toBeInTheDocument();
@@ -861,9 +865,7 @@ describe("InventoryList", () => {
 			await user.click(screen.getByRole("button", { name: "やめる" }));
 			expect(screen.queryByText(/内訳と履歴も消えます/u)).toBeNull();
 
-			await user.click(
-				screen.getByRole("button", { name: "鶏もも肉を在庫から削除" }),
-			);
+			await chooseFromMenu(user, dialog, "鶏もも肉", "削除");
 			await user.click(screen.getByRole("button", { name: "削除する" }));
 
 			await waitFor(() =>
@@ -890,9 +892,7 @@ describe("InventoryList", () => {
 
 			const dialog = await openPanel(user, "鶏もも肉");
 
-			await user.click(
-				within(dialog).getByRole("button", { name: "鶏もも肉を在庫から削除" }),
-			);
+			await chooseFromMenu(user, dialog, "鶏もも肉", "削除");
 			await user.click(screen.getByRole("button", { name: "削除する" }));
 
 			await waitFor(() =>
@@ -911,9 +911,7 @@ describe("InventoryList", () => {
 
 			const dialog = await openPanel(user, "鶏もも肉");
 
-			await user.click(
-				within(dialog).getByRole("button", { name: "鶏もも肉を在庫から削除" }),
-			);
+			await chooseFromMenu(user, dialog, "鶏もも肉", "削除");
 			await user.click(screen.getByRole("button", { name: "削除する" }));
 
 			// ネットワークなどの内部の文（英語）は出さず、操作の失敗として知らせる。
@@ -936,9 +934,7 @@ describe("InventoryList", () => {
 
 			const dialog = await openPanel(user, "鶏もも肉");
 
-			await user.click(
-				within(dialog).getByRole("button", { name: "鶏もも肉の名前を変更" }),
-			);
+			await chooseFromMenu(user, dialog, "鶏もも肉", "名前を変更");
 			await user.type(
 				screen.getByLabelText("鶏もも肉の呼び名"),
 				"イオンで買った鶏もも",
@@ -958,10 +954,11 @@ describe("InventoryList", () => {
 				displayName: "イオンで買った鶏もも",
 			});
 
-			await user.click(
-				screen.getByRole("button", {
-					name: "イオンで買った鶏ももの名前を変更",
-				}),
+			await chooseFromMenu(
+				user,
+				screen.getByRole("dialog"),
+				"イオンで買った鶏もも",
+				"名前を変更",
 			);
 			await user.clear(screen.getByLabelText("鶏もも肉の呼び名"));
 			await user.click(screen.getByRole("button", { name: "元の名前に戻す" }));
@@ -1010,9 +1007,7 @@ describe("InventoryList", () => {
 
 			const dialog = await openPanel(user, "鶏もも肉");
 
-			await user.click(
-				within(dialog).getByRole("button", { name: "鶏もも肉の単位を変える" }),
-			);
+			await chooseFromMenu(user, dialog, "鶏もも肉", "単位を変える");
 			await user.selectOptions(
 				screen.getByRole("combobox", { name: "鶏もも肉の新しい単位" }),
 				"count:枚",
@@ -1064,9 +1059,7 @@ describe("InventoryList", () => {
 
 			const dialog = await openPanel(user, "鶏もも肉");
 
-			await user.click(
-				within(dialog).getByRole("button", { name: "鶏もも肉の単位を変える" }),
-			);
+			await chooseFromMenu(user, dialog, "鶏もも肉", "単位を変える");
 
 			// マスタにある単位だけ：鶏もも肉は g（いまの単位）と枚。ml や個は出ない
 			expect(
@@ -1083,9 +1076,10 @@ describe("InventoryList", () => {
 
 			const oilDialog = await openPanel(user, "オリーブオイル");
 
+			// 出せる操作がないので、「…」も出さない。
 			expect(
 				within(oilDialog).queryByRole("button", {
-					name: "オリーブオイルの単位を変える",
+					name: "オリーブオイルのその他",
 				}),
 			).toBeNull();
 		});
@@ -1114,9 +1108,7 @@ describe("InventoryList", () => {
 
 			const dialog = await openPanel(user, "謎の食材");
 
-			await user.click(
-				within(dialog).getByRole("button", { name: "謎の食材の単位を変える" }),
-			);
+			await chooseFromMenu(user, dialog, "謎の食材", "単位を変える");
 			await user.selectOptions(
 				screen.getByRole("combobox", { name: "謎の食材の新しい単位" }),
 				"count:個",
@@ -1177,7 +1169,7 @@ describe("InventoryList", () => {
 				within(oilDialog).getByRole("button", { name: "10/1に入れた分を直す" }),
 			);
 			expect(screen.queryByLabelText("10/1に入れた分の数量")).toBeNull();
-			expect(screen.getByLabelText("10/1に入れた分の期限")).toBeInTheDocument();
+			expect(screen.getByLabelText("期限")).toBeInTheDocument();
 
 			await user.click(
 				within(oilDialog).getByRole("button", { name: "閉じる" }),

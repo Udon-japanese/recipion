@@ -7,7 +7,8 @@ export const panel = style({
 	zIndex: 30,
 	display: "flex",
 	flexDirection: "column",
-	width: 400,
+	// floating-panel.tsx の floatingPanelWidth と同じ値（位置の計算に使う）。
+	width: 440,
 	maxHeight: "calc(100dvh - 48px)",
 	overflow: "hidden",
 	background: "var(--color-surface)",

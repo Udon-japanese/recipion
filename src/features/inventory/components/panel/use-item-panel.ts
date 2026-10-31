@@ -15,14 +15,12 @@ import type { InventoryOperation } from "../../domain/apply-inventory-adjustment
 import { type InventoryLot, toDateString } from "../../domain/inventory-lot";
 import type { QuantityTrackingMode } from "../../domain/inventory-tracking-mode";
 import { recordExpiryHint } from "../../infrastructure/expiry-hints-storage";
-import { type ExpiryFieldsValue, emptyExpiryFields } from "../expiry-fields";
+import type { ExpiryFieldsValue } from "../expiry-fields";
 import type { InventoryActions } from "./inventory-actions";
 
-// パネルの本体か、本体に差し替える6つのフォーム（削除は確認のダイアログ）。
+// パネルの本体か、本体に差し替える3つのフォーム（使った・買い足した・内訳の直しは、本体の中。削除などは確認のダイアログ）。
 export type ItemPanelView =
 	| { name: "main" }
-	| { name: "adjust"; operation: InventoryOperation }
-	| { name: "lot-expiry"; lotId: string }
 	| { name: "unit" }
 	| { name: "rename" }
 	| { name: "tracking" };
@@ -41,6 +39,20 @@ export function isCurrentUnit(
 		option.stockUnitCode === item.stockUnitCode &&
 		option.stockUnitLabel === item.stockUnitLabel
 	);
+}
+
+// 内訳の期限の欄の、はじめの値。空の項目は、食材の初期値（ユーザーが決めたもの）を入れる。
+export function lotExpiryValue(
+	item: InventoryListItem,
+	lot: InventoryLot,
+): ExpiryFieldsValue {
+	return {
+		expiresOn: lot.expiresOn ?? "",
+		expiryKind: lot.expiryKind ?? item.defaultExpiryKind ?? "",
+		storage: lot.storage ?? item.defaultStorage ?? "",
+		// 自動の目安だった日付は、そのまま保存しても、目安のまま（直したときに、入力になる）。
+		expirySource: lot.expirySource ?? "",
+	};
 }
 
 type Options = {
@@ -65,10 +77,6 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 	const [adjustLotQuantities, setAdjustLotQuantities] = useState<
 		Record<string, string>
 	>({});
-	// ロットの期限
-	const [lotExpiry, setLotExpiry] =
-		useState<ExpiryFieldsValue>(emptyExpiryFields);
-	const [saveAsDefault, setSaveAsDefault] = useState(false);
 	// 単位
 	const [unitOption, setUnitOption] = useState("");
 	const [unitLotQuantities, setUnitLotQuantities] = useState<
@@ -151,28 +159,6 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 	}
 
 	// ---- フォームを開く ----
-	function openAdjust(operation: InventoryOperation) {
-		setErrorMessage(null);
-		setAdjustQuantity("1");
-		setIsLotSpecified(false);
-		setAdjustLotQuantities({});
-		setView({ name: "adjust", operation });
-	}
-
-	function openLotExpiry(lot: InventoryLot) {
-		setErrorMessage(null);
-		// 空の項目は、食材の初期値（ユーザーが決めたもの）を入れる。
-		setLotExpiry({
-			expiresOn: lot.expiresOn ?? "",
-			expiryKind: lot.expiryKind ?? item.defaultExpiryKind ?? "",
-			storage: lot.storage ?? item.defaultStorage ?? "",
-			// 自動の目安だった日付は、そのまま保存しても、目安のまま（直したときに、入力になる）。
-			expirySource: lot.expirySource ?? "",
-		});
-		setSaveAsDefault(false);
-		setView({ name: "lot-expiry", lotId: lot.id });
-	}
-
 	function openUnit() {
 		const [first] = listStockUnitOptions(item.name).filter(
 			(option) => !isCurrentUnit(item, option),
@@ -241,6 +227,7 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 			return false;
 		}
 
+		// 量の欄は、パネルの本体にある。成功したら、次の入力のために、はじめの値に戻す。
 		const done = await attempt("在庫数量を変更できませんでした", async () => {
 			const result = await adjustInventoryItem(
 				createManualInventoryAdjustment({
@@ -264,7 +251,9 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 		});
 
 		if (done) {
-			goMain();
+			setAdjustQuantity("1");
+			setIsLotSpecified(false);
+			setAdjustLotQuantities({});
 		}
 
 		return done;
@@ -295,12 +284,14 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 		});
 	}
 
-	// 内訳の1行を、その場で直す（数量・期限・保存方法）。直した項目だけを、送る。保存したあとも、パネルは、本体のまま。
+	// 内訳の1行を、その場で直す（数量・期限・期限の種類・保存方法・食材の初期値）。直した項目だけを、送る。
+	// 保存したあとも、パネルは、本体のまま。
 	async function saveLotEdits(
 		lot: InventoryLot,
 		edits: {
 			quantityText?: string;
-			expiry?: { expiresOn: string; storage: ExpiryFieldsValue["storage"] };
+			expiry?: ExpiryFieldsValue;
+			saveAsDefault?: boolean;
 		},
 	): Promise<boolean> {
 		const { setLotQuantity, updateInventoryLot } = actions;
@@ -339,21 +330,19 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 				}
 
 				if (edits.expiry && updateInventoryLot) {
-					const { expiresOn, storage } = edits.expiry;
-					const isDateChanged = expiresOn !== (lot.expiresOn ?? "");
+					const expiry = edits.expiry;
+					const isDateChanged = expiry.expiresOn !== (lot.expiresOn ?? "");
 					const result = await updateInventoryLot({
 						lotId: lot.id,
-						expiresOn: expiresOn === "" ? null : expiresOn,
-						// 日付を直したときは、入力。直していないときは、これまでの出所（自動の目安は、目安のまま）。
+						expiresOn: expiry.expiresOn === "" ? null : expiry.expiresOn,
+						// 日付を直したときは、入力（期限の欄が決める）。直していないときは、これまでの出所のまま。
 						expirySource:
-							expiresOn === ""
+							expiry.expiresOn === "" || expiry.expirySource === ""
 								? null
-								: isDateChanged
-									? "entered"
-									: (lot.expirySource ?? null),
-						expiryKind: lot.expiryKind ?? item.defaultExpiryKind ?? null,
-						storage: storage === "" ? null : storage,
-						saveAsIngredientDefault: false,
+								: expiry.expirySource,
+						expiryKind: expiry.expiryKind === "" ? null : expiry.expiryKind,
+						storage: expiry.storage === "" ? null : expiry.storage,
+						saveAsIngredientDefault: edits.saveAsDefault ?? false,
 					});
 
 					onUpdate(item.inventoryItemId, {
@@ -364,60 +353,21 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 					});
 
 					// 入力した期限は、次の目安のために、覚える。
-					if (isDateChanged && expiresOn !== "") {
+					if (
+						isDateChanged &&
+						expiry.expiresOn !== "" &&
+						expiry.expirySource === "entered"
+					) {
 						recordExpiryHint({
 							ingredientName: item.name,
 							acquiredOn: lot.acquiredOn,
-							expiresOn,
-							storage: storage === "" ? null : storage,
+							expiresOn: expiry.expiresOn,
+							storage: expiry.storage === "" ? null : expiry.storage,
 						});
 					}
 				}
 			},
 		);
-	}
-
-	async function saveLotExpiry(lot: InventoryLot): Promise<boolean> {
-		const { updateInventoryLot } = actions;
-
-		if (!updateInventoryLot) {
-			return false;
-		}
-
-		const done = await attempt("ロットを更新できませんでした", async () => {
-			const result = await updateInventoryLot({
-				lotId: lot.id,
-				expiresOn: lotExpiry.expiresOn === "" ? null : lotExpiry.expiresOn,
-				expirySource:
-					lotExpiry.expirySource === "" ? null : lotExpiry.expirySource,
-				expiryKind: lotExpiry.expiryKind === "" ? null : lotExpiry.expiryKind,
-				storage: lotExpiry.storage === "" ? null : lotExpiry.storage,
-				saveAsIngredientDefault: saveAsDefault,
-			});
-
-			onUpdate(item.inventoryItemId, {
-				quantity: result.quantity,
-				lots: result.lots,
-				defaultExpiryKind: result.defaultExpiryKind,
-				defaultStorage: result.defaultStorage,
-			});
-
-			// 入力した期限（目安ではないもの）は、次の目安のために、覚える。
-			if (lotExpiry.expirySource === "entered" && lotExpiry.expiresOn !== "") {
-				recordExpiryHint({
-					ingredientName: item.name,
-					acquiredOn: lot.acquiredOn,
-					expiresOn: lotExpiry.expiresOn,
-					storage: lotExpiry.storage === "" ? null : lotExpiry.storage,
-				});
-			}
-		});
-
-		if (done) {
-			goMain();
-		}
-
-		return done;
 	}
 
 	async function changeUnit(): Promise<boolean> {
@@ -578,12 +528,6 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 			setLotQuantity: (lotId: string, value: string) =>
 				setAdjustLotQuantities((current) => ({ ...current, [lotId]: value })),
 		},
-		lotExpiryForm: {
-			value: lotExpiry,
-			setValue: setLotExpiry,
-			saveAsDefault,
-			setSaveAsDefault,
-		},
 		unitForm: {
 			option: unitOption,
 			choose: chooseUnit,
@@ -599,8 +543,6 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 			setMode: setTrackingMode,
 		},
 		open: {
-			adjust: openAdjust,
-			lotExpiry: openLotExpiry,
 			unit: openUnit,
 			rename: openRename,
 			tracking: openTracking,
@@ -609,7 +551,6 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 			adjust,
 			togglePresence,
 			saveLotEdits,
-			saveLotExpiry,
 			changeUnit,
 			rename,
 			changeTracking,

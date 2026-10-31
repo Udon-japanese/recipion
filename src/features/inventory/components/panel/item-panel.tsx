@@ -13,10 +13,10 @@ import {
 import { Icon } from "#/components/icon/icon";
 import type { IconName } from "#/components/icon/icon-definitions";
 import { IconButton } from "#/components/icon-button/icon-button";
+import { Menu, type MenuItem } from "#/components/menu/menu";
 import { Note } from "#/components/note/note";
 import { Sheet } from "#/components/sheet/sheet";
 import { Tag } from "#/components/tag/tag";
-import { Toggle } from "#/components/toggle/toggle";
 import { listStockUnitOptions } from "#/features/ingredients/domain/list-stock-unit-options";
 import { QuantityInput } from "#/features/quantity/components/quantity-input";
 import { formatStockAmount } from "#/features/quantity/domain/format-quantity";
@@ -35,7 +35,6 @@ import {
 	type InventoryLot,
 	sortLotsForConsumption,
 } from "../../domain/inventory-lot";
-import { ExpiryFields } from "../expiry-fields";
 import type { InventoryActions } from "./inventory-actions";
 import * as styles from "./item-panel.css";
 import { LotEditor } from "./lot-editor";
@@ -104,6 +103,9 @@ export function ItemPanel({
 }: ItemPanelProps) {
 	const panel = useItemPanel({ item, actions, onUpdate, onDeleted });
 	const primary = useButtonAction();
+	const decrease = useButtonAction();
+	const increase = useButtonAction();
+	const [isConfirmingPresence, setIsConfirmingPresence] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
 	const [isDeletePending, setIsDeletePending] = useState(false);
 	const [isFlashing, setIsFlashing] = useState(false);
@@ -155,6 +157,20 @@ export function ItemPanel({
 		void primary.run(action);
 	}
 
+	// 「使った」「買い足した」：押したボタンにだけ、処理中・完了を出す。
+	function runAdjust(
+		operation: "decrease" | "increase",
+		action: () => Promise<boolean>,
+	) {
+		if (readOnly) {
+			panel.setErrorMessage(offlineMessage);
+
+			return;
+		}
+
+		void (operation === "decrease" ? decrease : increase).run(action);
+	}
+
 	const sortedLots = sortLotsForConsumption(item.lots).sort((a, b) => {
 		const aHere = getLotZone(item, a) === zone ? 0 : 1;
 		const bHere = getLotZone(item, b) === zone ? 0 : 1;
@@ -177,114 +193,7 @@ export function ItemPanel({
 	);
 	const status = primary.status;
 
-	if (view.name === "adjust") {
-		const isDecrease = view.operation === "decrease";
-
-		heading = `${displayName}の${isDecrease ? "使った量" : "買い足した量"}`;
-		body = (
-			<div className={styles.formStack}>
-				<div className={styles.quantityLine}>
-					<QuantityInput
-						className={fieldInput}
-						aria-label={`${item.name}の${isDecrease ? "使った量" : "買い足した量"}`}
-						value={panel.adjustForm.quantity}
-						onChange={panel.adjustForm.setQuantity}
-						unitLabel={item.stockUnitLabel}
-					/>
-					<span className={styles.unitSuffix}>{item.stockUnitLabel}</span>
-				</div>
-
-				{isDecrease && item.lots.length > 1 ? (
-					<div className={styles.lotFieldList}>
-						<label className={styles.checkLine}>
-							<input
-								type="checkbox"
-								checked={panel.adjustForm.isLotSpecified}
-								onChange={(event) =>
-									panel.adjustForm.setIsLotSpecified(event.target.checked)
-								}
-							/>
-							入れた分を指定して減らす
-						</label>
-
-						{panel.adjustForm.isLotSpecified
-							? item.lots.map((lot) => (
-									<Field
-										key={lot.id}
-										label={`${lotLabel(lot)}（${formatStockAmount(lot.quantity, item.stockUnitCode)}${item.stockUnitLabel}）`}
-									>
-										{(control) => (
-											<TextInput
-												{...control}
-												aria-label={`${lotLabel(lot)}から減らす数量`}
-												type="number"
-												inputMode="decimal"
-												min="0"
-												step="any"
-												value={panel.adjustForm.lotQuantities[lot.id] ?? ""}
-												onChange={(event) =>
-													panel.adjustForm.setLotQuantity(
-														lot.id,
-														event.target.value,
-													)
-												}
-											/>
-										)}
-									</Field>
-								))
-							: null}
-					</div>
-				) : null}
-			</div>
-		);
-		bar = (
-			<div className={styles.bar} data-columns="2">
-				{cancel}
-				<Button
-					fullWidth
-					status={status}
-					onClick={() => runPrimary(() => panel.run.adjust(view.operation))}
-				>
-					{isDecrease ? "減らす" : "増やす"}
-				</Button>
-			</div>
-		);
-	} else if (view.name === "lot-expiry") {
-		const lot = item.lots.find((candidate) => candidate.id === view.lotId);
-
-		heading = lot ? lotLabel(lot) : heading;
-		body = (
-			<div className={styles.formStack}>
-				<ExpiryFields
-					value={panel.lotExpiryForm.value}
-					onChange={panel.lotExpiryForm.setValue}
-					today={panel.today}
-				/>
-				<div className={styles.checkLine}>
-					<Toggle
-						label="この食材の初期値にする"
-						checked={panel.lotExpiryForm.saveAsDefault}
-						onChange={panel.lotExpiryForm.setSaveAsDefault}
-					/>
-					<span aria-hidden="true">この食材の初期値にする</span>
-				</div>
-			</div>
-		);
-		bar = (
-			<div className={styles.bar} data-columns="2">
-				{cancel}
-				<Button
-					fullWidth
-					status={status}
-					onClick={() =>
-						lot ? runPrimary(() => panel.run.saveLotExpiry(lot)) : undefined
-					}
-				>
-					保存
-				</Button>
-			</div>
-		);
-	} else if (view.name === "unit") {
+	if (view.name === "unit") {
 		const options = listStockUnitOptions(item.name).filter(
 			(option) => !isCurrentUnit(item, option),
 		);
@@ -471,27 +380,17 @@ export function ItemPanel({
 				) : null}
 
 				{!isPresence && actions.adjustInventoryItem ? (
-					<div className={styles.primaryActions}>
-						<Button
-							variant="secondary"
-							fullWidth
-							disabled={readOnly || item.quantity === 0}
-							disabledReason={
-								readOnly ? offlineMessage : "在庫が 0 のため、減らせません。"
-							}
-							onClick={() => panel.open.adjust("decrease")}
-						>
-							使った
-						</Button>
-						<Button
-							fullWidth
-							disabled={readOnly}
-							disabledReason={offlineMessage}
-							onClick={() => panel.open.adjust("increase")}
-						>
-							買い足した
-						</Button>
-					</div>
+					<AdjustForm
+						item={item}
+						panel={panel}
+						lotLabel={lotLabel}
+						readOnly={readOnly}
+						onRun={(operation) =>
+							runAdjust(operation, () => panel.run.adjust(operation))
+						}
+						decreaseStatus={decrease.status}
+						increaseStatus={increase.status}
+					/>
 				) : null}
 
 				{item.lots.length > 0 ? (
@@ -500,11 +399,13 @@ export function ItemPanel({
 							{sortedLots.map((lot) => {
 								const expiryText = formatLotExpiry(lot);
 								const badge = findNearestExpiry([lot], panel.today);
-								const lotZone = getLotZone(item, lot);
-
-								return (
-									<li className={styles.lot} key={lot.id}>
-										<div className={styles.lotLine}>
+								const canEdit = Boolean(
+									actions.setLotQuantity || actions.updateInventoryLot,
+								);
+								const isEditing = editingLotId === lot.id;
+								const summary = (
+									<>
+										<span className={styles.lotLine}>
 											<span className={styles.lotName}>{lotLabel(lot)}</span>
 											{lot.storage ? (
 												<Tag icon={storageIcons[lot.storage]}>
@@ -516,10 +417,9 @@ export function ItemPanel({
 													{formatQuantityText(item, lot.quantity)}
 												</span>
 											)}
-										</div>
-
+										</span>
 										{expiryText || badge ? (
-											<div className={styles.lotLine}>
+											<span className={styles.lotLine}>
 												{expiryText ? <span>{expiryText}</span> : null}
 												{badge ? (
 													<Tag
@@ -534,38 +434,43 @@ export function ItemPanel({
 														{badge.badgeText}
 													</Tag>
 												) : null}
-											</div>
+											</span>
 										) : null}
+									</>
+								);
 
-										{actions.setLotQuantity || actions.updateInventoryLot ? (
-											editingLotId === lot.id ? (
-												<LotEditor
-													item={item}
-													lot={lot}
-													label={lotLabel(lot)}
-													today={panel.today}
-													isPresence={isPresence || !actions.setLotQuantity}
-													onSave={(edits) => panel.run.saveLotEdits(lot, edits)}
-													onClose={() => setEditingLotId(null)}
-													onOpenDetails={() => {
-														setEditingLotId(null);
-														panel.open.lotExpiry(lot);
-													}}
+								return (
+									<li className={styles.lot} key={lot.id}>
+										{canEdit ? (
+											<button
+												type="button"
+												className={styles.lotButton}
+												aria-label={`${lotLabel(lot)}を直す`}
+												aria-expanded={isEditing}
+												onClick={guard(() =>
+													setEditingLotId(isEditing ? null : lot.id),
+												)}
+											>
+												<span className={styles.lotSummary}>{summary}</span>
+												<Icon
+													name={isEditing ? "chevron-down" : "chevron-right"}
+													size={20}
 												/>
-											) : (
-												<div className={styles.lotButtons} data-zone={lotZone}>
-													<Button
-														variant="secondary"
-														size="sm"
-														disabled={readOnly}
-														disabledReason={offlineMessage}
-														aria-label={`${lotLabel(lot)}を直す`}
-														onClick={() => setEditingLotId(lot.id)}
-													>
-														直す
-													</Button>
-												</div>
-											)
+											</button>
+										) : (
+											<div className={styles.lotSummary}>{summary}</div>
+										)}
+
+										{isEditing ? (
+											<LotEditor
+												item={item}
+												lot={lot}
+												label={lotLabel(lot)}
+												today={panel.today}
+												isPresence={isPresence || !actions.setLotQuantity}
+												onSave={(edits) => panel.run.saveLotEdits(lot, edits)}
+												onClose={() => setEditingLotId(null)}
+											/>
 										) : null}
 									</li>
 								);
@@ -573,69 +478,64 @@ export function ItemPanel({
 						</ul>
 					</Card>
 				) : null}
-
-				<Card>
-					<div className={styles.card}>
-						{actions.changeTrackingMode ? (
-							isPresence ? (
-								<RowButton
-									icon="sliders"
-									readOnly={readOnly}
-									onClick={guard(panel.open.tracking)}
-								>
-									量を追う管理にする
-								</RowButton>
-							) : (
-								<RowButton
-									icon="swap"
-									readOnly={readOnly}
-									onClick={guard(
-										() =>
-											void panel.run.changeTracking({
-												trackingMode: "presence",
-											}),
-									)}
-								>
-									有無だけにする
-								</RowButton>
-							)
-						) : null}
-						{actions.changeStockUnit && !isPresence ? (
-							<RowButton
-								icon="ruler"
-								readOnly={readOnly}
-								label={`${displayName}の単位を変える`}
-								onClick={guard(panel.open.unit)}
-							>
-								単位を変える
-							</RowButton>
-						) : null}
-						{actions.renameInventoryItem ? (
-							<RowButton
-								icon="edit"
-								readOnly={readOnly}
-								label={`${displayName}の名前を変更`}
-								onClick={guard(panel.open.rename)}
-							>
-								名前を変更
-							</RowButton>
-						) : null}
-						{actions.deleteInventoryItem ? (
-							<RowButton
-								icon="trash"
-								danger
-								readOnly={readOnly}
-								label={`${displayName}を在庫から削除`}
-								onClick={guard(() => setIsDeleting(true))}
-							>
-								削除
-							</RowButton>
-						) : null}
-					</div>
-				</Card>
 			</div>
 		);
 	}
+
+	// めったに使わない操作（見出しの「…」）。
+	const menuItems: MenuItem[] = [
+		...(actions.renameInventoryItem
+			? [
+					{
+						label: "名前を変更",
+						icon: "edit" as const,
+						onSelect: guard(panel.open.rename),
+					},
+				]
+			: []),
+		...(actions.changeStockUnit && !isPresence
+			? [
+					{
+						label: "単位を変える",
+						icon: "ruler" as const,
+						onSelect: guard(panel.open.unit),
+					},
+				]
+			: []),
+		...(actions.changeTrackingMode
+			? [
+					isPresence
+						? {
+								label: "量を追う管理にする",
+								icon: "sliders" as const,
+								onSelect: guard(panel.open.tracking),
+							}
+						: {
+								label: "有無だけにする",
+								icon: "swap" as const,
+								onSelect: guard(() => setIsConfirmingPresence(true)),
+							},
+				]
+			: []),
+		...(actions.deleteInventoryItem
+			? [
+					{
+						label: "削除",
+						icon: "trash" as const,
+						tone: "danger" as const,
+						onSelect: guard(() => setIsDeleting(true)),
+					},
+				]
+			: []),
+	];
+	const menu =
+		view.name === "main" && menuItems.length > 0 ? (
+			<Menu
+				label={`${displayName}のその他`}
+				icon="more-horizontal"
+				items={menuItems}
+			/>
+		) : null;
 
 	const content = (
 		<>
@@ -667,6 +567,20 @@ export function ItemPanel({
 				「{displayName}
 				」を在庫から削除します。内訳と履歴も消えます。よろしいですか。
 			</ConfirmDialog>
+			<ConfirmDialog
+				open={isConfirmingPresence}
+				title="有無だけにしますか"
+				cancelLabel="やめる"
+				confirmLabel="有無だけにする"
+				onCancel={() => setIsConfirmingPresence(false)}
+				onConfirm={async () => {
+					await panel.run.changeTracking({ trackingMode: "presence" });
+					setIsConfirmingPresence(false);
+				}}
+			>
+				「{displayName}
+				」の量を数えるのをやめ、あるかどうかだけを記録します。あれば、レシピでは「足りている」とします。
+			</ConfirmDialog>
 		</>
 	);
 
@@ -680,6 +594,7 @@ export function ItemPanel({
 			<FloatingPanel
 				title={heading}
 				headerLeading={back}
+				headerTrailing={menu}
 				footer={bar}
 				getInitialPosition={() =>
 					anchoredPosition(anchorTileKey, anchorPlacement)
@@ -709,6 +624,7 @@ export function ItemPanel({
 			}}
 			title={heading}
 			headerLeading={back}
+			headerTrailing={menu}
 			footer={bar ?? undefined}
 			placement="bottom"
 			snapPoints={view.name === "main" ? [0.62, 0.92] : [0.92]}
@@ -718,33 +634,108 @@ export function ItemPanel({
 	);
 }
 
-function RowButton({
-	icon,
-	children,
-	onClick,
+type PanelState = ReturnType<typeof useItemPanel>;
+type ButtonStatus = ReturnType<typeof useButtonAction>["status"];
+
+// 使った量・買い足した量（パネルの本体に置く。量を打って、ボタンを押す）。
+// 内訳が2つ以上なら、入れた分ごとに減らす欄に切り替えられる。
+function AdjustForm({
+	item,
+	panel,
+	lotLabel,
 	readOnly,
-	danger = false,
-	label,
+	onRun,
+	decreaseStatus,
+	increaseStatus,
 }: {
-	icon: IconName;
-	children: ReactNode;
-	onClick: () => void;
+	item: InventoryListItem;
+	panel: PanelState;
+	lotLabel: (lot: InventoryLot) => string;
 	readOnly: boolean;
-	danger?: boolean;
-	label?: string;
+	onRun: (operation: "decrease" | "increase") => void;
+	decreaseStatus: ButtonStatus;
+	increaseStatus: ButtonStatus;
 }) {
+	const form = panel.adjustForm;
+	const canSpecifyLots = item.lots.length > 1;
+	const isLotSpecified = canSpecifyLots && form.isLotSpecified;
+
 	return (
-		<button
-			className={styles.rowButton}
-			type="button"
-			aria-label={label}
-			aria-disabled={readOnly || undefined}
-			data-danger={danger || undefined}
-			onClick={onClick}
-		>
-			<Icon name={icon} size={20} />
-			{children}
-		</button>
+		<div className={styles.adjust}>
+			{isLotSpecified ? (
+				<div className={styles.lotFieldList}>
+					{item.lots.map((lot) => (
+						<Field
+							key={lot.id}
+							label={`${lotLabel(lot)}（${formatStockAmount(lot.quantity, item.stockUnitCode)}${item.stockUnitLabel}）`}
+						>
+							{(control) => (
+								<TextInput
+									{...control}
+									aria-label={`${lotLabel(lot)}から減らす数量`}
+									type="number"
+									inputMode="decimal"
+									min="0"
+									step="any"
+									value={form.lotQuantities[lot.id] ?? ""}
+									onChange={(event) =>
+										form.setLotQuantity(lot.id, event.target.value)
+									}
+								/>
+							)}
+						</Field>
+					))}
+				</div>
+			) : (
+				<QuantityInput
+					className={fieldInput}
+					aria-label={`${item.name}の使った量・買い足した量`}
+					value={form.quantity}
+					onChange={form.setQuantity}
+					unitLabel={item.stockUnitLabel}
+					trailing={
+						<span className={styles.unitSuffix}>{item.stockUnitLabel}</span>
+					}
+				/>
+			)}
+
+			<div className={styles.primaryActions}>
+				<Button
+					variant="secondary"
+					fullWidth
+					status={decreaseStatus}
+					disabled={readOnly || item.quantity === 0}
+					disabledReason={
+						readOnly ? offlineMessage : "在庫が 0 のため、減らせません。"
+					}
+					onClick={() => onRun("decrease")}
+				>
+					使った
+				</Button>
+				{isLotSpecified ? null : (
+					<Button
+						fullWidth
+						status={increaseStatus}
+						disabled={readOnly}
+						disabledReason={offlineMessage}
+						onClick={() => onRun("increase")}
+					>
+						買い足した
+					</Button>
+				)}
+			</div>
+
+			{canSpecifyLots ? (
+				<button
+					type="button"
+					className={styles.textButton}
+					aria-pressed={isLotSpecified}
+					onClick={() => form.setIsLotSpecified(!isLotSpecified)}
+				>
+					{isLotSpecified ? "まとめて入力する" : "入れた分ごとに減らす"}
+				</button>
+			) : null}
+		</div>
 	);
 }
 
