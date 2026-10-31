@@ -70,7 +70,8 @@ export function useHopWalker({
 		let last = performance.now();
 
 		const tick = (now: number) => {
-			const dt = Math.min(0.05, (now - last) / 1000);
+			// rAF の時刻は、last を取った時刻より前のことがある。マイナスだと、目的地にいるとき 0÷0 で位置が NaN になる。
+			const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
 			last = now;
 
 			const dx = target.x - position.current.x;
