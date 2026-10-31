@@ -387,9 +387,16 @@ export function InventoryScene({
 								}}
 								onClick={() => enter(spec)}
 							>
-								<span className={styles.tag} aria-hidden>
+								<span
+									className={styles.tag}
+									data-empty={tiles.length === 0 || undefined}
+									aria-hidden
+								>
 									<Icon name={spec.icon} size={16} />
-									{spec.label} {tiles.length}
+									{spec.label}
+									{tiles.length > 0 ? (
+										<span className={styles.tagCount}>{tiles.length}</span>
+									) : null}
 									{alerts > 0 ? (
 										<span className={styles.alert}>{alerts}</span>
 									) : null}
