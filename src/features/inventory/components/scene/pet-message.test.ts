@@ -46,7 +46,7 @@ describe("describePetMessage", () => {
 
 	it("期限の近いものがなければ、そう伝える", () => {
 		expect(describePetMessage([tile("卵", null)], false)).toBe(
-			"きょうは、期限の近いものはないよ",
+			"きょうは期限の近いものはないよ",
 		);
 	});
 
@@ -61,10 +61,10 @@ describe("describePetMessage", () => {
 			"「卵」が切れているよ（ほか2件）",
 		);
 		expect(describePetMessage([tiles[0] as InventoryTile], false)).toBe(
-			"「牛乳」は、あしたまでだよ",
+			"「牛乳」はあしたまでだよ",
 		);
 		expect(describePetMessage([tiles[2] as InventoryTile], false)).toBe(
-			"「豆腐」は、あと2日だよ",
+			"「豆腐」はあと2日だよ",
 		);
 	});
 });

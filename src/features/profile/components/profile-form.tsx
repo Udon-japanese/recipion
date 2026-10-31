@@ -66,7 +66,7 @@ export function ProfileForm({
 			return false;
 		} catch {
 			setErrors({
-				form: "保存できませんでした。時間をおいて、もう一度お試しください。",
+				form: "保存できませんでした。時間をおいてもう一度お試しください。",
 			});
 
 			return false;

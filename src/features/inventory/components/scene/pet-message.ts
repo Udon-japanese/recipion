@@ -15,7 +15,7 @@ export function describePetMessage(
 	const first = urgent[0];
 
 	if (!first?.expiry) {
-		return "きょうは、期限の近いものはないよ";
+		return "きょうは期限の近いものはないよ";
 	}
 
 	const { daysLeft } = first.expiry;
@@ -23,10 +23,10 @@ export function describePetMessage(
 		daysLeft < 0
 			? "が切れているよ"
 			: daysLeft === 0
-				? "は、きょうまでだよ"
+				? "はきょうまでだよ"
 				: daysLeft === 1
-					? "は、あしたまでだよ"
-					: `は、あと${daysLeft}日だよ`;
+					? "はあしたまでだよ"
+					: `はあと${daysLeft}日だよ`;
 	const rest = urgent.length > 1 ? `（ほか${urgent.length - 1}件）` : "";
 
 	return `「${first.name}」${when}${rest}`;

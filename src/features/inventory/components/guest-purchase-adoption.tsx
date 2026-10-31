@@ -123,21 +123,21 @@ export function GuestPurchaseAdoption({
 	if (status === "adopting") {
 		return (
 			<Note tone="info" spinning>
-				ログインする前に買ったものを、在庫に入れています…
+				ログインする前に買ったものを在庫に入れています…
 			</Note>
 		);
 	}
 
 	if (status === "adopted") {
 		return (
-			<Note tone="success">ログインする前に買ったものを、在庫に入れました</Note>
+			<Note tone="success">ログインする前に買ったものを在庫に入れました</Note>
 		);
 	}
 
 	if (status === "waiting") {
 		return (
 			<Note tone="neutral">
-				ログインする前に買ったものを、受け取りました。在庫への反映は、通信が戻ってから、もう一度試します
+				ログインする前に買ったものを受け取りました。在庫への反映は、通信が戻ってからもう一度試します
 			</Note>
 		);
 	}
@@ -145,7 +145,7 @@ export function GuestPurchaseAdoption({
 	if (status === "error") {
 		return (
 			<Note tone="error">
-				ログインする前に買ったものを、在庫に入れられませんでした
+				ログインする前に買ったものを在庫に入れられませんでした
 			</Note>
 		);
 	}
@@ -154,14 +154,14 @@ export function GuestPurchaseAdoption({
 	return (
 		<ConfirmDialog
 			open
-			title="ログインする前に買ったものを、在庫に入れますか"
+			title="ログインする前に買ったものを在庫に入れますか"
 			cancelLabel="今回は入れない"
 			confirmLabel="在庫に入れる"
 			onCancel={() => setIsDismissed(true)}
 			onConfirm={() => void adopt()}
 		>
 			買い物メモで買ったもの（{guestPurchaseCount}
-			件）を、このアカウントの在庫に入れます。
+			件）をこのアカウントの在庫に入れます。
 		</ConfirmDialog>
 	);
 }

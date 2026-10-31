@@ -51,7 +51,7 @@ export function PurchaseConversionSheet({
 	const body = (
 		<div className={styles.container}>
 			<p className={styles.hint}>
-				買ったものが、在庫でいくつになるかを、教えてください。パッケージの内容量を見て、数と単位を入れてください。
+				買ったものが在庫でいくつになるかを教えてください。パッケージの内容量を見て、数と単位を入れてください。
 			</p>
 
 			<ul className={styles.list}>

@@ -62,7 +62,7 @@ export function SuspendedScreen({
 	if (status === "banned") {
 		return (
 			<section className={styles.container}>
-				<h1 className={styles.title}>このアカウントは、利用できません</h1>
+				<h1 className={styles.title}>このアカウントは利用できません</h1>
 				<p className={styles.text}>
 					利用規約に反する投稿が続いたため、このアカウントは永久に停止されました。
 				</p>
@@ -74,12 +74,12 @@ export function SuspendedScreen({
 		<section className={styles.container}>
 			<h1 className={styles.title}>アカウントが停止されています</h1>
 			<p className={styles.text}>
-				公開できない内容を、繰り返し投稿しようとしたため、このアカウントを停止しました。
-				誤りだと思われる場合や、反省されている場合は、下の欄から、申し立てをしてください。
-				申し立ては、何度でもできます。内容は、管理者が確認します。
+				公開できない内容を繰り返し投稿しようとしたため、このアカウントを停止しました。
+				誤りだと思われる場合や反省されている場合は、下の欄から申し立てをしてください。
+				申し立ては何度でもできます。内容は管理者が確認します。
 			</p>
 			<p className={styles.text}>
-				ただし、申し立ての内容が、正当なものと認められないときは、このアカウントを永久に停止し、同じメールアドレスでは、登録できなくなることがあります。
+				ただし、申し立ての内容が正当なものと認められないときは、このアカウントを永久に停止し、同じメールアドレスでは登録できなくなることがあります。
 			</p>
 
 			<Card padding="md">

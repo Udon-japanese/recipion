@@ -18,7 +18,7 @@ export function deleteAccountEmail(to: string, url: string): EmailMessage {
 	const minutes = Math.floor(DELETE_ACCOUNT_LINK_EXPIRES_IN_SECONDS / 60);
 	const lead = `${APP_DISPLAY_NAME}のアカウントの削除の確認です。`;
 	const warning =
-		"次のリンクを、ログインしているブラウザで開くと、アカウントと、保存した情報（レシピ、在庫など）が、すぐに削除されます。取り消せません。";
+		"次のリンクをログインしているブラウザで開くと、アカウントと保存した情報（レシピ、在庫など）がすぐに削除されます。取り消せません。";
 	const validity = `このリンクは${minutes}分間有効です。`;
 	const ignore =
 		"心当たりがない場合は、このメールを破棄してください（リンクを開かなければ、何も削除されません）。";

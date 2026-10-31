@@ -8,7 +8,7 @@ export async function assertWithinSearchLimit(userId: string): Promise<void> {
 
 	if (limiter && !(await limiter.limit({ key: userId })).success) {
 		throw new UserFacingError(
-			"検索の回数が多すぎます。少し待ってから、お試しください。",
+			"検索の回数が多すぎます。少し待ってからお試しください。",
 		);
 	}
 }

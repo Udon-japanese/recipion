@@ -111,7 +111,7 @@ describe("ShoppingList の店", () => {
 		expect(within(preview).getByText("2本")).toBeInTheDocument();
 		expect(within(preview).getAllByText("イオン")).toHaveLength(2);
 		expect(
-			within(preview).getByText("「ドンキ」は、登録のない店です"),
+			within(preview).getByText("「ドンキ」は登録のない店です"),
 		).toBeInTheDocument();
 		expect(repository.items).toHaveLength(0);
 

@@ -36,7 +36,7 @@ export function AdminHistoryList({
 				{heading}（{items.length}件）
 			</summary>
 
-			{items.length === 0 ? <p>対応済みのものは、まだありません。</p> : null}
+			{items.length === 0 ? <p>対応済みのものはまだありません。</p> : null}
 
 			<ul className={styles.list}>
 				{items.map((item) => (

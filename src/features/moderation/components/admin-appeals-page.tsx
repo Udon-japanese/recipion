@@ -72,9 +72,7 @@ export function AdminAppealsPage({
 				</p>
 			) : null}
 
-			{openAppeals.length === 0 ? (
-				<p>未対応の申し立ては、ありません。</p>
-			) : null}
+			{openAppeals.length === 0 ? <p>未対応の申し立てはありません。</p> : null}
 
 			<ul className={styles.list}>
 				{openAppeals.map((appeal) => {

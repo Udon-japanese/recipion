@@ -71,7 +71,7 @@ describe("validateRecipeEditorDocument", () => {
 				visibility: "public",
 				sourceUrl: "https://example.com/recipe/1",
 			}),
-		).toThrow("引用元のURLがあるレシピは、公開できません");
+		).toThrow("引用元のURLがあるレシピは公開できません");
 		// 非公開なら、引用元があってよい。
 		expect(
 			validateRecipeEditorDocument({
@@ -86,10 +86,10 @@ describe("validateRecipeEditorDocument", () => {
 
 		expect(() =>
 			validateRecipeEditorDocument({ ...document, name: "あ".repeat(101) }),
-		).toThrow("レシピ名は、100文字までです。");
+		).toThrow("レシピ名は100文字までです。");
 		expect(() =>
 			validateRecipeEditorDocument({ ...document, note: "あ".repeat(3001) }),
-		).toThrow("メモは、3,000文字までです。");
+		).toThrow("メモは3,000文字までです。");
 	});
 
 	it("同じIDを二度使用できない", () => {

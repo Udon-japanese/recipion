@@ -16,7 +16,7 @@ export function isAuthRequiredError(error: unknown): boolean {
 
 // 内部のエラーの代わりに、画面に出す文。
 export const GENERIC_ERROR_MESSAGE =
-	"うまく処理できませんでした。時間をおいて、もう一度お試しください。";
+	"うまく処理できませんでした。時間をおいてもう一度お試しください。";
 
 const japanesePattern = /[぀-ヿ㐀-鿿]/u;
 

@@ -34,7 +34,7 @@ export function planStockUnitChange(input: {
 		}
 
 		if (!(quantity >= 0) || !Number.isFinite(quantity)) {
-			throw new UserFacingError("ロットの数量は、0以上にしてください");
+			throw new UserFacingError("ロットの数量は0以上にしてください");
 		}
 
 		entered.set(lotId, round(quantity));

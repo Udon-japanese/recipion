@@ -182,13 +182,13 @@ export function validateManualAllocations(
 		}
 
 		if (seenLotIds.has(allocation.lotId)) {
-			throw new UserFacingError("同じロットが、重複して指定されています");
+			throw new UserFacingError("同じロットが重複して指定されています");
 		}
 
 		seenLotIds.add(allocation.lotId);
 
 		if (!(allocation.quantity > 0) || !Number.isFinite(allocation.quantity)) {
-			throw new UserFacingError("ロットの数量は、0より大きくしてください");
+			throw new UserFacingError("ロットの数量は0より大きくしてください");
 		}
 
 		if (trackingMode === "exact" && allocation.quantity > lot.quantity) {

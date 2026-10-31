@@ -34,48 +34,48 @@ describe("findRecipeLimitViolation", () => {
 		[
 			"レシピ名",
 			() => document({ name: "あ".repeat(101) }),
-			"レシピ名は、100文字まで",
+			"レシピ名は100文字まで",
 		],
 		[
 			"材料の数",
 			() =>
 				document({ ingredientText: many(101, (i) => `食材${i} ${i + 1}個`) }),
-			"材料は、100件まで",
+			"材料は100件まで",
 		],
 		[
 			"材料の名前",
 			() => document({ ingredientText: `${"あ".repeat(101)} 1個` }),
-			"材料の名前は、100文字まで",
+			"材料の名前は100文字まで",
 		],
 		[
 			"材料の分量",
 			() => document({ ingredientText: `卵 ${"1".repeat(101)}個` }),
-			"材料の分量は、100文字まで",
+			"材料の分量は100文字まで",
 		],
 		[
 			"下準備の数",
 			() => document({ preparationText: many(51, (i) => `- 下準備${i}`) }),
-			"下準備は、50件まで",
+			"下準備は50件まで",
 		],
 		[
 			"下準備の長さ",
 			() => document({ preparationText: `- ${"あ".repeat(1001)}` }),
-			"下準備の1件は、1,000文字まで",
+			"下準備の1件は1,000文字まで",
 		],
 		[
 			"作り方の数",
 			() => document({ instructionText: many(51, (i) => `${i + 1}. 手順`) }),
-			"作り方は、50件まで",
+			"作り方は50件まで",
 		],
 		[
 			"作り方の長さ",
 			() => document({ instructionText: `1. ${"あ".repeat(1001)}` }),
-			"作り方の1つの工程は、1,000文字まで",
+			"作り方の1つの工程は1,000文字まで",
 		],
 		[
 			"メモの長さ",
 			() => document({ note: "あ".repeat(3001) }),
-			"メモは、3,000文字まで",
+			"メモは3,000文字まで",
 		],
 	])("%s が上限を超えたら、具体的な文を返す", (_name, create, expected) => {
 		expect(findRecipeLimitViolation(create())).toContain(expected);
@@ -89,8 +89,8 @@ describe("findRecipeLimitViolation", () => {
 			}),
 		);
 
-		expect(violation).toContain("レシピ全体で、12,000文字まで");
-		expect(violation).toMatch(/いま、1[2-3],\d{3}文字/u);
+		expect(violation).toContain("レシピ全体で12,000文字まで");
+		expect(violation).toMatch(/いま1[2-3],\d{3}文字/u);
 	});
 });
 

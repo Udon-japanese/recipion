@@ -65,7 +65,7 @@ describe("RouteError", () => {
 
 		expect(
 			screen.getByText(
-				"レシピを表示できませんでした。時間をおいて、もう一度お試しください。",
+				"レシピを表示できませんでした。時間をおいてもう一度お試しください。",
 			),
 		).toBeTruthy();
 		expect(screen.queryByText(/うまく処理できませんでした/u)).toBeNull();

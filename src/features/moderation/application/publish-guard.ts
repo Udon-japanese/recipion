@@ -150,7 +150,7 @@ export async function guardPublish(
 	if (warning === "suspended") {
 		await repository.suspend({
 			userId,
-			reason: "公開できない内容を、繰り返し投稿しようとしたため",
+			reason: "公開できない内容を繰り返し投稿しようとしたため",
 			now,
 		});
 	}

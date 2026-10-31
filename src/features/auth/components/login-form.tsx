@@ -26,7 +26,7 @@ const emailSchema = v.pipe(
 type Step = "email" | "code";
 
 const captchaPendingMessage =
-	"ボットの判定が完了していません。少し待ってから、お試しください。";
+	"ボットの判定が完了していません。少し待ってからお試しください。";
 
 type LoginFormProps = {
 	// ログインできたあとに、セッションを取り直す。
@@ -193,8 +193,8 @@ export function LoginForm({ onLoggedIn, refetchSession }: LoginFormProps) {
 			{step === "email" ? (
 				<>
 					<p className={styles.lead}>
-						メールアドレスに、ログイン用の{OTP_LENGTH}
-						桁のコードを送ります。パスワードは不要です。初めての方は、自動でアカウントが作られます。
+						メールアドレスにログイン用の{OTP_LENGTH}
+						桁のコードを送ります。パスワードは不要です。初めての方は自動でアカウントが作られます。
 					</p>
 
 					<Field label="メールアドレス">
@@ -233,11 +233,11 @@ export function LoginForm({ onLoggedIn, refetchSession }: LoginFormProps) {
 						<a href="/terms" target="_blank" rel="noreferrer">
 							利用規約
 						</a>
-						と、
+						と
 						<a href="/privacy" target="_blank" rel="noreferrer">
 							プライバシーポリシー
 						</a>
-						（外国にある事業者への、情報の送信を含む）に同意したものとみなします。
+						（外国にある事業者への情報の送信を含む）に同意したものとみなします。
 					</p>
 				</>
 			) : (

@@ -46,7 +46,7 @@ describe("AdminReportsPage", () => {
 		expect(onResolve).toHaveBeenCalledWith(reports[0]?.id, "make-private");
 		await waitFor(() =>
 			expect(
-				screen.getByText("未対応の通報は、ありません。"),
+				screen.getByText("未対応の通報はありません。"),
 			).toBeInTheDocument(),
 		);
 	});

@@ -36,7 +36,7 @@ describe("AdminAppealsPage", () => {
 
 		expect(onResolve).toHaveBeenCalledWith("a1", "ban");
 		expect(
-			await screen.findByText("未対応の申し立ては、ありません。"),
+			await screen.findByText("未対応の申し立てはありません。"),
 		).toBeInTheDocument();
 	});
 

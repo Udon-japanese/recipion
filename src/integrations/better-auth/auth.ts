@@ -116,7 +116,7 @@ export function createAuth(db: DB) {
 
 					if (suspension) {
 						throw APIError.from("FORBIDDEN", {
-							message: "停止中のアカウントは、削除できません",
+							message: "停止中のアカウントは削除できません",
 							code: "ACCOUNT_SUSPENDED",
 						});
 					}
@@ -147,7 +147,7 @@ export function createAuth(db: DB) {
 
 						if (banned) {
 							throw APIError.from("FORBIDDEN", {
-								message: "このメールアドレスでは、登録できません",
+								message: "このメールアドレスでは登録できません",
 								code: "EMAIL_BANNED",
 							});
 						}
