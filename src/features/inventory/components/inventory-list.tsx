@@ -26,11 +26,12 @@ import {
 } from "../domain/inventory-fridge";
 import { toDateString } from "../domain/inventory-lot";
 import {
+	inventoryGroupByStorage,
 	inventoryPetStorage,
 	inventoryViewStorage,
 } from "../infrastructure/inventory-view-storage";
 import * as styles from "./inventory-list.css";
-import { InventoryListView } from "./list/inventory-list-view";
+import { InventoryListView, InventorySearch } from "./list/inventory-list-view";
 import * as listStyles from "./list/list.css";
 import type { InventoryActions } from "./panel/inventory-actions";
 import { ItemPanel, type ItemPanelMode } from "./panel/item-panel";
@@ -101,6 +102,9 @@ export function InventoryList({
 	const [view, changeView] = useStorageItem(inventoryViewStorage);
 	const [night] = useState(() => isNight(new Date()));
 	const [petVisible, changePetVisible] = useStorageItem(inventoryPetStorage);
+	// リストの検索と、まとめ方（最後に選んだもの。読み込めなければ、場所）。
+	const [query, setQuery] = useState("");
+	const [groupBy, setGroupBy] = useStorageItem(inventoryGroupByStorage);
 	// 登録のパネルを開いている間に追加した食材。閉じたあと、タイルに輪を出す。
 	const addedItemIdsRef = useRef(new Set<string>());
 	const [highlightedIds, setHighlightedIds] = useState<ReadonlySet<string>>(
@@ -358,50 +362,74 @@ export function InventoryList({
 	// 見出しは、読み上げのためだけ（下のナビに「在庫」とあるので、画面には出さない）。
 	const title = <h1 className={styles.srOnly}>在庫</h1>;
 
+	const viewToggle = showControls ? (
+		<ViewToggle value={view} onChange={changeView} />
+	) : null;
+
+	const tools = (
+		<span className={styles.tools} data-tools>
+			{view === "scene" ? (
+				<IconButton
+					icon={petVisible ? "mascot-shown" : "mascot-hidden"}
+					label={`${MASCOT_DISPLAY_NAME}を${petVisible ? "かくす" : "だす"}`}
+					size="std"
+					tone={petVisible ? "on" : "plain"}
+					onClick={() => changePetVisible(!petVisible)}
+				/>
+			) : null}
+
+			{isMember ? (
+				<IconButton
+					icon="refresh"
+					label="更新"
+					size="std"
+					disabled={isLoading}
+					onClick={() => void refresh()}
+				/>
+			) : null}
+		</span>
+	);
+
+	const addButton =
+		registration && showControls ? (
+			<span className={styles.addButton}>
+				<Button
+					leadingIcon={<Icon name="plus" size={20} />}
+					aria-haspopup="dialog"
+					onClick={() => handleRegistrationOpenChange(true)}
+				>
+					在庫に追加
+				</Button>
+			</span>
+		) : null;
+
+	// リストでは、検索とまとめ方も、同じ段に並べる（読み込みの前後で、段を作り直さない）。
+	const isListMode = showControls && view === "list";
+
 	const toolbar = (
 		<>
-			{showControls ? <ViewToggle value={view} onChange={changeView} /> : null}
-
-			<span className={styles.tools} data-tools>
-				{view === "scene" ? (
-					<IconButton
-						icon={petVisible ? "mascot-shown" : "mascot-hidden"}
-						label={`${MASCOT_DISPLAY_NAME}を${petVisible ? "かくす" : "だす"}`}
-						size="std"
-						tone={petVisible ? "on" : "plain"}
-						onClick={() => changePetVisible(!petVisible)}
-					/>
-				) : null}
-
-				{isMember ? (
-					<IconButton
-						icon="refresh"
-						label="更新"
-						size="std"
-						disabled={isLoading}
-						onClick={() => void refresh()}
-					/>
-				) : null}
-			</span>
-
-			{registration && showControls ? (
-				<span className={styles.addButton}>
-					<Button
-						leadingIcon={<Icon name="plus" size={20} />}
-						aria-haspopup="dialog"
-						onClick={() => handleRegistrationOpenChange(true)}
-					>
-						在庫に追加
-					</Button>
-				</span>
+			{viewToggle}
+			{isListMode ? (
+				<InventorySearch
+					query={query}
+					by={groupBy}
+					onQueryChange={setQuery}
+					onByChange={setGroupBy}
+				/>
 			) : null}
+			{tools}
+			{addButton}
 		</>
 	);
 
 	return (
 		<section className={styles.container}>
 			{title}
-			{isSceneShown ? null : <div className={styles.header}>{toolbar}</div>}
+			{isSceneShown ? null : (
+				<div className={isListMode ? listStyles.toolbar : styles.header}>
+					{toolbar}
+				</div>
+			)}
 
 			{notices}
 
@@ -452,8 +480,6 @@ export function InventoryList({
 
 					{view === "list" ? (
 						<div className={listStyles.skeletonRows} aria-hidden>
-							<div className={listStyles.skeletonField} />
-							<div className={listStyles.skeletonField} />
 							{Array.from({ length: 6 }, (_, index) => (
 								<div
 									className={listStyles.skeleton}
@@ -499,6 +525,8 @@ export function InventoryList({
 
 			{showFridge && view === "list" ? (
 				<InventoryListView
+					query={query}
+					by={groupBy}
 					zones={zones}
 					today={today}
 					selectedItemId={selection?.inventoryItemId ?? null}

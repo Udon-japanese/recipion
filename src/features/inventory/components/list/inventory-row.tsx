@@ -2,7 +2,7 @@ import { Tag } from "#/components/tag/tag";
 import { DishArt } from "#/features/dish-art/components/dish-art";
 import {
 	describeInventoryTile,
-	describeTileQuantity,
+	tileQuantityParts,
 } from "../../domain/describe-inventory-tile";
 import { resolveIngredientArt } from "../../domain/ingredient-art";
 import {
@@ -22,7 +22,7 @@ type InventoryRowProps = {
 	onOpen: (tile: InventoryTile) => void;
 };
 
-// 一覧の1行：絵・名前・量・期限・（場所）。押すと、食材のパネルが開く。
+// 一覧の1行：絵・名前・（期限の近いものだけ札）・量（右に大きく）。押すと、食材のパネルが開く。
 export function InventoryRow({
 	tile,
 	selected,
@@ -31,6 +31,7 @@ export function InventoryRow({
 	onOpen,
 }: InventoryRowProps) {
 	const { expiry } = tile;
+	const quantity = tileQuantityParts(tile);
 
 	return (
 		<button
@@ -49,26 +50,46 @@ export function InventoryRow({
 			<span className={styles.art} aria-hidden>
 				<DishArt
 					placements={resolveIngredientArt(tile.ingredientName)}
-					size={56}
+					size={48}
 				/>
 			</span>
 			<span className={styles.text} aria-hidden>
 				<span className={styles.name}>{tile.name}</span>
-				<span className={styles.meta}>
-					<span className={styles.amount}>
-						{tile.isEmpty ? "なし" : describeTileQuantity(tile)}
+				{expiry || showZone ? (
+					<span className={styles.meta}>
+						{expiry ? (
+							<Tag
+								tone={expiry.level === "near" ? "warn" : "error"}
+								icon={expiry.level === "expired" ? "alert-triangle" : "clock"}
+								approximate={expiry.approximate}
+							>
+								{expiry.badgeText}
+							</Tag>
+						) : null}
+						{showZone ? (
+							<span className={styles.zone}>
+								{inventoryZoneLabels[tile.zone]}
+							</span>
+						) : null}
 					</span>
-					{expiry ? (
-						<Tag
-							tone={expiry.level === "near" ? "warn" : "error"}
-							icon={expiry.level === "expired" ? "alert-triangle" : "clock"}
-							approximate={expiry.approximate}
-						>
-							{expiry.badgeText}
-						</Tag>
-					) : null}
-					{showZone ? <Tag>{inventoryZoneLabels[tile.zone]}</Tag> : null}
-				</span>
+				) : null}
+			</span>
+			<span className={styles.quantity} aria-hidden>
+				{tile.isEmpty ? (
+					<span className={styles.none}>なし</span>
+				) : quantity ? (
+					<>
+						{quantity.approximate ? (
+							<span className={styles.unit}>約</span>
+						) : null}
+						<span className={styles.amount}>{quantity.amount}</span>
+						<span className={styles.unit}>{quantity.unit}</span>
+					</>
+				) : (
+					<Tag tone={tile.isPresent ? "success" : "default"}>
+						{tile.isPresent ? "あり" : "なし"}
+					</Tag>
+				)}
 			</span>
 		</button>
 	);

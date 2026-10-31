@@ -1,14 +1,14 @@
-import { useMemo, useState } from "react";
-import { Card } from "#/components/card/card";
-import { Chip, ChipGroup } from "#/components/chip/chip";
-import { TextInput } from "#/components/field/field";
-import { SegmentedControl } from "#/components/segmented-control/segmented-control";
-import { useMediaQuery } from "#/components/use-media-query";
-import { useStorageItem } from "#/local-storage/use-storage-item";
-import type {
-	InventoryFridgeZone,
-	InventoryTile,
-	InventoryZoneId,
+import { useId, useMemo } from "react";
+import { SelectBox, TextInput } from "#/components/field/field";
+import { Icon } from "#/components/icon/icon";
+import { DishArt } from "#/features/dish-art/components/dish-art";
+import { resolveIngredientArt } from "../../domain/ingredient-art";
+import {
+	type InventoryFridgeZone,
+	type InventoryTile,
+	type InventoryTileExpiry,
+	type InventoryZoneId,
+	inventoryZones,
 } from "../../domain/inventory-fridge";
 import {
 	compareTilesFor,
@@ -16,12 +16,11 @@ import {
 	inventoryGroupByOptions,
 	inventoryGroupOf,
 	listInventoryGroups,
+	pickUseSoonTiles,
 } from "../../domain/inventory-grouping";
-import { inventoryGroupByStorage } from "../../infrastructure/inventory-view-storage";
 import { InventoryRow } from "./inventory-row";
 import * as styles from "./list.css";
-import { ZonePicker } from "./zone-picker";
-import { ZoneTabs } from "./zone-tabs";
+import { zoneIcons } from "./zone-tabs";
 
 type InventoryListViewProps = {
 	zones: readonly InventoryFridgeZone[];
@@ -29,23 +28,106 @@ type InventoryListViewProps = {
 	selectedItemId: string | null;
 	// 追加した直後の食材。
 	highlightedItemIds?: ReadonlySet<string>;
+	// 検索の言葉と、まとめ方（上の操作の段で選ぶ。InventorySearch）。
+	query: string;
+	by: InventoryGroupBy;
 	onOpen: (tile: InventoryTile) => void;
 };
 
-// 在庫の一覧：検索と、「場所・期限・あいうえお」のまとめ方。場所は縦タブ、ほかは横のチップで、一瞬で切り替える。
+function isZoneId(id: string): id is InventoryZoneId {
+	return inventoryZones.some((zone) => zone.id === id);
+}
+
+// 「早めに使う」のカードの、大きく出す期限（「今日まで」「あと3日」「切れ」）。
+function describeUseSoon(expiry: InventoryTileExpiry): {
+	before?: string;
+	main: string;
+	after?: string;
+} {
+	if (expiry.level === "expired") {
+		return { main: expiry.badgeText };
+	}
+
+	return expiry.daysLeft <= 1
+		? { main: expiry.badgeText, after: "まで" }
+		: { before: "あと", main: String(expiry.daysLeft), after: "日" };
+}
+
+function describeUseSoonSpoken(tile: InventoryTile): string {
+	if (!tile.expiry) {
+		return "";
+	}
+
+	if (tile.expiry.level === "expired") {
+		return "期限切れ";
+	}
+
+	const { before = "", main, after = "" } = describeUseSoon(tile.expiry);
+
+	return `${before}${main}${after}`;
+}
+
+type InventorySearchProps = {
+	query: string;
+	by: InventoryGroupBy;
+	onQueryChange: (query: string) => void;
+	onByChange: (by: InventoryGroupBy) => void;
+};
+
+// 検索の欄と、まとめ方の選択（上の操作の段に、1つの塊として置く）。
+export function InventorySearch({
+	query,
+	by,
+	onQueryChange,
+	onByChange,
+}: InventorySearchProps) {
+	return (
+		<div className={styles.search}>
+			<span className={styles.searchField}>
+				<TextInput
+					type="search"
+					placeholder="在庫を探す"
+					aria-label="在庫を探す"
+					value={query}
+					onChange={(event) => onQueryChange(event.target.value)}
+				/>
+			</span>
+			<span className={styles.groupBy}>
+				<SelectBox
+					aria-label="まとめ方"
+					value={by}
+					onChange={(event) => {
+						const next = inventoryGroupByOptions.find(
+							(option) => option.value === event.target.value,
+						);
+
+						if (next) {
+							onByChange(next.value);
+						}
+					}}
+				>
+					{inventoryGroupByOptions.map((option) => (
+						<option key={option.value} value={option.value}>
+							{option.label}
+						</option>
+					))}
+				</SelectBox>
+			</span>
+		</div>
+	);
+}
+
+// 在庫の一覧：上に「早めに使う」、その下に、まとめ方（場所・期限・あいうえお）ごとの見出しで区切った行。
 export function InventoryListView({
 	zones,
 	today,
 	selectedItemId,
 	highlightedItemIds,
+	query,
+	by,
 	onOpen,
 }: InventoryListViewProps) {
-	const [query, setQuery] = useState("");
-	// スマホでは、場所の縦タブは、幅をとるので、場所の選択（下のシート）にする。
-	const isCompact = useMediaQuery("(max-width: 767px)");
-	// 最後に選んだまとめ方（読み込めなければ、場所）。
-	const [by, setBy] = useStorageItem(inventoryGroupByStorage);
-	const [pick, setPick] = useState<string | null>(null);
+	const useSoonHeadingId = useId();
 
 	const searched = useMemo(() => {
 		const text = query.trim();
@@ -58,119 +140,110 @@ export function InventoryListView({
 			);
 	}, [zones, query]);
 
-	const counts = useMemo(() => {
-		const result = new Map<string, number>();
+	const sections = useMemo(() => {
+		// 場所は、画面を開いたときに決めた並びのまま。ほかは、まとめ方の並び。
+		const sorted =
+			by === "zone" ? searched : [...searched].sort(compareTilesFor(by));
 
-		for (const tile of searched) {
-			const id = inventoryGroupOf(tile, by, today);
-
-			result.set(id, (result.get(id) ?? 0) + 1);
-		}
-
-		return result;
+		return listInventoryGroups(by)
+			.map((group) => ({
+				...group,
+				tiles: sorted.filter(
+					(tile) => inventoryGroupOf(tile, by, today) === group.id,
+				),
+			}))
+			.filter((section) => section.tiles.length > 0);
 	}, [searched, by, today]);
 
-	const groups = listInventoryGroups(by).filter(
-		(group) => (counts.get(group.id) ?? 0) > 0,
-	);
-	const active = pick !== null && counts.has(pick) ? pick : null;
-
-	const shown = useMemo(() => {
-		const tiles =
-			active === null
-				? searched
-				: searched.filter(
-						(tile) => inventoryGroupOf(tile, by, today) === active,
-					);
-
-		// 場所は、画面を開いたときに決めた並びのまま。ほかは、まとめ方の並び。
-		return by === "zone" ? tiles : [...tiles].sort(compareTilesFor(by));
-	}, [searched, active, by, today]);
-
-	function changeBy(value: InventoryGroupBy) {
-		setBy(value);
-		setPick(null);
-	}
+	// 期限でまとめているときと、探しているときは、出さない（同じものが、すぐ下に並ぶ）。
+	const useSoon =
+		by === "expiry" || query.trim() !== ""
+			? []
+			: pickUseSoonTiles(zones.flatMap((zone) => zone.tiles));
 
 	return (
 		<div className={styles.wrap}>
-			<TextInput
-				type="search"
-				placeholder="在庫を探す"
-				aria-label="在庫を探す"
-				value={query}
-				onChange={(event) => setQuery(event.target.value)}
-			/>
+			{useSoon.length > 0 ? (
+				<section aria-labelledby={useSoonHeadingId}>
+					<h2 className={styles.useSoonHead} id={useSoonHeadingId}>
+						早めに使う
+					</h2>
+					<ul className={styles.useSoon}>
+						{useSoon.map((tile) => {
+							const text = tile.expiry ? describeUseSoon(tile.expiry) : null;
 
-			<SegmentedControl
-				label="まとめ方"
-				value={by}
-				onChange={changeBy}
-				options={inventoryGroupByOptions}
-			/>
-
-			{by === "zone" && isCompact ? (
-				<ZonePicker
-					variant="field"
-					value={active as InventoryZoneId | null}
-					counts={Object.fromEntries(counts)}
-					allCount={searched.length}
-					onChange={setPick}
-				/>
+							return (
+								<li key={tile.key}>
+									<button
+										className={styles.useSoonCard}
+										type="button"
+										aria-label={`${tile.name}（${text ? describeUseSoonSpoken(tile) : ""}）`}
+										aria-haspopup="dialog"
+										data-expiry={tile.expiry?.level}
+										onClick={() => onOpen(tile)}
+									>
+										<span aria-hidden>
+											<DishArt
+												placements={resolveIngredientArt(tile.ingredientName)}
+												size={44}
+											/>
+										</span>
+										<span className={styles.useSoonName} aria-hidden>
+											{tile.name}
+										</span>
+										{text ? (
+											<span className={styles.useSoonWhen} aria-hidden>
+												{text.before ? (
+													<span className={styles.useSoonSmall}>
+														{text.before}
+													</span>
+												) : null}
+												{text.main}
+												{text.after ? (
+													<span className={styles.useSoonSmall}>
+														{text.after}
+													</span>
+												) : null}
+											</span>
+										) : null}
+									</button>
+								</li>
+							);
+						})}
+					</ul>
+				</section>
 			) : null}
 
-			<div className={styles.body}>
-				{by === "zone" && !isCompact ? (
-					<ZoneTabs
-						value={active as InventoryZoneId | null}
-						counts={Object.fromEntries(counts)}
-						onChange={setPick}
-					/>
-				) : null}
-
-				<div className={styles.main}>
-					{by === "zone" ? null : (
-						<div className={styles.chipScroll}>
-							<ChipGroup label="絞り込み">
-								<Chip pressed={active === null} onClick={() => setPick(null)}>
-									すべて（{searched.length}）
-								</Chip>
-								{groups.map((group) => (
-									<Chip
-										key={group.id}
-										pressed={group.id === active}
-										onClick={() => setPick(group.id)}
-									>
-										{group.label}（{counts.get(group.id)}）
-									</Chip>
-								))}
-							</ChipGroup>
-						</div>
-					)}
-
-					<Card>
-						{shown.length === 0 ? (
-							<p className={styles.empty}>見つかりませんでした。</p>
-						) : (
-							<ul className={styles.rows}>
-								{shown.map((tile) => (
-									<li key={tile.key}>
-										<InventoryRow
-											tile={tile}
-											selected={tile.inventoryItemId === selectedItemId}
-											highlighted={highlightedItemIds?.has(
-												tile.inventoryItemId,
-											)}
-											showZone={!(by === "zone" && active !== null)}
-											onOpen={onOpen}
-										/>
-									</li>
-								))}
-							</ul>
-						)}
-					</Card>
-				</div>
-			</div>
+			{sections.length === 0 ? (
+				<p className={styles.empty}>見つかりませんでした。</p>
+			) : (
+				sections.map((section) => (
+					<section className={styles.section} key={section.id}>
+						<h2 className={styles.sectionHead}>
+							{isZoneId(section.id) ? (
+								<Icon name={zoneIcons[section.id]} size={20} />
+							) : null}
+							{section.label}
+							<span className={styles.sectionCount}>
+								{section.tiles.length}
+							</span>
+						</h2>
+						<ul className={styles.rows}>
+							{section.tiles.map((tile) => (
+								<li key={tile.key}>
+									<InventoryRow
+										tile={tile}
+										selected={tile.inventoryItemId === selectedItemId}
+										highlighted={highlightedItemIds?.has(tile.inventoryItemId)}
+										showZone={by !== "zone"}
+										onOpen={onOpen}
+									/>
+								</li>
+							))}
+						</ul>
+					</section>
+				))
+			)}
 		</div>
 	);
 }
