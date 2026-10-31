@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
 	displayNameMaxLength,
 	generateHandle,
+	handleMaxLength,
+	handleMinLength,
 	normalizeDisplayName,
 	normalizeHandle,
 	validateDisplayName,
@@ -43,8 +45,11 @@ describe("normalizeHandle / validateHandle", () => {
 			["taro", null],
 			["taro_cook-1", null],
 			["user-8f3k2a1b", null],
-			["ab", "too-short"],
-			["a".repeat(21), "too-long"],
+			// 下限と上限は、それぞれ、ちょうど（通る）と、1つ外（止まる）。
+			["a".repeat(handleMinLength - 1), "too-short"],
+			["a".repeat(handleMinLength), null],
+			["a".repeat(handleMaxLength), null],
+			["a".repeat(handleMaxLength + 1), "too-long"],
 			["たろう", "invalid-characters"],
 			["taro cook", "invalid-characters"],
 			["Taro", "invalid-characters"],
@@ -55,10 +60,6 @@ describe("normalizeHandle / validateHandle", () => {
 		expect(cases.map(([handle]) => validateHandle(handle))).toEqual(
 			cases.map(([, expected]) => expected),
 		);
-	});
-
-	it("20文字ちょうどは使える", () => {
-		expect(validateHandle("a".repeat(20))).toBeNull();
 	});
 });
 
