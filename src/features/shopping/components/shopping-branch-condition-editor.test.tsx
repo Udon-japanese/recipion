@@ -54,6 +54,8 @@ describe("ShoppingBranchConditionEditor", () => {
 		).toBeInTheDocument();
 		expect(screen.getByText("そうなら：ハンバーグ")).toBeInTheDocument();
 		expect(screen.getByText("そうでなければ：生姜焼き")).toBeInTheDocument();
+		// 文章の店の部品は、店の名前だけ（「イオン店」としない）。
+		expect(screen.getByRole("button", { name: "イオン" })).toBeInTheDocument();
 	});
 
 	it("押した部品の入力だけが開き、直すと、文章がすぐに変わる", async () => {

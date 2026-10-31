@@ -85,12 +85,6 @@ export const token = style({
 	},
 });
 
-export const tokenSub = style({
-	color: "var(--color-text-muted)",
-	fontSize: "var(--font-size-xs)",
-	fontWeight: "var(--font-weight-regular)",
-});
-
 export const tokenEmpty = style({
 	color: "var(--color-text-disabled)",
 	fontWeight: "var(--font-weight-regular)",

@@ -190,10 +190,7 @@ export function ShoppingBranchConditionEditor({
 						onClick={() => togglePart("store")}
 					>
 						{storeName ? (
-							<>
-								{storeName}
-								<span className={styles.tokenSub}>店</span>
-							</>
+							storeName
 						) : (
 							<span className={styles.tokenEmpty}>店を選ぶ</span>
 						)}

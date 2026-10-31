@@ -1,0 +1,119 @@
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
+import { buildShoppingItem } from "#/test/builders/build-shopping-item";
+import type {
+	ShoppingItem,
+	UpdateShoppingItemInput,
+} from "../domain/shopping-item";
+import { ShoppingItemEditSheet } from "./shopping-item-edit-sheet";
+
+const stores = [
+	{
+		id: "aeon",
+		name: "イオン",
+		sortOrder: 0,
+		createdAt: "2026-10-01T00:00:00.000Z",
+	},
+	{
+		id: "gyomu",
+		name: "業務スーパー",
+		sortOrder: 1,
+		createdAt: "2026-10-01T00:00:00.000Z",
+	},
+];
+
+function setup(item = buildShoppingItem({ name: "牛乳", storeId: "aeon" })) {
+	const onSave = vi.fn(
+		async (_item: ShoppingItem, _input: UpdateShoppingItemInput) => true,
+	);
+	const onClose = vi.fn();
+
+	render(
+		<ShoppingItemEditSheet
+			item={item}
+			stores={stores}
+			onCreateStore={async () => null}
+			onSave={onSave}
+			onClose={onClose}
+		/>,
+	);
+
+	return { onSave, onClose };
+}
+
+describe("ShoppingItemEditSheet", () => {
+	it("いまの内容が入った状態で開き、何も変えなければ、Esc で保存せずに閉じる", async () => {
+		const user = userEvent.setup();
+		const { onSave, onClose } = setup();
+
+		expect(screen.getByLabelText("商品名")).toHaveValue("牛乳");
+		expect(screen.getByRole("button", { name: "イオン" })).toHaveAttribute(
+			"aria-pressed",
+			"true",
+		);
+
+		await user.keyboard("{Escape}");
+
+		expect(onClose).toHaveBeenCalledTimes(1);
+		expect(onSave).not.toHaveBeenCalled();
+	});
+
+	it("直しかけのときは、Esc で閉じない（「やめる」なら閉じる）", async () => {
+		const user = userEvent.setup();
+		const { onSave, onClose } = setup();
+
+		await user.clear(screen.getByLabelText("数量"));
+		await user.type(screen.getByLabelText("数量"), "2");
+		await user.keyboard("{Escape}");
+
+		expect(onClose).not.toHaveBeenCalled();
+
+		await user.click(screen.getByRole("button", { name: "やめる" }));
+
+		expect(onClose).toHaveBeenCalledTimes(1);
+		expect(onSave).not.toHaveBeenCalled();
+	});
+
+	it("数量と店を直して保存すると、直した内容で保存する", async () => {
+		const user = userEvent.setup();
+		const { onSave } = setup();
+
+		await user.clear(screen.getByLabelText("数量"));
+		await user.type(screen.getByLabelText("数量"), "2");
+		await user.click(screen.getByRole("button", { name: "業務スーパー" }));
+		await user.click(screen.getByRole("button", { name: "保存" }));
+
+		expect(onSave).toHaveBeenCalledWith(
+			expect.objectContaining({ name: "牛乳" }),
+			expect.objectContaining({ name: "牛乳", quantity: 2, storeId: "gyomu" }),
+		);
+	});
+
+	it("名前を変えても、店は選んであるまま", async () => {
+		const user = userEvent.setup();
+		const { onSave } = setup();
+
+		await user.clear(screen.getByLabelText("商品名"));
+		await user.type(screen.getByLabelText("商品名"), "豆乳");
+		await user.click(screen.getByRole("button", { name: "保存" }));
+
+		expect(onSave).toHaveBeenCalledWith(
+			expect.anything(),
+			expect.objectContaining({ name: "豆乳", storeId: "aeon" }),
+		);
+	});
+
+	it("商品名が空なら、保存せず、知らせる", async () => {
+		const user = userEvent.setup();
+		const { onSave } = setup();
+
+		await user.clear(screen.getByLabelText("商品名"));
+		await user.click(screen.getByRole("button", { name: "保存" }));
+
+		expect(screen.getByRole("alert")).toHaveTextContent(
+			"商品名を入力してください",
+		);
+		expect(onSave).not.toHaveBeenCalled();
+	});
+});
