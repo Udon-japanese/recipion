@@ -26,7 +26,6 @@ export const frame = style({
 	overflow: "hidden",
 	// 文字や余白は、絵の高さ（cqh）に合わせる。
 	containerType: "size",
-	border: "2px solid var(--color-border-strong)",
 	borderRadius: 28,
 	background: "#f2d9a6",
 });
@@ -99,40 +98,34 @@ export const hit = style({
 
 globalStyle(`${hit}[data-hidden="true"] > *`, { opacity: 0 });
 
-// 場所の名札：扉に貼った紙（貼り紙）と同じ、ベージュの紙＋墨の枠。影や白い丸薬型にしない。
+// 場所の名札：冷蔵庫に付けたマグネットのような、小さな濃い札。食材がない場所は、薄くして、件数を出さない。
 export const tag = style({
 	position: "relative",
 	display: "inline-flex",
 	alignItems: "center",
-	gap: "0.45em",
-	padding: "0.3em 0.8em 0.3em 0.6em",
-	borderRadius: "0.5em",
-	background: "#fff3c4",
-	border: "2.5px solid var(--color-text)",
-	color: "var(--color-text)",
+	gap: "0.4em",
+	padding: "0.3em 0.75em 0.3em 0.55em",
+	borderRadius: 999,
+	background: "var(--color-text)",
+	color: "var(--color-surface)",
 	fontWeight: 700,
 	lineHeight: 1.2,
 	whiteSpace: "nowrap",
-	transform: "rotate(-2deg)",
-	transition: "transform 160ms var(--ease-emphasized)",
+	transition:
+		"transform 160ms var(--ease-emphasized), opacity 160ms var(--ease-standard)",
 	selectors: {
-		// 上にマスキングテープ。
-		"&::before": {
-			content: '""',
-			position: "absolute",
-			left: "50%",
-			top: "-0.7em",
-			width: "2.4em",
-			height: "0.8em",
-			transform: "translateX(-50%) rotate(3deg)",
-			background: "rgba(233, 169, 0, 0.75)",
-			borderRadius: 2,
-		},
+		'&[data-empty="true"]': { opacity: 0.55 },
 	},
 });
 
+export const tagCount = style({
+	fontVariantNumeric: "tabular-nums",
+	opacity: 0.8,
+});
+
 globalStyle(`${hit}:hover > ${tag}, ${hit}:focus-visible > ${tag}`, {
-	transform: "translateY(-0.25cqh) rotate(0deg)",
+	transform: "translateY(-0.25cqh)",
+	opacity: 1,
 });
 
 globalStyle(`${hit}:focus-visible > ${tag}`, {
@@ -151,7 +144,7 @@ export const alert = style({
 	boxSizing: "border-box",
 	borderRadius: 999,
 	background: "var(--color-error)",
-	border: "2px solid var(--color-text)",
+	border: "2px solid var(--color-surface)",
 	color: "var(--color-on-error)",
 	fontSize: "0.85em",
 	fontWeight: 700,

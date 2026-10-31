@@ -7,6 +7,66 @@ const STROKE = 2.5;
 
 export type OpenPart = "top" | "veg" | "freezer" | null;
 
+// 昼と夜の色。夜は、絵全体に暗い色を重ねず、物ごとに夜の色で塗る（重ねると、色が濁る）。
+const dayColors = {
+	wall: "#f6dfae",
+	wainscot: "#efd29a",
+	wainscotLine: "#d9b676",
+	floor: "#d9a766",
+	floorLine: "#c4914f",
+	fabric: "#f3b9a3",
+	fabricLight: "#f8d2c2",
+	wood: "#c98f58",
+	fridge: "#fffdf7",
+	fridgeInside: "#fff6d4",
+	shelf: "#bfb08a",
+	freezer: "#dfe8ee",
+	vegetable: "#e9dfc4",
+	handle: "#d9d2bf",
+	note: "#fff3c4",
+	pocket: "#f2ead2",
+	tableFoot: "#b98250",
+	tableSide: "#c4915a",
+	tableTop: "#e6b676",
+	tableRim: "#cf9b5a",
+	leafDark: "#58ad6e",
+	leaf: "#6fb77a",
+	leafLight: "#8bcb92",
+	pot: "#d98b5f",
+	// 床に落ちる影の濃さ。
+	shadow: 0.14,
+};
+
+type RoomColors = typeof dayColors;
+
+const nightColors: RoomColors = {
+	wall: "#5a5f8c",
+	wainscot: "#50547e",
+	wainscotLine: "#444872",
+	floor: "#7d6058",
+	floorLine: "#6c5049",
+	fabric: "#c98f8a",
+	fabricLight: "#d9a8a0",
+	wood: "#946a4e",
+	fridge: "#dfe1ee",
+	fridgeInside: "#f3ead0",
+	shelf: "#a49c88",
+	freezer: "#bcc6da",
+	vegetable: "#c9c1ad",
+	handle: "#aeadc0",
+	note: "#e9ddb4",
+	pocket: "#d4cfc4",
+	tableFoot: "#8c6044",
+	tableSide: "#a0744c",
+	tableTop: "#d1a06a",
+	tableRim: "#b48352",
+	leafDark: "#3f7f5c",
+	leaf: "#4f9168",
+	leafLight: "#69a87c",
+	pot: "#b06f55",
+	shadow: 0.28,
+};
+
 const tableSlots = [
 	{ x: 84, y: 486 },
 	{ x: 124, y: 480 },
@@ -16,33 +76,43 @@ const tableSlots = [
 	{ x: 178, y: 514 },
 ];
 
-function Plant({ x, y, scale = 1 }: { x: number; y: number; scale?: number }) {
+function Plant({
+	x,
+	y,
+	scale = 1,
+	c,
+}: {
+	x: number;
+	y: number;
+	scale?: number;
+	c: RoomColors;
+}) {
 	return (
 		<g transform={`translate(${x} ${y}) scale(${scale})`}>
 			<path
 				d="M0 0C-26 -20 -28 -54 -10 -70C-4 -40 4 -22 0 0Z"
-				fill="#6fb77a"
+				fill={c.leaf}
 				stroke={INK}
 				strokeWidth={STROKE}
 				strokeLinejoin="round"
 			/>
 			<path
 				d="M0 0C24 -16 34 -48 22 -68C10 -44 0 -26 0 0Z"
-				fill="#58ad6e"
+				fill={c.leafDark}
 				stroke={INK}
 				strokeWidth={STROKE}
 				strokeLinejoin="round"
 			/>
 			<path
 				d="M0 0C-4 -28 4 -58 2 -84C16 -58 12 -26 0 0Z"
-				fill="#8bcb92"
+				fill={c.leafLight}
 				stroke={INK}
 				strokeWidth={STROKE}
 				strokeLinejoin="round"
 			/>
 			<path
 				d="M-18 0H18L14 30H-14Z"
-				fill="#d98b5f"
+				fill={c.pot}
 				stroke={INK}
 				strokeWidth={STROKE}
 				strokeLinejoin="round"
@@ -61,6 +131,8 @@ export function RoomArt({
 	open: OpenPart;
 	tableTiles: readonly InventoryTile[];
 }) {
+	const c = night ? nightColors : dayColors;
+
 	return (
 		<svg
 			className={styles.art}
@@ -80,27 +152,28 @@ export function RoomArt({
 					<stop offset="1" stopColor="#ffe29a" stopOpacity="0" />
 				</radialGradient>
 				<radialGradient
-					id="duskShade"
-					cx="170"
-					cy="120"
-					r="420"
+					id="tableLight"
+					cx="140"
+					cy="510"
+					r="190"
+					gradientTransform="translate(0 340) scale(1 0.34)"
 					gradientUnits="userSpaceOnUse"
 				>
-					<stop offset="0.15" stopColor="#2b2350" stopOpacity="0" />
-					<stop offset="1" stopColor="#2b2350" stopOpacity="0.62" />
+					<stop offset="0" stopColor="#ffd98a" stopOpacity="0.55" />
+					<stop offset="1" stopColor="#ffd98a" stopOpacity="0" />
 				</radialGradient>
 			</defs>
 
 			{/* 壁と床 */}
-			<rect x="-200" width="800" height="400" fill="#f6dfae" />
-			<rect x="-200" y="300" width="800" height="100" fill="#efd29a" />
-			<path d="M-200 300H600" stroke="#d9b676" strokeWidth="3" />
-			<rect x="-200" y="400" width="800" height="240" fill="#d9a766" />
+			<rect x="-200" width="800" height="400" fill={c.wall} />
+			<rect x="-200" y="300" width="800" height="100" fill={c.wainscot} />
+			<path d="M-200 300H600" stroke={c.wainscotLine} strokeWidth="3" />
+			<rect x="-200" y="400" width="800" height="240" fill={c.floor} />
 			{[-200, -120, -40, 40, 120, 200, 280, 360, 440, 520, 600].map((x) => (
 				<path
 					key={x}
 					d={`M${x} 400L${200 + (x - 200) * 3.4} 640`}
-					stroke="#c4914f"
+					stroke={c.floorLine}
 					strokeWidth="2"
 				/>
 			))}
@@ -146,14 +219,14 @@ export function RoomArt({
 				/>
 				<path
 					d="M30 104Q44 150 34 230H20Q22 160 30 104Z"
-					fill="#f3b9a3"
+					fill={c.fabric}
 					stroke={INK}
 					strokeWidth="2.5"
 					strokeLinejoin="round"
 				/>
 				<path
 					d="M138 104Q124 150 134 230H148Q146 160 138 104Z"
-					fill="#f3b9a3"
+					fill={c.fabric}
 					stroke={INK}
 					strokeWidth="2.5"
 					strokeLinejoin="round"
@@ -164,15 +237,23 @@ export function RoomArt({
 					width="120"
 					height="8"
 					rx="3"
-					fill="#c98f58"
+					fill={c.wood}
 					stroke={INK}
 					strokeWidth="2.5"
 				/>
 			</g>
-			<Plant x={90} y={217} scale={0.5} />
+			<Plant x={90} y={217} scale={0.5} c={c} />
+
+			{/* 床に落ちる影（物が、床に立って見えるように） */}
+			<g fill={INK} opacity={c.shadow}>
+				<ellipse cx="36" cy="402" rx="30" ry="6" />
+				<ellipse cx="304" cy="412" rx="92" ry="9" />
+				<ellipse cx="300" cy="606" rx="62" ry="9" />
+				<ellipse cx="140" cy="620" rx="84" ry="12" />
+			</g>
 
 			{/* 床の観葉植物 */}
-			<Plant x={36} y={372} scale={0.95} />
+			<Plant x={36} y={372} scale={0.95} c={c} />
 
 			{/* 冷蔵庫（奥・右） */}
 			<g>
@@ -182,7 +263,7 @@ export function RoomArt({
 					width="156"
 					height="338"
 					rx="16"
-					fill="#fffdf7"
+					fill={c.fridge}
 					stroke={INK}
 					strokeWidth="3"
 				/>
@@ -193,7 +274,7 @@ export function RoomArt({
 					width="136"
 					height="164"
 					rx="8"
-					fill="#fff6d4"
+					fill={c.fridgeInside}
 					stroke={INK}
 					strokeWidth="2.5"
 				/>
@@ -201,7 +282,7 @@ export function RoomArt({
 					<path
 						key={y}
 						d={`M240 ${y}H368`}
-						stroke="#bfb08a"
+						stroke={c.shelf}
 						strokeWidth="4"
 						strokeLinecap="round"
 					/>
@@ -222,7 +303,7 @@ export function RoomArt({
 					width="140"
 					height="68"
 					rx="10"
-					fill="#dfe8ee"
+					fill={c.freezer}
 					stroke={INK}
 					strokeWidth="3"
 				/>
@@ -236,7 +317,7 @@ export function RoomArt({
 					width="140"
 					height="74"
 					rx="10"
-					fill="#e9dfc4"
+					fill={c.vegetable}
 					stroke={INK}
 					strokeWidth="3"
 				/>
@@ -252,7 +333,7 @@ export function RoomArt({
 						width="140"
 						height="168"
 						rx="10"
-						fill="#fffdf7"
+						fill={c.fridge}
 						stroke={INK}
 						strokeWidth="3"
 					/>
@@ -262,7 +343,7 @@ export function RoomArt({
 						width="8"
 						height="50"
 						rx="4"
-						fill="#d9d2bf"
+						fill={c.handle}
 						stroke={INK}
 						strokeWidth="2.5"
 					/>
@@ -273,7 +354,7 @@ export function RoomArt({
 						width="40"
 						height="46"
 						rx="3"
-						fill="#fff3c4"
+						fill={c.note}
 						stroke={INK}
 						strokeWidth="2.5"
 						transform="rotate(-4 282 113)"
@@ -296,7 +377,7 @@ export function RoomArt({
 					{/* ドアポケット（調味料などを立てる棚） */}
 					<path
 						d="M242 204H366V234Q366 238 362 238H246Q242 238 242 234Z"
-						fill="#f2ead2"
+						fill={c.pocket}
 						stroke={INK}
 						strokeWidth="2.5"
 						strokeLinejoin="round"
@@ -351,7 +432,7 @@ export function RoomArt({
 						width="140"
 						height="68"
 						rx="10"
-						fill="#fffdf7"
+						fill={c.fridge}
 						stroke={INK}
 						strokeWidth="3"
 					/>
@@ -361,7 +442,7 @@ export function RoomArt({
 						width="56"
 						height="8"
 						rx="4"
-						fill="#d9d2bf"
+						fill={c.handle}
 						stroke={INK}
 						strokeWidth="2.5"
 					/>
@@ -373,7 +454,7 @@ export function RoomArt({
 						width="140"
 						height="74"
 						rx="10"
-						fill="#fffdf7"
+						fill={c.fridge}
 						stroke={INK}
 						strokeWidth="3"
 					/>
@@ -383,7 +464,7 @@ export function RoomArt({
 						width="56"
 						height="8"
 						rx="4"
-						fill="#d9d2bf"
+						fill={c.handle}
 						stroke={INK}
 						strokeWidth="2.5"
 					/>
@@ -399,11 +480,11 @@ export function RoomArt({
 					cy="596"
 					rx="54"
 					ry="15"
-					fill="#f3b9a3"
+					fill={c.fabric}
 					stroke={INK}
 					strokeWidth={STROKE}
 				/>
-				<ellipse cx="300" cy="591" rx="38" ry="8" fill="#f8d2c2" />
+				<ellipse cx="300" cy="591" rx="38" ry="8" fill={c.fabricLight} />
 			</g>
 
 			{/* 丸いテーブル（手前） */}
@@ -413,20 +494,20 @@ export function RoomArt({
 					cy="612"
 					rx="58"
 					ry="13"
-					fill="#b98250"
+					fill={c.tableFoot}
 					stroke={INK}
 					strokeWidth={STROKE}
 				/>
 				<path
 					d="M124 534H156L162 604H118Z"
-					fill="#c4915a"
+					fill={c.tableSide}
 					stroke={INK}
 					strokeWidth={STROKE}
 					strokeLinejoin="round"
 				/>
 				<path
 					d="M20 506V520Q20 548 140 548Q260 548 260 520V506Z"
-					fill="#c4915a"
+					fill={c.tableSide}
 					stroke={INK}
 					strokeWidth={STROKE}
 					strokeLinejoin="round"
@@ -436,7 +517,7 @@ export function RoomArt({
 					cy="502"
 					rx="120"
 					ry="40"
-					fill="#e6b676"
+					fill={c.tableTop}
 					stroke={INK}
 					strokeWidth={STROKE}
 				/>
@@ -446,7 +527,7 @@ export function RoomArt({
 					rx="96"
 					ry="28"
 					fill="none"
-					stroke="#cf9b5a"
+					stroke={c.tableRim}
 					strokeWidth="2"
 				/>
 			</g>
@@ -485,14 +566,14 @@ export function RoomArt({
 				/>
 			</g>
 
-			{/* 光と夕方の暗さ */}
+			{/* ランプの光：昼は、ほのかに。夜は、ランプのまわりと、テーブルのあたりだけを照らす */}
 			<rect
 				className={styles.fade}
 				x="-200"
 				width="800"
 				height="640"
 				fill="url(#lampGlow)"
-				style={{ opacity: night ? 0.9 : 0.35 }}
+				style={{ opacity: night ? 0.75 : 0.35 }}
 				pointerEvents="none"
 			/>
 			<rect
@@ -500,7 +581,7 @@ export function RoomArt({
 				x="-200"
 				width="800"
 				height="640"
-				fill="url(#duskShade)"
+				fill="url(#tableLight)"
 				style={{ opacity: night ? 1 : 0 }}
 				pointerEvents="none"
 			/>
