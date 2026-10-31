@@ -170,9 +170,10 @@ export function ShoppingAddSheet({
 			actions="inline"
 			// 打ちかけの入力を、うっかり消さないよう、空のときだけ、Esc と暗幕で閉じる。
 			onDismiss={name === "" && !isSubmitting ? onClose : undefined}
+			// 1つも入れていないなら、「完了」ではなく「閉じる」。
 			left={{
-				label: "完了",
-				icon: "check",
+				label: added.length > 0 ? "完了" : "閉じる",
+				icon: added.length > 0 ? "check" : "close",
 				onClick: onClose,
 				disabled: isSubmitting,
 			}}
