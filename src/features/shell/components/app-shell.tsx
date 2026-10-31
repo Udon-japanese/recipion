@@ -107,9 +107,7 @@ function BottomNav() {
 				<Link key={item.to} to={item.to} className={styles.bottomItem}>
 					{({ isActive }) => (
 						<>
-							<span className={styles.pill}>
-								<Icon name={isActive ? item.activeIcon : item.icon} size={24} />
-							</span>
+							<Icon name={isActive ? item.activeIcon : item.icon} size={24} />
 							{item.label}
 						</>
 					)}
@@ -132,8 +130,12 @@ function SideNav() {
 			<nav className={styles.sideNav} aria-label="機能">
 				{navItems.map((item) => (
 					<Link key={item.to} to={item.to} className={styles.sideItem}>
-						<Icon name={item.icon} size={24} />
-						{item.label}
+						{({ isActive }) => (
+							<>
+								<Icon name={isActive ? item.activeIcon : item.icon} size={24} />
+								{item.label}
+							</>
+						)}
 					</Link>
 				))}
 			</nav>
