@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest";
 import { type InitialSession, resolveSession } from "./initial-session";
 
 const initialSession: InitialSession = {
-	user: { id: "u1", name: "山田", email: "yamada@example.com", avatar: null },
+	user: {
+		id: "u1",
+		name: "山田",
+		email: "yamada@example.com",
+		handle: "yamada",
+		avatar: null,
+	},
 };
 
 const tomatoAvatar = {
@@ -48,6 +54,7 @@ describe("resolveSession", () => {
 					id: "u2",
 					name: "佐藤",
 					email: "sato@example.com",
+					handle: "sato",
 					avatar: tomatoAvatar,
 				},
 				session: { token: "secret" },
@@ -61,6 +68,7 @@ describe("resolveSession", () => {
 					id: "u2",
 					name: "佐藤",
 					email: "sato@example.com",
+					handle: "sato",
 					avatar: tomatoAvatar,
 				},
 			},
@@ -75,6 +83,7 @@ describe("resolveSession", () => {
 					id: "u2",
 					name: "佐藤",
 					email: "sato@example.com",
+					handle: "sato",
 					avatar: { background: "unknown", placements: [] },
 				},
 			},

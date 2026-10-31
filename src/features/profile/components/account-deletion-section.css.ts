@@ -9,7 +9,7 @@ export const container = style({
 
 export const title = style({
 	margin: 0,
-	fontSize: "var(--font-size-lg)",
+	fontSize: "var(--font-size-md)",
 	fontWeight: "var(--font-weight-bold)",
 });
 

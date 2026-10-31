@@ -49,7 +49,7 @@ export function AccountDeletionSection({
 
 	return (
 		<section className={styles.container} aria-label="アカウントの削除">
-			<h2 className={styles.title}>アカウントの削除</h2>
+			<h3 className={styles.title}>アカウントの削除</h3>
 
 			{step === "closed" ? (
 				<>

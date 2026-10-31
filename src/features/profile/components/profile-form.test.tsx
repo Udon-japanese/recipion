@@ -38,6 +38,30 @@ describe("ProfileForm", () => {
 		expect(onChanged).toHaveBeenCalledTimes(1);
 	});
 
+	it("何も変えていないときは保存できず、保存したあとは、その値が基準になる", async () => {
+		const { onSave, user } = setup();
+		const save = screen.getByRole("button", { name: "保存する" });
+		const name = screen.getByRole("textbox", { name: "表示名" });
+
+		expect(save).toBeDisabled();
+
+		await user.type(name, "!");
+
+		expect(save).toBeEnabled();
+
+		// 元に戻すと、また保存するものがない。
+		await user.type(name, "{Backspace}");
+
+		expect(save).toBeDisabled();
+
+		await user.type(name, "さん");
+		await user.click(save);
+		await screen.findAllByText("保存しました");
+
+		expect(onSave).toHaveBeenCalledTimes(1);
+		expect(save).toBeDisabled();
+	});
+
 	it("初期の名前の確認を求めない（お知らせも、確認のボタンも、出さない）", () => {
 		setup();
 
@@ -56,6 +80,7 @@ describe("ProfileForm", () => {
 			},
 		});
 
+		await user.type(screen.getByRole("textbox", { name: "ハンドル" }), "x");
 		await user.click(screen.getByRole("button", { name: "保存する" }));
 
 		const alerts = await screen.findAllByRole("alert");
@@ -72,6 +97,7 @@ describe("ProfileForm", () => {
 		});
 
 		render(<ProfileForm profile={profile} onSave={onSave} />);
+		await userEvent.type(screen.getByRole("textbox", { name: "表示名" }), "!");
 		await userEvent.click(screen.getByRole("button", { name: "保存する" }));
 
 		expect((await screen.findByRole("alert")).textContent).toContain(

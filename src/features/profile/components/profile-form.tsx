@@ -1,7 +1,6 @@
 import { type ReactNode, type SubmitEvent, useState } from "react";
 import { Button } from "#/components/button/button";
 import { useButtonAction } from "#/components/button/use-button-action";
-import { Card } from "#/components/card/card";
 import { Field, TextInput } from "#/components/field/field";
 import { Note } from "#/components/note/note";
 import type { Profile } from "../application/profile-repository";
@@ -36,6 +35,12 @@ export function ProfileForm({
 }: ProfileFormProps) {
 	const [name, setName] = useState(profile.name);
 	const [handle, setHandle] = useState(profile.handle);
+	// 最後に保存した値。これと同じなら、保存するものがない。
+	const [saved, setSaved] = useState({
+		name: profile.name,
+		handle: profile.handle,
+	});
+	const isChanged = name !== saved.name || handle !== saved.handle;
 	const [errors, setErrors] = useState<FieldErrors>({});
 	const action = useButtonAction();
 
@@ -49,6 +54,7 @@ export function ProfileForm({
 			const result = await onSave({ name, handle });
 
 			if (result.ok) {
+				setSaved({ name, handle });
 				setErrors({});
 				onChanged?.();
 
@@ -71,65 +77,64 @@ export function ProfileForm({
 		<section className={styles.container}>
 			<h1 className={styles.title}>プロフィール</h1>
 			<p className={styles.lead}>
-				公開されるのは、アバター・表示名・ハンドルだけです。メールアドレスは、公開されません。
+				公開されるのは、アバター・表示名・ハンドルだけです。
 			</p>
 
 			{avatar}
 
-			<Card padding="md">
-				<form
-					className={styles.form}
-					onSubmit={(event) => void handleSubmit(event)}
+			<form
+				className={styles.form}
+				onSubmit={(event) => void handleSubmit(event)}
+			>
+				<Field
+					label="表示名"
+					hint={`${displayNameMaxLength}文字まで。@ は使えません。`}
+					error={errors.name}
 				>
-					<Field
-						label="表示名"
-						hint={`${displayNameMaxLength}文字まで。@ は使えません。`}
-						error={errors.name}
-					>
-						{(control) => (
+					{(control) => (
+						<TextInput
+							{...control}
+							value={name}
+							onChange={(event) => setName(event.target.value)}
+						/>
+					)}
+				</Field>
+
+				<Field
+					label="ハンドル"
+					hint={`半角の英小文字・数字・_・- の${handleMinLength}〜${handleMaxLength}文字。`}
+					error={errors.handle}
+				>
+					{(control) => (
+						<span className={styles.handleRow}>
+							<span className={styles.at} aria-hidden="true">
+								@
+							</span>
 							<TextInput
 								{...control}
-								value={name}
-								onChange={(event) => setName(event.target.value)}
+								value={handle}
+								onChange={(event) => setHandle(event.target.value)}
+								autoCapitalize="none"
+								autoCorrect="off"
+								spellCheck={false}
 							/>
-						)}
-					</Field>
+						</span>
+					)}
+				</Field>
 
-					<Field
-						label="ハンドル"
-						hint={`半角の英小文字・数字・_・- の${handleMinLength}〜${handleMaxLength}文字。ほかの人と重ならない名前にしてください。あとから変えられます。`}
-						error={errors.handle}
+				{errors.form ? <Note tone="error">{errors.form}</Note> : null}
+
+				<div className={styles.actions}>
+					<Button
+						type="submit"
+						status={action.status}
+						successLabel="保存しました"
+						disabled={!isChanged}
 					>
-						{(control) => (
-							<span className={styles.handleRow}>
-								<span className={styles.at} aria-hidden="true">
-									@
-								</span>
-								<TextInput
-									{...control}
-									value={handle}
-									onChange={(event) => setHandle(event.target.value)}
-									autoCapitalize="none"
-									autoCorrect="off"
-									spellCheck={false}
-								/>
-							</span>
-						)}
-					</Field>
-
-					{errors.form ? <Note tone="error">{errors.form}</Note> : null}
-
-					<div className={styles.actions}>
-						<Button
-							type="submit"
-							status={action.status}
-							successLabel="保存しました"
-						>
-							保存する
-						</Button>
-					</div>
-				</form>
-			</Card>
+						保存する
+					</Button>
+				</div>
+			</form>
 		</section>
 	);
 }
