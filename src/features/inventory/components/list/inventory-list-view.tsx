@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Card } from "#/components/card/card";
 import { Chip, ChipGroup } from "#/components/chip/chip";
 import { TextInput } from "#/components/field/field";
 import { SegmentedControl } from "#/components/segmented-control/segmented-control";
 import { useMediaQuery } from "#/components/use-media-query";
+import { useStorageItem } from "#/local-storage/use-storage-item";
 import type {
 	InventoryFridgeZone,
 	InventoryTile,
@@ -16,24 +17,11 @@ import {
 	inventoryGroupOf,
 	listInventoryGroups,
 } from "../../domain/inventory-grouping";
+import { inventoryGroupByStorage } from "../../infrastructure/inventory-view-storage";
 import { InventoryRow } from "./inventory-row";
 import * as styles from "./list.css";
 import { ZonePicker } from "./zone-picker";
 import { ZoneTabs } from "./zone-tabs";
-
-const storageKey = "recipion.inventory.groupBy";
-
-function readGroupBy(): InventoryGroupBy {
-	try {
-		const value = window.localStorage.getItem(storageKey);
-
-		return inventoryGroupByOptions.some((option) => option.value === value)
-			? (value as InventoryGroupBy)
-			: "zone";
-	} catch {
-		return "zone";
-	}
-}
 
 type InventoryListViewProps = {
 	zones: readonly InventoryFridgeZone[];
@@ -55,13 +43,9 @@ export function InventoryListView({
 	const [query, setQuery] = useState("");
 	// スマホでは、場所の縦タブは、幅をとるので、場所の選択（下のシート）にする。
 	const isCompact = useMediaQuery("(max-width: 767px)");
-	const [by, setBy] = useState<InventoryGroupBy>("zone");
+	// 最後に選んだまとめ方（読み込めなければ、場所）。
+	const [by, setBy] = useStorageItem(inventoryGroupByStorage);
 	const [pick, setPick] = useState<string | null>(null);
-
-	// 最後に選んだまとめ方を覚える（読み込めなければ、場所）。
-	useEffect(() => {
-		setBy(readGroupBy());
-	}, []);
 
 	const searched = useMemo(() => {
 		const text = query.trim();
@@ -106,12 +90,6 @@ export function InventoryListView({
 	function changeBy(value: InventoryGroupBy) {
 		setBy(value);
 		setPick(null);
-
-		try {
-			window.localStorage.setItem(storageKey, value);
-		} catch {
-			// 覚えられなくても、そのまま使える。
-		}
 	}
 
 	return (

@@ -11,6 +11,14 @@ export const storageKeys = {
 	expiryEstimateLevel: "expiry-estimate-level",
 	// 在庫：過去に入力した期限から覚えた、日数の目安。
 	expiryHints: "expiry-hints",
+	// 在庫：表示の切り替え（list＝リスト / scene＝おうち）。
+	inventoryView: "inventory-view",
+	// 在庫：おうちの表示で、れしぽよを出すか。
+	inventoryPet: "inventory-pet",
+	// 在庫：リストのまとめ方（zone / expiry / kana）。
+	inventoryGroupBy: "inventory-group-by",
+	// 在庫：この端末で、最後に、ログイン前の購入を片づけたユーザー。
+	inventoryLastOwner: "inventory-last-owner",
 	// 買い物メモ：表示の切り替え（aisle＝売り場順 / store＝店ごと）。
 	shoppingView: "shopping-view",
 	// レシピの入力：新規登録で、見出しの雛形を最初から入れるか。

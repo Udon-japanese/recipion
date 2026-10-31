@@ -1,7 +1,6 @@
 import { IconButton } from "#/components/icon-button/icon-button";
+import type { InventoryView } from "../infrastructure/inventory-view-storage";
 import * as styles from "./inventory-list.css";
-
-export type InventoryView = "list" | "scene";
 
 type ViewToggleProps = {
 	value: InventoryView;

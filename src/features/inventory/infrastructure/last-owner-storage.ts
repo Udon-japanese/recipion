@@ -1,6 +1,12 @@
+import { storageKeys } from "#/local-storage/keys";
+import { defineStorageItem } from "#/local-storage/storage-item";
 import type { InventoryPurchaseOwnerScope } from "../application/inventory-purchase-outbox";
 
-const storageKey = "recipion.inventory.lastOwner";
+type UserScope = `user:${string}`;
+
+function isUserScope(value: string): value is UserScope {
+	return value.startsWith("user:");
+}
 
 // この端末で、最後に、ログイン前の購入を片づけた（引き継いだ・引き継ぐものがなかった）ユーザー。
 // 同じ人が、またログインしたときは、ログイン前の購入を、聞かずに引き継ぐ。別の人や、初めての人には、聞く。
@@ -9,23 +15,19 @@ export type LastOwnerMemory = {
 	set: (ownerScope: InventoryPurchaseOwnerScope) => void;
 };
 
-export const localStorageLastOwnerMemory: LastOwnerMemory = {
-	get() {
-		try {
-			const value = localStorage.getItem(storageKey);
+export const lastOwnerStorage = defineStorageItem<UserScope | null>({
+	key: storageKeys.inventoryLastOwner,
+	defaultValue: null,
+	parse: (raw) => (isUserScope(raw) ? raw : undefined),
+	serialize: (ownerScope) => ownerScope ?? "",
+});
 
-			return value?.startsWith("user:")
-				? (value as InventoryPurchaseOwnerScope)
-				: null;
-		} catch {
-			return null;
-		}
-	},
+export const localStorageLastOwnerMemory: LastOwnerMemory = {
+	get: () => lastOwnerStorage.read(),
+	// ゲストは、覚えない。保存できないときは、そのタブの間だけ覚える。
 	set(ownerScope) {
-		try {
-			localStorage.setItem(storageKey, ownerScope);
-		} catch {
-			// 保存できないときは、覚えない（次も、聞く）。
+		if (isUserScope(ownerScope)) {
+			lastOwnerStorage.write(ownerScope);
 		}
 	},
 };
