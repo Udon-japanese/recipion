@@ -168,6 +168,17 @@ describe("InventoryList", () => {
 		).toBeInTheDocument();
 	});
 
+	it("表示を切り替えると、開いている食材のパネルを閉じる", async () => {
+		const user = userEvent.setup();
+
+		renderList([stocked({ name: "卵", quantity: 6 })]);
+
+		await openPanel(user, "卵");
+		await user.click(screen.getByRole("button", { name: "おうちで見る" }));
+
+		expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+	});
+
 	describe("読み込み中は、保存した表示に合わせる", () => {
 		const pending = () => new Promise<never>(() => {});
 
