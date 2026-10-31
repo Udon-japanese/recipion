@@ -194,7 +194,7 @@ const pop = keyframes({
 	to: { opacity: 1, transform: "translateY(0) scale(1)" },
 });
 
-// 庫内：左の縦タブと、パネルを横に並べる。
+// 庫内：場面の上に、カードを1枚のせる。
 export const interiorWrap = style({
 	position: "absolute",
 	top: 64,
@@ -208,7 +208,6 @@ export const interiorWrap = style({
 	zIndex: 6,
 	display: "flex",
 	alignItems: "flex-start",
-	gap: 6,
 	// スマホでは、上の道具（2つの丸い枠）の下に、すき間をあけて始める。
 	"@media": {
 		"(max-width: 767px)": { top: 76 },
@@ -245,12 +244,6 @@ export const interiorHead = style({
 	gap: 8,
 	margin: 0,
 	fontSize: "var(--font-size-lg)",
-});
-
-export const count = style({
-	fontSize: "var(--font-size-sm)",
-	fontWeight: "var(--font-weight-regular)",
-	color: "var(--color-text-muted)",
 });
 
 export const interiorScroll = style({

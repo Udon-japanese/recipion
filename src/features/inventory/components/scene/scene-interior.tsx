@@ -7,6 +7,7 @@ import {
 	type InventoryZoneId,
 	inventoryZoneLabels,
 } from "../../domain/inventory-fridge";
+import { srOnly } from "../inventory-list.css";
 import { InventoryRow } from "../list/inventory-row";
 import * as listStyles from "../list/list.css";
 import { ZonePicker } from "../list/zone-picker";
@@ -26,7 +27,7 @@ type SceneInteriorProps = {
 	onBack: () => void;
 };
 
-// 庫内（ズームしたあと）：左に場所の縦タブ、右にその場所の食材の一覧。
+// 庫内（ズームしたあと）：上に場所のタブ、下にその場所の食材の一覧。
 export function SceneInterior({
 	zones,
 	zone,
@@ -39,12 +40,21 @@ export function SceneInterior({
 	onBack,
 }: SceneInteriorProps) {
 	const sectionRef = useRef<HTMLElement>(null);
-	// スマホでは、縦のタブは、幅をとるので、見出しを押して、場所を選ぶ。
+	// スマホでは、タブが入りきらないので、見出しを押して、場所を選ぶ。
 	const isCompact = useMediaQuery("(max-width: 767px)");
 	const counts = Object.fromEntries(
 		zones.map((item) => [item.id, item.tiles.length]),
 	);
 	const tiles = zones.find((item) => item.id === zone)?.tiles ?? [];
+
+	const backButton = (
+		<IconButton
+			icon="chevron-left"
+			label="おうちにもどる"
+			size="std"
+			onClick={onBack}
+		/>
+	);
 
 	// 開いたら、キーボードの位置を庫内へ移す（閉じるときは、場面の側が元の場所へ戻す）。
 	useEffect(() => {
@@ -53,17 +63,6 @@ export function SceneInterior({
 
 	return (
 		<div className={styles.interiorWrap}>
-			{isCompact ? null : (
-				<ZoneTabs
-					value={zone}
-					counts={counts}
-					onChange={(next) => {
-						if (next) {
-							onZoneChange(next);
-						}
-					}}
-				/>
-			)}
 			<section
 				ref={sectionRef}
 				tabIndex={-1}
@@ -78,14 +77,9 @@ export function SceneInterior({
 					/>
 				) : null}
 
-				<h2 className={styles.interiorHead}>
-					<IconButton
-						icon="chevron-left"
-						label="おうちにもどる"
-						size="std"
-						onClick={onBack}
-					/>
-					{isCompact ? (
+				{isCompact ? (
+					<h2 className={styles.interiorHead}>
+						{backButton}
 						<ZonePicker
 							variant="heading"
 							value={zone}
@@ -96,13 +90,23 @@ export function SceneInterior({
 								}
 							}}
 						/>
-					) : (
-						<>
-							{inventoryZoneLabels[zone]}
-							<span className={styles.count}>（{tiles.length}）</span>
-						</>
-					)}
-				</h2>
+					</h2>
+				) : (
+					<div className={styles.interiorHead}>
+						{backButton}
+						{/* 見た目の見出しは、選んでいるタブが兼ねる。 */}
+						<h2 className={srOnly}>{inventoryZoneLabels[zone]}</h2>
+						<ZoneTabs
+							value={zone}
+							counts={counts}
+							onChange={(next) => {
+								if (next) {
+									onZoneChange(next);
+								}
+							}}
+						/>
+					</div>
+				)}
 
 				<div className={styles.interiorScroll}>
 					{tiles.length === 0 ? (
