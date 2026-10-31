@@ -7,6 +7,8 @@ export type InitialSession = {
 		id: string;
 		name: string;
 		email: string;
+		// 公開のハンドル（アカウントの削除の確認に使う）。
+		handle: string | null;
 		// null は、まだ作っていない（ユーザーごとに決まったプリセットを出す）。
 		avatar: Avatar | null;
 	};
@@ -14,7 +16,13 @@ export type InitialSession = {
 
 type StoreSession = {
 	data: {
-		user: { id: string; name: string; email: string; avatar?: unknown };
+		user: {
+			id: string;
+			name: string;
+			email: string;
+			handle?: string | null;
+			avatar?: unknown;
+		};
 	} | null;
 	isPending: boolean;
 };
@@ -45,6 +53,7 @@ export function resolveSession(
 						id: store.data.user.id,
 						name: store.data.user.name,
 						email: store.data.user.email,
+						handle: store.data.user.handle ?? null,
 						avatar: parseAvatar(store.data.user.avatar),
 					},
 				}

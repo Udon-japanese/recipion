@@ -39,6 +39,7 @@ export const getInitialSessionServerFn = createServerFn({
 			id: session.user.id,
 			name: session.user.name,
 			email: session.user.email,
+			handle: session.user.handle ?? null,
 			avatar: parseAvatar(session.user.avatar),
 		},
 	};
