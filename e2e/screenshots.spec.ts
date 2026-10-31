@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { showMadeButton } from "./helpers";
 
 // 見た目の基準（スナップショット）。デザインを変えたら、`nr e2e:update` で基準を撮り直す。
 // 日付で変わる文字（期限・「あと○日」）は、マスクする。
@@ -13,7 +14,12 @@ test.describe("画面のスクリーンショット", () => {
 		await page.goto("/recipes");
 		await page.getByRole("link", { name: "肉じゃが" }).click();
 		await expect(page.getByRole("heading", { name: "肉じゃが" })).toBeVisible();
-		await expect(page.getByRole("button", { name: "つくった！" })).toBeEnabled();
+		await showMadeButton(page);
+		// 狭い画面では、最初に見える「そろえる」のタブで撮る。
+		const prepareTab = page.getByRole("button", { name: "そろえる" });
+		if (await prepareTab.isVisible()) {
+			await prepareTab.click();
+		}
 		await expect(page).toHaveScreenshot("recipe-detail.png", { fullPage: true });
 	});
 
