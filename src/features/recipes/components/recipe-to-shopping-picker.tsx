@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { Button } from "#/components/button/button";
 import { Field, TextInput } from "#/components/field/field";
+import {
+	FloatingPanel,
+	floatingPanelWidth,
+} from "#/components/floating-panel/floating-panel";
 import { Icon } from "#/components/icon/icon";
 import { IconButton } from "#/components/icon-button/icon-button";
 import { Note } from "#/components/note/note";
@@ -40,7 +44,7 @@ export function RecipeToShoppingPicker({
 	loadInventoryItems,
 	registerAvailable,
 }: RecipeToShoppingPickerProps) {
-	const isRight = useMediaQuery("(min-width: 1024px)");
+	const isWide = useMediaQuery("(min-width: 768px)");
 	const [recipes, setRecipes] = useState<RecipeLinkTarget[] | null>(null);
 	const [query, setQuery] = useState("");
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -107,118 +111,136 @@ export function RecipeToShoppingPicker({
 		? filterLinkTargets(recipes, query, maxListedRecipes)
 		: [];
 
+	const title = selected ? `${selected.name}の材料` : "レシピから入れる";
+	const headerLeading = selected ? (
+		<IconButton
+			icon="chevron-left"
+			label="別のレシピを選ぶ"
+			size="std"
+			tone="plain"
+			disabled={plan.isApplying}
+			onClick={() => setSelected(null)}
+		/>
+	) : null;
+	const footer = selected ? (
+		<div className={styles.footer}>
+			<Button
+				variant="secondary"
+				size="lg"
+				fullWidth
+				disabled={plan.isApplying}
+				onClick={context.onClose}
+			>
+				閉じる
+			</Button>
+
+			<Button
+				size="lg"
+				fullWidth
+				status={plan.isApplying ? "pending" : "idle"}
+				pendingLabel="追加中"
+				disabled={plan.isLoading}
+				onClick={() => void plan.apply()}
+			>
+				{`選んだものを入れる（${plan.selectedCount}件）`}
+			</Button>
+		</div>
+	) : undefined;
+	const body = selected ? (
+		<section aria-label="買い物メモに入れる">
+			<RecipeShoppingRows
+				plan={plan}
+				ownerScope={ownerScope}
+				registerAvailable={registerAvailable}
+			/>
+		</section>
+	) : (
+		<section className={styles.list} aria-label="レシピから入れる">
+			<p className={styles.hint}>
+				自分のレシピから選べます。他の人のレシピから入れる機能は、今後対応する予定です。
+			</p>
+			<Field label="レシピの名前で絞り込む" hideLabel>
+				{(control) => (
+					<TextInput
+						{...control}
+						type="search"
+						value={query}
+						placeholder="レシピの名前で絞り込む"
+						onChange={(event) => setQuery(event.target.value)}
+					/>
+				)}
+			</Field>
+			{recipes === null && !errorMessage ? (
+				<p className={styles.hint}>読み込んでいます…</p>
+			) : null}
+			{recipes && recipes.length === 0 ? (
+				<p className={styles.hint}>登録したレシピがまだありません。</p>
+			) : null}
+			{recipes && recipes.length > 0 && shown.length === 0 ? (
+				<p className={styles.hint}>合うレシピがありません。</p>
+			) : null}
+			{shown.length > 0 ? (
+				<ul className={styles.recipeList}>
+					{shown.map((recipe) => (
+						<li key={recipe.publicId}>
+							<button
+								className={styles.recipeRow}
+								type="button"
+								disabled={isOpeningRecipe}
+								onClick={() => void handleSelect(recipe.publicId)}
+							>
+								<span className={styles.recipeName}>{recipe.name}</span>
+								<Icon name="chevron-right" size={20} />
+							</button>
+						</li>
+					))}
+				</ul>
+			) : null}
+			{errorMessage ? <Note tone="error">{errorMessage}</Note> : null}
+		</section>
+	);
+
+	function close() {
+		if (!plan.isApplying) {
+			context.onClose();
+		}
+	}
+
+	// 浮いたパネル：後ろのメモを見ながら、続けて入れられる。PC は、見出しをつかんで動かせるパネル。
+	if (isWide) {
+		return (
+			<FloatingPanel
+				title={title}
+				headerLeading={headerLeading}
+				footer={footer}
+				getInitialPosition={() => ({
+					x: window.innerWidth - floatingPanelWidth - 24,
+					y: 24,
+				})}
+				onEscape={close}
+				onClose={close}
+			>
+				{body}
+			</FloatingPanel>
+		);
+	}
+
 	return (
 		<Sheet
 			open
 			onOpenChange={(open) => {
-				if (!open && !plan.isApplying) {
-					context.onClose();
+				if (!open) {
+					close();
 				}
 			}}
-			title={selected ? `${selected.name}の材料` : "レシピから入れる"}
-			placement={isRight ? "right" : "bottom"}
-			// 浮いたパネル：後ろのメモを見ながら、続けて入れられる。
+			title={title}
 			modal={false}
-			snapPoints={isRight ? [0.92] : [0.7, 0.92]}
+			snapPoints={[0.7, 0.92]}
 			defaultSnapIndex={0}
-			headerLeading={
-				selected ? (
-					<IconButton
-						icon="chevron-left"
-						label="別のレシピを選ぶ"
-						size="std"
-						tone="plain"
-						disabled={plan.isApplying}
-						onClick={() => setSelected(null)}
-					/>
-				) : null
-			}
-			footer={
-				selected ? (
-					<div className={styles.footer}>
-						<Button
-							variant="secondary"
-							size="lg"
-							fullWidth
-							disabled={plan.isApplying}
-							onClick={context.onClose}
-						>
-							閉じる
-						</Button>
-
-						<Button
-							size="lg"
-							fullWidth
-							status={plan.isApplying ? "pending" : "idle"}
-							pendingLabel="追加中"
-							disabled={plan.isLoading}
-							onClick={() => void plan.apply()}
-						>
-							{`選んだものを入れる（${plan.selectedCount}件）`}
-						</Button>
-					</div>
-				) : undefined
-			}
+			headerLeading={headerLeading}
+			footer={footer}
 		>
-			{selected ? (
-				<section aria-label="買い物メモに入れる">
-					<RecipeShoppingRows
-						plan={plan}
-						ownerScope={ownerScope}
-						registerAvailable={registerAvailable}
-					/>
-				</section>
-			) : (
-				<section className={styles.list} aria-label="レシピから入れる">
-					<p className={styles.hint}>
-						自分のレシピから選べます。他の人のレシピから入れる機能は、今後対応する予定です。
-					</p>
-
-					<Field label="レシピの名前で絞り込む" hideLabel>
-						{(control) => (
-							<TextInput
-								{...control}
-								type="search"
-								value={query}
-								placeholder="レシピの名前で絞り込む"
-								onChange={(event) => setQuery(event.target.value)}
-							/>
-						)}
-					</Field>
-
-					{recipes === null && !errorMessage ? (
-						<p className={styles.hint}>読み込んでいます…</p>
-					) : null}
-
-					{recipes && recipes.length === 0 ? (
-						<p className={styles.hint}>登録したレシピがまだありません。</p>
-					) : null}
-
-					{recipes && recipes.length > 0 && shown.length === 0 ? (
-						<p className={styles.hint}>合うレシピがありません。</p>
-					) : null}
-
-					{shown.length > 0 ? (
-						<ul className={styles.recipeList}>
-							{shown.map((recipe) => (
-								<li key={recipe.publicId}>
-									<button
-										className={styles.recipeRow}
-										type="button"
-										disabled={isOpeningRecipe}
-										onClick={() => void handleSelect(recipe.publicId)}
-									>
-										<span className={styles.recipeName}>{recipe.name}</span>
-										<Icon name="chevron-right" size={20} />
-									</button>
-								</li>
-							))}
-						</ul>
-					) : null}
-
-					{errorMessage ? <Note tone="error">{errorMessage}</Note> : null}
-				</section>
-			)}
+			{body}
 		</Sheet>
 	);
 }
