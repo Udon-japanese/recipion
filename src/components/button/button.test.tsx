@@ -110,11 +110,33 @@ describe("Button", () => {
 	});
 
 	it("失敗は、失敗の文言を伝える", () => {
-		render(
+		vi.useFakeTimers();
+		const { rerender } = render(
+			<Button status="idle" errorLabel="失敗しました">
+				送る
+			</Button>,
+		);
+		rerender(
 			<Button status="error" errorLabel="失敗しました">
 				送る
 			</Button>,
 		);
+		act(() => {
+			vi.advanceTimersByTime(0);
+		});
 		expect(screen.getByRole("status")).toHaveTextContent("失敗しました");
+	});
+
+	it("表示されたときから、すでに完了していたボタンは、完了の文言を出さない（前の操作の結果が、残っているだけ）", () => {
+		vi.useFakeTimers();
+		render(
+			<Button status="success" successLabel="完了しました">
+				保存
+			</Button>,
+		);
+		act(() => {
+			vi.advanceTimersByTime(1000);
+		});
+		expect(screen.getByRole("status")).not.toHaveTextContent("完了しました");
 	});
 });

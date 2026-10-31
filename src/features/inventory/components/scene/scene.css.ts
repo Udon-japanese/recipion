@@ -207,6 +207,10 @@ export const interiorWrap = style({
 	display: "flex",
 	alignItems: "flex-start",
 	gap: 6,
+	// スマホでは、上の道具（2つの丸い枠）の下に、すき間をあけて始める。
+	"@media": {
+		"(max-width: 767px)": { top: 76 },
+	},
 	// 空いたところは、外側として押せるようにする。
 	pointerEvents: "none",
 });

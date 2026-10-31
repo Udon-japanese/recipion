@@ -403,6 +403,7 @@ export function InventoryScene({
 							mood={mood}
 							buttonRef={buttonRef}
 							hopRef={hopRef}
+							boundsRef={frameRef}
 							message={petMessage}
 							showMessage={isIntro || isAttended || isTalking}
 							onAttention={setIsAttended}

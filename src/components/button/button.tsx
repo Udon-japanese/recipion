@@ -63,7 +63,10 @@ export function Button({
 	const buttonRef = useRef<HTMLButtonElement>(null);
 	const textRef = useRef<HTMLSpanElement>(null);
 	// 前の描画の status（変わった瞬間を知るため）。
-	const lastStatusRef = useRef<ButtonStatus>("idle");
+	// 表示されたときから、すでに完了・失敗だったものは、変わった瞬間ではないので、測らない（形を変えない）。
+	const lastStatusRef = useRef<ButtonStatus>(
+		status === "success" || status === "error" ? status : "idle",
+	);
 	// 変形のあいだ、もとの大きさを覚えておく（周りがずれないように、場所を保つ）。
 	const [box, setBox] = useState<Box | null>(null);
 	const [expandedWidth, setExpandedWidth] = useState(0);

@@ -16,6 +16,7 @@ import { IconButton } from "#/components/icon-button/icon-button";
 import { Note } from "#/components/note/note";
 import { Sheet } from "#/components/sheet/sheet";
 import { Tag } from "#/components/tag/tag";
+import { Toggle } from "#/components/toggle/toggle";
 import { listStockUnitOptions } from "#/features/ingredients/domain/list-stock-unit-options";
 import { QuantityInput } from "#/features/quantity/components/quantity-input";
 import { formatStockAmount } from "#/features/quantity/domain/format-quantity";
@@ -37,6 +38,7 @@ import {
 import { ExpiryFields } from "../expiry-fields";
 import type { InventoryActions } from "./inventory-actions";
 import * as styles from "./item-panel.css";
+import { LotEditor } from "./lot-editor";
 import { isCurrentUnit, toOptionValue, useItemPanel } from "./use-item-panel";
 
 export type ItemPanelMode = "sheet-bottom" | "floating";
@@ -105,6 +107,8 @@ export function ItemPanel({
 	const [isDeleting, setIsDeleting] = useState(false);
 	const [isDeletePending, setIsDeletePending] = useState(false);
 	const [isFlashing, setIsFlashing] = useState(false);
+	// 内訳のうち、その場で直している行。
+	const [editingLotId, setEditingLotId] = useState<string | null>(null);
 	const previousQuantity = useRef(item.quantity);
 
 	const displayName = item.displayName ?? item.name;
@@ -167,7 +171,7 @@ export function ItemPanel({
 	let bar: ReactNode = null;
 
 	const cancel = (
-		<Button variant="secondary" onClick={panel.goMain}>
+		<Button variant="secondary" fullWidth onClick={panel.goMain}>
 			キャンセル
 		</Button>
 	);
@@ -237,41 +241,11 @@ export function ItemPanel({
 			<div className={styles.bar} data-columns="2">
 				{cancel}
 				<Button
+					fullWidth
 					status={status}
 					onClick={() => runPrimary(() => panel.run.adjust(view.operation))}
 				>
 					{isDecrease ? "減らす" : "増やす"}
-				</Button>
-			</div>
-		);
-	} else if (view.name === "lot-quantity") {
-		const lot = item.lots.find((candidate) => candidate.id === view.lotId);
-
-		heading = lot ? lotLabel(lot) : heading;
-		body = (
-			<div className={styles.formStack}>
-				<div className={styles.quantityLine}>
-					<QuantityInput
-						className={fieldInput}
-						aria-label={`${lot ? lotLabel(lot) : ""}の数量`}
-						value={panel.lotQuantityForm.value}
-						onChange={panel.lotQuantityForm.setValue}
-						unitLabel={item.stockUnitLabel}
-					/>
-					<span className={styles.unitSuffix}>{item.stockUnitLabel}</span>
-				</div>
-			</div>
-		);
-		bar = (
-			<div className={styles.bar} data-columns="2">
-				{cancel}
-				<Button
-					status={status}
-					onClick={() =>
-						runPrimary(() => panel.run.saveLotQuantity(view.lotId))
-					}
-				>
-					この数量にする
 				</Button>
 			</div>
 		);
@@ -286,22 +260,21 @@ export function ItemPanel({
 					onChange={panel.lotExpiryForm.setValue}
 					today={panel.today}
 				/>
-				<label className={styles.checkLine}>
-					<input
-						type="checkbox"
+				<div className={styles.checkLine}>
+					<Toggle
+						label="この食材の初期値にする"
 						checked={panel.lotExpiryForm.saveAsDefault}
-						onChange={(event) =>
-							panel.lotExpiryForm.setSaveAsDefault(event.target.checked)
-						}
+						onChange={panel.lotExpiryForm.setSaveAsDefault}
 					/>
-					この食材の初期値にする（期限の種類・保存方法）
-				</label>
+					<span aria-hidden="true">この食材の初期値にする</span>
+				</div>
 			</div>
 		);
 		bar = (
 			<div className={styles.bar} data-columns="2">
 				{cancel}
 				<Button
+					fullWidth
 					status={status}
 					onClick={() =>
 						lot ? runPrimary(() => panel.run.saveLotExpiry(lot)) : undefined
@@ -372,6 +345,7 @@ export function ItemPanel({
 			<div className={styles.bar} data-columns="2">
 				{cancel}
 				<Button
+					fullWidth
 					status={status}
 					disabled={panel.unitForm.option === ""}
 					onClick={() => runPrimary(panel.run.changeUnit)}
@@ -407,7 +381,11 @@ export function ItemPanel({
 		bar = (
 			<div className={styles.bar} data-columns="2">
 				{cancel}
-				<Button status={status} onClick={() => runPrimary(panel.run.rename)}>
+				<Button
+					fullWidth
+					status={status}
+					onClick={() => runPrimary(panel.run.rename)}
+				>
 					{panel.renameForm.value.trim() === ""
 						? "元の名前に戻す"
 						: "この名前にする"}
@@ -451,6 +429,7 @@ export function ItemPanel({
 			<div className={styles.bar} data-columns="2">
 				{cancel}
 				<Button
+					fullWidth
 					status={status}
 					onClick={() => runPrimary(panel.run.startTracking)}
 				>
@@ -559,32 +538,34 @@ export function ItemPanel({
 										) : null}
 
 										{actions.setLotQuantity || actions.updateInventoryLot ? (
-											<div className={styles.lotButtons} data-zone={lotZone}>
-												{actions.setLotQuantity && !isPresence ? (
+											editingLotId === lot.id ? (
+												<LotEditor
+													item={item}
+													lot={lot}
+													label={lotLabel(lot)}
+													today={panel.today}
+													isPresence={isPresence || !actions.setLotQuantity}
+													onSave={(edits) => panel.run.saveLotEdits(lot, edits)}
+													onClose={() => setEditingLotId(null)}
+													onOpenDetails={() => {
+														setEditingLotId(null);
+														panel.open.lotExpiry(lot);
+													}}
+												/>
+											) : (
+												<div className={styles.lotButtons} data-zone={lotZone}>
 													<Button
 														variant="secondary"
 														size="sm"
 														disabled={readOnly}
 														disabledReason={offlineMessage}
-														aria-label={`${lotLabel(lot)}の数量を直す`}
-														onClick={() => panel.open.lotQuantity(lot)}
+														aria-label={`${lotLabel(lot)}を直す`}
+														onClick={() => setEditingLotId(lot.id)}
 													>
-														数量を直す
+														直す
 													</Button>
-												) : null}
-												{actions.updateInventoryLot ? (
-													<Button
-														variant="secondary"
-														size="sm"
-														disabled={readOnly}
-														disabledReason={offlineMessage}
-														aria-label={`${lotLabel(lot)}の期限を編集`}
-														onClick={() => panel.open.lotExpiry(lot)}
-													>
-														期限を直す
-													</Button>
-												) : null}
-											</div>
+												</div>
+											)
 										) : null}
 									</li>
 								);

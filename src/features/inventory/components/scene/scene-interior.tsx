@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { IconButton } from "#/components/icon-button/icon-button";
+import { useMediaQuery } from "#/components/use-media-query";
 import {
 	type InventoryFridgeZone,
 	type InventoryTile,
@@ -8,6 +9,7 @@ import {
 } from "../../domain/inventory-fridge";
 import { InventoryRow } from "../list/inventory-row";
 import * as listStyles from "../list/list.css";
+import { ZonePicker } from "../list/zone-picker";
 import { ZoneTabs } from "../list/zone-tabs";
 import { Pet } from "./pet";
 import * as styles from "./scene.css";
@@ -37,6 +39,11 @@ export function SceneInterior({
 	onBack,
 }: SceneInteriorProps) {
 	const sectionRef = useRef<HTMLElement>(null);
+	// スマホでは、縦のタブは、幅をとるので、見出しを押して、場所を選ぶ。
+	const isCompact = useMediaQuery("(max-width: 767px)");
+	const counts = Object.fromEntries(
+		zones.map((item) => [item.id, item.tiles.length]),
+	);
 	const tiles = zones.find((item) => item.id === zone)?.tiles ?? [];
 
 	// 開いたら、キーボードの位置を庫内へ移す（閉じるときは、場面の側が元の場所へ戻す）。
@@ -46,17 +53,17 @@ export function SceneInterior({
 
 	return (
 		<div className={styles.interiorWrap}>
-			<ZoneTabs
-				value={zone}
-				counts={Object.fromEntries(
-					zones.map((item) => [item.id, item.tiles.length]),
-				)}
-				onChange={(next) => {
-					if (next) {
-						onZoneChange(next);
-					}
-				}}
-			/>
+			{isCompact ? null : (
+				<ZoneTabs
+					value={zone}
+					counts={counts}
+					onChange={(next) => {
+						if (next) {
+							onZoneChange(next);
+						}
+					}}
+				/>
+			)}
 			<section
 				ref={sectionRef}
 				tabIndex={-1}
@@ -78,8 +85,23 @@ export function SceneInterior({
 						size="std"
 						onClick={onBack}
 					/>
-					{inventoryZoneLabels[zone]}
-					<span className={styles.count}>（{tiles.length}）</span>
+					{isCompact ? (
+						<ZonePicker
+							variant="heading"
+							value={zone}
+							counts={counts}
+							onChange={(next) => {
+								if (next) {
+									onZoneChange(next);
+								}
+							}}
+						/>
+					) : (
+						<>
+							{inventoryZoneLabels[zone]}
+							<span className={styles.count}>（{tiles.length}）</span>
+						</>
+					)}
 				</h2>
 
 				<div className={styles.interiorScroll}>
