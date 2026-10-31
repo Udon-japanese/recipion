@@ -703,7 +703,6 @@ const consumeStock: InventoryListItem[] = [
 	name: String(name),
 	displayName: null,
 	quantity: Number(quantity),
-	capacity: Number(quantity),
 	lots: [],
 	stockUnitCode: stockUnitCode as InventoryListItem["stockUnitCode"],
 	stockUnitLabel: String(unitLabel),
