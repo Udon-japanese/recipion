@@ -13,6 +13,7 @@ import { Mascot } from "#/components/mascot/mascot";
 import { Note } from "#/components/note/note";
 import { useMediaQuery } from "#/components/use-media-query";
 import { MASCOT_DISPLAY_NAME } from "#/config/app";
+import { useStorageItem } from "#/local-storage/use-storage-item";
 import type { InventoryPurchaseOwnerScope } from "../application/inventory-purchase-outbox";
 import type { InventoryListItem } from "../application/inventory-query-repository";
 import type { LoadInventoryItemsResult } from "../application/load-inventory-items-with-cache";
@@ -24,6 +25,10 @@ import {
 	type InventoryZoneId,
 } from "../domain/inventory-fridge";
 import { toDateString } from "../domain/inventory-lot";
+import {
+	inventoryPetStorage,
+	inventoryViewStorage,
+} from "../infrastructure/inventory-view-storage";
 import * as styles from "./inventory-list.css";
 import { InventoryListView } from "./list/inventory-list-view";
 import * as listStyles from "./list/list.css";
@@ -35,28 +40,7 @@ import {
 } from "./registration/registration-controller";
 import type { RegisteredInfo } from "./registration/use-inventory-registration";
 import { InventoryScene, InventorySceneLoading } from "./scene/inventory-scene";
-import { type InventoryView, ViewToggle } from "./view-toggle";
-
-const viewStorageKey = "recipion.inventory.view";
-const petStorageKey = "recipion.inventory.pet";
-
-function readPetVisible(): boolean {
-	try {
-		return window.localStorage.getItem(petStorageKey) !== "off";
-	} catch {
-		return true;
-	}
-}
-
-function readView(): InventoryView {
-	try {
-		return window.localStorage.getItem(viewStorageKey) === "scene"
-			? "scene"
-			: "list";
-	} catch {
-		return "list";
-	}
-}
+import { ViewToggle } from "./view-toggle";
 
 // 夜の絵にする時間（18時〜翌5時）。
 function isNight(date: Date): boolean {
@@ -113,10 +97,10 @@ export function InventoryList({
 	const [cachedAt, setCachedAt] = useState<string | null>(null);
 	const [selection, setSelection] = useState<Selection | null>(null);
 	const [isRegistrationOpen, setIsRegistrationOpen] = useState(false);
-	// 最後に選んだ表示（読み込み中の見た目も、これに合わせる）。この画面はサーバーで描かないので、最初から読む。
-	const [view, setView] = useState<InventoryView>(readView);
+	// 最後に選んだ表示（読み込み中の見た目も、これに合わせる）。この画面はサーバーで描かないので、最初の描画から保存した値になる。
+	const [view, changeView] = useStorageItem(inventoryViewStorage);
 	const [night] = useState(() => isNight(new Date()));
-	const [petVisible, setPetVisible] = useState(readPetVisible);
+	const [petVisible, changePetVisible] = useStorageItem(inventoryPetStorage);
 	// 登録のパネルを開いている間に追加した食材。閉じたあと、タイルに輪を出す。
 	const addedItemIdsRef = useRef(new Set<string>());
 	const [highlightedIds, setHighlightedIds] = useState<ReadonlySet<string>>(
@@ -132,26 +116,6 @@ export function InventoryList({
 	// 広い画面：ドラッグで動かせる浮いたパネル（一覧を見ながら操作できる）。狭い画面：下のシート。
 	const isWide = useMediaQuery("(min-width: 768px)");
 	const panelMode: ItemPanelMode = isWide ? "floating" : "sheet-bottom";
-
-	function changeView(next: InventoryView) {
-		setView(next);
-
-		try {
-			window.localStorage.setItem(viewStorageKey, next);
-		} catch {
-			// 覚えられなくても、そのまま使える。
-		}
-	}
-
-	function changePetVisible(next: boolean) {
-		setPetVisible(next);
-
-		try {
-			window.localStorage.setItem(petStorageKey, next ? "on" : "off");
-		} catch {
-			// 覚えられなくても、そのまま使える。
-		}
-	}
 
 	const isMember = ownerScope !== null && ownerScope !== "guest";
 

@@ -1,7 +1,8 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { resetStorageItemsForTest } from "#/local-storage/storage-item";
 import { buildInventoryListItem } from "#/test/builders/build-inventory-list-item";
 import { typeDate } from "#/test/date-field-helpers";
 import {
@@ -14,7 +15,16 @@ import {
 	type InventoryLot,
 	toDateString,
 } from "../domain/inventory-lot";
+import {
+	inventoryPetStorage,
+	inventoryViewStorage,
+} from "../infrastructure/inventory-view-storage";
 import { InventoryList } from "./inventory-list";
+
+beforeEach(() => {
+	localStorage.clear();
+	resetStorageItemsForTest();
+});
 
 function createLot(
 	overrides: Partial<InventoryLot> & { id: string; quantity: number },
@@ -140,41 +150,33 @@ describe("InventoryList", () => {
 	it("表示を「おうち」に切り替えられ、選んだ表示を覚える", async () => {
 		const user = userEvent.setup();
 
-		try {
-			renderList([stocked({ name: "卵", quantity: 6 })]);
+		renderList([stocked({ name: "卵", quantity: 6 })]);
 
-			await screen.findByRole("button", { name: /^卵、/u });
-			await user.click(screen.getByRole("button", { name: "おうちで見る" }));
+		await screen.findByRole("button", { name: /^卵、/u });
+		await user.click(screen.getByRole("button", { name: "おうちで見る" }));
 
-			expect(
-				screen.getByRole("region", { name: "れしぽよのおうち" }),
-			).toBeInTheDocument();
-			expect(window.localStorage.getItem("recipion.inventory.view")).toBe(
-				"scene",
-			);
+		expect(
+			screen.getByRole("region", { name: "れしぽよのおうち" }),
+		).toBeInTheDocument();
+		expect(inventoryViewStorage.read()).toBe("scene");
 
-			await user.click(screen.getByRole("button", { name: "リストで見る" }));
+		await user.click(screen.getByRole("button", { name: "リストで見る" }));
 
-			expect(
-				await screen.findByRole("button", { name: /^卵、/u }),
-			).toBeInTheDocument();
-		} finally {
-			window.localStorage.removeItem("recipion.inventory.view");
-		}
+		expect(
+			await screen.findByRole("button", { name: /^卵、/u }),
+		).toBeInTheDocument();
 	});
 
 	describe("読み込み中は、保存した表示に合わせる", () => {
 		const pending = () => new Promise<never>(() => {});
 
 		it.each([
-			{ saved: null, scene: false },
+			{ saved: "list", scene: false },
 			{ saved: "scene", scene: true },
-		])("表示が $saved のとき、おうちの絵: $scene", ({ saved, scene }) => {
-			try {
-				if (saved) {
-					window.localStorage.setItem("recipion.inventory.view", saved);
-				}
-
+		] as const)(
+			"表示が $saved のとき、おうちの絵: $scene",
+			({ saved, scene }) => {
+				inventoryViewStorage.write(saved);
 				renderList([], { loadInventoryItems: pending });
 
 				// 最初の描画から、保存した表示で出す（リストの骨組みを挟まない）。
@@ -190,33 +192,26 @@ describe("InventoryList", () => {
 				expect(
 					screen.getByRole("heading", { name: "在庫" }),
 				).toBeInTheDocument();
-			} finally {
-				window.localStorage.removeItem("recipion.inventory.view");
-			}
-		});
+			},
+		);
 
 		it("おうちでは、れしぽよが知らせ、隠していれば、お知らせを出す", () => {
-			try {
-				window.localStorage.setItem("recipion.inventory.view", "scene");
-				const { unmount } = renderList([], { loadInventoryItems: pending });
+			inventoryViewStorage.write("scene");
+			const { unmount } = renderList([], { loadInventoryItems: pending });
 
-				expect(
-					screen.getByRole("button", { name: "れしぽよをつつく" }),
-				).toHaveAccessibleDescription("よみこみ中…");
-				expect(screen.getAllByRole("status")).toHaveLength(1);
-				unmount();
+			expect(
+				screen.getByRole("button", { name: "れしぽよをつつく" }),
+			).toHaveAccessibleDescription("よみこみ中…");
+			expect(screen.getAllByRole("status")).toHaveLength(1);
+			unmount();
 
-				window.localStorage.setItem("recipion.inventory.pet", "off");
-				renderList([], { loadInventoryItems: pending });
+			inventoryPetStorage.write(false);
+			renderList([], { loadInventoryItems: pending });
 
-				expect(
-					screen.queryByRole("button", { name: "れしぽよをつつく" }),
-				).not.toBeInTheDocument();
-				expect(screen.getAllByRole("status")).toHaveLength(2);
-			} finally {
-				window.localStorage.removeItem("recipion.inventory.view");
-				window.localStorage.removeItem("recipion.inventory.pet");
-			}
+			expect(
+				screen.queryByRole("button", { name: "れしぽよをつつく" }),
+			).not.toBeInTheDocument();
+			expect(screen.getAllByRole("status")).toHaveLength(2);
 		});
 	});
 
