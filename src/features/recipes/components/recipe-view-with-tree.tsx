@@ -10,11 +10,14 @@ export type LoadLinkedRecipes = (
 type RecipeViewWithTreeProps = Omit<RecipeViewProps, "linkedRecipes"> & {
 	// 材料のリンク先のレシピを、まとめて取ってくる。なければ、リンクは、押すとプレビューが開くだけ。
 	loadLinkedRecipes?: LoadLinkedRecipes;
+	// 前もって取ってあるリンク先（画面の読み込みで取ったもの）。あれば、取り直さない。
+	preloadedLinkedRecipes?: Readonly<Record<string, RecipeDetail>>;
 };
 
 // 材料のリンク先を取ってきて、材料の下に、その場で開く（取れるまでは、リンクのまま）。
 export function RecipeViewWithTree({
 	loadLinkedRecipes,
+	preloadedLinkedRecipes,
 	...viewProps
 }: RecipeViewWithTreeProps) {
 	const { recipe } = viewProps;
@@ -29,7 +32,11 @@ export function RecipeViewWithTree({
 			recipe.linkViews,
 		);
 
-		if (!loadLinkedRecipes || targetIds.length === 0) {
+		if (
+			preloadedLinkedRecipes ||
+			!loadLinkedRecipes ||
+			targetIds.length === 0
+		) {
 			return;
 		}
 
@@ -47,13 +54,14 @@ export function RecipeViewWithTree({
 		return () => {
 			isCancelled = true;
 		};
-	}, [recipe, loadLinkedRecipes]);
+	}, [recipe, loadLinkedRecipes, preloadedLinkedRecipes]);
 
 	return (
 		<RecipeView
 			{...viewProps}
 			linkedRecipes={
-				loaded?.forPublicId === recipe.publicId ? loaded.recipes : undefined
+				preloadedLinkedRecipes ??
+				(loaded?.forPublicId === recipe.publicId ? loaded.recipes : undefined)
 			}
 		/>
 	);

@@ -101,6 +101,10 @@ type RecipeEditorProps = {
 	publicId?: string;
 	// リンクできるレシピ（自分のレシピ。編集中のレシピ自身は、除く）を取ってくる。渡すと、リンクの入力（補完・ボタン）が使える。
 	loadLinkTargets?: () => Promise<RecipeLinkTarget[]>;
+	// 画面の読み込み（loader）で、前もって取ったリンクできるレシピ。あれば、開いてから取らない。
+	initialLinkTargets?: readonly RecipeLinkTarget[];
+	// 画面の読み込みで、前もって取ったリンク先のレシピ（保存前の確認のプレビューで、すぐに出す）。
+	preloadedLinkedRecipes?: Readonly<Record<string, RecipeDetail>>;
 	// 保存前の確認で、リンクを押したとき、リンク先のレシピのプレビューを開く（取ってくる方法と、「レシピを開く」のリンク）。
 	loadLinkedRecipe?: (publicId: string) => Promise<RecipeDetail | null>;
 	renderOpenLink?: (publicId: string) => ReactNode;
@@ -171,6 +175,8 @@ export function RecipeEditor({
 	initialDocument,
 	publicId,
 	loadLinkTargets,
+	initialLinkTargets,
+	preloadedLinkedRecipes,
 	loadLinkedRecipe,
 	renderOpenLink,
 	loadLinkedRecipes,
@@ -238,11 +244,15 @@ export function RecipeEditor({
 		initialDocument?.links ?? [],
 	);
 	const [linkTargets, setLinkTargets] = useState<readonly RecipeLinkTarget[]>(
-		[],
+		initialLinkTargets ?? [],
 	);
 	const [linkTargetsStatus, setLinkTargetsStatus] = useState<
 		"loading" | "ready" | "error"
-	>("loading");
+	>(initialLinkTargets ? "ready" : "loading");
+	// プレビューで使う、取ってあるリンク先（前もって取った分と、本文でリンクを選んだときに取った分）。
+	const [linkedRecipeCache, setLinkedRecipeCache] = useState<
+		Readonly<Record<string, RecipeDetail>>
+	>(preloadedLinkedRecipes ?? {});
 
 	const sections = useMemo(() => splitRecipeSections(text), [text]);
 	const preparations = useMemo(
@@ -331,7 +341,7 @@ export function RecipeEditor({
 
 	// リンクできるレシピの一覧を、最初に1回、取ってくる。
 	const loadTargets = useEffectEvent(() => {
-		if (!loadLinkTargets) {
+		if (!loadLinkTargets || initialLinkTargets) {
 			return () => {};
 		}
 
@@ -358,11 +368,21 @@ export function RecipeEditor({
 	useEffect(() => loadTargets(), []);
 
 	// リンクを、ラベルごとに1つだけ持つ（同じラベルは、入れ替える）。
+	// 選んだリンク先は、その場で取り始める（保存前の確認で、押したときにすぐに出す）。
 	function handleLinkSelected(link: RecipeLinkReference) {
 		setLinks((current) => [
 			...current.filter((existing) => existing.label !== link.label),
 			link,
 		]);
+
+		if (loadLinkedRecipes && !linkedRecipeCache[link.targetPublicId]) {
+			loadLinkedRecipes([link.targetPublicId])
+				.then((recipes) =>
+					setLinkedRecipeCache((current) => ({ ...current, ...recipes })),
+				)
+				// 取れなければ、押したときに取る。
+				.catch(() => {});
+		}
 	}
 
 	// 端末に保存した「雛形なし」の設定を、表示のあとに反映する（localStorage は、サーバーでは読めない）。
@@ -914,7 +934,11 @@ export function RecipeEditor({
 					void saveAction.run(save);
 				}}
 			>
-				自分で考えたか、自分の言葉で書いたレシピだけを公開してください。レシピと一緒に、アバター・表示名・ハンドルも公開されます（メールアドレスは見えません）。内容は公開の前に自動で確認します（
+				自分で考えたか、自分の言葉で書いたレシピだけを公開してください。レシピと一緒に、アバター・表示名・ハンドルも公開されます（メールアドレスは見えません。
+				<Link to="/profile" target="_blank" rel="noreferrer">
+					プロフィール
+				</Link>
+				で変えられます）。内容は公開の前に自動で確認します（
 				<Link to="/terms" target="_blank" rel="noreferrer">
 					利用規約
 				</Link>
@@ -935,6 +959,7 @@ export function RecipeEditor({
 					loadRecipe={loadLinkedRecipe}
 					renderOpenLink={renderOpenLink}
 					loadLinkedRecipes={loadLinkedRecipes}
+					preloadedRecipes={linkedRecipeCache}
 					onClose={() => {
 						setOpenedLinkPublicId(null);
 						linkTriggerRef.current?.focus();

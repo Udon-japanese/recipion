@@ -170,4 +170,39 @@ describe("RecipeLinkPreview", () => {
 
 		expect(screen.queryByText(/作者：/u)).toBeNull();
 	});
+
+	it("前もって取ってあるレシピは、読み込みを待たずに出し、取り直さない", () => {
+		const loadRecipe = vi.fn(async () => null);
+
+		render(
+			<RecipeLinkPreview
+				initialPublicId="rice"
+				loadRecipe={loadRecipe}
+				preloadedRecipes={{ rice: recipes.rice }}
+				renderOpenLink={() => null}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		expect(screen.getByRole("dialog", { name: "白ごはん" })).toBeTruthy();
+		expect(loadRecipe).not.toHaveBeenCalled();
+	});
+
+	it("「レシピを開く」を押したら、プレビューを閉じる（別のタブで開いても、元のタブに残さない）", async () => {
+		const onClose = vi.fn();
+
+		render(
+			<RecipeLinkPreview
+				initialPublicId="rice"
+				loadRecipe={vi.fn(async () => null)}
+				preloadedRecipes={{ rice: recipes.rice }}
+				renderOpenLink={(publicId) => <a href={`#${publicId}`}>レシピを開く</a>}
+				onClose={onClose}
+			/>,
+		);
+
+		await userEvent.click(screen.getByRole("link", { name: "レシピを開く" }));
+
+		await vi.waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+	});
 });

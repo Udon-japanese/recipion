@@ -1,6 +1,7 @@
 import { type ReactNode, useState } from "react";
 import { Card } from "#/components/card/card";
 import { Icon } from "#/components/icon/icon";
+import { IconButton } from "#/components/icon-button/icon-button";
 import { SegmentedControl } from "#/components/segmented-control/segmented-control";
 import { DishCoverView } from "#/features/dish-art/components/dish-cover-view";
 import type { RecipeDetail } from "../application/recipe-repository";
@@ -27,6 +28,8 @@ type IngredientTreeProps = {
 	depth: number;
 	// 表示している途中のレシピ（輪になっていないかを調べる）。
 	ancestors: readonly string[];
+	// リンク先の箱の中か。
+	nested?: boolean;
 };
 
 type IngredientGroupNode = Extract<
@@ -69,7 +72,8 @@ function toIngredientBlocks(
 	return blocks;
 }
 
-// リンクの材料の行。行を押すと、リンク先の材料を、下の箱に開閉する。リンク先のプレビューは、箱の中から開く。
+// リンクの材料の行。名前の行を押すと、リンク先の材料を、その下に開閉する。右の矢印で、リンク先のプレビューを開く。
+// 上の段のリンクは、リンク先の色の箱に入れる。箱の中の、さらに深いリンクは、箱を重ねず、字下げだけで表す。
 function LinkedIngredient({
 	node,
 	recipe,
@@ -81,52 +85,59 @@ function LinkedIngredient({
 	linkViews: readonly RecipeLinkView[];
 }) {
 	const [isOpen, setIsOpen] = useState(tree.depth <= initiallyOpenDepth);
-
-	return (
+	const content = (
 		<>
-			<button
-				type="button"
-				className={styles.linkedRow}
-				aria-expanded={isOpen}
-				aria-label={`${recipe.name}の材料`}
-				onClick={() => setIsOpen((current) => !current)}
-			>
-				<span className={styles.linkedName}>
-					<RecipeText text={node.name} linkViews={linkViews} />
-				</span>
-				<span className={styles.amount}>{node.amountText}</span>
-				<span className={styles.chevron} data-open={isOpen}>
-					<Icon name="chevron-down" size={20} />
-				</span>
-			</button>
+			<div className={styles.linkedHeader}>
+				<button
+					type="button"
+					className={styles.linkedToggle}
+					aria-expanded={isOpen}
+					aria-label={`${recipe.name}の材料`}
+					onClick={() => setIsOpen((current) => !current)}
+				>
+					<span className={styles.linkedName}>
+						<RecipeText text={node.name} linkViews={linkViews} />
+					</span>
+					<span className={styles.amount}>{node.amountText}</span>
+					<span className={styles.chevron} data-open={isOpen}>
+						<Icon name="chevron-down" size={20} />
+					</span>
+				</button>
+				{tree.onOpenLink ? (
+					<IconButton
+						icon="arrow-up-right"
+						label={`${recipe.name}のレシピを見る`}
+						tone="plain"
+						aria-haspopup="dialog"
+						onClick={(event) =>
+							tree.onOpenLink?.(recipe.publicId, event.currentTarget)
+						}
+					/>
+				) : null}
+			</div>
 			{isOpen ? (
-				<div className={styles.linkedBox} data-depth={Math.min(tree.depth, 3)}>
+				<div className={styles.linkedChildren} data-indent={tree.nested}>
 					<IngredientList
 						nodes={recipe.ingredients}
 						linkViews={recipe.linkViews}
 						{...tree}
+						nested
 						ancestors={[...tree.ancestors, recipe.publicId]}
 					/>
-					{tree.onOpenLink ? (
-						<button
-							type="button"
-							className={styles.linkedOpen}
-							aria-haspopup="dialog"
-							onClick={(event) =>
-								tree.onOpenLink?.(recipe.publicId, event.currentTarget)
-							}
-						>
-							{recipe.name}のレシピを見る
-							<Icon name="chevron-right" size={16} />
-						</button>
-					) : null}
 				</div>
 			) : null}
 		</>
 	);
+
+	return tree.nested ? (
+		content
+	) : (
+		<div className={styles.linkedBox}>{content}</div>
+	);
 }
 
 // グループ名で、色つきの枠に囲む。枠の中は、1段の行。
+// リンク先の箱の中（nested）では、枠にせず、小さな見出しだけにする。
 function IngredientList({
 	nodes,
 	linkViews,
@@ -141,7 +152,7 @@ function IngredientList({
 				block.kind === "group" ? (
 					<section
 						key={block.group.id}
-						className={styles.groupBox}
+						className={tree.nested ? styles.nestedGroup : styles.groupBox}
 						data-tone={block.colorIndex % groupToneCount}
 					>
 						<h4 className={styles.groupTitle}>{block.group.name}</h4>
@@ -214,11 +225,14 @@ function IngredientItem({
 function RecipeSection({
 	title,
 	action,
+	footer,
 	children,
 }: {
 	title: string;
 	// 見出しの右に置くもの。
 	action?: ReactNode;
+	// カードの一番下に、線で区切って置くもの。
+	footer?: ReactNode;
 	children: ReactNode;
 }) {
 	return (
@@ -229,6 +243,7 @@ function RecipeSection({
 					{action}
 				</div>
 				{children}
+				{footer ? <div className={styles.sectionFooter}>{footer}</div> : null}
 			</section>
 		</Card>
 	);
@@ -251,6 +266,10 @@ export type RecipeViewProps = {
 	headerExtra?: ReactNode;
 	// 作り方の見出しの右に置くもの（画面をつけたまま）。作り方がなければ、出さない。
 	instructionsAction?: ReactNode;
+	// 材料の見出しの右に置くもの（買い物メモへ）。材料がなければ、出さない。
+	ingredientsAction?: ReactNode;
+	// 作り終えたときの操作（つくった）。作り方のカードの一番下（作り方がなければ、材料のカードの一番下）。
+	madeAction?: ReactNode;
 	// プレビューの中など、狭い枠で使うとき（料理の絵を小さくする）。
 	compact?: boolean;
 };
@@ -272,6 +291,8 @@ export function RecipeView({
 	actions,
 	headerExtra,
 	instructionsAction,
+	ingredientsAction,
+	madeAction,
 	compact = false,
 }: RecipeViewProps) {
 	const [tab, setTab] = useState<RecipeTab>("prepare");
@@ -282,6 +303,7 @@ export function RecipeView({
 		recipe.sourceUrl !== null ||
 		recipe.note.length > 0;
 	const hasTabs = hasPreparePane && hasCookPane;
+	const hasInstructions = recipe.instructions.length > 0;
 
 	return (
 		<article className={styles.container}>
@@ -334,7 +356,11 @@ export function RecipeView({
 							data-active={!hasTabs || tab === "prepare"}
 						>
 							{hasIngredients ? (
-								<RecipeSection title="材料">
+								<RecipeSection
+									title="材料"
+									action={ingredientsAction}
+									footer={hasInstructions ? undefined : madeAction}
+								>
 									<IngredientList
 										nodes={recipe.ingredients}
 										linkViews={recipe.linkViews}
@@ -369,8 +395,12 @@ export function RecipeView({
 							className={styles.pane}
 							data-active={!hasTabs || tab === "cook"}
 						>
-							{recipe.instructions.length > 0 ? (
-								<RecipeSection title="作り方" action={instructionsAction}>
+							{hasInstructions ? (
+								<RecipeSection
+									title="作り方"
+									action={instructionsAction}
+									footer={madeAction}
+								>
 									<ol className={styles.steps}>
 										{recipe.instructions.map((instruction) => (
 											<li key={instruction.id} className={styles.step}>

@@ -5,9 +5,3 @@ export const footer = style({
 	justifyContent: "flex-end",
 	width: "100%",
 });
-
-export const message = style({
-	margin: 0,
-	paddingBlock: 8,
-	color: "var(--color-text-muted)",
-});

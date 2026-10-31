@@ -98,7 +98,20 @@ describe("RecipeEditor", () => {
 			render(<RecipeEditor onSave={onSave} />);
 
 			await enterTitle(user, "和風ドレッシング");
+
+			expect(screen.queryByRole("link", { name: "プロフィール" })).toBeNull();
+
 			chooseVisibility("public");
+
+			// 選んだ時点で、注意書きを出す（プロフィールと利用規約へのリンクつき）
+			expect(
+				screen.getByRole("link", { name: "プロフィール" }),
+			).toHaveAttribute("href", "/profile");
+			expect(screen.getByRole("link", { name: "利用規約" })).toHaveAttribute(
+				"href",
+				"/terms",
+			);
+
 			await user.click(screen.getByRole("button", { name: "レシピを保存" }));
 
 			const dialog = screen.getByRole("alertdialog", {
@@ -181,7 +194,25 @@ describe("RecipeEditor", () => {
 
 		expect(nameInput).toHaveProperty("value", "塩");
 
-		await user.type(nameInput, "{Escape}");
+		// 開いたまま「グループを追加」を押すと、材料の入力行を閉じて、グループの入力行を開く
+		await user.click(screen.getByRole("button", { name: "グループを追加" }));
+
+		expect(
+			screen.queryByRole("textbox", { name: "追加する材料名" }),
+		).toBeNull();
+		expect(
+			screen.getByRole("textbox", { name: "追加するグループ名" }),
+		).toBeTruthy();
+
+		await user.click(screen.getByRole("button", { name: "材料を追加" }));
+
+		expect(
+			screen.queryByRole("textbox", { name: "追加するグループ名" }),
+		).toBeNull();
+		await user.type(
+			screen.getByRole("textbox", { name: "追加する材料名" }),
+			"{Escape}",
+		);
 		await user.click(screen.getByRole("button", { name: "材料を追加" }));
 
 		expect(

@@ -272,6 +272,7 @@ export function IngredientPreviewNode({
 }
 
 // 入力行の外を押したら、閉じる（書きかけの文字は残し、もう一度開くと戻る）。
+// 押し下げではなくクリックで閉じる：押し下げで閉じると、行が縮んで、隣の「＋ グループを追加」などが動き、そのクリックが外れるため。
 function useCloseOnOutsidePointer(
 	isOpen: boolean,
 	rowRef: RefObject<HTMLElement | null>,
@@ -282,7 +283,7 @@ function useCloseOnOutsidePointer(
 	useEffect(() => {
 		if (!isOpen) return;
 
-		function handlePointerDown(event: PointerEvent) {
+		function handleClick(event: MouseEvent) {
 			if (
 				event.target instanceof Node &&
 				!rowRef.current?.contains(event.target)
@@ -291,9 +292,15 @@ function useCloseOnOutsidePointer(
 			}
 		}
 
-		document.addEventListener("pointerdown", handlePointerDown);
+		// 開いたクリック自体では、閉じない（そのクリックが終わってから、受け始める）。
+		const timer = window.setTimeout(() =>
+			document.addEventListener("click", handleClick),
+		);
 
-		return () => document.removeEventListener("pointerdown", handlePointerDown);
+		return () => {
+			window.clearTimeout(timer);
+			document.removeEventListener("click", handleClick);
+		};
 	}, [isOpen, rowRef]);
 }
 

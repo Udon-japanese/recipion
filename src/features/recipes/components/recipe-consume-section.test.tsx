@@ -361,11 +361,11 @@ describe("RecipeConsumeSection", () => {
 			madeRecipe: { name: "和風ドレッシング", defaultChecked: false, produce },
 		});
 
-		const checkbox = screen.getByRole("checkbox", {
-			name: "できあがりも在庫に入れる",
-		});
-
-		expect(checkbox).not.toBeChecked();
+		expect(screen.queryByText("できあがりも在庫に入れます")).toBeNull();
+		await user.click(screen.getByRole("button", { name: "作ったときの設定" }));
+		expect(
+			screen.getByRole("switch", { name: "できあがりも在庫に入れる" }),
+		).not.toBeChecked();
 
 		await user.click(screen.getByRole("button", { name: /つくった/u }));
 		await screen.findAllByText(/を引きました/u);
@@ -376,7 +376,7 @@ describe("RecipeConsumeSection", () => {
 		).toBeNull();
 	});
 
-	it("初期値が入れないでも、チェックすれば、できあがりを在庫に入れる", async () => {
+	it("初期値が入れないでも、設定で選べば、できあがりを在庫に入れる", async () => {
 		const user = userEvent.setup();
 		const produce = vi.fn(
 			async (_input: { sourceId: string; transactionId: string }) => {},
@@ -386,9 +386,12 @@ describe("RecipeConsumeSection", () => {
 			madeRecipe: { name: "和風ドレッシング", defaultChecked: false, produce },
 		});
 
+		await user.click(screen.getByRole("button", { name: "作ったときの設定" }));
 		await user.click(
-			screen.getByRole("checkbox", { name: "できあがりも在庫に入れる" }),
+			screen.getByRole("switch", { name: "できあがりも在庫に入れる" }),
 		);
+
+		expect(screen.getByText("できあがりも在庫に入れます")).toBeInTheDocument();
 		await user.click(screen.getByRole("button", { name: /つくった/u }));
 
 		expect(
@@ -482,8 +485,11 @@ describe("RecipeConsumeSection", () => {
 			});
 
 			await user.click(
-				screen.getByRole("checkbox", {
-					name: "リンク先のレシピは在庫のできあがりを使う",
+				screen.getByRole("button", { name: "作ったときの設定" }),
+			);
+			await user.click(
+				screen.getByRole("switch", {
+					name: "リンク先は在庫のできあがりを使う",
 				}),
 			);
 			await user.click(screen.getByRole("button", { name: /つくった/u }));
@@ -501,9 +507,7 @@ describe("RecipeConsumeSection", () => {
 			setup();
 
 			expect(
-				screen.queryByRole("checkbox", {
-					name: "リンク先のレシピは在庫のできあがりを使う",
-				}),
+				screen.queryByRole("button", { name: "作ったときの設定" }),
 			).toBeNull();
 		});
 

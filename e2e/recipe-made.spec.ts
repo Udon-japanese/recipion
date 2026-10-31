@@ -35,11 +35,15 @@ test.describe("レシピの「つくった」と在庫", () => {
 
 		await openRecipe(page, "豚の生姜焼き");
 		// 読み込み直しの再描画で、押した直後に戻ることがある。入るまで、押し直す。
-		const intoStock = page.getByRole("checkbox", {
+		const settings = page.getByRole("button", { name: "作ったときの設定" });
+		const intoStock = page.getByRole("switch", {
 			name: "できあがりも在庫に入れる",
 		});
 
 		await expect(async () => {
+			if (!(await intoStock.isVisible())) {
+				await settings.click();
+			}
 			await intoStock.check();
 			await expect(intoStock).toBeChecked();
 		}).toPass();

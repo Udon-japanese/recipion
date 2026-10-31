@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { useId } from "react";
 import { Card } from "#/components/card/card";
 import { Checkbox } from "#/components/checkbox/checkbox";
@@ -33,7 +34,7 @@ function isRecipeVisibility(value: string): value is RecipeVisibility {
 }
 
 // レシピの設定（公開範囲・作り置き）。設定が増えても、行が1つずつ増えるだけにする。
-// 公開に同意してもらう文は、保存するときの確認に出す（recipe-editor.tsx）。
+// 公開を選んだら、注意書きを出す（保存するときの確認でも、もう一度出す。recipe-editor.tsx）。
 export function RecipeSettingsCard({
 	visibility,
 	onVisibilityChange,
@@ -107,6 +108,19 @@ export function RecipeSettingsCard({
 				<p className={styles.note}>
 					保存するとパスフレーズが作られ、レシピの画面で確認できます。
 				</p>
+			) : null}
+			{visibility !== "private" ? (
+				<Note tone="info">
+					自分で考えたか、自分の言葉で書いたレシピだけを公開してください。レシピと一緒に、アバター・表示名・ハンドルも公開されます（
+					<Link to="/profile" target="_blank" rel="noreferrer">
+						プロフィール
+					</Link>
+					で変えられます）。内容は公開の前に自動で確認します（
+					<Link to="/terms" target="_blank" rel="noreferrer">
+						利用規約
+					</Link>
+					）。
+				</Note>
 			) : null}
 		</section>
 	);

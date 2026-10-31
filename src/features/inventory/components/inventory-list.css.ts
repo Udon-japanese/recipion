@@ -47,12 +47,6 @@ export const empty = style({
 	padding: "56px 16px",
 });
 
-export const loadingText = style({
-	margin: "8px 0 0",
-	color: "var(--color-text-muted)",
-	textAlign: "center",
-});
-
 export const srOnly = style({
 	position: "absolute",
 	width: 1,

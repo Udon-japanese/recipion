@@ -306,7 +306,7 @@ export const ingredientItem = style({
 
 export const ingredientRow = style({
 	display: "grid",
-	gridTemplateColumns: "minmax(0, 1fr) minmax(0, 0.7fr) auto auto",
+	gridTemplateColumns: "minmax(0, 2fr) minmax(0, 1fr) auto auto",
 	alignItems: "center",
 	gap: 4,
 	padding: "4px 6px 4px 8px",
@@ -424,7 +424,7 @@ export const addRow = style({
 	boxSizing: "border-box",
 	display: "grid",
 	flex: "1 1 100%",
-	gridTemplateColumns: "minmax(0, 1fr) minmax(0, 0.7fr) auto auto",
+	gridTemplateColumns: "minmax(0, 2fr) minmax(0, 1fr) auto auto",
 	alignItems: "center",
 	gap: 6,
 	padding: 4,

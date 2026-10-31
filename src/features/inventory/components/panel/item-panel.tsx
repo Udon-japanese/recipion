@@ -507,7 +507,7 @@ export function ItemPanel({
 					isPresence
 						? {
 								label: "量を追う管理にする",
-								icon: "sliders" as const,
+								icon: "settings" as const,
 								onSelect: guard(panel.open.tracking),
 							}
 						: {

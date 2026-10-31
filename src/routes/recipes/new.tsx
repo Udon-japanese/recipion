@@ -50,12 +50,17 @@ function renderOpenLink(publicId: string) {
 export const Route = createFileRoute("/recipes/new")({
 	head: () => ({ meta: [{ title: pageTitle("レシピを登録") }] }),
 	ssr: false,
+	// リンクできるレシピは、前もって取る（ログインしていなければ、取らない）。
+	loader: async () => ({
+		linkTargets: await loadLinkTargets().catch(() => undefined),
+	}),
 	component: NewRecipePage,
 });
 
 function NewRecipePage() {
 	const ownerScope = useOwnerScope();
 	const navigate = useNavigate();
+	const { linkTargets } = Route.useLoaderData();
 
 	if (ownerScope === null) return null;
 
@@ -69,6 +74,7 @@ function NewRecipePage() {
 			renderOpenLink={renderOpenLink}
 			loadLinkedRecipes={loadLinkedRecipes}
 			loadLinkTargets={loadLinkTargets}
+			initialLinkTargets={linkTargets}
 			searchLinkableUsers={(query) =>
 				searchLinkableUsersServerFn({ data: { query } })
 			}

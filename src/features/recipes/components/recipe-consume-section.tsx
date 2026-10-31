@@ -1,6 +1,5 @@
-import { useId, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "#/components/button/button";
-import { Checkbox } from "#/components/checkbox/checkbox";
 import { CornerSheet } from "#/components/corner-sheet/corner-sheet";
 import { Note } from "#/components/note/note";
 import type { UndoRecipeConsumptionResult } from "#/features/inventory/application/inventory-adjustment-repository";
@@ -38,6 +37,7 @@ import {
 	type SkippedReason,
 	summarizeConsumptionRows,
 } from "../domain/summarize-consumption-rows";
+import { RecipeMadeOptions } from "./recipe-made-options";
 import * as styles from "./recipe-shopping-section.css";
 
 type RecipeConsumeSectionProps = {
@@ -134,10 +134,8 @@ export function RecipeConsumeSection({
 	const [putInStock, setPutInStock] = useState(
 		madeRecipe?.defaultChecked ?? false,
 	);
-	const putInStockId = useId();
 	// リンク先のレシピは、在庫のできあがり（作り置き）があれば、先にそれから使う（初期値）。材料から作るときは、外す。
 	const [useMadeStock, setUseMadeStock] = useState(true);
-	const useMadeStockId = useId();
 
 	const resolvedNeeds = useMemo(
 		() =>
@@ -346,49 +344,49 @@ export function RecipeConsumeSection({
 
 	return (
 		<section className={styles.container} aria-label="作った">
-			<Button
-				fullWidth
-				status={isWorking && !outcome ? "pending" : "idle"}
-				pendingLabel="在庫から引いています"
-				onClick={() => void handleMade()}
-			>
-				つくった！
-			</Button>
+			<div className={styles.madeBar}>
+				{hasLinkedRecipes || madeRecipe ? (
+					<RecipeMadeOptions
+						disabled={isWorking}
+						options={[
+							...(madeRecipe
+								? [
+										{
+											label: "できあがりも在庫に入れる",
+											checked: putInStock,
+											onChange: setPutInStock,
+										},
+									]
+								: []),
+							...(hasLinkedRecipes
+								? [
+										{
+											label: "リンク先は在庫のできあがりを使う",
+											checked: useMadeStock,
+											onChange: setUseMadeStock,
+										},
+									]
+								: []),
+						]}
+					/>
+				) : null}
+				<Button
+					status={isWorking && !outcome ? "pending" : "idle"}
+					pendingLabel="在庫から引いています"
+					onClick={() => void handleMade()}
+				>
+					つくった！
+				</Button>
+			</div>
+			{/* 初めの状態と違うものだけ、短く知らせる（作り置きのレシピなら、在庫に入れるのが初めの状態）。 */}
+			{madeRecipe && putInStock ? (
+				<p className={styles.madeNote}>できあがりも在庫に入れます</p>
+			) : null}
+			{hasLinkedRecipes && !useMadeStock ? (
+				<p className={styles.madeNote}>リンク先も材料から引きます</p>
+			) : null}
 			{errorMessage && !outcome ? (
 				<Note tone="error">{errorMessage}</Note>
-			) : null}
-
-			{hasLinkedRecipes || madeRecipe ? (
-				<div className={styles.options}>
-					{hasLinkedRecipes ? (
-						<div className={styles.checkRow}>
-							<Checkbox
-								id={useMadeStockId}
-								label="リンク先のレシピは在庫のできあがりを使う"
-								checked={useMadeStock}
-								disabled={isWorking}
-								onChange={(event) => setUseMadeStock(event.target.checked)}
-							/>
-							<label htmlFor={useMadeStockId} aria-hidden="true">
-								リンク先のレシピは在庫のできあがりを使う
-							</label>
-						</div>
-					) : null}
-					{madeRecipe ? (
-						<div className={styles.checkRow}>
-							<Checkbox
-								id={putInStockId}
-								label="できあがりも在庫に入れる"
-								checked={putInStock}
-								disabled={isWorking}
-								onChange={(event) => setPutInStock(event.target.checked)}
-							/>
-							<label htmlFor={putInStockId} aria-hidden="true">
-								できあがりも在庫に入れる
-							</label>
-						</div>
-					) : null}
-				</div>
 			) : null}
 			<CornerSheet
 				open={outcome !== null}

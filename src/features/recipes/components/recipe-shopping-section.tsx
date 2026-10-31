@@ -1,8 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { Button } from "#/components/button/button";
-import { Sheet } from "#/components/sheet/sheet";
-import { useMediaQuery } from "#/components/use-media-query";
+import { Icon } from "#/components/icon/icon";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import type { InventoryListItem } from "#/features/inventory/application/inventory-query-repository";
 import type { ShoppingRepository } from "#/features/shopping/application/shopping-repository";
@@ -10,6 +9,7 @@ import { dexieShoppingRepository } from "#/features/shopping/infrastructure/dexi
 import type { RecipeDetail } from "../application/recipe-repository";
 import type { RecipeEditorIngredientNode } from "../domain/recipe-editor-document";
 import type { RecipeLinkView } from "../domain/recipe-links";
+import { RecipeDialog } from "./recipe-dialog";
 import { RecipeShoppingRows } from "./recipe-shopping-rows";
 import * as styles from "./recipe-shopping-section.css";
 import { useRecipeShoppingPlan } from "./use-recipe-shopping-plan";
@@ -28,7 +28,7 @@ type RecipeShoppingSectionProps = {
 	registerAvailable?: (ingredientName: string) => Promise<void>;
 };
 
-// レシピの参照画面で、材料を、在庫と比べて、足りないものを、買い物メモに入れる。
+// レシピの参照画面で、材料を、在庫と比べて、足りないものを、買い物メモに入れる（材料の見出しの右に置く）。
 // 人数による量の調整はしない（レシピの量のまま）。
 export function RecipeShoppingSection({
 	ingredients,
@@ -39,7 +39,6 @@ export function RecipeShoppingSection({
 	shoppingRepository = dexieShoppingRepository,
 	registerAvailable,
 }: RecipeShoppingSectionProps) {
-	const isRight = useMediaQuery("(min-width: 1024px)");
 	const [isOpen, setIsOpen] = useState(false);
 	const plan = useRecipeShoppingPlan({
 		ingredients,
@@ -55,19 +54,20 @@ export function RecipeShoppingSection({
 	}
 
 	return (
-		<div className={styles.container}>
+		<>
 			<Button
 				variant="secondary"
-				fullWidth
+				size="sm"
+				leadingIcon={<Icon name="shopping-bag" size={16} />}
 				onClick={() => {
 					setIsOpen(true);
 					void plan.start();
 				}}
 			>
-				買い物メモに入れる
+				買い物メモへ
 			</Button>
 
-			<Sheet
+			<RecipeDialog
 				open={isOpen}
 				onOpenChange={(open) => {
 					if (!open && !plan.isApplying) {
@@ -75,8 +75,6 @@ export function RecipeShoppingSection({
 					}
 				}}
 				title="買い物メモに入れる"
-				placement={isRight ? "right" : "bottom"}
-				snapPoints={isRight ? [0.92] : [0.7, 0.92]}
 				footer={
 					<div className={styles.footer}>
 						<Button
@@ -110,7 +108,7 @@ export function RecipeShoppingSection({
 						resultLink={<Link to="/shopping">買い物メモを開く</Link>}
 					/>
 				</section>
-			</Sheet>
-		</div>
+			</RecipeDialog>
+		</>
 	);
 }

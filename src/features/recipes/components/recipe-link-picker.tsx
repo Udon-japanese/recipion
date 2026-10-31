@@ -4,8 +4,6 @@ import { Field, TextInput } from "#/components/field/field";
 import { Icon } from "#/components/icon/icon";
 import { Note } from "#/components/note/note";
 import { SegmentedControl } from "#/components/segmented-control/segmented-control";
-import { Sheet } from "#/components/sheet/sheet";
-import { useMediaQuery } from "#/components/use-media-query";
 import { describeError } from "#/errors/user-facing-error";
 import { filterLinkTargets } from "../domain/filter-link-targets";
 import { buildLinkTargetHints } from "../domain/link-target-hints";
@@ -16,6 +14,7 @@ import {
 	type OtherRecipeTarget,
 } from "../domain/other-recipe-links";
 import type { RecipeLinkTarget } from "../domain/recipe-links";
+import { RecipeDialog } from "./recipe-dialog";
 import * as styles from "./recipe-link-picker.css";
 
 type RecipeLinkPickerProps = {
@@ -54,7 +53,6 @@ export function RecipeLinkPicker({
 	// 同じ名前のレシピが複数あるときは、登録日を添えて、見分けられるようにする。
 	const hints = buildLinkTargetHints(targets);
 	const canPickOthers = Boolean(searchUsers && loadUserRecipes);
-	const isRight = useMediaQuery("(min-width: 1024px)");
 
 	useEffect(() => {
 		searchRef.current?.focus();
@@ -68,7 +66,7 @@ export function RecipeLinkPicker({
 	}
 
 	return (
-		<Sheet
+		<RecipeDialog
 			open
 			onOpenChange={(open) => {
 				if (!open) {
@@ -76,8 +74,6 @@ export function RecipeLinkPicker({
 				}
 			}}
 			title={title}
-			placement={isRight ? "right" : "bottom"}
-			snapPoints={isRight ? [0.92] : [0.7, 0.92]}
 		>
 			<div className={styles.body}>
 				{canPickOthers ? (
@@ -114,7 +110,9 @@ export function RecipeLinkPicker({
 					</Field>
 
 					{status === "loading" ? (
-						<p className={styles.message}>読み込んでいます…</p>
+						<Note tone="info" spinning>
+							読み込んでいます…
+						</Note>
 					) : null}
 					{status === "error" ? (
 						<Note tone="error">レシピの一覧を読み込めませんでした。</Note>
@@ -165,7 +163,7 @@ export function RecipeLinkPicker({
 					</div>
 				) : null}
 			</div>
-		</Sheet>
+		</RecipeDialog>
 	);
 }
 
@@ -311,7 +309,9 @@ function OtherRecipesPicker({
 					)}
 				</Field>
 				{recipes === null ? (
-					<p className={styles.message}>読み込んでいます…</p>
+					<Note tone="info" spinning>
+						読み込んでいます…
+					</Note>
 				) : null}
 				{errorMessage ? <Note tone="error">{errorMessage}</Note> : null}
 				{recipes !== null && shown.length === 0 && !errorMessage ? (
@@ -371,7 +371,9 @@ function OtherRecipesPicker({
 				)}
 			</Field>
 			{users === null ? (
-				<p className={styles.message}>読み込んでいます…</p>
+				<Note tone="info" spinning>
+					読み込んでいます…
+				</Note>
 			) : null}
 			{errorMessage ? <Note tone="error">{errorMessage}</Note> : null}
 			{users !== null && users.length === 0 && !errorMessage ? (

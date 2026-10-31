@@ -1,10 +1,9 @@
 import { type ReactNode, useCallback, useEffect, useState } from "react";
-import { Modal } from "#/components/dialog/modal";
 import { IconButton } from "#/components/icon-button/icon-button";
-import { Sheet } from "#/components/sheet/sheet";
-import { useMediaQuery } from "#/components/use-media-query";
+import { Note } from "#/components/note/note";
 import type { RecipeDetail } from "../application/recipe-repository";
 import { RecipeAuthorByline } from "./recipe-author-byline";
+import { RecipeDialog } from "./recipe-dialog";
 import * as styles from "./recipe-link-preview.css";
 import {
 	type LoadLinkedRecipes,
@@ -25,6 +24,8 @@ type RecipeLinkPreviewProps = {
 	renderOpenLink: (publicId: string) => ReactNode;
 	// 材料のリンク先を、まとめて取ってくる（材料の下に、その場で開く）。
 	loadLinkedRecipes?: LoadLinkedRecipes;
+	// 前もって取ってあるレシピ（あれば、読み込みを待たずに出す）。
+	preloadedRecipes?: Readonly<Record<string, RecipeDetail>>;
 	onClose: () => void;
 };
 
@@ -34,11 +35,20 @@ export function RecipeLinkPreview({
 	loadRecipe,
 	renderOpenLink,
 	loadLinkedRecipes,
+	preloadedRecipes,
 	onClose,
 }: RecipeLinkPreviewProps) {
 	const [stack, setStack] = useState<string[]>([initialPublicId]);
-	const [states, setStates] = useState<Record<string, LoadState>>({});
-	const isWide = useMediaQuery("(min-width: 768px)");
+	const [states, setStates] = useState<Record<string, LoadState>>(() =>
+		Object.fromEntries(
+			Object.entries(preloadedRecipes ?? {}).map(
+				([publicId, recipe]): [string, LoadState] => [
+					publicId,
+					{ status: "ready", recipe },
+				],
+			),
+		),
+	);
 	const current = stack.at(-1) ?? initialPublicId;
 	const state: LoadState = states[current] ?? { status: "loading" };
 
@@ -92,23 +102,39 @@ export function RecipeLinkPreview({
 				onClick={() => setStack((current) => current.slice(0, -1))}
 			/>
 		) : null;
-	const footer = <div className={styles.footer}>{renderOpenLink(current)}</div>;
+	// 「レシピを開く」を押したら、このプレビューは閉じる（別のタブで開いたとき、元のタブに開いたまま残さない）。
+	// リンクの移動が済んでから閉じる（先に消すと、リンクが働かない）。
+	const footer = (
+		// biome-ignore lint/a11y/noStaticElementInteractions: 中のリンクの押下を受けて閉じるだけ（操作は中のリンク）。
+		// biome-ignore lint/a11y/useKeyWithClickEvents: キーボードで押したリンクも click になる。
+		<div
+			className={styles.footer}
+			onClick={(event) => {
+				if (event.target instanceof Element && event.target.closest("a")) {
+					window.setTimeout(onClose);
+				}
+			}}
+		>
+			{renderOpenLink(current)}
+		</div>
+	);
 	const body = (
 		<>
 			{state.status === "loading" ? (
-				<p className={styles.message}>読み込んでいます…</p>
+				<Note tone="info" spinning>
+					読み込んでいます…
+				</Note>
 			) : null}
 			{state.status === "missing" ? (
-				<p className={styles.message}>レシピが見つかりません。</p>
+				<Note>レシピが見つかりません。</Note>
 			) : null}
 			{state.status === "error" ? (
-				<p className={styles.message} role="alert">
-					レシピを読み込めませんでした。
-				</p>
+				<Note tone="error">レシピを読み込めませんでした。</Note>
 			) : null}
 			{state.status === "ready" ? (
 				<RecipeViewWithTree
 					loadLinkedRecipes={loadLinkedRecipes}
+					preloadedLinkedRecipes={preloadedRecipes}
 					recipe={state.recipe}
 					hideTitle
 					compact
@@ -128,32 +154,15 @@ export function RecipeLinkPreview({
 		</>
 	);
 
-	// PC は、中央の広いダイアログ（材料と作り方を左右に並べる）。スマホは、下からのシート。
-	if (isWide) {
-		return (
-			<Modal
-				open
-				onOpenChange={handleOpenChange}
-				title={title}
-				headerLeading={backButton}
-				footer={footer}
-			>
-				{body}
-			</Modal>
-		);
-	}
-
 	return (
-		<Sheet
+		<RecipeDialog
 			open
 			onOpenChange={handleOpenChange}
 			title={title}
-			placement="bottom"
-			snapPoints={[0.7, 0.92]}
 			headerLeading={backButton}
 			footer={footer}
 		>
 			{body}
-		</Sheet>
+		</RecipeDialog>
 	);
 }

@@ -120,6 +120,12 @@ export const sectionHeader = style({
 	minHeight: 32,
 });
 
+export const sectionFooter = style({
+	marginTop: 8,
+	paddingTop: 16,
+	borderTop: "1px solid var(--color-border)",
+});
+
 export const sectionTitle = style({
 	margin: 0,
 	fontSize: "var(--font-size-lg)",
@@ -188,25 +194,39 @@ export const groupTitle = style({
 	fontWeight: "var(--font-weight-bold)",
 });
 
-// リンクの材料の行（押すと、リンク先の材料を開閉する）。
-export const linkedRow = style({
+// リンク先の箱（上の段のリンク1つにつき1つ）。中の深いリンクは、箱を重ねず、字下げで表す。
+export const linkedBox = style({
 	boxSizing: "border-box",
+	marginBlock: 4,
+	padding: "4px 4px 6px 14px",
+	borderRadius: 12,
+	background: "var(--color-surface-muted)",
+});
+
+// 名前の行：開閉のボタン（名前・分量・開閉の印）と、プレビューを開くボタン。
+export const linkedHeader = style({
 	display: "flex",
 	alignItems: "center",
+	gap: 2,
+});
+
+export const linkedToggle = style({
+	boxSizing: "border-box",
+	display: "flex",
+	flex: 1,
+	alignItems: "center",
 	gap: 12,
-	width: "100%",
+	minWidth: 0,
 	minHeight: 44,
-	paddingBlock: 6,
-	paddingInline: 0,
+	padding: 0,
 	color: "var(--color-text)",
 	font: "inherit",
-	textAlign: "left",
+	textAlign: "start",
 	background: "none",
 	border: 0,
 	borderRadius: 8,
 	cursor: "pointer",
 	selectors: {
-		"&:hover": { background: "var(--color-surface-muted)" },
 		"&:focus-visible": {
 			outline: "3px solid var(--color-focus)",
 			outlineOffset: 2,
@@ -220,6 +240,9 @@ export const linkedName = style({
 	color: "var(--color-accent-text)",
 	fontWeight: "var(--font-weight-semibold)",
 	overflowWrap: "anywhere",
+	selectors: {
+		[`${linkedToggle}:hover &`]: { textDecoration: "underline" },
+	},
 });
 
 export const chevron = style({
@@ -235,50 +258,20 @@ export const chevron = style({
 	},
 });
 
-// リンク先の材料を入れる箱。段が深いほど、背景を少し濃くする（線は使わない）。
-export const linkedBox = style({
-	display: "grid",
-	gap: 4,
-	marginBottom: 8,
-	marginLeft: 12,
-	padding: "4px 14px 8px",
-	boxSizing: "border-box",
-	borderRadius: 12,
-	background: "var(--color-surface-muted)",
+// 開いた中身。箱の中の深い段は、字下げする。
+export const linkedChildren = style({
+	paddingRight: 10,
+	paddingBottom: 4,
 	selectors: {
-		'&[data-depth="2"]': {
-			background:
-				"color-mix(in srgb, var(--color-surface-muted) 80%, var(--color-border-strong))",
-		},
-		'&[data-depth="3"]': {
-			background:
-				"color-mix(in srgb, var(--color-surface-muted) 65%, var(--color-border-strong))",
-		},
+		'&[data-indent="true"]': { paddingLeft: 16 },
 	},
 });
 
-export const linkedOpen = style({
-	display: "inline-flex",
-	alignItems: "center",
-	justifySelf: "end",
+// 箱の中のグループ（色の枠にせず、見出しだけ）。
+export const nestedGroup = style({
+	display: "grid",
 	gap: 2,
-	minHeight: 36,
-	padding: "0 4px",
-	color: "var(--color-accent-text)",
-	font: "inherit",
-	fontSize: "var(--font-size-sm)",
-	fontWeight: "var(--font-weight-semibold)",
-	background: "none",
-	border: 0,
-	borderRadius: 8,
-	cursor: "pointer",
-	selectors: {
-		"&:hover": { textDecoration: "underline" },
-		"&:focus-visible": {
-			outline: "3px solid var(--color-focus)",
-			outlineOffset: 2,
-		},
-	},
+	paddingTop: 6,
 });
 
 export const linkedNote = style({
@@ -360,6 +353,8 @@ export const empty = style({
 // 本文の中の、他のレシピへのリンク（押すと、プレビュー）。
 export const linkButton = style({
 	padding: 0,
+	// 折り返したとき、ボタンの既定の中央寄せにしない。
+	textAlign: "start",
 	color: "var(--color-accent-text)",
 	background: "none",
 	border: "none",
