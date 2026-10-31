@@ -3,6 +3,7 @@ import {
 	createShoppingBranch,
 	decideShoppingBranch,
 	getShoppingBranchSideItems,
+	maxShoppingBranchConditionLength,
 	maxShoppingBranchLabelLength,
 	suggestShoppingBranchSideLabel,
 	updateShoppingBranch,
@@ -39,6 +40,30 @@ describe("createShoppingBranch", () => {
 		});
 		expect(() => createShoppingBranch({ condition: "  " }, 0)).toThrow();
 	});
+
+	// 欄ごとに、上限ちょうど（通る）と、上限＋1（止まる）。
+	it.each([
+		[
+			"条件",
+			maxShoppingBranchConditionLength,
+			(text: string) => ({ condition: text }),
+		],
+		[
+			"呼び名",
+			maxShoppingBranchLabelLength,
+			(text: string) => ({ condition: "安ければ", thenLabel: text }),
+		],
+	])(
+		"%s：上限ちょうど（%i文字）は作れて、上限＋1 は拒否する",
+		(_name, limit, input) => {
+			expect(() =>
+				createShoppingBranch(input("あ".repeat(limit)), 0),
+			).not.toThrow();
+			expect(() =>
+				createShoppingBranch(input("あ".repeat(limit + 1)), 0),
+			).toThrow();
+		},
+	);
 });
 
 describe("decideShoppingBranch", () => {
@@ -104,7 +129,7 @@ describe("suggestShoppingBranchSideLabel", () => {
 			suggestShoppingBranchSideLabel(
 				branch,
 				"else",
-				"あ".repeat(maxShoppingBranchLabelLength + 10),
+				"あ".repeat(maxShoppingBranchLabelLength + 1),
 			),
 		).toHaveLength(maxShoppingBranchLabelLength);
 		expect(suggestShoppingBranchSideLabel(branch, "else", "   ")).toBeNull();

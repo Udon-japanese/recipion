@@ -5,6 +5,7 @@ import {
 	createShoppingStore,
 	groupShoppingByStore,
 	hasShoppingStoreNamed,
+	maxShoppingStoreNameLength,
 	toStoreDefaultKey,
 } from "./shopping-store";
 
@@ -93,5 +94,14 @@ describe("店の名前とキー", () => {
 		expect(() => createShoppingStore("  ", 0)).toThrow();
 		expect(toStoreDefaultKey("  ")).toBeNull();
 		expect(toStoreDefaultKey("卵")).toBe(toStoreDefaultKey("　卵 "));
+	});
+
+	it("店の名前は、上限ちょうどなら作れて、上限＋1 は拒否する", () => {
+		expect(() =>
+			createShoppingStore("あ".repeat(maxShoppingStoreNameLength), 0),
+		).not.toThrow();
+		expect(() =>
+			createShoppingStore("あ".repeat(maxShoppingStoreNameLength + 1), 0),
+		).toThrow();
 	});
 });

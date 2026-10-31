@@ -47,10 +47,6 @@ describe("getRecipeTextCompletion（見出し）", () => {
 		expect(labelsAtEnd("<し")).toEqual([]);
 	});
 
-	it("閉じ括弧まで打った見出しには、出さない", () => {
-		expect(labelsAtEnd("＜材料＞")).toEqual([]);
-	});
-
 	it("見出しを入れると、次の行へ移る", () => {
 		const text = "＜作";
 		const completion = requireCompletion(text);
@@ -102,12 +98,6 @@ describe("getRecipeTextCompletion（材料の名前）", () => {
 		expect(labelsAtEnd("＜材料＞\n☆")).not.toContain("玉ねぎ");
 	});
 
-	it("分量を打ち始めたあと、見出しがないときは、出さない", () => {
-		expect(labelsAtEnd("＜材料＞\n玉ねぎ 1")).toEqual([]);
-		expect(labelsAtEnd("玉ね")).toEqual([]);
-		expect(labelsAtEnd("＜メモ＞\n玉ね")).toEqual([]);
-	});
-
 	it("カーソルの前後の文字を合わせた、書き終えていない名前には、出す", () => {
 		const text = "＜材料＞\nたまね 1個";
 		const completion = requireCompletion(text, "＜材料＞\nたまね".length);
@@ -135,13 +125,6 @@ describe("getRecipeTextCompletion（材料の名前）", () => {
 				(item) => item.label,
 			),
 		).toContain("玉ねぎ");
-	});
-
-	it("書き終えた見出しの途中（前後で見出しが完成する）では、出さない", () => {
-		expect(getRecipeTextCompletion("＜下準備＞", 2)).toBeNull();
-		expect(getRecipeTextCompletion("＜下準備＞", 1)).toBeNull();
-		expect(getRecipeTextCompletion("＜材料＞", 4)).toBeNull();
-		expect(getRecipeTextCompletion("＜作 メモ", 2)).toBeNull();
 	});
 
 	it("書きかけの見出しは、カーソルの後ろの文字も含めて、置き換える", () => {
@@ -172,11 +155,6 @@ describe("getRecipeTextCompletion（作り方・下準備の中の、材料の�
 		expect(labelsAtEnd("＜作り方＞\n1. フライパンで玉ね", names)).toEqual([
 			"玉ねぎ",
 		]);
-	});
-
-	it("1文字では出さず、名前が完成したあとは出さない", () => {
-		expect(labelsAtEnd("＜作り方＞\n1. 玉", names)).toEqual([]);
-		expect(labelsAtEnd("＜作り方＞\n1. 玉ねぎ", names)).toEqual([]);
 	});
 
 	it("カーソルの前後の文字を合わせて、書き終えていれば出さず、途中なら出す", () => {
@@ -247,6 +225,34 @@ describe("getRecipeTextCompletion（作り方・下準備の中の、材料の�
 	});
 });
 
+describe("getRecipeTextCompletion（出さない場合）", () => {
+	const names = ["玉ねぎ", "豚ひき肉"];
+
+	// 出す場合は、上の各 describe。ここは、何も出さない場合を、理由ごとに1件ずつ。
+	// caret を省くと、本文の最後。
+	it.each<[reason: string, text: string, caret?: number, names?: string[]]>([
+		["閉じ括弧まで打った見出し", "＜材料＞"],
+		["書き終えた見出しの途中（カーソルが括弧の内側）", "＜下準備＞", 2],
+		["書き終えた見出しの途中（開き括弧の直後）", "＜下準備＞", 1],
+		["書き終えた見出しの、閉じ括弧の直前", "＜材料＞", 4],
+		["見出しのあとに文章が続く", "＜作 メモ", 2],
+		["材料の行で、分量を打ち始めたあと", "＜材料＞\n玉ねぎ 1"],
+		["メモの中の食材名", "＜メモ＞\n玉ね"],
+		["見出しがなく、判別できない短い1行", "玉ね", undefined, names],
+		["作り方の中で、1文字だけ", "＜作り方＞\n1. 玉", undefined, names],
+		[
+			"作り方の中で、名前が完成したあと",
+			"＜作り方＞\n1. 玉ねぎ",
+			undefined,
+			names,
+		],
+	])("%s", (_reason, text, caret = text.length, recipeNames = []) => {
+		expect(
+			getRecipeTextCompletion(text, caret, recipeNames)?.items ?? [],
+		).toEqual([]);
+	});
+});
+
 describe("getRecipeTextCompletion（記号）", () => {
 	it("読み仮名から、記号を出す（カタカナでも）", () => {
 		expect(labelsAtEnd("＜材料＞\nほし")).toEqual(["☆（ほし）", "★（ほし）"]);
@@ -305,10 +311,6 @@ describe("getRecipeTextCompletion（見出しがないとき）", () => {
 
 	it("材料と判別できるブロックの中で、食材名を出す", () => {
 		expect(labelsAtEnd("卵 1個\nたまね")).toContain("玉ねぎ");
-	});
-
-	it("判別できない、短い1行では、出さない", () => {
-		expect(labelsAtEnd("玉ね", names)).toEqual([]);
 	});
 });
 
