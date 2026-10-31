@@ -26,6 +26,7 @@ import {
 } from "../domain/inventory-fridge";
 import { toDateString } from "../domain/inventory-lot";
 import {
+	type InventoryView,
 	inventoryGroupByStorage,
 	inventoryPetStorage,
 	inventoryViewStorage,
@@ -99,7 +100,7 @@ export function InventoryList({
 	const [selection, setSelection] = useState<Selection | null>(null);
 	const [isRegistrationOpen, setIsRegistrationOpen] = useState(false);
 	// 最後に選んだ表示（読み込み中の見た目も、これに合わせる）。この画面はサーバーで描かないので、最初の描画から保存した値になる。
-	const [view, changeView] = useStorageItem(inventoryViewStorage);
+	const [view, setView] = useStorageItem(inventoryViewStorage);
 	const [night] = useState(() => isNight(new Date()));
 	const [petVisible, changePetVisible] = useStorageItem(inventoryPetStorage);
 	// リストの検索と、まとめ方（最後に選んだもの。読み込めなければ、場所）。
@@ -120,6 +121,12 @@ export function InventoryList({
 	// 広い画面：ドラッグで動かせる浮いたパネル（一覧を見ながら操作できる）。狭い画面：下のシート。
 	const isWide = useMediaQuery("(min-width: 768px)");
 	const panelMode: ItemPanelMode = isWide ? "floating" : "sheet-bottom";
+
+	// 表示を切り替えたら、開いている食材のパネルは閉じる（パネルは、押したタイルの横に出るので、切り替えると置き場がなくなる）。
+	function changeView(next: InventoryView) {
+		setView(next);
+		setSelection(null);
+	}
 
 	const isMember = ownerScope !== null && ownerScope !== "guest";
 
