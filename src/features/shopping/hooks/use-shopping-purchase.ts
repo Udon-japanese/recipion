@@ -104,6 +104,8 @@ export function useShoppingPurchase({
 
 	// 在庫換算が足りない商品があるとき、購入確定の前に、量を聞く画面。
 	const [isReviewingConversion, setIsReviewingConversion] = useState(false);
+	// 換算がそろっているとき、購入確定の前に、確かめる確認。
+	const [isAskingPurchase, setIsAskingPurchase] = useState(false);
 	// 在庫換算の設定などで、購入確定をやり直すときに、期限の目安を使い回す。
 	const pendingLotsRef = useRef<Record<string, InventoryLotInput>>({});
 	const today = useMemo(() => toDateString(new Date()), []);
@@ -167,14 +169,28 @@ export function useShoppingPurchase({
 
 		setAmountDrafts(drafts);
 
-		if (Object.keys(drafts).length === 0) {
-			pendingLotsRef.current = buildLotsFromPrefill();
+		// 在庫に入る商品がない（日用品だけ）ときは、在庫に影響しないので、確認なしで確定する。
+		if (checkedTrackedItems.length === 0) {
+			pendingLotsRef.current = {};
 			void confirm();
 
 			return;
 		}
 
+		if (Object.keys(drafts).length === 0) {
+			setIsAskingPurchase(true);
+
+			return;
+		}
+
 		setIsReviewingConversion(true);
+	}
+
+	// 確認で「購入確定」を押したとき。
+	function confirmAskedPurchase() {
+		setIsAskingPurchase(false);
+		pendingLotsRef.current = buildLotsFromPrefill();
+		void confirm();
 	}
 
 	// 量を聞く画面で「購入確定」を押したとき。足りない換算を、先にすべて保存して、確定する。
@@ -410,6 +426,9 @@ export function useShoppingPurchase({
 		isConfirmingPurchase,
 		isSavingConversion,
 		isReviewingConversion,
+		isAskingPurchase,
+		confirmAskedPurchase,
+		cancelAskedPurchase: () => setIsAskingPurchase(false),
 		cancelReview: () => {
 			setIsReviewingConversion(false);
 			setAmountDrafts({});

@@ -664,6 +664,7 @@ describe("ShoppingList", () => {
 				name: "購入を確定（1件）",
 			}),
 		);
+		await user.click(await screen.findByRole("button", { name: "購入確定" }));
 
 		expect(confirmPurchases).toHaveBeenCalledWith("guest", {
 			lotsByItemId: {},
@@ -810,6 +811,7 @@ describe("ShoppingList", () => {
 				name: "購入を確定（1件）",
 			}),
 		);
+		await user.click(await screen.findByRole("button", { name: "購入確定" }));
 
 		await waitFor(() => {
 			expect(confirmPurchases).toHaveBeenCalledWith("user:user-id", {
@@ -819,7 +821,7 @@ describe("ShoppingList", () => {
 		});
 	});
 
-	it("目安を付けられる食材は、確認なしで購入確定し、期限を目安として記録する", async () => {
+	it("目安を付けられる食材は、確認のあとで購入確定し、期限を目安として記録する", async () => {
 		const user = userEvent.setup();
 
 		const checkedItem: ShoppingItem = {
@@ -852,6 +854,7 @@ describe("ShoppingList", () => {
 		await user.click(
 			await screen.findByRole("button", { name: "購入を確定（1件）" }),
 		);
+		await user.click(await screen.findByRole("button", { name: "購入確定" }));
 
 		// 冷凍野菜：購入から90日（短め）
 		const today = toDateString(new Date());
@@ -947,6 +950,44 @@ describe("ShoppingList", () => {
 		expect((await screen.findByRole("alert")).textContent).toContain(
 			"0より大きい数",
 		);
+		expect(confirmPurchases).not.toHaveBeenCalled();
+	});
+
+	it("換算がそろっていても、確認を押すまでは、購入確定しない。「やめる」でも、確定しない", async () => {
+		const user = userEvent.setup();
+
+		const checkedItem: ShoppingItem = {
+			...storedItem,
+			status: "checked",
+			inventoryConversion: {
+				inputUnitCode: "count",
+				stockUnitCode: "count",
+				stockUnitLabel: "個",
+				stockQuantityPerInputUnit: 1,
+				trackingMode: "exact",
+			},
+		};
+		const confirmPurchases = vi.fn();
+
+		render(
+			<ShoppingList
+				repository={createFakeShoppingRepository([checkedItem])}
+				confirmPurchases={confirmPurchases}
+			/>,
+		);
+
+		await user.click(
+			await screen.findByRole("button", { name: "購入を確定（1件）" }),
+		);
+
+		expect(
+			await screen.findByRole("alertdialog", { name: "購入を確定しますか" }),
+		).toBeInTheDocument();
+		expect(confirmPurchases).not.toHaveBeenCalled();
+
+		await user.click(screen.getByRole("button", { name: "やめる" }));
+
+		expect(screen.queryByRole("alertdialog")).toBeNull();
 		expect(confirmPurchases).not.toHaveBeenCalled();
 	});
 

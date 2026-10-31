@@ -521,6 +521,19 @@ export function ShoppingList({
 				/>
 			) : null}
 
+			<ConfirmDialog
+				open={purchase.isAskingPurchase}
+				title="購入を確定しますか"
+				cancelLabel="やめる"
+				confirmLabel="購入確定"
+				onCancel={purchase.cancelAskedPurchase}
+				onConfirm={purchase.confirmAskedPurchase}
+			>
+				{ownerScope === "guest"
+					? `チェックした${purchase.checkedTrackedItems.length}件を、購入済みにします。ログインすると、在庫に入れられます。`
+					: `チェックした${purchase.checkedTrackedItems.length}件を、購入済みにして、在庫に入れます。`}
+			</ConfirmDialog>
+
 			{purchase.isReviewingConversion ? (
 				<PurchaseConversionSheet
 					items={purchase.checkedTrackedItems.filter(
