@@ -64,6 +64,32 @@ describe("ShoppingAddSheet", () => {
 		).toHaveAttribute("aria-pressed", "true");
 	});
 
+	it("1つも入れていないあいだは「閉じる」、入れたら「完了」になる", async () => {
+		const user = userEvent.setup();
+		const { onClose } = setup();
+
+		expect(screen.queryByRole("button", { name: "完了" })).toBeNull();
+
+		await user.type(screen.getByLabelText("買うもの"), "牛乳{Enter}");
+		await screen.findByText(/牛乳 1/);
+
+		expect(screen.queryByRole("button", { name: "閉じる" })).toBeNull();
+
+		await user.click(screen.getByRole("button", { name: "完了" }));
+
+		expect(onClose).toHaveBeenCalledTimes(1);
+	});
+
+	it("1つも入れていなければ、「閉じる」で閉じる", async () => {
+		const user = userEvent.setup();
+		const { onAdd, onClose } = setup();
+
+		await user.click(screen.getByRole("button", { name: "閉じる" }));
+
+		expect(onClose).toHaveBeenCalledTimes(1);
+		expect(onAdd).not.toHaveBeenCalled();
+	});
+
 	it("名前を打ちかけているときは、Esc で閉じない（空なら閉じる）", async () => {
 		const user = userEvent.setup();
 		const { onClose } = setup();
