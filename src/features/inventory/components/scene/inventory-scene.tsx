@@ -432,3 +432,46 @@ export function InventoryScene({
 		</div>
 	);
 }
+
+type InventorySceneLoadingProps = {
+	night: boolean;
+	petVisible: boolean;
+	toolbar: ReactNode;
+};
+
+// 在庫を読み込んでいる間のおうち：絵だけを描き、れしぽよが、その場でふきだしで知らせる（押せる場所は置かない）。
+export function InventorySceneLoading({
+	night,
+	petVisible,
+	toolbar,
+}: InventorySceneLoadingProps) {
+	const frameRef = useRef<HTMLElement>(null);
+	const spot = night ? (spots[cushionIndex] ?? startSpot) : startSpot;
+
+	return (
+		<div className={styles.stage}>
+			<section
+				ref={frameRef}
+				className={styles.frame}
+				aria-label={`${MASCOT_DISPLAY_NAME}のおうち`}
+				aria-busy
+			>
+				<div className={styles.bar}>{toolbar}</div>
+
+				<div className={styles.camera}>
+					<RoomArt night={night} open={null} tableTiles={[]} />
+
+					{petVisible ? (
+						<Pet
+							mood={spot.mood}
+							boundsRef={frameRef}
+							message="よみこみ中…"
+							showMessage
+							style={{ left: `${spot.x}%`, top: `${spot.y}%` }}
+						/>
+					) : null}
+				</div>
+			</section>
+		</div>
+	);
+}

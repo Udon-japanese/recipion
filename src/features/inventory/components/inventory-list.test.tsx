@@ -163,6 +163,63 @@ describe("InventoryList", () => {
 		}
 	});
 
+	describe("読み込み中は、保存した表示に合わせる", () => {
+		const pending = () => new Promise<never>(() => {});
+
+		it.each([
+			{ saved: null, scene: false },
+			{ saved: "scene", scene: true },
+		])("表示が $saved のとき、おうちの絵: $scene", ({ saved, scene }) => {
+			try {
+				if (saved) {
+					window.localStorage.setItem("recipion.inventory.view", saved);
+				}
+
+				renderList([], { loadInventoryItems: pending });
+
+				// 最初の描画から、保存した表示で出す（リストの骨組みを挟まない）。
+				expect(
+					screen.queryByRole("region", { name: "れしぽよのおうち" }) !== null,
+				).toBe(scene);
+				expect(screen.getByRole("status")).toHaveTextContent(
+					"在庫を読み込んでいます",
+				);
+				expect(
+					screen.getByRole("button", { name: "リストで見る" }),
+				).toBeInTheDocument();
+				expect(
+					screen.getByRole("heading", { name: "在庫" }),
+				).toBeInTheDocument();
+			} finally {
+				window.localStorage.removeItem("recipion.inventory.view");
+			}
+		});
+
+		it("おうちでは、れしぽよが知らせ、隠していれば、お知らせを出す", () => {
+			try {
+				window.localStorage.setItem("recipion.inventory.view", "scene");
+				const { unmount } = renderList([], { loadInventoryItems: pending });
+
+				expect(
+					screen.getByRole("button", { name: "れしぽよをつつく" }),
+				).toHaveAccessibleDescription("よみこみ中…");
+				expect(screen.getAllByRole("status")).toHaveLength(1);
+				unmount();
+
+				window.localStorage.setItem("recipion.inventory.pet", "off");
+				renderList([], { loadInventoryItems: pending });
+
+				expect(
+					screen.queryByRole("button", { name: "れしぽよをつつく" }),
+				).not.toBeInTheDocument();
+				expect(screen.getAllByRole("status")).toHaveLength(2);
+			} finally {
+				window.localStorage.removeItem("recipion.inventory.view");
+				window.localStorage.removeItem("recipion.inventory.pet");
+			}
+		});
+	});
+
 	it("場所の縦タブで絞り、もう一度押すとすべてに戻る。まとめ方を変えると、チップで絞れる", async () => {
 		const user = userEvent.setup();
 

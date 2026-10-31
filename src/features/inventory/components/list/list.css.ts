@@ -176,6 +176,13 @@ export const skeletonRows = style({
 	padding: 12,
 });
 
+// 検索の欄・並べ替えの形。
+export const skeletonField = style({
+	height: 44,
+	borderRadius: 12,
+	background: "var(--color-surface-muted)",
+});
+
 export const skeleton = style({
 	height: 72,
 	borderRadius: 16,

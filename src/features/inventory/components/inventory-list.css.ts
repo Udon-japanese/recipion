@@ -1,4 +1,4 @@
-import { style } from "@vanilla-extract/css";
+import { globalStyle, style } from "@vanilla-extract/css";
 
 export const container = style({
 	display: "grid",
@@ -13,12 +13,20 @@ export const header = style({
 	minHeight: 44,
 });
 
-export const title = style({
-	flex: 1,
-	margin: 0,
-	fontSize: "var(--font-size-xl)",
-	fontWeight: "var(--font-weight-extrabold)",
-	lineHeight: 1.3,
+// 切り替えは左、ほかの操作は右に寄せる。
+globalStyle(`${header} [data-tools]`, { marginInlineStart: "auto" });
+
+// おうちの読み込み中で、れしぽよを隠しているときのお知らせ（画面の上に固定）。
+export const loadingNote = style({
+	position: "fixed",
+	top: "calc(env(safe-area-inset-top) + 12px)",
+	left: 16,
+	right: 16,
+	zIndex: 20,
+	// 左右いっぱいに広げる（中身の幅に縮めない）。広い画面では、本文の幅まで。
+	maxWidth: 960,
+	marginInline: "auto",
+	pointerEvents: "none",
 });
 
 // 空・ゲスト・確認中：れしぽよと一言。
