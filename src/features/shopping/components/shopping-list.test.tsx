@@ -1122,4 +1122,71 @@ describe("ShoppingList", () => {
 
 		expect(await screen.findByText("購入済み")).toBeInTheDocument();
 	});
+
+	it("保存の直前に換算の足りない商品が見つかったら、同じ「在庫に入れる量」の画面で聞いて、確定し直す", async () => {
+		const user = userEvent.setup();
+		const conversion = {
+			inputUnitCode: "袋",
+			stockUnitCode: "count",
+			stockUnitLabel: "袋",
+			stockQuantityPerInputUnit: 1,
+			trackingMode: "estimated",
+		} as const;
+		const checkedItem: ShoppingItem = {
+			...storedItem,
+			name: "まめぶ",
+			quantity: 1,
+			unitLabel: "袋",
+			status: "checked",
+			inventoryConversion: conversion,
+		};
+		// 名前は、ほかのテストが覚えた換算と重ならないものにする（重なると、「変える／今回だけ」を聞く）。
+		const repository = createFakeShoppingRepository([checkedItem]);
+		// 画面では換算がそろって見えるが、保存の直前には、換算がなかった（別の画面で直した、など）。
+		const confirmPurchases = vi
+			.fn()
+			.mockResolvedValueOnce({
+				status: "missing-conversion",
+				items: [{ ...checkedItem, inventoryConversion: null }],
+			})
+			.mockResolvedValueOnce({
+				status: "confirmed",
+				items: [{ ...checkedItem, status: "purchased" }],
+			});
+
+		render(
+			<ShoppingList
+				repository={repository}
+				confirmPurchases={confirmPurchases}
+			/>,
+		);
+
+		await user.click(
+			await screen.findByRole("button", { name: "購入を確定（1件）" }),
+		);
+		await user.click(
+			within(
+				await screen.findByRole("alertdialog", { name: "購入を確定しますか" }),
+			).getByRole("button", { name: "購入確定" }),
+		);
+
+		const amount = await screen.findByLabelText("まめぶの1袋あたりの数");
+
+		await user.clear(amount);
+		await user.type(amount, "2");
+		await user.click(screen.getByRole("button", { name: "購入確定" }));
+
+		await waitFor(() => {
+			expect(confirmPurchases).toHaveBeenCalledTimes(2);
+		});
+		expect(repository.items).toContainEqual(
+			expect.objectContaining({
+				id: checkedItem.id,
+				inventoryConversion: expect.objectContaining({
+					stockQuantityPerInputUnit: 2,
+				}),
+			}),
+		);
+		expect(await screen.findByText("購入済み")).toBeInTheDocument();
+	});
 });
