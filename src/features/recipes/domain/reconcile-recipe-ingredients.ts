@@ -351,11 +351,13 @@ export function reconcileRecipeIngredients(
 
 // 保存済みのレシピの材料から、同期の状態を作る（元の行は、文章に書き戻した行）。
 // 解析し直すと、保存済みの名前・分量と変わる材料は、手直し済みとして、保存済みの内容を守る。
+// 保存済みの材料の行は、材料と決めた行として扱う（分量のない行が、解析し直してグループに戻らない）。
 export function createIngredientSyncState(
 	nodes: readonly RecipeEditorIngredientNode[],
 ): IngredientSyncState {
 	const sources = new Map<string, string>();
 	const edited = new Set<string>();
+	const plainLines = new Set<string>();
 
 	function register(node: RecipeEditorIngredientNode) {
 		if (node.type === "group") {
@@ -372,6 +374,7 @@ export function createIngredientSyncState(
 		const reparsed = parseIngredientLine(line);
 
 		sources.set(node.id, line);
+		plainLines.add(line);
 
 		if (
 			reparsed?.name !== node.name ||
@@ -385,7 +388,13 @@ export function createIngredientSyncState(
 		register(node);
 	}
 
-	return { nodes: [...nodes], sources, edited, dismissed: [], plainLines: [] };
+	return {
+		nodes: [...nodes],
+		sources,
+		edited,
+		dismissed: [],
+		plainLines: [...plainLines],
+	};
 }
 
 export const emptyIngredientSyncState: IngredientSyncState = {
