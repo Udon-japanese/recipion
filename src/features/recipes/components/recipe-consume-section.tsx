@@ -402,6 +402,8 @@ export function RecipeConsumeSection({
 		itemIdsOf(outcome.operation, row).every((id) =>
 			outcome.returnedItemIds.has(id),
 		);
+	// 引いた材料が1つだけなら、1行の「戻す」は出さない（全体の「元に戻す」と同じになるため）。
+	const canReturnRows = summary.deducted.length > 1;
 	const hasUndoableWork =
 		summary.deducted.some((row) => !isReturned(row)) ||
 		outcome?.production?.isDone === true;
@@ -559,7 +561,11 @@ export function RecipeConsumeSection({
 
 											return (
 												<li
-													className={`${styles.amountRow} ${styles.amountRowWithAction}`}
+													className={
+														canReturnRows
+															? `${styles.amountRow} ${styles.amountRowWithAction}`
+															: styles.amountRow
+													}
 													key={row.need.id}
 												>
 													<span>{row.need.name}</span>
@@ -572,7 +578,7 @@ export function RecipeConsumeSection({
 													>
 														{amount}
 													</span>
-													{returned ? (
+													{!canReturnRows ? null : returned ? (
 														<span className={styles.status}>戻しました</span>
 													) : (
 														<Button

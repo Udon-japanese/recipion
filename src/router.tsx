@@ -9,6 +9,9 @@ export function getRouter() {
 		scrollRestoration: true,
 		defaultPreload: "intent",
 		defaultPreloadStaleTime: 0,
+		// 一度開いた画面に戻ったときも、読み直しを待ってから出す（既定の background は、古い値を先に見せる）。
+		// 古い値を先に見せると、編集画面が保存前の本文で始まり、保存で上書きしてしまうため。
+		defaultStaleReloadMode: "blocking",
 		// errorComponent のない画面でも、内部のエラー文を出さない。
 		defaultErrorComponent: RouteError,
 		defaultNotFoundComponent: NotFoundPage,
