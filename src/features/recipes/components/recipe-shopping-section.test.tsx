@@ -103,6 +103,19 @@ describe("RecipeShoppingSection", () => {
 			unitLabel: "個",
 		});
 		expect(await panel.findByText(/1件を追加/u)).toBeInTheDocument();
+
+		// 入れた行が「メモにあり」に変わっても、件数は入れた数のまま。チェックを変えるまで、もう一度は押せない。
+		const applied = await panel.findByRole("button", {
+			name: "入れました（1件）",
+		});
+
+		expect(applied).toBeDisabled();
+
+		await user.click(panel.getByLabelText("卵を買い物メモに入れる"));
+
+		expect(
+			panel.getByRole("button", { name: "選んだものを入れる（1件）" }),
+		).toBeEnabled();
 	});
 
 	it("メモに同じものがあるとき、既定は多い方に合わせ、選択で合算・追加しないに変えられる", async () => {
@@ -237,6 +250,44 @@ describe("RecipeShoppingSection", () => {
 			await panel.findByText("足りている（在庫あり）"),
 		).toBeInTheDocument();
 		expect(panel.getByLabelText("塩を買い物メモに入れる")).not.toBeChecked();
+	});
+
+	it("「ある」の登録中は、押した行のボタンだけが読み込み中になり、全体の読み込み表示は出さない", async () => {
+		const user = userEvent.setup();
+		let finishRegister = () => {};
+		const registerAvailable = vi.fn(
+			() =>
+				new Promise<void>((resolve) => {
+					finishRegister = resolve;
+				}),
+		);
+
+		render(
+			<RecipeShoppingSection
+				ingredients={ingredients}
+				ownerScope="user:user-id"
+				loadInventoryItems={async () => []}
+				registerAvailable={registerAvailable}
+				shoppingRepository={createFakeShoppingRepository()}
+			/>,
+		);
+
+		const panel = within(await openPanel(user));
+		const salt = await panel.findByRole("button", {
+			name: "塩を在庫に「ある」で登録する",
+		});
+
+		await user.click(salt);
+
+		expect(salt).toHaveAttribute("aria-busy", "true");
+		expect(
+			panel.getByRole("button", { name: "卵を在庫に「ある」で登録する" }),
+		).not.toHaveAttribute("aria-busy");
+		expect(panel.queryByText("読み込んでいます…")).not.toBeInTheDocument();
+
+		finishRegister();
+
+		await waitFor(() => expect(salt).not.toHaveAttribute("aria-busy"));
 	});
 
 	it("材料がないレシピでは、何も表示しない", () => {

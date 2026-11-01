@@ -150,6 +150,15 @@ export function RecipeShoppingRows({
 				</Note>
 			) : null}
 
+			{/* 結果は、一覧の上に出す（下だと、長い一覧では目に入らない）。 */}
+			{plan.errorMessage ? <Note tone="error">{plan.errorMessage}</Note> : null}
+
+			{plan.resultMessage ? (
+				<Note tone="success">
+					{plan.resultMessage}。{resultLink}
+				</Note>
+			) : null}
+
 			{plan.madeUses.map((use) => (
 				<p className={styles.hint} key={use.publicId}>
 					{`在庫の${use.name}を${formatStockAmount(use.quantity, "count")}回分、使います。その分の材料は、入れません。`}
@@ -254,6 +263,10 @@ export function RecipeShoppingRows({
 											<Button
 												variant="secondary"
 												size="sm"
+												status={
+													plan.isRegistering(row.need.name) ? "pending" : "idle"
+												}
+												pendingLabel="登録中"
 												aria-label={`${row.need.name}を在庫に「ある」で登録する`}
 												onClick={() =>
 													void plan.registerAvailableFor(
@@ -272,14 +285,6 @@ export function RecipeShoppingRows({
 					);
 				})}
 			</ul>
-
-			{plan.errorMessage ? <Note tone="error">{plan.errorMessage}</Note> : null}
-
-			{plan.resultMessage ? (
-				<Note tone="success">
-					{plan.resultMessage}。{resultLink}
-				</Note>
-			) : null}
 		</div>
 	);
 }
@@ -321,6 +326,9 @@ export function RecipeShoppingFooter({
 	onClose,
 }: RecipeShoppingFooterProps) {
 	const isWide = useMediaQuery("(min-width: 768px)");
+	const isApplied = plan.appliedCount !== null;
+	// 保存中と、入れ終えたあとは、押したときの件数のまま見せる。
+	const count = plan.appliedCount ?? plan.selectedCount;
 
 	return (
 		<div className={styles.footer}>
@@ -337,12 +345,17 @@ export function RecipeShoppingFooter({
 			<Button
 				size={isWide ? "lg" : "md"}
 				fullWidth={!isWide}
-				status={plan.isApplying ? "pending" : "idle"}
+				status={plan.isApplying ? "pending" : isApplied ? "success" : "idle"}
 				pendingLabel="追加中"
-				disabled={plan.isLoading}
+				successLabel="入れました"
+				// 入れ終えたら、チェックを変えるまで押せない（同じものを、もう一度入れないように）。
+				// 「ある」の登録中も、在庫の読み直しが済むまで待つ（在庫に入れたものを、メモにも入れないように）。
+				disabled={plan.isLoading || plan.hasRegistering || isApplied}
 				onClick={() => void plan.apply()}
 			>
-				{`選んだものを入れる（${plan.selectedCount}件）`}
+				{isApplied
+					? `入れました（${count}件）`
+					: `選んだものを入れる（${count}件）`}
 			</Button>
 		</div>
 	);
