@@ -34,6 +34,10 @@ function lot(overrides: Partial<InventoryLot> = {}): InventoryLot {
 describe("assignInventoryZone", () => {
 	it.each([
 		["presence", "fridge", true, "door"],
+		["presence", "fridge", false, "door"],
+		["presence", null, false, "door"],
+		["presence", "room", false, "table"],
+		["presence", "freezer", false, "freezer"],
 		["exact", "freezer", true, "freezer"],
 		["exact", "room", true, "table"],
 		["exact", "fridge", true, "vegetable"],
@@ -227,8 +231,8 @@ describe("buildInventoryFridge", () => {
 	it("有無だけの食材は、ドアに「あり」「なし」で出る。数量 0 のロットなしの食材は、空のタイル", () => {
 		const items = [
 			buildInventoryListItem({
-				inventoryItemId: "shio",
-				name: "塩",
+				inventoryItemId: "miso",
+				name: "味噌",
 				trackingMode: "presence",
 				quantity: 0,
 				lots: [lot({ quantity: 0 })],
@@ -248,5 +252,40 @@ describe("buildInventoryFridge", () => {
 			inventoryItemId: "egg",
 			isEmpty: true,
 		});
+	});
+
+	it("有無だけの食材でも、常温（カタログの初期値・ロット）は机の上、冷凍のロットは冷凍室に出る", () => {
+		const items = [
+			buildInventoryListItem({
+				inventoryItemId: "shio",
+				name: "塩",
+				trackingMode: "presence",
+				quantity: 1,
+				lots: [lot()],
+			}),
+			buildInventoryListItem({
+				inventoryItemId: "miso",
+				name: "味噌",
+				trackingMode: "presence",
+				quantity: 1,
+				lots: [lot({ id: "room", storage: "room" })],
+			}),
+			buildInventoryListItem({
+				inventoryItemId: "ginger",
+				name: "おろししょうが",
+				trackingMode: "presence",
+				quantity: 1,
+				lots: [lot({ id: "freezer", storage: "freezer" })],
+			}),
+		];
+
+		expect(tilesOf(items, "door")).toEqual([]);
+		expect(tilesOf(items, "table").map((t) => t.inventoryItemId)).toEqual([
+			"shio",
+			"miso",
+		]);
+		expect(tilesOf(items, "freezer").map((t) => t.inventoryItemId)).toEqual([
+			"ginger",
+		]);
 	});
 });
