@@ -37,6 +37,7 @@ function renderScene(
 			buildInventoryListItem({
 				inventoryItemId: "shoyu",
 				name: "醤油",
+				defaultStorage: "fridge",
 				quantity: 1,
 				trackingMode: "presence",
 				lots: [lot("l2")],

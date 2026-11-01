@@ -127,6 +127,7 @@ describe("InventoryList", () => {
 			buildInventoryListItem({
 				inventoryItemId: "shoyu",
 				name: "醤油",
+				defaultStorage: "fridge",
 				quantity: 1,
 				trackingMode: "presence",
 				lots: [createLot({ id: "s1", quantity: 1 })],
@@ -235,6 +236,7 @@ describe("InventoryList", () => {
 			buildInventoryListItem({
 				inventoryItemId: "shoyu",
 				name: "醤油",
+				defaultStorage: "fridge",
 				quantity: 1,
 				trackingMode: "presence",
 				lots: [createLot({ id: "s1", quantity: 1 })],
@@ -844,6 +846,7 @@ describe("InventoryList", () => {
 			return buildInventoryListItem({
 				inventoryItemId: oilId,
 				name: "オリーブオイル",
+				defaultStorage: "fridge",
 				quantity,
 				lots: quantity > 0 ? [createLot({ id: "lot-1", quantity })] : [],
 				stockUnitCode: "ml",

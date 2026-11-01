@@ -113,19 +113,20 @@ type ZoneInput = {
 
 /**
  * 食材（のロット）が入るゾーン。
- * 有無だけ→ドア／冷凍→冷凍室／常温→机の上／冷蔵で野菜・果物→野菜室／それ以外（不明も）→冷蔵室。
+ * 冷凍→冷凍室／常温→机の上／ここから冷蔵（不明も）：有無だけ→ドア／野菜・果物→野菜室／それ以外→冷蔵室。
+ * ドアは冷蔵庫の中の区分なので、有無だけでも、常温・冷凍ならドアに入れない。
  */
 export function assignInventoryZone(input: ZoneInput): InventoryZoneId {
-	if (input.trackingMode === "presence") {
-		return "door";
-	}
-
 	if (input.storage === "freezer") {
 		return "freezer";
 	}
 
 	if (input.storage === "room") {
 		return "table";
+	}
+
+	if (input.trackingMode === "presence") {
+		return "door";
 	}
 
 	if (input.storage === "fridge" && input.isProduce) {
