@@ -9,6 +9,16 @@ export const page = style({
 	maxWidth: 720,
 	marginInline: "auto",
 	minWidth: 0,
+	"@media": {
+		// スマホ：一番下まで送ったとき、最後の行の操作が、隅の丸いボタン（＋とほかの入れ方）に重ならないよう、
+		// その高さ（44＋12＋56）と間（16）の分を空ける。購入確定のバーが出ているときは、その分（76）も。
+		"(max-width: 767px)": {
+			paddingBottom: 128,
+			selectors: {
+				'&[data-fab-lifted="true"]': { paddingBottom: 128 + 76 },
+			},
+		},
+	},
 });
 
 export const titleRow = style({

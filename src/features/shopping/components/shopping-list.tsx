@@ -345,7 +345,10 @@ export function ShoppingList({
 	];
 
 	return (
-		<main className={styles.page}>
+		<main
+			className={styles.page}
+			data-fab-lifted={purchase.checkedItemCount > 0 && !isLoading}
+		>
 			<div className={styles.titleRow}>
 				<h1 className={styles.title}>買い物メモ</h1>
 
