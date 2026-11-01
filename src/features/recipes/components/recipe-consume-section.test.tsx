@@ -113,6 +113,42 @@ describe("RecipeConsumeSection", () => {
 		).toHaveTextContent("塩");
 	});
 
+	it("範囲の分量（60~70g）は、多い方で引き、そのことを表示する", async () => {
+		const user = userEvent.setup();
+		const { consume } = setup({
+			ingredients: [
+				{
+					...ingredient("i1", "豚こま肉", null, "g"),
+					amountText: "60~70g",
+				} as RecipeEditorIngredientNode,
+			],
+			loadInventoryItems: async () => [
+				buildInventoryListItem({
+					inventoryItemId: "inv-pork",
+					name: "豚こま肉",
+					quantity: 200,
+					stockUnitCode: "g",
+					stockUnitLabel: "g",
+				}),
+			],
+		});
+
+		await user.click(screen.getByRole("button", { name: /つくった/u }));
+
+		expect(
+			await screen.findByText("在庫から1件を引きました"),
+		).toBeInTheDocument();
+		expect(
+			consume.mock.calls[0]?.[0].entries.map((entry) => [
+				entry.inventoryItemId,
+				entry.quantity,
+			]),
+		).toEqual([["inv-pork", 70]]);
+		expect(screen.getByRole("list", { name: "引いたもの" })).toHaveTextContent(
+			"豚こま肉70g60~70gの多い方で引いています",
+		);
+	});
+
 	it("形が決まっている冷凍（みじん切り）は、自動では引かず、ボタンで選んだときだけ、同じ操作に足して引く", async () => {
 		const user = userEvent.setup();
 		const { consume } = setup({

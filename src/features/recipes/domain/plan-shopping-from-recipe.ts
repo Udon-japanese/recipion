@@ -25,7 +25,7 @@ export type RecipeShoppingNeed = {
 	quantity: number | null;
 	unitLabel: string | null;
 	amountText: string | null;
-	// 分量が範囲（「60~70g」）のとき、その下限と上限（quantity は null のまま）。買い物では、上限で比べる（withRangeUpperBound）。
+	// 分量が範囲（「60~70g」）のとき、その下限と上限（quantity は null のまま）。買い物と「作った」では、上限を使う（withRangeUpperBound）。
 	range?: AmountRange;
 	// 材料が、他のレシピへのリンクのとき、そのレシピ（そのレシピの材料を、展開して使う。この行自体は、買い物の候補にしない）。
 	linkedRecipe?: { publicId: string; name: string };
@@ -125,8 +125,8 @@ export function flattenRecipeIngredients(
 	return needs;
 }
 
-// 範囲の分量（「60~70g」）を、上限の数量にする（買い物は、多めに見積もる）。原文の分量は、そのまま残す。
-// 「作った」で在庫から引くときは、使わない（範囲の材料は、今どおり数量なしで扱う）。
+// 範囲の分量（「60~70g」）を、上限の数量にする。原文の分量は、そのまま残す。
+// 買い物も「作った」も上限を使う（在庫が実際より多く見えて、作るときに足りない、を避ける。買う量と引く量もそろう）。
 export function withRangeUpperBound(
 	need: RecipeShoppingNeed,
 ): RecipeShoppingNeed {
