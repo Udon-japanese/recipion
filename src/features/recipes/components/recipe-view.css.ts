@@ -57,10 +57,6 @@ export const meta = style({
 	lineHeight: "var(--line-height-tight)",
 });
 
-export const servings = style({
-	fontWeight: "var(--font-weight-semibold)",
-});
-
 export const actions = style({
 	display: "flex",
 	alignItems: "center",
@@ -124,6 +120,19 @@ export const sectionFooter = style({
 	marginTop: 8,
 	paddingTop: 16,
 	borderTop: "1px solid var(--color-border)",
+});
+
+export const sectionTitleGroup = style({
+	display: "flex",
+	alignItems: "baseline",
+	gap: 8,
+	minWidth: 0,
+});
+
+export const sectionTitleNote = style({
+	color: "var(--color-text-muted)",
+	fontSize: "var(--font-size-sm)",
+	fontWeight: "var(--font-weight-semibold)",
 });
 
 export const sectionTitle = style({
