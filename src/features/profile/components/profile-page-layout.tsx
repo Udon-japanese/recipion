@@ -11,7 +11,11 @@ export function ProfilePageLayout({ children }: { children: ReactNode }) {
 // ログアウト・アカウントの削除は、設定の画面にある。そこへの入り口。
 export function ProfileSettingsLink() {
 	return (
-		<Link to="/settings" className={styles.settingsLink}>
+		<Link
+			to="/settings"
+			search={{ tab: "account" }}
+			className={styles.settingsLink}
+		>
 			アカウントの設定
 			<Icon name="chevron-right" size={16} />
 		</Link>

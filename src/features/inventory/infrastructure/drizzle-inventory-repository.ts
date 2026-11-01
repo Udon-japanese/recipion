@@ -62,6 +62,10 @@ import {
 	type InventoryUnitCode,
 	inventoryUnitCodeSchema,
 } from "../domain/inventory-unit";
+import {
+	madeRecipeAliasKey,
+	madeRecipeUnitLabel,
+} from "../domain/made-recipe-ingredient";
 import { planStockUnitChange } from "../domain/plan-stock-unit-change";
 import {
 	inventoryItem,
@@ -81,14 +85,6 @@ function parseTrackingMode(value: string): InventoryTrackingMode {
 
 function parseInventoryUnitCode(value: string): InventoryUnitCode {
 	return v.parse(inventoryUnitCodeSchema, value);
-}
-
-// 「作った」で入れるできあがり（作り置き）の、在庫の単位の呼び名。数量は、レシピ1回分が 1。
-const madeRecipeUnitLabel = "回分";
-
-// できあがりの食材の別名（内部用。利用者が打ち込む名前とぶつからない）。
-function madeRecipeAliasKey(recipePublicId: string): string {
-	return `recipe:${recipePublicId}`;
 }
 
 function round6(value: number): number {

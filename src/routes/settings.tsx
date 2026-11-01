@@ -1,24 +1,100 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import * as v from "valibot";
+import { ButtonLink } from "#/components/button/button-link";
 import { pageTitle } from "#/config/app";
 import { SignOutButton } from "#/features/auth/components/sign-out-button";
+import type {
+	BackupExportDependencies,
+	BackupImportDependencies,
+} from "#/features/backup/application/backup-transfer";
+import { BackupSettingsSection } from "#/features/backup/components/backup-settings-section";
+import {
+	exportBackupInventoryServerFn,
+	exportBackupRecipesServerFn,
+} from "#/features/backup/server/export-backup";
+import {
+	importBackupRecipeLinksServerFn,
+	importBackupRecipesServerFn,
+	inspectBackupServerFn,
+	replaceBackupInventoryServerFn,
+} from "#/features/backup/server/import-backup";
+import { createDexieInventoryPurchaseOutboxRepository } from "#/features/inventory/infrastructure/dexie-inventory-purchase-outbox-repository";
 import { AccountDeletionSection } from "#/features/profile/components/account-deletion-section";
 import { AccountSettingsSection } from "#/features/settings/components/account-settings-section";
-import { SettingsPage } from "#/features/settings/components/settings-page";
+import {
+	SettingsPage,
+	settingsTabs,
+} from "#/features/settings/components/settings-page";
+import * as settingsStyles from "#/features/settings/components/settings-page.css";
 import { authClient } from "#/integrations/better-auth/auth-client";
 import { useAppSession } from "#/integrations/better-auth/use-app-session";
 
 export const Route = createFileRoute("/settings")({
 	head: () => ({ meta: [{ title: pageTitle("設定") }] }),
+	// tab：在庫（inventory）／データ（data）／アカウント（account）。
+	validateSearch: v.object({
+		tab: v.optional(v.picklist(settingsTabs), "inventory"),
+	}),
 	// 設定は、この端末の保存（localStorage）から読む。
 	ssr: false,
 	component: SettingsRoute,
 });
 
+const exportDependencies: BackupExportDependencies = {
+	loadRecipePage: (offset) => exportBackupRecipesServerFn({ data: { offset } }),
+	loadInventory: () => exportBackupInventoryServerFn(),
+};
+
+function createImportDependencies(userId: string): BackupImportDependencies {
+	return {
+		inspect: (publicIds) => inspectBackupServerFn({ data: { publicIds } }),
+		importRecipes: (recipes) =>
+			importBackupRecipesServerFn({ data: { recipes } }),
+		importLinks: (recipes) =>
+			importBackupRecipeLinksServerFn({ data: { recipes } }),
+		replaceInventory: (items) =>
+			replaceBackupInventoryServerFn({ data: { items } }),
+		countPendingPurchases: async () =>
+			(
+				await createDexieInventoryPurchaseOutboxRepository().list(
+					`user:${userId}`,
+				)
+			).length,
+	};
+}
+
 function SettingsRoute() {
 	const { data: session } = useAppSession();
+	const { tab } = Route.useSearch();
+	const navigate = useNavigate({ from: "/settings" });
 
 	return (
 		<SettingsPage
+			tab={tab}
+			onTabChange={(next) => navigate({ search: { tab: next }, replace: true })}
+			data={
+				session ? (
+					<BackupSettingsSection
+						exportDependencies={exportDependencies}
+						importDependencies={createImportDependencies(session.user.id)}
+					/>
+				) : (
+					<section
+						className={settingsStyles.section}
+						aria-labelledby="settings-data"
+					>
+						<h2 className={settingsStyles.sectionTitle} id="settings-data">
+							在庫とレシピ
+						</h2>
+						<p className={settingsStyles.sectionNote}>
+							ログインすると、在庫とレシピを、ファイルに書き出したり、読み込んだりできます。
+						</p>
+						<div>
+							<ButtonLink to="/login">ログイン</ButtonLink>
+						</div>
+					</section>
+				)
+			}
 			account={
 				session ? (
 					<AccountSettingsSection
@@ -40,7 +116,7 @@ function SettingsRoute() {
 							) : null
 						}
 					/>
-				) : null
+				) : undefined
 			}
 		/>
 	);
