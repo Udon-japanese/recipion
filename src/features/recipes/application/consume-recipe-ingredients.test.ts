@@ -164,7 +164,7 @@ describe("undoRecipeConsumptionWithCache", () => {
 
 		const result = await undoRecipeConsumptionWithCache(
 			"user:u",
-			"recipe-1:id-1",
+			{ sourceId: "recipe-1:id-1" },
 			async () => ({
 				status: "undone",
 				items: [{ inventoryItemId: "inv-1", quantity: 6, lots: [] }],
@@ -191,7 +191,7 @@ describe("undoRecipeConsumptionWithCache", () => {
 		await expect(
 			undoRecipeConsumptionWithCache(
 				"user:u",
-				"recipe-1:id-1",
+				{ sourceId: "recipe-1:id-1" },
 				async () => {
 					throw new Error("offline");
 				},

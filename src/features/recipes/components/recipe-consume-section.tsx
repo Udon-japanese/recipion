@@ -10,6 +10,7 @@ import {
 	addAlternativeConsumption,
 	type RecipeConsumptionEntryResult,
 	type RecipeConsumptionOperation,
+	type RecipeConsumptionUndoTarget,
 	startRecipeConsumption,
 } from "../application/consume-recipe-ingredients";
 import { loadLinkedShoppingSections } from "../application/load-linked-shopping-sections";
@@ -53,7 +54,9 @@ type RecipeConsumeSectionProps = {
 		operation: RecipeConsumptionOperation,
 		onlyNeedIds?: ReadonlySet<string>,
 	) => Promise<RecipeConsumptionEntryResult[]>;
-	undo: (sourceId: string) => Promise<UndoRecipeConsumptionResult>;
+	undo: (
+		target: RecipeConsumptionUndoTarget,
+	) => Promise<UndoRecipeConsumptionResult>;
 	// 自分のレシピのとき、できあがりを在庫に入れる入口（押すときに、入れるかどうかを決める）。
 	// defaultChecked は、レシピの「作り置き」の設定（入れるかどうかの初期値）。
 	madeRecipe?: {
@@ -75,7 +78,23 @@ type Outcome = {
 	production: { transactionId: string; isDone: boolean } | null;
 	// 元に戻したとき、すでに使っていて戻せなかった、できあがりの量（回分）。
 	unreturnedProduction: number;
+	// 1行ずつ戻した、在庫の食材。
+	returnedItemIds: ReadonlySet<string>;
 };
+
+// その行で引いた、在庫の食材（代わりの食材から引いた分も含む）。
+function itemIdsOf(
+	operation: RecipeConsumptionOperation,
+	row: RecipeConsumptionRow,
+): string[] {
+	return [
+		...new Set(
+			operation.entries
+				.filter((entry) => entry.needId === row.need.id)
+				.map((entry) => entry.inventoryItemId),
+		),
+	];
+}
 
 const noLinkViews: readonly RecipeLinkView[] = [];
 
@@ -232,6 +251,7 @@ export function RecipeConsumeSection({
 							}
 						: null,
 				unreturnedProduction: 0,
+				returnedItemIds: new Set(),
 			});
 		} catch {
 			setErrorMessage("在庫から引けませんでした。通信を確認してください");
@@ -309,6 +329,36 @@ export function RecipeConsumeSection({
 		}
 	}
 
+	// 1行だけ戻す（入れなかった材料など）。全体の「元に戻す」は、戻していない残りだけを戻す。
+	async function handleReturnRow(row: RecipeConsumptionRow) {
+		if (!outcome) {
+			return;
+		}
+
+		const inventoryItemIds = itemIdsOf(outcome.operation, row);
+
+		setIsWorking(true);
+		setErrorMessage(null);
+
+		try {
+			await undo({ sourceId: outcome.operation.sourceId, inventoryItemIds });
+
+			setOutcome({
+				...outcome,
+				returnedItemIds: new Set([
+					...outcome.returnedItemIds,
+					...inventoryItemIds,
+				]),
+			});
+		} catch {
+			setErrorMessage(
+				`${row.need.name}を戻せませんでした。通信を確認して、もう一度お試しください`,
+			);
+		} finally {
+			setIsWorking(false);
+		}
+	}
+
 	async function handleUndo() {
 		if (!outcome) {
 			return;
@@ -319,7 +369,7 @@ export function RecipeConsumeSection({
 		setErrorMessage(null);
 
 		try {
-			const result = await undo(outcome.operation.sourceId);
+			const result = await undo({ sourceId: outcome.operation.sourceId });
 
 			setOutcome({
 				...outcome,
@@ -347,8 +397,14 @@ export function RecipeConsumeSection({
 		outcome?.failedNeedIds ?? new Set(),
 	);
 	const hasLinkedRecipes = resolvedNeeds.some((need) => need.linkedRecipe);
+	const isReturned = (row: RecipeConsumptionRow) =>
+		outcome !== null &&
+		itemIdsOf(outcome.operation, row).every((id) =>
+			outcome.returnedItemIds.has(id),
+		);
 	const hasUndoableWork =
-		consumedCount > 0 || outcome?.production?.isDone === true;
+		summary.deducted.some((row) => !isReturned(row)) ||
+		outcome?.production?.isDone === true;
 
 	return (
 		<section className={styles.container} aria-label="作った">
@@ -499,11 +555,36 @@ export function RecipeConsumeSection({
 									<ul className={styles.list} aria-label="引いたもの">
 										{summary.deducted.map((row) => {
 											const { amount, note } = describeDeducted(row);
+											const returned = isReturned(row);
 
 											return (
-												<li className={styles.amountRow} key={row.need.id}>
+												<li
+													className={`${styles.amountRow} ${styles.amountRowWithAction}`}
+													key={row.need.id}
+												>
 													<span>{row.need.name}</span>
-													<span className={styles.amount}>{amount}</span>
+													<span
+														className={
+															returned
+																? `${styles.amount} ${styles.returnedAmount}`
+																: styles.amount
+														}
+													>
+														{amount}
+													</span>
+													{returned ? (
+														<span className={styles.status}>戻しました</span>
+													) : (
+														<Button
+															variant="secondary"
+															size="sm"
+															aria-label={`${row.need.name}を戻す`}
+															disabled={isWorking}
+															onClick={() => void handleReturnRow(row)}
+														>
+															戻す
+														</Button>
+													)}
 													{note ? (
 														<span className={styles.note}>{note}</span>
 													) : null}

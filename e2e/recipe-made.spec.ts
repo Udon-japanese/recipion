@@ -24,6 +24,35 @@ test.describe("レシピの「つくった」と在庫", () => {
 		expect(await inventoryLabel(stock, "玉ねぎ")).toBe(before);
 	});
 
+	test("1行だけ戻すと、その食材だけが戻り、あとで全体を戻しても、二重には戻らない", async ({
+		page,
+		context,
+	}) => {
+		const stock = await context.newPage();
+		const onionBefore = await inventoryLabel(stock, "玉ねぎ");
+		const cabbageBefore = await inventoryLabel(stock, "キャベツ");
+
+		await openRecipe(page, "豚の生姜焼き");
+		await page.getByRole("button", { name: "つくった！" }).click();
+		await expect(page.getByText(/在庫から\d+件を引きました/)).toBeVisible({
+			timeout: 20_000,
+		});
+
+		await page.getByRole("button", { name: "玉ねぎを戻す" }).click();
+		await expect(
+			page.getByRole("list", { name: "引いたもの" }).getByText("戻しました"),
+		).toBeVisible();
+
+		expect(await inventoryLabel(stock, "玉ねぎ")).toBe(onionBefore);
+		expect(await inventoryLabel(stock, "キャベツ")).not.toBe(cabbageBefore);
+
+		await page.getByRole("button", { name: "元に戻す" }).click();
+		await expect(page.getByText("元に戻しました")).toBeVisible();
+
+		expect(await inventoryLabel(stock, "玉ねぎ")).toBe(onionBefore);
+		expect(await inventoryLabel(stock, "キャベツ")).toBe(cabbageBefore);
+	});
+
 	test("できあがりを在庫に入れると、在庫に作り置き（1回分）が入り、元に戻すと0回分になる", async ({
 		page,
 		context,
