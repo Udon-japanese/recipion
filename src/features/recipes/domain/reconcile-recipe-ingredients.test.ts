@@ -254,6 +254,26 @@ describe("createIngredientSyncState", () => {
 			reconcileRecipeIngredients(state, parseRecipeIngredients(text)).nodes[0],
 		).toMatchObject({ amountText: "お好みの量" });
 	});
+
+	it("材料と決めて保存した、分量のない行は、編集を始めてもグループに戻らない", () => {
+		const text = "ほうれん草 忘れた\nチーズ 3枚\n黒胡椒 適量";
+		const inferred = initialState(text);
+		const marked = markGroupAsIngredient(inferred, inferred.nodes[0].id);
+		const saved = reconcileRecipeIngredients(
+			marked,
+			parseRecipeIngredients(text, { plainLines: marked.plainLines }),
+		).nodes;
+
+		const state = createIngredientSyncState(saved);
+		const savedText = formatIngredientText(saved);
+
+		expect(
+			reconcileRecipeIngredients(
+				state,
+				parseRecipeIngredients(savedText, { plainLines: state.plainLines }),
+			).nodes,
+		).toEqual(saved);
+	});
 });
 
 describe("グループと推定された行を、材料にする", () => {
