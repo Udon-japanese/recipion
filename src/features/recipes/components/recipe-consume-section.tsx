@@ -30,6 +30,7 @@ import {
 import {
 	flattenRecipeIngredients,
 	type RecipeShoppingNeed,
+	withRangeUpperBound,
 } from "../domain/plan-shopping-from-recipe";
 import type { RecipeEditorIngredientNode } from "../domain/recipe-editor-document";
 import type { RecipeLinkView } from "../domain/recipe-links";
@@ -109,13 +110,16 @@ function describeDeducted(row: RecipeConsumptionRow): {
 		};
 	}
 
-	return {
-		amount,
-		note: row.viaStandIn && row.target ? `${row.target.name}から` : null,
-	};
+	const notes = [
+		row.viaStandIn && row.target ? `${row.target.name}から` : null,
+		// 範囲の分量（60~70g）は、多い方で引く（買い物の比べ方とそろえる）。
+		row.need.range ? `${row.need.amountText}の多い方で引いています` : null,
+	].filter((note) => note !== null);
+
+	return { amount, note: notes.length > 0 ? notes.join("。") : null };
 }
 
-// 「作った」を押すと、在庫から使った分を、すぐに引く。あとから「元に戻す」で、引く前に戻せる。
+// 「作った」を押すと、在庫から使った分を、すぐに引く。範囲の分量（60~70g）は、多い方で引く。あとから「元に戻す」で、引く前に戻せる。
 export function RecipeConsumeSection({
 	recipePublicId,
 	ingredients,
@@ -155,7 +159,10 @@ export function RecipeConsumeSection({
 		const own = resolvedNeeds.filter((need) => !need.linkedRecipe);
 
 		if (!loadLinkedRecipe || !resolvedNeeds.some((need) => need.linkedRecipe)) {
-			return { needs: mergeRecipeNeeds(own), madeUses: [] };
+			return {
+				needs: mergeRecipeNeeds(own.map(withRangeUpperBound)),
+				madeUses: [],
+			};
 		}
 
 		const linked = await loadLinkedShoppingSections(
@@ -166,10 +173,11 @@ export function RecipeConsumeSection({
 
 		// 同じ食材の行は、1行にまとめる（引き算が1回になる）。
 		return {
-			needs: mergeRecipeNeeds([
-				...own,
-				...linked.sections.flatMap((section) => section.needs),
-			]),
+			needs: mergeRecipeNeeds(
+				[...own, ...linked.sections.flatMap((section) => section.needs)].map(
+					withRangeUpperBound,
+				),
+			),
 			madeUses: linked.madeUses,
 		};
 	}
