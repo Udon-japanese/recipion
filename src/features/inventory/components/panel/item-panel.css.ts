@@ -100,6 +100,13 @@ export const formStack = style({
 	paddingTop: 8,
 });
 
+export const hint = style({
+	margin: 0,
+	color: "var(--color-text-muted)",
+	fontSize: "var(--font-size-sm)",
+	lineHeight: "var(--line-height-normal)",
+});
+
 export const quantityLine = style({
 	display: "flex",
 	alignItems: "flex-start",

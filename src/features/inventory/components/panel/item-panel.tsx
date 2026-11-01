@@ -17,6 +17,7 @@ import type { IconName } from "#/components/icon/icon-definitions";
 import { IconButton } from "#/components/icon-button/icon-button";
 import { Menu, type MenuItem } from "#/components/menu/menu";
 import { Note } from "#/components/note/note";
+import { SegmentedControl } from "#/components/segmented-control/segmented-control";
 import { Sheet } from "#/components/sheet/sheet";
 import { Tag } from "#/components/tag/tag";
 import { listStockUnitOptions } from "#/features/ingredients/domain/list-stock-unit-options";
@@ -38,6 +39,10 @@ import {
 	type InventoryLot,
 	sortLotsForConsumption,
 } from "../../domain/inventory-lot";
+import {
+	trackingModeHints,
+	trackingModeOptions,
+} from "../tracking-mode-options";
 import type { InventoryActions } from "./inventory-actions";
 import * as styles from "./item-panel.css";
 import { LotEditor } from "./lot-editor";
@@ -108,7 +113,6 @@ export function ItemPanel({
 	const primary = useButtonAction();
 	const decrease = useButtonAction();
 	const increase = useButtonAction();
-	const [isConfirmingPresence, setIsConfirmingPresence] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
 	const [isDeletePending, setIsDeletePending] = useState(false);
 	const [isFlashing, setIsFlashing] = useState(false);
@@ -329,36 +333,33 @@ export function ItemPanel({
 			</div>
 		);
 	} else if (view.name === "tracking") {
-		heading = `${displayName}のいまの量`;
+		const nextMode = panel.trackingForm.mode;
+		// 数えない → 数える、のときだけ、いまの量を入れてもらう（数えない食材は、量を持っていない）。
+		const asksQuantity = isPresence && nextMode !== "presence";
+
+		heading = `${displayName}の数え方`;
 		body = (
 			<div className={styles.formStack}>
-				<div className={styles.quantityLine}>
-					<QuantityInput
-						className={fieldInput}
-						aria-label={`${item.name}のいまの量`}
-						value={panel.trackingForm.quantity}
-						onChange={panel.trackingForm.setQuantity}
-						unitLabel={item.stockUnitLabel}
-					/>
-					<span className={styles.unitSuffix}>{item.stockUnitLabel}</span>
-				</div>
+				<SegmentedControl
+					label={`${item.name}の数え方`}
+					value={nextMode}
+					onChange={panel.trackingForm.setMode}
+					options={trackingModeOptions}
+				/>
+				<p className={styles.hint}>{trackingModeHints[nextMode]}</p>
 
-				<Field label="数え方">
-					{(control) => (
-						<SelectBox
-							{...control}
-							value={panel.trackingForm.mode}
-							onChange={(event) =>
-								panel.trackingForm.setMode(
-									event.target.value === "exact" ? "exact" : "estimated",
-								)
-							}
-						>
-							<option value="estimated">だいたいで管理</option>
-							<option value="exact">正確に管理</option>
-						</SelectBox>
-					)}
-				</Field>
+				{asksQuantity ? (
+					<div className={styles.quantityLine}>
+						<QuantityInput
+							className={fieldInput}
+							aria-label={`${item.name}のいまの量`}
+							value={panel.trackingForm.quantity}
+							onChange={panel.trackingForm.setQuantity}
+							unitLabel={item.stockUnitLabel}
+						/>
+						<span className={styles.unitSuffix}>{item.stockUnitLabel}</span>
+					</div>
+				) : null}
 			</div>
 		);
 		bar = (
@@ -367,9 +368,10 @@ export function ItemPanel({
 				<Button
 					fullWidth
 					status={status}
-					onClick={() => runPrimary(panel.run.startTracking)}
+					disabled={nextMode === item.trackingMode}
+					onClick={() => runPrimary(panel.run.applyTracking)}
 				>
-					この量で管理する
+					この数え方にする
 				</Button>
 			</div>
 		);
@@ -517,17 +519,11 @@ export function ItemPanel({
 			: []),
 		...(actions.changeTrackingMode
 			? [
-					isPresence
-						? {
-								label: "量を追う管理にする",
-								icon: "settings" as const,
-								onSelect: guard(panel.open.tracking),
-							}
-						: {
-								label: "有無だけにする",
-								icon: "swap" as const,
-								onSelect: guard(() => setIsConfirmingPresence(true)),
-							},
+					{
+						label: "数え方を変える",
+						icon: "settings" as const,
+						onSelect: guard(panel.open.tracking),
+					},
 				]
 			: []),
 		...(actions.deleteInventoryItem
@@ -581,20 +577,6 @@ export function ItemPanel({
 			>
 				「{displayName}
 				」を在庫から削除します。内訳と履歴も消えます。よろしいですか。
-			</ConfirmDialog>
-			<ConfirmDialog
-				open={isConfirmingPresence}
-				title="有無だけにしますか"
-				cancelLabel="やめる"
-				confirmLabel="有無だけにする"
-				onCancel={() => setIsConfirmingPresence(false)}
-				onConfirm={async () => {
-					await panel.run.changeTracking({ trackingMode: "presence" });
-					setIsConfirmingPresence(false);
-				}}
-			>
-				「{displayName}
-				」の量を数えるのをやめ、あるかどうかだけを記録します。あれば、レシピでは「足りている」とします。
 			</ConfirmDialog>
 		</>
 	);

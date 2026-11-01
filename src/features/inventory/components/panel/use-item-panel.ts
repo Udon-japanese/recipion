@@ -14,7 +14,7 @@ import type { InventoryListItem } from "../../application/inventory-query-reposi
 import type { ChangeInventoryTrackingModeCommand } from "../../application/inventory-tracking-mode-repository";
 import type { InventoryOperation } from "../../domain/apply-inventory-adjustment";
 import { type InventoryLot, toDateString } from "../../domain/inventory-lot";
-import type { QuantityTrackingMode } from "../../domain/inventory-tracking-mode";
+import type { InventoryTrackingMode } from "../../domain/inventory-tracking-mode";
 import { recordExpiryHint } from "../../infrastructure/expiry-hints-storage";
 import type { ExpiryFieldsValue } from "../expiry-fields";
 import type { InventoryActions } from "./inventory-actions";
@@ -87,10 +87,11 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 	>({});
 	// 呼び名
 	const [renameValue, setRenameValue] = useState("");
-	// 量を追う管理にする
+	// 数え方を変える（数えない → 数える、のときだけ、いまの量を入れてもらう）
 	const [trackingQuantity, setTrackingQuantity] = useState("");
-	const [trackingMode, setTrackingMode] =
-		useState<QuantityTrackingMode>("estimated");
+	const [trackingMode, setTrackingMode] = useState<InventoryTrackingMode>(
+		item.trackingMode,
+	);
 
 	const today = useMemo(() => toDateString(new Date()), []);
 
@@ -201,7 +202,7 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 	function openTracking() {
 		setErrorMessage(null);
 		setTrackingQuantity("");
-		setTrackingMode("estimated");
+		setTrackingMode(item.trackingMode);
 		setView({ name: "tracking" });
 	}
 
@@ -484,8 +485,12 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 		return done;
 	}
 
-	// 有無だけ → 量を追う管理に変える（フォームの「この量で管理する」）。
-	async function startTracking(): Promise<boolean> {
+	// 数え方を変える（フォームの「この数え方にする」）。数えない → 数える、のときは、入れてもらった、いまの量にする。
+	async function applyTracking(): Promise<boolean> {
+		if (item.trackingMode !== "presence" || trackingMode === "presence") {
+			return changeTracking({ trackingMode });
+		}
+
 		const quantity =
 			trackingQuantity.trim() === "" ? 0 : parseQuantityInput(trackingQuantity);
 
@@ -556,8 +561,7 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 			saveLotEdits,
 			changeUnit,
 			rename,
-			changeTracking,
-			startTracking,
+			applyTracking,
 			remove,
 		},
 	};
