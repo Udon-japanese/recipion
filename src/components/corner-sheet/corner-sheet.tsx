@@ -5,6 +5,7 @@ import { Icon } from "../icon/icon";
 import type { IconName } from "../icon/icon-definitions";
 import { Mascot } from "../mascot/mascot";
 import { useBodyScrollLock } from "../sheet/use-body-scroll-lock";
+import { useCloseOnBack } from "../sheet/use-close-on-back";
 import { useModalFocus } from "../sheet/use-modal-focus";
 import { useVisualViewport } from "../sheet/use-visual-viewport";
 import { useMediaQuery } from "../use-media-query";
@@ -33,7 +34,7 @@ type CornerSheetProps = {
 	// ボタンの置き場所。corner（既定）：画面の下の角（スマホ）。inline：カードの中の下端。
 	// 入力欄があるときは inline（角のボタンは、キーボードの下に隠れるため）。PC は、いつも、カードの下。
 	actions?: "corner" | "inline";
-	// Esc と、暗幕を押したとき。安全な動き（ただ閉じる など）を渡す。省略すると、どちらも何も起きない
+	// Esc と、暗幕を押したとき（タッチ端末では、戻る操作も）。安全な動き（ただ閉じる など）を渡す。省略すると、どちらも何も起きない
 	// （必ず選んでほしい場面）。
 	onDismiss?: () => void;
 	children: ReactNode;
@@ -99,6 +100,7 @@ export function CornerSheet({
 
 	useBodyScrollLock(open);
 	useModalFocus(open, cardRef, portalRef);
+	useCloseOnBack(open, onDismiss);
 
 	useEffect(() => {
 		if (!open) {

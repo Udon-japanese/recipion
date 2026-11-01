@@ -20,6 +20,7 @@ import {
 	snapsToVisible,
 } from "./sheet-physics";
 import { useBodyScrollLock } from "./use-body-scroll-lock";
+import { useCloseOnBack } from "./use-close-on-back";
 import { useModalFocus } from "./use-modal-focus";
 import { useVisualViewport } from "./use-visual-viewport";
 
@@ -30,7 +31,7 @@ const DRAG_START_DISTANCE = 4;
 
 type SheetProps = {
 	open: boolean;
-	// 閉じてほしいとき（暗幕・つかんで下げた・Esc・閉じるボタン）。
+	// 閉じてほしいとき（暗幕・つかんで下げた・Esc・閉じるボタン・タッチ端末の戻る操作）。
 	onOpenChange: (open: boolean) => void;
 	// 読み上げる名前。見出しにも出る。
 	title: string;
@@ -128,6 +129,7 @@ export function Sheet({
 
 	useBodyScrollLock(mounted && modal);
 	useModalFocus(mounted && modal, panelRef, portalRef);
+	useCloseOnBack(open, dismissible ? () => onOpenChange(false) : undefined);
 
 	// 見える高さ visible へ、シートと暗幕を動かす。
 	const place = useCallback((visible: number, animate: boolean) => {

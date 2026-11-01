@@ -2,12 +2,13 @@ import { type KeyboardEvent, type ReactNode, useId, useRef } from "react";
 import { createPortal } from "react-dom";
 import { IconButton } from "../icon-button/icon-button";
 import { useBodyScrollLock } from "../sheet/use-body-scroll-lock";
+import { useCloseOnBack } from "../sheet/use-close-on-back";
 import { useModalFocus } from "../sheet/use-modal-focus";
 import * as styles from "./modal.css";
 
 type ModalProps = {
 	open: boolean;
-	// 閉じてほしいとき（暗幕・Esc・閉じるボタン）。
+	// 閉じてほしいとき（暗幕・Esc・閉じるボタン・タッチ端末の戻る操作）。
 	onOpenChange: (open: boolean) => void;
 	title: string;
 	children: ReactNode;
@@ -36,6 +37,7 @@ export function Modal({
 
 	useModalFocus(open, dialogRef, portalRef);
 	useBodyScrollLock(open);
+	useCloseOnBack(open, () => onOpenChange(false));
 
 	if (!open || typeof document === "undefined") {
 		return null;
