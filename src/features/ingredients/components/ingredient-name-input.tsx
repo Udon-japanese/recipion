@@ -8,7 +8,12 @@ import {
 	useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { CompletionHint } from "#/components/completion-menu/completion-hint";
 import { CompletionMenu } from "#/components/completion-menu/completion-menu";
+import {
+	badge,
+	popupHint,
+} from "#/components/completion-menu/completion-menu.css";
 import { placePopup } from "#/components/completion-menu/place-popup";
 import { useCompletionLayout } from "#/components/completion-menu/use-completion-layout";
 import {
@@ -83,6 +88,7 @@ export function IngredientNameInput({
 	// スクロール・画面の大きさの変化で、測り直す合図。
 	const [, setLayoutTick] = useState(0);
 	const inputRef = useRef<HTMLInputElement>(null);
+	const popupRef = useRef<HTMLDivElement>(null);
 	const listRef = useRef<HTMLDivElement>(null);
 	// スマホ（タッチ）は、キーボードの上の帯に出す（レシピの本文の補完と同じ）。
 	const layout = useCompletionLayout();
@@ -135,9 +141,10 @@ export function IngredientNameInput({
 	// 毎回の描画のあとに測る（結果が同じなら、状態を更新しないので、繰り返さない）。
 	useLayoutEffect(() => {
 		const input = inputRef.current;
+		const popup = popupRef.current;
 		const list = listRef.current;
 
-		if (!isPopup || !input || !list) {
+		if (!isPopup || !input || !popup || !list) {
 			setPosition((current) => (current === null ? current : null));
 
 			return;
@@ -146,9 +153,9 @@ export function IngredientNameInput({
 		const box = input.getBoundingClientRect();
 		const viewport = { width: window.innerWidth, height: window.innerHeight };
 		const capHeight = Math.min(maxListHeight, viewport.height * 0.4);
-		// 縮めているときも、本来の高さで決める（隠れている中身の高さを足す）。
+		// 縮めているときも、本来の高さで決める（一覧の中で隠れている分を足す）。
 		const height = Math.min(
-			list.offsetHeight + Math.max(0, list.scrollHeight - list.clientHeight),
+			popup.offsetHeight + Math.max(0, list.scrollHeight - list.clientHeight),
 			capHeight,
 		);
 		const placed = placePopup({
@@ -192,6 +199,11 @@ export function IngredientNameInput({
 
 	// 一覧が見えているか（変換中に、上に入らず、隠しているときは、閉じている扱い）。
 	const isExpanded = isVisible && !(isPopup && position?.isHidden);
+	// 一覧の下の、キー操作の案内（本文の補完と同じ）。変換中に候補を出さない環境の変換中は、キーを IME に任せるので、出さない。
+	const hint =
+		isComposing && strategy === "wait-for-confirmation" ? null : (
+			<CompletionHint isComposing={isComposing} />
+		);
 
 	function select(entry: IngredientCatalogEntry) {
 		onChange(entry.name);
@@ -280,6 +292,12 @@ export function IngredientNameInput({
 		}
 
 		if (event.key === "Escape") {
+			// 候補が出ているときは、シートごと閉じないよう、ここで止めて、候補だけ閉じる。
+			if (isExpanded) {
+				event.preventDefault();
+				event.stopPropagation();
+			}
+
 			setIsOpen(false);
 			setActiveIndex(-1);
 
@@ -400,10 +418,8 @@ export function IngredientNameInput({
 			{isPopup && typeof document !== "undefined"
 				? createPortal(
 						<div
-							className={styles.list}
-							role="listbox"
-							id={listboxId}
-							ref={listRef}
+							className={styles.popup}
+							ref={popupRef}
 							style={{
 								top: position?.top ?? 0,
 								left: position?.left ?? 0,
@@ -413,33 +429,35 @@ export function IngredientNameInput({
 									position && !position.isHidden ? "visible" : "hidden",
 							}}
 						>
-							{suggestions.map((entry, index) => (
-								<button
-									className={styles.option}
-									type="button"
-									role="option"
-									tabIndex={-1}
-									id={`${listboxId}-${index}`}
-									aria-selected={index === activeIndex}
-									key={entry.id}
-									// 入力欄からフォーカスを外さずに選べるようにする。
-									onMouseDown={(event) => event.preventDefault()}
-									onClick={() => select(entry)}
-								>
-									<span className={styles.label}>
-										{entry.name.startsWith(value.trim()) &&
-										value.trim() !== "" ? (
-											<>
-												<b>{value.trim()}</b>
-												{entry.name.slice(value.trim().length)}
-											</>
-										) : (
-											entry.name
-										)}
-									</span>
-									<span className={styles.sub}>{describeEntry?.(entry)}</span>
-								</button>
-							))}
+							<div
+								className={styles.list}
+								role="listbox"
+								id={listboxId}
+								ref={listRef}
+							>
+								{suggestions.map((entry, index) => {
+									const note = describeEntry?.(entry);
+
+									return (
+										<button
+											className={styles.option}
+											type="button"
+											role="option"
+											tabIndex={-1}
+											id={`${listboxId}-${index}`}
+											aria-selected={index === activeIndex}
+											key={entry.id}
+											// 入力欄からフォーカスを外さずに選べるようにする。
+											onMouseDown={(event) => event.preventDefault()}
+											onClick={() => select(entry)}
+										>
+											<span className={styles.label}>{entry.name}</span>
+											{note ? <span className={badge}>{note}</span> : null}
+										</button>
+									);
+								})}
+							</div>
+							{hint ? <p className={popupHint}>{hint}</p> : null}
 						</div>,
 						document.body,
 					)

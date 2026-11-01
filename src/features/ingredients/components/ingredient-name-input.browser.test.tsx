@@ -118,7 +118,10 @@ it("はみ出しを切る枠の中でも、一覧は切れずに、画面の内�
 		list.contains(document.elementFromPoint(rect.left + 20, rect.bottom - 10)),
 	).toBe(true);
 	expect(rect.bottom).toBeLessThanOrEqual(window.innerHeight);
-	expect(rect.width).toBe(input.getBoundingClientRect().width);
+	// 一覧のカード（案内を含む）の幅は、入力欄に合わせる。
+	expect(list.parentElement?.getBoundingClientRect().width).toBe(
+		input.getBoundingClientRect().width,
+	);
 });
 
 it("変換中に、上の余白が少ないときは、一覧を縮めて上に出す", async () => {
@@ -344,4 +347,57 @@ it("Safari の順番（変換のあとに Tab が届く）でも、変換する�
 
 	expect(tab.defaultPrevented).toBe(true);
 	await expect.poll(() => nameInput().value).toBe(first);
+});
+
+function hintText() {
+	return document.querySelector('[role="listbox"] + p')?.textContent;
+}
+
+it("一覧の下に、キー操作の案内を出す（変換中は Alt+↑↓）", async () => {
+	await page.viewport(1024, 768);
+	await render(<KeyHarness compositionStrategy="end-then-replace" />);
+	nameInput().focus();
+	await composeText("にん");
+
+	await expect.poll(hintText).toContain("で選び、");
+	expect(
+		[...document.querySelectorAll('[role="listbox"] + p kbd')].map(
+			(kbd) => kbd.textContent,
+		),
+	).toContain("Tab");
+	const composingHint = hintText();
+
+	await cdp().send("Input.insertText", { text: "にん" });
+
+	await expect.poll(hintText).not.toBe(composingHint);
+	expect(hintText()).toContain("で閉じる");
+});
+
+it("候補が出ているときの Esc は、候補だけを閉じ、外側（シート）には伝えない", async () => {
+	await page.viewport(1024, 768);
+
+	// シートは、外側（document）で Esc を受けて閉じる。
+	let outerEscapes = 0;
+	const countEscape = (event: KeyboardEvent) => {
+		if (event.key === "Escape") {
+			outerEscapes += 1;
+		}
+	};
+
+	document.addEventListener("keydown", countEscape);
+	await render(<KeyHarness />);
+	nameInput().focus();
+	await userEvent.keyboard("にん");
+	await expect.poll(getVisibleList).not.toBeNull();
+
+	await userEvent.keyboard("{Escape}");
+
+	await expect.poll(getVisibleList).toBeNull();
+	expect(outerEscapes).toBe(0);
+
+	// 候補が出ていなければ、外側に伝える（シートを閉じられる）。
+	await userEvent.keyboard("{Escape}");
+
+	expect(outerEscapes).toBe(1);
+	document.removeEventListener("keydown", countEscape);
 });
