@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { expect, it } from "vitest";
-import { cdp, page } from "vitest/browser";
+import { cdp, page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
+import type { CompositionStrategy } from "#/ime/choose-composition-strategy";
 import { IngredientNameInput } from "./ingredient-name-input";
 
 function Harness() {
@@ -166,4 +167,181 @@ it("変換中に、上に余白がないときは、IME の窓に隠れないよ
 	expect(
 		(getVisibleList() as HTMLElement).getBoundingClientRect().top,
 	).toBeGreaterThanOrEqual(input.getBoundingClientRect().bottom);
+});
+
+// キー操作は、レシピの本文の補完とそろえる。次の欄（Tab の行き先）を置く。
+function KeyHarness({
+	compositionStrategy,
+}: {
+	compositionStrategy?: CompositionStrategy;
+}) {
+	const [value, setValue] = useState("");
+
+	return (
+		<div style={{ paddingTop: 320 }}>
+			<IngredientNameInput
+				id="name"
+				value={value}
+				onChange={setValue}
+				compositionStrategy={compositionStrategy}
+			/>
+			<input aria-label="次の欄" />
+		</div>
+	);
+}
+
+function nameInput() {
+	return document.querySelector("#name") as HTMLInputElement;
+}
+
+function optionTexts() {
+	return [
+		...document.querySelectorAll<HTMLElement>(
+			'[role="listbox"] [role="option"]',
+		),
+	].map((option) => option.textContent ?? "");
+}
+
+function selectedOptionText() {
+	return document.querySelector<HTMLElement>(
+		'[role="listbox"] [aria-selected="true"]',
+	)?.textContent;
+}
+
+function composingKey(init: KeyboardEventInit) {
+	const event = new KeyboardEvent("keydown", {
+		isComposing: true,
+		bubbles: true,
+		cancelable: true,
+		...init,
+	});
+
+	nameInput().dispatchEvent(event);
+
+	return event;
+}
+
+async function composeText(text: string) {
+	await cdp().send("Input.imeSetComposition", {
+		text,
+		selectionStart: text.length,
+		selectionEnd: text.length,
+	});
+	await expect.poll(getVisibleList).not.toBeNull();
+}
+
+it("候補が出ているときの Tab で先頭の候補に決まり、次の Tab で次の欄へ移る", async () => {
+	await page.viewport(1024, 768);
+	await render(<KeyHarness />);
+	nameInput().focus();
+	await userEvent.keyboard("にんじ");
+	await expect.poll(getVisibleList).not.toBeNull();
+
+	const [first] = optionTexts();
+
+	await userEvent.keyboard("{Tab}");
+
+	await expect.poll(() => nameInput().value).toBe(first);
+	expect(document.activeElement).toBe(nameInput());
+	await expect.poll(getVisibleList).toBeNull();
+
+	await userEvent.keyboard("{Tab}");
+
+	expect(document.activeElement).toBe(
+		document.querySelector('[aria-label="次の欄"]'),
+	);
+});
+
+it("↓で選んだ候補に、Tab で決まる", async () => {
+	await page.viewport(1024, 768);
+	await render(<KeyHarness />);
+	nameInput().focus();
+	await userEvent.keyboard("にん");
+	await expect.poll(() => optionTexts().length).toBeGreaterThan(1);
+
+	const [, second] = optionTexts();
+
+	await userEvent.keyboard("{ArrowDown}{ArrowDown}");
+	await expect.poll(selectedOptionText).toBe(second);
+	await userEvent.keyboard("{Tab}");
+
+	await expect.poll(() => nameInput().value).toBe(second);
+});
+
+it("変換中は、Alt+↑↓ で候補を選び、Tab で決める（素の矢印と Enter は IME に任せる）", async () => {
+	await page.viewport(1024, 768);
+	await render(<KeyHarness compositionStrategy="end-then-replace" />);
+	nameInput().focus();
+	await composeText("にん");
+	await expect.poll(() => optionTexts().length).toBeGreaterThan(1);
+
+	const [, second] = optionTexts();
+
+	// 素の矢印・Shift+矢印・Enter は、IME に任せる。
+	expect(
+		composingKey({ key: "ArrowDown", code: "ArrowDown" }).defaultPrevented,
+	).toBe(false);
+	expect(
+		composingKey({ key: "ArrowDown", code: "ArrowDown", shiftKey: true })
+			.defaultPrevented,
+	).toBe(false);
+	expect(composingKey({ key: "Process", code: "Enter" }).defaultPrevented).toBe(
+		false,
+	);
+	expect(selectedOptionText()).toBeUndefined();
+
+	// Windows の1回目の keydown（key が Process）は、数えない。
+	expect(
+		composingKey({ key: "Process", code: "ArrowDown", altKey: true })
+			.defaultPrevented,
+	).toBe(false);
+	expect(selectedOptionText()).toBeUndefined();
+
+	// Alt+↓ を2回で、2つ目。
+	expect(
+		composingKey({ key: "ArrowDown", code: "ArrowDown", altKey: true })
+			.defaultPrevented,
+	).toBe(true);
+	composingKey({ key: "ArrowDown", code: "ArrowDown", altKey: true });
+	await expect.poll(selectedOptionText).toBe(second);
+
+	const tab = composingKey({ key: "Process", code: "Tab" });
+
+	// IME に Tab を渡さない。変換を確定させてから置き換え、フォーカスを戻す。
+	expect(tab.defaultPrevented).toBe(true);
+	await expect.poll(() => nameInput().value).toBe(second);
+	await expect.poll(() => document.activeElement).toBe(nameInput());
+});
+
+// Safari は、Tab を押すと、IME が先に変換してから、キーのイベントが届く。変換する前に出ていた候補で決める。
+it("Safari の順番（変換のあとに Tab が届く）でも、変換する前に出ていた候補に決まる", async () => {
+	await page.viewport(1024, 768);
+	await render(<KeyHarness compositionStrategy="replace-in-place" />);
+
+	const input = nameInput();
+
+	input.focus();
+	input.dispatchEvent(
+		new CompositionEvent("compositionstart", { bubbles: true }),
+	);
+
+	const setValue = Object.getOwnPropertyDescriptor(
+		HTMLInputElement.prototype,
+		"value",
+	)?.set;
+
+	setValue?.call(input, "にんじ");
+	input.dispatchEvent(new Event("input", { bubbles: true }));
+	await expect.poll(getVisibleList).not.toBeNull();
+
+	const [first] = optionTexts();
+
+	// IME が、変換中の文字を、候補に出ない文字に変換した入力。
+	setValue?.call(input, "人事");
+	input.dispatchEvent(new Event("input", { bubbles: true }));
+
+	const tab = composingKey({ key: "Process", code: "Tab" });
+
+	expect(tab.defaultPrevented).toBe(true);
+	await expect.poll(() => nameInput().value).toBe(first);
 });

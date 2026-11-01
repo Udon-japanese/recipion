@@ -12,6 +12,12 @@ import { CompletionMenu } from "#/components/completion-menu/completion-menu";
 import { placePopup } from "#/components/completion-menu/place-popup";
 import { useCompletionLayout } from "#/components/completion-menu/use-completion-layout";
 import {
+	type CompositionStrategy,
+	chooseCompositionStrategy,
+} from "#/ime/choose-composition-strategy";
+import { endComposition, restoreFocus } from "#/ime/end-composition";
+import { readBrowserEnvironment } from "#/ime/read-browser-environment";
+import {
 	findIngredientCatalogEntry,
 	type IngredientCatalogEntry,
 	searchIngredientCatalog,
@@ -30,6 +36,8 @@ type IngredientNameInputProps = {
 	disabled?: boolean;
 	// 候補の右に出す補足（例：カテゴリ名）。
 	describeEntry?: (entry: IngredientCatalogEntry) => string | undefined;
+	// 変換中の補完の方式（なければ、ブラウザから判定する）。テストで指定する。
+	compositionStrategy?: CompositionStrategy;
 };
 
 // PC の一覧の位置（画面の左上が基準）。
@@ -44,12 +52,16 @@ type ListPosition = {
 
 // 一覧の高さの上限（画面が低いときは、画面の 4 割まで）。
 const maxListHeight = 280;
+// Safari で、IME の変換と Tab のキーのイベントが、続けて届くとみなす時間（ミリ秒）。
+const previousSuggestionsWindowMs = 100;
 // 入力欄と一覧のすき間、画面の端に残す余白。
 const listGap = 6;
 const viewportMargin = 8;
 
 // 食材名の入力欄。入力に合わせて、食材カタログから候補を出す（在庫の登録と、買い物メモで共通）。
 // 候補は、選ぶだけで入力に反映される。候補に出ない名前も、そのまま入力できる。
+// キー操作は、レシピの本文の補完とそろえる：↑↓ で選び、Tab（または、選んだあとの Enter）で決める。
+// 変換中は、Alt（Option）+↑↓ で選び、Tab で決める（素の矢印と Enter は、IME に任せる）。
 export function IngredientNameInput({
 	id,
 	name,
@@ -60,6 +72,7 @@ export function IngredientNameInput({
 	className,
 	disabled,
 	describeEntry,
+	compositionStrategy,
 }: IngredientNameInputProps) {
 	const listboxId = useId();
 	const [isOpen, setIsOpen] = useState(false);
@@ -73,6 +86,22 @@ export function IngredientNameInput({
 	const listRef = useRef<HTMLDivElement>(null);
 	// スマホ（タッチ）は、キーボードの上の帯に出す（レシピの本文の補完と同じ）。
 	const layout = useCompletionLayout();
+	// サーバーと同じ初期値で描画し、ブラウザで判定する。
+	const [detectedStrategy, setDetectedStrategy] = useState<CompositionStrategy>(
+		"wait-for-confirmation",
+	);
+	const strategy = compositionStrategy ?? detectedStrategy;
+	// 変換中の入力の直前に出ていた候補。Safari は、Tab の前に IME が変換して入力が変わってから、キーのイベントが届くので、そのときに使う。
+	const previousRef = useRef<{
+		suggestions: IngredientCatalogEntry[];
+		at: number;
+	} | null>(null);
+	// 変換中に候補を決める処理の最中（変換を確定させるのを待っている間）。
+	const isAcceptingRef = useRef(false);
+
+	useEffect(() => {
+		setDetectedStrategy(chooseCompositionStrategy(readBrowserEnvironment()));
+	}, []);
 
 	const suggestions = useMemo(() => searchIngredientCatalog(value), [value]);
 
@@ -171,7 +200,85 @@ export function IngredientNameInput({
 		setActiveIndex(-1);
 	}
 
+	// 変換中に、候補を決める。Chromium 系は、変換を確定させてから置き換え、フォーカスを戻す。
+	// Safari・Android は、変換中のまま置き換える（ブラウザが変換を取り消す）。
+	async function selectWhileComposing(entry: IngredientCatalogEntry) {
+		const input = inputRef.current;
+
+		if (!input || isAcceptingRef.current) {
+			return;
+		}
+
+		isAcceptingRef.current = true;
+
+		const shouldEnd = strategy === "end-then-replace";
+
+		if (shouldEnd) {
+			await endComposition(input);
+		}
+
+		isAcceptingRef.current = false;
+		setIsComposing(false);
+		select(entry);
+
+		if (shouldEnd) {
+			restoreFocus(input, entry.name.length);
+		}
+	}
+
+	// 変換中のキー操作。Tab で決め、Alt（Option）+↑↓ で選ぶ。ほかは IME に任せる。
+	function handleComposingKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+		// 変換中に候補を出さない環境（iPhone・Firefox など）は、すべて IME に任せる。
+		if (strategy === "wait-for-confirmation") {
+			return;
+		}
+
+		// 今出ている候補。なければ、Safari の方式のときだけ、直前の入力（IME の変換）の前に出ていた候補。
+		const previous = previousRef.current;
+		const targets = isExpanded
+			? suggestions
+			: strategy === "replace-in-place" &&
+					previous &&
+					performance.now() - previous.at < previousSuggestionsWindowMs
+				? previous.suggestions
+				: [];
+
+		if (targets.length === 0) {
+			return;
+		}
+
+		// Windows は、1回のキーで、keydown が2回届く（1回目は key が Process、2回目が本物のキー）。1回だけ扱う。
+		if (
+			event.altKey &&
+			!event.ctrlKey &&
+			!event.metaKey &&
+			!event.shiftKey &&
+			(event.key === "ArrowDown" || event.key === "ArrowUp")
+		) {
+			event.preventDefault();
+
+			const step = event.key === "ArrowDown" ? 1 : -1;
+
+			setActiveIndex(
+				(current) => (current + step + targets.length) % targets.length,
+			);
+		} else if (event.code === "Tab" && !event.shiftKey) {
+			const entry = targets[Math.max(activeIndex, 0)];
+
+			if (entry) {
+				event.preventDefault();
+				void selectWhileComposing(entry);
+			}
+		}
+	}
+
 	function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+		if (event.nativeEvent.isComposing) {
+			handleComposingKeyDown(event);
+
+			return;
+		}
+
 		if (event.key === "Escape") {
 			setIsOpen(false);
 			setActiveIndex(-1);
@@ -192,6 +299,25 @@ export function IngredientNameInput({
 			setActiveIndex(
 				(current) => (current + step + suggestions.length) % suggestions.length,
 			);
+
+			return;
+		}
+
+		// 候補が出ているときの Tab は、決定（選んでいなければ、先頭）。決めると候補が消えるので、次の Tab で、次の欄へ移る。
+		if (
+			event.key === "Tab" &&
+			!event.shiftKey &&
+			!event.altKey &&
+			!event.ctrlKey &&
+			!event.metaKey &&
+			isExpanded
+		) {
+			const entry = suggestions[Math.max(activeIndex, 0)];
+
+			if (entry) {
+				event.preventDefault();
+				select(entry);
+			}
 
 			return;
 		}
@@ -228,6 +354,13 @@ export function IngredientNameInput({
 						: undefined
 				}
 				onChange={(event) => {
+					// 変換中の入力の直前に出ていた候補を覚える（Safari の Tab のため）。
+					if (isComposing) {
+						previousRef.current = isExpanded
+							? { suggestions, at: performance.now() }
+							: null;
+					}
+
 					onChange(event.target.value);
 					setIsOpen(true);
 					setActiveIndex(-1);
