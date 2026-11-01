@@ -911,7 +911,7 @@ describe("InventoryList", () => {
 			);
 		});
 
-		it("量を追う管理に変えるときは、いまの量を入れてもらう", async () => {
+		it("数えない食材を数える側に変えるときは、いまの量を入れてもらう", async () => {
 			const user = userEvent.setup();
 			const changeTrackingMode = vi.fn().mockResolvedValue({
 				inventoryItemId: oilId,
@@ -924,18 +924,21 @@ describe("InventoryList", () => {
 
 			const dialog = await openPanel(user, "オリーブオイル");
 
-			await chooseFromMenu(
-				user,
-				dialog,
-				"オリーブオイル",
-				"量を追う管理にする",
-			);
+			await chooseFromMenu(user, dialog, "オリーブオイル", "数え方を変える");
+			// 数えないのままでは、変えられない。数える側を選ぶと、いまの量の欄が出る
+			expect(
+				screen.getByRole("button", { name: "この数え方にする" }),
+			).toBeDisabled();
+			expect(
+				screen.queryByRole("textbox", { name: "オリーブオイルのいまの量" }),
+			).toBeNull();
+			await user.click(screen.getByRole("button", { name: "だいたい" }));
 			await user.type(
 				screen.getByRole("textbox", { name: "オリーブオイルのいまの量" }),
 				"300",
 			);
 			await user.click(
-				screen.getByRole("button", { name: "この量で管理する" }),
+				screen.getByRole("button", { name: "この数え方にする" }),
 			);
 
 			expect(
@@ -950,7 +953,7 @@ describe("InventoryList", () => {
 			});
 		});
 
-		it("量を追う食材は、確認のあと「有無だけにする」で、数量を出さなくなる。やめれば変えない", async () => {
+		it("数える食材を「数えない」に変えると、数量を出さなくなる。キャンセルすれば変えない", async () => {
 			const user = userEvent.setup();
 			const changeTrackingMode = vi.fn().mockResolvedValue({
 				inventoryItemId: oilId,
@@ -965,12 +968,19 @@ describe("InventoryList", () => {
 
 			const dialog = await openPanel(user, "オリーブオイル");
 
-			await chooseFromMenu(user, dialog, "オリーブオイル", "有無だけにする");
-			await user.click(screen.getByRole("button", { name: "やめる" }));
+			await chooseFromMenu(user, dialog, "オリーブオイル", "数え方を変える");
+			await user.click(screen.getByRole("button", { name: "数えない" }));
+			expect(
+				screen.getByText(/いまの量の記録は残りません/u),
+			).toBeInTheDocument();
+			await user.click(screen.getByRole("button", { name: "キャンセル" }));
 			expect(changeTrackingMode).not.toHaveBeenCalled();
 
-			await chooseFromMenu(user, dialog, "オリーブオイル", "有無だけにする");
-			await user.click(screen.getByRole("button", { name: "有無だけにする" }));
+			await chooseFromMenu(user, dialog, "オリーブオイル", "数え方を変える");
+			await user.click(screen.getByRole("button", { name: "数えない" }));
+			await user.click(
+				screen.getByRole("button", { name: "この数え方にする" }),
+			);
 
 			expect(
 				await within(await screen.findByRole("dialog")).findByText("あり"),
@@ -980,6 +990,42 @@ describe("InventoryList", () => {
 				inventoryItemId: oilId,
 				trackingMode: "presence",
 			});
+		});
+
+		it("「だいたい」と「正確」を、あとから切り替えられる（いまの量は聞かない）", async () => {
+			const user = userEvent.setup();
+			const changeTrackingMode = vi.fn().mockResolvedValue({
+				inventoryItemId: oilId,
+				trackingMode: "exact",
+				quantity: 300,
+				lots: [createLot({ id: "lot-1", quantity: 300 })],
+			});
+
+			renderList([presenceItem(300, { trackingMode: "estimated" })], {
+				changeTrackingMode,
+			});
+
+			const dialog = await openPanel(user, "オリーブオイル");
+
+			await chooseFromMenu(user, dialog, "オリーブオイル", "数え方を変える");
+			expect(screen.getByRole("button", { name: "だいたい" })).toHaveAttribute(
+				"aria-pressed",
+				"true",
+			);
+			await user.click(screen.getByRole("button", { name: "正確" }));
+			expect(
+				screen.queryByRole("textbox", { name: "オリーブオイルのいまの量" }),
+			).toBeNull();
+			await user.click(
+				screen.getByRole("button", { name: "この数え方にする" }),
+			);
+
+			await waitFor(() =>
+				expect(changeTrackingMode).toHaveBeenCalledWith({
+					inventoryItemId: oilId,
+					trackingMode: "exact",
+				}),
+			);
 		});
 	});
 

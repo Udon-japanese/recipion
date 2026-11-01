@@ -8,29 +8,17 @@ import { SegmentedControl } from "#/components/segmented-control/segmented-contr
 import { IngredientNameInput } from "#/features/ingredients/components/ingredient-name-input";
 import { QuantityInput } from "#/features/quantity/components/quantity-input";
 import { formatQuantity } from "#/features/quantity/domain/format-quantity";
-import type { InventoryTrackingMode } from "../../domain/apply-inventory-adjustment";
 import { ExpiryFields } from "../expiry-fields";
+import {
+	trackingModeLabels,
+	trackingModeOptions,
+} from "../tracking-mode-options";
 import * as styles from "./registration-panel.css";
 import {
 	customUnitValue,
 	type InventoryRegistration,
 	toUnitValue,
 } from "./use-inventory-registration";
-
-const trackingOptions: readonly {
-	value: InventoryTrackingMode;
-	label: string;
-}[] = [
-	{ value: "estimated", label: "だいたい" },
-	{ value: "exact", label: "正確" },
-	{ value: "presence", label: "数えない" },
-];
-
-const trackingLabels: Record<InventoryTrackingMode, string> = {
-	estimated: "だいたい",
-	exact: "正確",
-	presence: "数えない",
-};
 
 // 登録の本文（上から、よく使う順）。保存方法・期限の種類・数え方は、1行の要約にたたむ。
 // 数え方は、カタログにある食材なら自動で決まる（塩・醤油などは「数えない」）。
@@ -169,7 +157,7 @@ function RegistrationForm({
 				today={registration.today}
 				disabled={registration.isSubmitting}
 				detailsTitle="保存方法・期限・数え方"
-				extraSummary={trackingLabels[trackingMode]}
+				extraSummary={trackingModeLabels[trackingMode]}
 				extraDetails={
 					<div className={styles.group}>
 						<span className={styles.groupLabel} aria-hidden="true">
@@ -179,7 +167,7 @@ function RegistrationForm({
 							label="数え方"
 							value={trackingMode}
 							onChange={registration.changeTrackingMode}
-							options={trackingOptions}
+							options={trackingModeOptions}
 						/>
 						{isPresence ? (
 							<p className={styles.hint}>
