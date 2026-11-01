@@ -12,7 +12,6 @@ import {
 	findIngredientCatalogEntry,
 	getDefaultStockUnitLabel,
 } from "#/features/ingredients/domain/ingredient-catalog";
-import type { InventoryListItem } from "#/features/inventory/application/inventory-query-repository";
 import { loadInventoryItemsWithCache } from "#/features/inventory/application/load-inventory-items-with-cache";
 import { useOwnerScope } from "#/features/inventory/hooks/use-owner-scope";
 import { createDexieInventoryCacheRepository } from "#/features/inventory/infrastructure/dexie-inventory-cache-repository";
@@ -63,8 +62,8 @@ const maxPreloadedLinkTargets = 30;
 
 export const Route = createFileRoute("/recipes/$publicId/")({
 	// 見てはいけないレシピと、存在しないレシピは、どちらも null（パスフレーズの入力画面になる）。
-	// リンク先（材料の下に開く分と、プレビューで見る分）と、在庫（買い物メモへ・つくった の判定）も、前もって取る。
-	// 在庫は、つくった・元に戻す・「ある」の登録のあとに、読み直す（router.invalidate）。
+	// リンク先（材料の下に開く分と、プレビューで見る分）も、前もって取る。
+	// 在庫は、前もって取らない（「買い物メモへ」「つくった」で使うときに、その時点の在庫を取る）。
 	loader: async ({ params }) => {
 		const viewable = await viewRecipeServerFn({
 			data: { publicId: params.publicId },
@@ -78,14 +77,12 @@ export const Route = createFileRoute("/recipes/$publicId/")({
 			0,
 			maxPreloadedLinkTargets,
 		);
-		const [linkedRecipes, inventoryItems] = await Promise.all([
+		const linkedRecipes =
 			linkTargetIds.length > 0
-				? getLinkedRecipesServerFn({ data: { publicIds: linkTargetIds } })
-				: {},
-			listInventoryItemsServerFn(),
-		]);
+				? await getLinkedRecipesServerFn({ data: { publicIds: linkTargetIds } })
+				: {};
 
-		return { ...viewable, linkedRecipes, inventoryItems };
+		return { ...viewable, linkedRecipes };
 	},
 	head: ({ loaderData }) => ({
 		meta: [
@@ -104,20 +101,14 @@ export const Route = createFileRoute("/recipes/$publicId/")({
 
 type RecipePreload = {
 	linkedRecipes: Readonly<Record<string, RecipeDetail>>;
-	inventoryItems: InventoryListItem[];
 };
 
 // 見る人によらない、画面の支え（リンク先の取得、在庫、「ある」の登録）。
 function useRecipeViewSupport(
 	recipe: RecipeDetail,
-	{ linkedRecipes, inventoryItems }: RecipePreload,
+	{ linkedRecipes }: RecipePreload,
 ) {
 	const ownerScope = useOwnerScope();
-	const router = useRouter();
-	// 在庫が変わったら、loader を読み直す（前もって取った在庫を、新しくする）。
-	const refreshInventory = useCallback(() => {
-		void router.invalidate();
-	}, [router]);
 
 	// リンク先のレシピ（プレビューと、買い物メモへの展開で使う）。前もって取ってあれば、それを使う。
 	const loadLinkedRecipe = useCallback(
@@ -146,7 +137,8 @@ function useRecipeViewSupport(
 		[recipe.publicId],
 	);
 
-	// 在庫の一覧（loader で取ったもの）。端末の保存済みの一覧も、新しくしておく。
+	// 在庫の一覧（使うたびに、その時点の在庫を取る。通信できなければ、保存済みの一覧）。
+	// 画面を開いたときの在庫を使い回すと、そのあとで足した在庫が、「つくった」や「買い物メモへ」に反映されない。
 	const loadInventoryItems = useCallback(async () => {
 		if (!ownerScope || ownerScope === "guest") {
 			throw new Error("在庫を取得できるユーザーではありません");
@@ -154,34 +146,30 @@ function useRecipeViewSupport(
 
 		const result = await loadInventoryItemsWithCache(
 			ownerScope,
-			async () => inventoryItems,
+			() => listInventoryItemsServerFn(),
 			createDexieInventoryCacheRepository(),
 		);
 
 		return result.items;
-	}, [ownerScope, inventoryItems]);
+	}, [ownerScope]);
 
 	// 塩・醤油のように、量を追わない食材を、「ある」で登録する。
-	const registerAvailable = useCallback(
-		async (ingredientName: string) => {
-			const entry = findIngredientCatalogEntry(ingredientName);
-			const stockUnitCode = entry?.stockUnitCode ?? "count";
+	const registerAvailable = useCallback(async (ingredientName: string) => {
+		const entry = findIngredientCatalogEntry(ingredientName);
+		const stockUnitCode = entry?.stockUnitCode ?? "count";
 
-			await registerInventoryItemServerFn({
-				data: {
-					transactionId: crypto.randomUUID(),
-					ingredientName,
-					stockUnitCode,
-					stockUnitLabel: getDefaultStockUnitLabel(stockUnitCode),
-					trackingMode: entry?.defaultTrackingMode ?? "estimated",
-					initialQuantity: 0,
-					markAsAvailable: true,
-				},
-			});
-			refreshInventory();
-		},
-		[refreshInventory],
-	);
+		await registerInventoryItemServerFn({
+			data: {
+				transactionId: crypto.randomUUID(),
+				ingredientName,
+				stockUnitCode,
+				stockUnitLabel: getDefaultStockUnitLabel(stockUnitCode),
+				trackingMode: entry?.defaultTrackingMode ?? "estimated",
+				initialQuantity: 0,
+				markAsAvailable: true,
+			},
+		});
+	}, []);
 
 	// 「作った」：在庫から引く（キャッシュも更新）。
 	const consume = useCallback(
@@ -193,19 +181,15 @@ function useRecipeViewSupport(
 				throw new Error("在庫を操作できるユーザーではありません");
 			}
 
-			try {
-				return await runRecipeConsumption(
-					ownerScope,
-					operation,
-					(command) => adjustInventoryServerFn({ data: command }),
-					createDexieInventoryCacheRepository(),
-					onlyNeedIds,
-				);
-			} finally {
-				refreshInventory();
-			}
+			return runRecipeConsumption(
+				ownerScope,
+				operation,
+				(command) => adjustInventoryServerFn({ data: command }),
+				createDexieInventoryCacheRepository(),
+				onlyNeedIds,
+			);
 		},
-		[ownerScope, refreshInventory],
+		[ownerScope],
 	);
 
 	const undoConsumption = useCallback(
@@ -214,26 +198,22 @@ function useRecipeViewSupport(
 				throw new Error("在庫を操作できるユーザーではありません");
 			}
 
-			try {
-				return await undoRecipeConsumptionWithCache(
-					ownerScope,
-					target,
-					({ sourceId, inventoryItemIds }) =>
-						undoRecipeConsumptionServerFn({
-							data: {
-								sourceId,
-								...(inventoryItemIds
-									? { inventoryItemIds: [...inventoryItemIds] }
-									: {}),
-							},
-						}),
-					createDexieInventoryCacheRepository(),
-				);
-			} finally {
-				refreshInventory();
-			}
+			return undoRecipeConsumptionWithCache(
+				ownerScope,
+				target,
+				({ sourceId, inventoryItemIds }) =>
+					undoRecipeConsumptionServerFn({
+						data: {
+							sourceId,
+							...(inventoryItemIds
+								? { inventoryItemIds: [...inventoryItemIds] }
+								: {}),
+						},
+					}),
+				createDexieInventoryCacheRepository(),
+			);
 		},
-		[ownerScope, refreshInventory],
+		[ownerScope],
 	);
 
 	// 作り置きのレシピ：「作った」で、できあがりを在庫に入れる。
@@ -242,9 +222,8 @@ function useRecipeViewSupport(
 			await stockMadeRecipeServerFn({
 				data: { recipePublicId: recipe.publicId, ...input },
 			});
-			refreshInventory();
 		},
-		[recipe.publicId, refreshInventory],
+		[recipe.publicId],
 	);
 
 	return {

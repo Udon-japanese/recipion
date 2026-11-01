@@ -286,6 +286,19 @@ describe("RecipeConsumeSection", () => {
 		).toBeInTheDocument();
 	});
 
+	it("引いた材料が1つだけなら、1行の「戻す」は出さない（全体の「元に戻す」だけ）", async () => {
+		const user = userEvent.setup();
+
+		setup({ ingredients: [ingredient("i1", "玉ねぎ", 2, "個")] });
+
+		await user.click(screen.getByRole("button", { name: /つくった/u }));
+
+		expect(
+			await screen.findByRole("button", { name: "元に戻す" }),
+		).toBeInTheDocument();
+		expect(screen.queryByRole("button", { name: "玉ねぎを戻す" })).toBeNull();
+	});
+
 	it("全部の行を1行ずつ戻したら、全体の「元に戻す」は出さない", async () => {
 		const user = userEvent.setup();
 
