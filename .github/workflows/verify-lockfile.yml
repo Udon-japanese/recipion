@@ -1,0 +1,27 @@
+# Action の固定（actions.lock）が、ワークフローと食い違っていないか、固定した commit が上流で確かめられるかを調べる。
+# ワークフローの uses: を変えたら、リポジトリのルートで `gh actions-lock` を実行し、actions.lock も一緒にコミットする。
+# Dependabot の更新は、actions.lock も同じ PR で書き換えるので、手で直す必要はない。
+# 雛形: https://github.com/github/gh-actions-lock/blob/main/.github/workflows/verify-lockfile.yml
+name: Verify lockfile
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      # 拡張の版も固定する（上げるときは、手元の `gh extension upgrade gh-actions-lock` と合わせる）。
+      - run: gh extension install github/gh-actions-lock --pin v0.4.0
+      - run: gh actions-lock --verify
