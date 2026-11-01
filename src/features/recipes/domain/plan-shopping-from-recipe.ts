@@ -1,15 +1,11 @@
 import {
-	findIngredientCatalogEntry,
-	getFixedShapeStandInCatalogEntryIds,
-	getStandInCatalogEntryIds,
-} from "#/features/ingredients/domain/ingredient-catalog";
-import {
 	type AmountRange,
 	parseAmountRange,
 } from "#/features/ingredients/domain/parse-ingredient-line";
 import { findInventoryItemByName } from "#/features/inventory/domain/build-expiry-prefill";
 import type { InventoryTrackingMode } from "#/features/inventory/domain/inventory-tracking-mode";
 import type { InventoryUnitCode } from "#/features/inventory/domain/inventory-unit";
+import { findStandInCandidates, type StandInMode } from "./find-stand-ins";
 import {
 	type IngredientStock,
 	type IngredientStockJudgment,
@@ -66,10 +62,19 @@ export type RecipeShoppingStock =
 			judgment: IngredientStockJudgment;
 			// 代わりになる食材（冷凍野菜など）の在庫で足りているとき、その食材の名前。
 			standInName?: string;
-			// 形が決まっている代わりの食材（冷凍玉ねぎ(みじん切り)など）の在庫があるとき、その名前。
-			// 自動では代わりにしない（足りているとは判定しない）。知らせるだけ。
-			fixedShapeStandInNames?: string[];
+			// 代わりの食材の在庫で足りるが、使うかどうかを本人が選ぶもの（設定・形の決まった冷凍）。
+			// 足りているとは判定しない（初期でチェックする）。知らせるだけ。量を満たさないものは入れない。
+			askStandIns?: RecipeShoppingStandIn[];
 	  };
+
+// 知らせる代わりの食材と、その在庫の量。
+export type RecipeShoppingStandIn = {
+	name: string;
+	quantity: number;
+	stockUnitCode: InventoryUnitCode;
+	stockUnitLabel: string;
+	isPresenceOnly: boolean;
+};
 
 export type RecipeShoppingRow = {
 	need: RecipeShoppingNeed;
@@ -192,36 +197,9 @@ export type PlanShoppingFromRecipeInput = {
 	stockItems: readonly RecipeShoppingStockItem[] | null;
 	memoItems: readonly RecipeShoppingMemoItem[];
 	duplicateMode: DuplicateMode;
+	// 冷凍野菜を、生の野菜の代わりに使うか（省略は auto）。
+	standInMode?: StandInMode;
 };
-
-/**
- * レシピの材料から、買い物メモへ入れる項目を決める。
- * - 在庫で足りているか判定する（数量を比べ、比べられなければ、在庫の有無。judgeIngredientStock）。
- * - 買い物メモに、同じ食材があれば、扱い（多い方に合わせる／合算／追加しない）に従う。
- * - 人数による量の調整はしない（レシピの量のまま）。
- */
-// 在庫の食材が、この材料の代わりになる食材（冷凍野菜など）か。
-export function findStandInItems<T extends RecipeShoppingStockItem>(
-	needName: string,
-	stockItems: readonly T[],
-): T[] {
-	const standInIds = getStandInCatalogEntryIds(needName);
-
-	if (standInIds.size === 0) {
-		return [];
-	}
-
-	return stockItems.filter((item) => {
-		const id = findIngredientCatalogEntry(item.name)?.id;
-
-		return (
-			item.sourceRecipePublicId === undefined &&
-			id !== undefined &&
-			standInIds.has(id) &&
-			item.quantity > 0
-		);
-	});
-}
 
 function toIngredientStock(item: RecipeShoppingStockItem): IngredientStock {
 	return {
@@ -232,34 +210,12 @@ function toIngredientStock(item: RecipeShoppingStockItem): IngredientStock {
 	};
 }
 
-// 形が決まっている代わりの食材（自動では代わりにしない）のうち、在庫があるもの。
-export function findFixedShapeStandInItems<T extends RecipeShoppingStockItem>(
-	needName: string,
-	stockItems: readonly T[],
-): T[] {
-	const ids = getFixedShapeStandInCatalogEntryIds(needName);
-
-	if (ids.size === 0) {
-		return [];
-	}
-
-	return stockItems.filter((item) => {
-		const id = findIngredientCatalogEntry(item.name)?.id;
-
-		return (
-			item.sourceRecipePublicId === undefined &&
-			id !== undefined &&
-			ids.has(id) &&
-			item.quantity > 0
-		);
-	});
-}
-
-// その食材の在庫で足りていなければ、代わりになる食材（冷凍野菜など）の在庫が足りているかも見る。
+// その食材の在庫で足りていなければ、代わりになる食材（冷凍野菜など）の在庫で、必要な量を満たすかも見る。
 function judgeWithStandIns(
 	need: { name: string; quantity: number | null; unitLabel: string | null },
 	stockItem: RecipeShoppingStockItem | undefined,
 	stockItems: readonly RecipeShoppingStockItem[],
+	mode: StandInMode,
 ): RecipeShoppingStock {
 	const judgment = judgeIngredientStock(
 		need,
@@ -270,32 +226,44 @@ function judgeWithStandIns(
 		return { kind: "judged", judgment };
 	}
 
-	for (const standIn of findStandInItems(need.name, stockItems)) {
-		const standInJudgment = judgeIngredientStock(
-			need,
-			toIngredientStock(standIn),
-		);
+	const candidates = findStandInCandidates(need, stockItems, mode);
+	const [auto] = candidates.auto;
 
-		if (standInJudgment.status === "enough") {
-			return {
-				kind: "judged",
-				judgment: standInJudgment,
-				standInName: standIn.name,
-			};
-		}
+	if (auto) {
+		return {
+			kind: "judged",
+			judgment: {
+				status: "enough",
+				basis: auto.required === null ? "presence" : "compared",
+			},
+			standInName: auto.item.name,
+		};
 	}
-
-	const fixedShape = findFixedShapeStandInItems(need.name, stockItems);
 
 	return {
 		kind: "judged",
 		judgment,
-		...(fixedShape.length > 0
-			? { fixedShapeStandInNames: fixedShape.map((item) => item.name) }
+		...(candidates.ask.length > 0
+			? {
+					askStandIns: candidates.ask.map(({ item }) => ({
+						name: item.name,
+						quantity: item.quantity,
+						stockUnitCode: item.stockUnitCode,
+						stockUnitLabel: item.stockUnitLabel,
+						isPresenceOnly: item.trackingMode === "presence",
+					})),
+				}
 			: {}),
 	};
 }
 
+/**
+ * レシピの材料から、買い物メモへ入れる項目を決める。
+ * - 在庫で足りているか判定する（数量を比べ、比べられなければ、在庫の有無。judgeIngredientStock）。
+ * - 足りなければ、代わりの食材（冷凍野菜など）の在庫で、必要な量を満たすかも見る（設定に従う。findStandInCandidates）。
+ * - 買い物メモに、同じ食材があれば、扱い（多い方に合わせる／合算／追加しない）に従う。
+ * - 人数による量の調整はしない（レシピの量のまま）。
+ */
 export function planShoppingFromRecipe(
 	input: PlanShoppingFromRecipeInput,
 ): RecipeShoppingRow[] {
@@ -313,7 +281,12 @@ export function planShoppingFromRecipe(
 		const stock: RecipeShoppingStock =
 			input.stockItems === null
 				? { kind: "unknown" }
-				: judgeWithStandIns(needForJudgment, stockItem, input.stockItems);
+				: judgeWithStandIns(
+						needForJudgment,
+						stockItem,
+						input.stockItems,
+						input.standInMode ?? "auto",
+					);
 
 		const isNeeded =
 			stock.kind === "unknown" || stock.judgment.status === "short";

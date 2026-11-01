@@ -13,7 +13,7 @@ export type ConsumptionSummary = {
 	failed: RecipeConsumptionRow[];
 	// 引いた（全部、または、ある分だけ）。
 	deducted: RecipeConsumptionRow[];
-	// 在庫にないが、代わりの食材を引ける。1行ずつ、ボタンを付けて見せる。
+	// 代わりの食材（冷凍野菜など）で足りるが、使うかを本人が選ぶ。1行ずつ、ボタンを付けて見せる。
 	hasAlternatives: RecipeConsumptionRow[];
 	// 引かなかった材料。理由ごとにまとめる（理由の並びは固定）。
 	skipped: SkippedGroup[];
@@ -43,7 +43,7 @@ export function summarizeConsumptionRows(
 			summary.failed.push(row);
 		} else if (row.status === "consume" || row.status === "partial") {
 			summary.deducted.push(row);
-		} else if (row.status === "no-stock" && row.alternatives.length > 0) {
+		} else if (row.status === "choose") {
 			summary.hasAlternatives.push(row);
 		} else {
 			skippedNames.set(row.status, [

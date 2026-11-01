@@ -2,11 +2,10 @@ import { convertToStockQuantity } from "#/features/ingredients/domain/convert-to
 import { findIngredientCatalogEntry } from "#/features/ingredients/domain/ingredient-catalog";
 import { findInventoryItemByName } from "#/features/inventory/domain/build-expiry-prefill";
 import type { InventoryUnitCode } from "#/features/inventory/domain/inventory-unit";
-import {
-	findFixedShapeStandInItems,
-	findStandInItems,
-	type RecipeShoppingNeed,
-	type RecipeShoppingStockItem,
+import { findStandInCandidates, type StandInMode } from "./find-stand-ins";
+import type {
+	RecipeShoppingNeed,
+	RecipeShoppingStockItem,
 } from "./plan-shopping-from-recipe";
 
 // 在庫の1食材（引く先になりうるもの）。
@@ -24,9 +23,11 @@ export type RecipeConsumptionStatus =
 	// 「有無だけ」で管理している食材（塩・醤油・油など）。在庫を減らさない。
 	| "presence-only"
 	// 在庫に登録がない、または在庫が0。
-	| "no-stock";
+	| "no-stock"
+	// 代わりの食材（冷凍野菜など）で足りるが、使うかどうかを本人が選ぶ。選ぶまで、引かない。
+	| "choose";
 
-// 自動では引かない、形が決まっている代わりの食材（冷凍玉ねぎ(みじん切り)など）。本人が選んだときだけ引く。
+// 本人が選んだときだけ引く先：代わりの食材（設定・形の決まった冷凍）か、足りないが、ある分だけの自分の食材。
 export type RecipeConsumptionAlternative = {
 	inventoryItemId: string;
 	name: string;
@@ -34,6 +35,10 @@ export type RecipeConsumptionAlternative = {
 	stockUnitLabel: string;
 	// 引く量（在庫の単位）。
 	deduct: number;
+	// 自分の食材（ある分だけ引く）なら true。
+	isOwn: boolean;
+	// 自分の食材のとき、レシピが必要とする量（在庫の単位）。
+	required: number;
 };
 
 export type RecipeConsumptionRow = {
@@ -52,7 +57,7 @@ export type RecipeConsumptionRow = {
 	required: number | null;
 	// 冷凍の食材など、代わりの食材の在庫から引くとき true。
 	viaStandIn: boolean;
-	// 在庫にないとき、形が決まっている代わりの食材の在庫があれば、その候補。
+	// 選ぶとき（choose）の、引く先の候補。
 	alternatives: RecipeConsumptionAlternative[];
 };
 
@@ -82,7 +87,8 @@ function requiredIn(
 /**
  * レシピの材料から、在庫から引く量を決める（実行は別）。
  * - 数量を在庫の単位に換算できて、在庫が足りれば、必要な量を引く。
- * - 在庫が足りなければ、冷凍などの代わりの食材で全量が足りるときはそちらから、なければ、ある分だけ引く。
+ * - 在庫が足りなければ、代わりの食材（冷凍野菜など）を見る。それだけで全量を満たすものだけを使う（findStandInCandidates）。
+ *   自動で使うものはそちらから引き、本人が選ぶものは、選ぶまで引かない（choose）。どちらもなければ、ある分だけ引く。
  * - 「有無だけ」で管理している食材（塩・醤油・油など）は、減らさない。
  * - 「少々」「適量」や、換算できない分量は、引かない。
  * - 同じ食材が複数行あるときは、残りの在庫を、順に使う。
@@ -90,6 +96,7 @@ function requiredIn(
 export function planRecipeConsumption(
 	needs: readonly RecipeShoppingNeed[],
 	stockItems: readonly RecipeConsumptionStockItem[],
+	standInMode: StandInMode = "auto",
 ): RecipeConsumptionRow[] {
 	const remaining = new Map(
 		stockItems.map((item) => [item.inventoryItemId, item.quantity]),
@@ -109,85 +116,55 @@ export function planRecipeConsumption(
 		remaining.set(item.inventoryItemId, round(remainingOf(item) - amount));
 	};
 
-	// 形が決まっている代わりの食材の候補（自動では引かない）。
-	const findAlternatives = (
-		need: RecipeShoppingNeed,
-	): RecipeConsumptionAlternative[] =>
-		findFixedShapeStandInItems(need.name, stockItems).flatMap((item) => {
-			// 有無だけの食材は、引く量がない。
-			if (item.trackingMode === "presence") {
-				return [];
-			}
-
-			const available = remainingOf(item);
-			const required = requiredIn(need, item);
-
-			return available > 0 && required !== null
-				? [
-						{
-							inventoryItemId: item.inventoryItemId,
-							name: item.name,
-							stockUnitCode: item.stockUnitCode,
-							stockUnitLabel: item.stockUnitLabel,
-							deduct: round(Math.min(available, required)),
-						},
-					]
-				: [];
-		});
-
 	return needs.map((need): RecipeConsumptionRow => {
 		const own = findInventoryItemByName(stockItems, need.name);
 		const ownStock = own && remainingOf(own) > 0 ? own : undefined;
-		const standIns = findStandInItems(need.name, stockItems).filter(
-			(item) => remainingOf(item) > 0,
-		);
-
-		// 有無だけで管理している食材は、量にかかわらず、減らさない。
-		const presenceItem = [ownStock, ...standIns].find(
-			(item) => item?.trackingMode === "presence",
-		);
-
-		if (presenceItem && (presenceItem === ownStock || !ownStock)) {
-			return {
-				need,
-				status: "presence-only",
-				target: toTarget(presenceItem),
-				deduct: null,
-				required: null,
-				viaStandIn: presenceItem !== ownStock,
-				alternatives: [],
-			};
-		}
-
-		const unmeasurable: RecipeConsumptionRow = {
+		const candidates = findStandInCandidates(
 			need,
-			status: "unmeasurable",
+			stockItems,
+			standInMode,
+			remainingOf,
+		);
+
+		const row = (
+			status: RecipeConsumptionStatus,
+			fields: Partial<RecipeConsumptionRow> = {},
+		): RecipeConsumptionRow => ({
+			need,
+			status,
 			target: null,
 			deduct: null,
 			required: null,
 			viaStandIn: false,
 			alternatives: [],
-		};
+			...fields,
+		});
 
-		// 比べられない分量は、引かない（食材が在庫にあるかどうかに関わらず）。
-		const probeUnit = (ownStock ?? standIns[0])?.stockUnitCode;
-
-		if (need.quantity === null) {
-			return unmeasurable;
+		// 有無だけで管理している食材は、量にかかわらず、減らさない。
+		if (ownStock?.trackingMode === "presence") {
+			return row("presence-only", { target: toTarget(ownStock) });
 		}
 
-		if (probeUnit === undefined) {
-			return {
-				...unmeasurable,
-				status: "no-stock",
-				alternatives: findAlternatives(need),
-			};
+		const autoPresence = candidates.auto.find(
+			(candidate) => candidate.item.trackingMode === "presence",
+		);
+
+		if (!ownStock && autoPresence) {
+			return row("presence-only", {
+				target: toTarget(autoPresence.item),
+				viaStandIn: true,
+			});
+		}
+
+		// 比べられない分量は、引かない（食材が在庫にあるかどうかに関わらず）。
+		if (need.quantity === null) {
+			return row("unmeasurable");
 		}
 
 		const requiredOwn = ownStock ? requiredIn(need, ownStock) : null;
 
 		if (ownStock && requiredOwn === null) {
-			return unmeasurable;
+			return row("unmeasurable");
 		}
 
 		if (
@@ -197,33 +174,50 @@ export function planRecipeConsumption(
 		) {
 			take(ownStock, requiredOwn);
 
-			return {
-				need,
-				status: "consume",
+			return row("consume", {
 				target: toTarget(ownStock),
 				deduct: requiredOwn,
 				required: requiredOwn,
-				viaStandIn: false,
-				alternatives: [],
-			};
+			});
 		}
 
-		for (const standIn of standIns) {
-			const requiredStandIn = requiredIn(need, standIn);
+		for (const { item, required } of candidates.auto) {
+			if (required !== null) {
+				take(item, required);
 
-			if (requiredStandIn !== null && remainingOf(standIn) >= requiredStandIn) {
-				take(standIn, requiredStandIn);
-
-				return {
-					need,
-					status: "consume",
-					target: toTarget(standIn),
-					deduct: requiredStandIn,
-					required: requiredStandIn,
+				return row("consume", {
+					target: toTarget(item),
+					deduct: required,
+					required,
 					viaStandIn: true,
-					alternatives: [],
-				};
+				});
 			}
+		}
+
+		// 有無だけの代わりの食材は、引く量がないので、選ぶ候補にしない。
+		const askAlternatives = candidates.ask.flatMap(
+			({ item, required }): RecipeConsumptionAlternative[] =>
+				required === null
+					? []
+					: [{ ...toTarget(item), deduct: required, isOwn: false, required }],
+		);
+
+		if (askAlternatives.length > 0) {
+			return row("choose", {
+				alternatives: [
+					...askAlternatives,
+					...(ownStock && requiredOwn !== null
+						? [
+								{
+									...toTarget(ownStock),
+									deduct: remainingOf(ownStock),
+									isOwn: true,
+									required: requiredOwn,
+								},
+							]
+						: []),
+				],
+			});
 		}
 
 		if (ownStock && requiredOwn !== null) {
@@ -231,22 +225,13 @@ export function planRecipeConsumption(
 
 			take(ownStock, available);
 
-			return {
-				need,
-				status: "partial",
+			return row("partial", {
 				target: toTarget(ownStock),
 				deduct: available,
 				required: requiredOwn,
-				viaStandIn: false,
-				alternatives: [],
-			};
+			});
 		}
 
-		// 自分の食材の在庫がなく、代わりの食材でも全量は足りない。
-		return {
-			...unmeasurable,
-			status: "no-stock",
-			alternatives: findAlternatives(need),
-		};
+		return row("no-stock");
 	});
 }

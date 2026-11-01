@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import { readExpiryEstimateLevel } from "#/features/inventory/infrastructure/expiry-estimate-level-storage";
+import { standInModeItem } from "#/features/recipes/infrastructure/stand-in-mode-storage";
 import { AccountSettingsSection } from "./account-settings-section";
 import { SettingsPage, type SettingsTab } from "./settings-page";
 
@@ -51,6 +52,19 @@ describe("SettingsPage", () => {
 
 		expect(screen.getByRole("radio", { name: /すべて/u })).toBeChecked();
 		expect(readExpiryEstimateLevel(localStorage)).toBe("all");
+	});
+
+	it("冷凍野菜の代わりは、初期値が「自動で使う」で、選び直すと、この端末に保存する", async () => {
+		const user = userEvent.setup();
+
+		render(<TestSettingsPage />);
+
+		expect(screen.getByRole("radio", { name: /自動で使う/u })).toBeChecked();
+
+		await user.click(screen.getByRole("radio", { name: /^毎回選ぶ$/u }));
+
+		expect(screen.getByRole("radio", { name: /^毎回選ぶ$/u })).toBeChecked();
+		expect(standInModeItem.read(localStorage)).toBe("ask");
 	});
 
 	it("タブで欄を切り替える（押す・矢印キー・Home/End）", async () => {

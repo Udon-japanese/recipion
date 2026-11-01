@@ -2,6 +2,9 @@ import { type KeyboardEvent, type ReactNode, useRef } from "react";
 import { useMediaQuery } from "#/components/use-media-query";
 import { ExpiryEstimateSetting } from "#/features/inventory/components/expiry-estimate-setting";
 import { useExpiryEstimateLevel } from "#/features/inventory/hooks/use-expiry-estimate-level";
+import { StandInModeSetting } from "#/features/recipes/components/stand-in-mode-setting";
+import { standInModeItem } from "#/features/recipes/infrastructure/stand-in-mode-storage";
+import { useStorageItem } from "#/local-storage/use-storage-item";
 import * as styles from "./settings-page.css";
 
 export const settingsTabs = ["inventory", "data", "account"] as const;
@@ -120,6 +123,7 @@ export function SettingsPage({
 function InventorySettings() {
 	const [expiryEstimateLevel, setExpiryEstimateLevel] =
 		useExpiryEstimateLevel();
+	const [standInMode, setStandInMode] = useStorageItem(standInModeItem);
 
 	return (
 		<section className={styles.section} aria-labelledby="settings-inventory">
@@ -133,6 +137,7 @@ function InventorySettings() {
 				level={expiryEstimateLevel}
 				onChange={setExpiryEstimateLevel}
 			/>
+			<StandInModeSetting mode={standInMode} onChange={setStandInMode} />
 		</section>
 	);
 }
