@@ -3,11 +3,15 @@ import {
 	RoutePending,
 	routePendingOptions,
 } from "./components/route-pending/route-pending";
+import { installCloseOnBack } from "./components/sheet/use-close-on-back";
 import { NotFoundPage } from "./errors/not-found-page";
 import { RouteError } from "./errors/route-error";
 import { routeTree } from "./routeTree.gen";
 
 export function getRouter() {
+	// 戻る操作でシートなどを閉じる受け手は、ルーターより先に置く（先に popstate を受ける）。
+	installCloseOnBack();
+
 	const router = createTanStackRouter({
 		routeTree,
 		scrollRestoration: true,

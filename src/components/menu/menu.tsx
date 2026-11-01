@@ -11,6 +11,7 @@ import { createPortal } from "react-dom";
 import { Icon } from "../icon/icon";
 import type { IconName } from "../icon/icon-definitions";
 import { IconButton } from "../icon-button/icon-button";
+import { useCloseOnBack } from "../sheet/use-close-on-back";
 import type { MenuItemTone } from "./menu.css";
 import * as styles from "./menu.css";
 
@@ -125,6 +126,8 @@ export function Menu({
 	}
 
 	const isOpen = position !== null;
+
+	useCloseOnBack(isOpen, () => setPosition(null));
 
 	// 内容の幅に合わせて広がるので、実際の大きさが分かったら、右端をボタンにそろえて置き直す。
 	useLayoutEffect(() => {
