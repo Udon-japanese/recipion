@@ -224,11 +224,14 @@ function IngredientItem({
 
 function RecipeSection({
 	title,
+	titleNote,
 	action,
 	footer,
 	children,
 }: {
 	title: string;
+	// 見出しのすぐ横に、小さく添える文字（材料の人数など）。
+	titleNote?: string;
 	// 見出しの右に置くもの。
 	action?: ReactNode;
 	// カードの一番下に、線で区切って置くもの。
@@ -239,7 +242,12 @@ function RecipeSection({
 		<Card padding="md">
 			<section className={styles.section}>
 				<div className={styles.sectionHeader}>
-					<h3 className={styles.sectionTitle}>{title}</h3>
+					<div className={styles.sectionTitleGroup}>
+						<h3 className={styles.sectionTitle}>{title}</h3>
+						{titleNote ? (
+							<span className={styles.sectionTitleNote}>{titleNote}</span>
+						) : null}
+					</div>
 					{action}
 				</div>
 				{children}
@@ -321,14 +329,7 @@ export function RecipeView({
 							{recipe.name}
 						</h2>
 					)}
-					{badges || hasIngredients ? (
-						<div className={styles.meta}>
-							{badges}
-							{hasIngredients ? (
-								<span className={styles.servings}>{recipe.servings}人分</span>
-							) : null}
-						</div>
-					) : null}
+					{badges ? <div className={styles.meta}>{badges}</div> : null}
 				</div>
 				{actions ? <div className={styles.actions}>{actions}</div> : null}
 				{headerExtra ? (
@@ -358,6 +359,7 @@ export function RecipeView({
 							{hasIngredients ? (
 								<RecipeSection
 									title="材料"
+									titleNote={`${recipe.servings}人分`}
 									action={ingredientsAction}
 									footer={hasInstructions ? undefined : madeAction}
 								>

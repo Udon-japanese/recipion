@@ -79,10 +79,12 @@ describe("RecipeView", () => {
 		expect(screen.getByText("人数を変えるときはたれを調整する")).toBeTruthy();
 	});
 
-	it("人数は題名の下に出し、グループに入っていない材料は枠の外に出す", () => {
+	it("人数は「材料」の見出しの横に出し、グループに入っていない材料は枠の外に出す", () => {
 		render(<RecipeView recipe={recipe} />);
 
-		expect(screen.getByText("2人分").closest("header")).not.toBeNull();
+		const heading = screen.getByRole("heading", { name: "材料" });
+		expect(heading.parentElement).toHaveTextContent("材料2人分");
+		expect(screen.getByText("2人分").closest("header")).toBeNull();
 
 		const group = screen.getByText("たれ").closest("section") as HTMLElement;
 		expect(within(group).queryByText("ベーコン")).toBeNull();
@@ -173,10 +175,10 @@ describe("RecipeView", () => {
 			/>,
 		);
 
-		const heading = screen.getByRole("heading", { name: "作り方" });
-		expect(
-			within(heading.parentElement as HTMLElement).getByText("つけたまま"),
-		).toBeTruthy();
+		// 見出しの行（見出し・添え書きのまとまりと、右の操作）。
+		const headingRow = screen.getByRole("heading", { name: "作り方" })
+			.parentElement?.parentElement as HTMLElement;
+		expect(within(headingRow).getByText("つけたまま")).toBeTruthy();
 
 		unmount();
 		render(
