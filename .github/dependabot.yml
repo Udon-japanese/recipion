@@ -28,6 +28,7 @@ updates:
       security:
         applies-to: security-updates
         patterns: ["*"]
+  # Action は .github/workflows/actions.lock で commit に固定している。Dependabot は、ワークフローとロックを同じ PR で更新する。
   - package-ecosystem: github-actions
     directory: /
     schedule:

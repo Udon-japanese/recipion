@@ -242,6 +242,7 @@ nlx --local wrangler secret delete DEMO_LOGIN_CODE
 ### 仕組み（`.github/`）
 - **検知**：Dependabot（`dependabot.yml`）が、脆弱性が見つかると PR を作る。毎日 09:00（日本時間）に `audit.yml` が `pnpm audit --prod`（high 以上）を実行し、見つかれば Issue を立てる（通知メールが届く）。
 - **CI**：`ci.yml`（check・typecheck・test・build）。PR と `main` への push で動く。
+- **Action の固定**：ワークフローの `uses:` は具体的な版（`@v7.0.1` など）で書き、`.github/workflows/actions.lock` で commit に固定する（タグの付け替えによる改ざんへの備え）。ランナーは、ロックにない Action・ロックと違う commit を実行しない。`uses:` を変えたり、ワークフローを足したりしたら、リポジトリのルートで `gh actions-lock` を実行し、ロックも一緒にコミットする（拡張は `gh extension install github/gh-actions-lock`。ロックは手で編集しない）。`verify-lockfile.yml` が、PR と `main` への push でロックを確かめる。**Dependabot の Action の更新は、ロックも同じ PR で書き換える**ので、手で直す必要はない。
 - **自動マージ**：Dependabot の PR が patch / minor で、CI が通れば、自動でマージする（`dependabot-auto-merge.yml`）。**major は自動ではマージしない**（人が確認する）。
 - **自動デプロイ**：マージした PR が**セキュリティ更新**のときだけ、`deploy.yml` を動かす（ゲートを再度通してからデプロイ）。通常の更新は、これまでどおり手元で `nr deploy`。
 - **メンテ中のときは、自動デプロイは何もしない**（メンテ中を終わらせないため）。本番の状態が調べられなかったときは、失敗にして知らせる。
