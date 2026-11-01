@@ -17,6 +17,7 @@ import { SegmentedControl } from "#/components/segmented-control/segmented-contr
 import { Sheet } from "#/components/sheet/sheet";
 import { Tag } from "#/components/tag/tag";
 import { useMediaQuery } from "#/components/use-media-query";
+import { readCompletionKey, stepCompletionIndex } from "#/ime/completion-keys";
 import { editKindOfInput } from "#/ime/text-history";
 import {
 	type CaretSnapshot,
@@ -199,19 +200,9 @@ export function ShoppingBulkAdd({
 
 	// 候補の選択を1つ動かす（端までいくと、反対側へ回る）。
 	function moveActive(direction: "up" | "down") {
-		const count = completion?.items.length ?? 0;
-
-		if (count === 0) {
-			return;
-		}
-
-		setActiveIndex((current) => {
-			if (direction === "down") {
-				return current === null ? 0 : (current + 1) % count;
-			}
-
-			return current === null ? count - 1 : (current - 1 + count) % count;
-		});
+		setActiveIndex((current) =>
+			stepCompletionIndex(current, direction, completion?.items.length ?? 0),
+		);
 	}
 
 	function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
@@ -243,13 +234,16 @@ export function ShoppingBulkAdd({
 			return;
 		}
 
-		if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+		// Enter は、選んでいても改行のまま（1行ずつ書く欄なので、候補の決定には使わない）。
+		const key = readCompletionKey(event, false);
+
+		if (key === "up" || key === "down") {
 			event.preventDefault();
-			moveActive(event.key === "ArrowDown" ? "down" : "up");
-		} else if (event.key === "Tab") {
+			moveActive(key);
+		} else if (key === "accept") {
 			event.preventDefault();
 			acceptCompletion(activeIndex ?? 0);
-		} else if (event.key === "Escape") {
+		} else if (key === "close") {
 			// シートごと閉じないよう、ここで止めて、候補だけ閉じる。
 			event.preventDefault();
 			event.stopPropagation();

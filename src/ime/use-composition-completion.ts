@@ -1,17 +1,17 @@
 import {
 	type CompositionEvent,
 	type KeyboardEvent,
-	useEffect,
 	useRef,
 	useState,
 } from "react";
+import type { CompositionStrategy } from "./choose-composition-strategy";
 import {
-	type CompositionStrategy,
-	chooseCompositionStrategy,
-} from "./choose-composition-strategy";
+	previousCompletionWindowMs,
+	readCompletionKey,
+} from "./completion-keys";
 import { endComposition, restoreFocus } from "./end-composition";
-import { readBrowserEnvironment } from "./read-browser-environment";
 import type { TextSnapshot } from "./text-history";
+import { useCompositionStrategy } from "./use-composition-strategy";
 
 // 入力欄の、本文とカーソル。
 export type CaretSnapshot = TextSnapshot;
@@ -60,14 +60,11 @@ type KeyContext<C> = {
 	moveActive: (direction: "up" | "down") => void;
 };
 
-// Safari で、IME の変換と Tab のキーのイベントが、続けて届くとみなす時間（ミリ秒）。
-const previousCompletionWindowMs = 100;
-
 // 入力欄の、変換中（IME）の補完。レシピの本文と、買い物メモの「まとめて追加」で共通。
 // - Chromium 系（Mac・Windows）：変換を確定させてから、確定した文字を含めて置き換える。
 // - Safari・Android：変換中のまま書き換える（ブラウザが変換を取り消す）。
 // - ほか（iPhone・Firefox・未確認）：変換中は候補を出さず、確定してから出す。
-// 変換中の候補は、Tab で決定、Alt（Option）+↑↓ で選ぶ（素の矢印と Enter は IME が使う）。
+// 変換中のキーの決まりは、completion-keys.ts。
 export function useCompositionCompletion<C>({
 	textareaRef,
 	strategy: strategyOverride,
@@ -82,18 +79,10 @@ export function useCompositionCompletion<C>({
 		null,
 	);
 	const [isComposing, setIsComposing] = useState(false);
-	// サーバーと同じ初期値で描画し、ブラウザで判定する。
-	const [detected, setDetected] = useState<CompositionStrategy>(
-		"wait-for-confirmation",
-	);
 	// 変換が確定した位置（確定のあと、本文かカーソルが動くまで、メニューの位置を動かさない）。
 	const [aboveUntilChange, setAboveUntilChange] =
 		useState<CaretSnapshot | null>(null);
-	const strategy = strategyOverride ?? detected;
-
-	useEffect(() => {
-		setDetected(chooseCompositionStrategy(readBrowserEnvironment()));
-	}, []);
+	const strategy = useCompositionStrategy(strategyOverride);
 
 	// 変換中に候補を出してよいか（出せない環境は、確定したあとに出す）。
 	const canCompleteWhileComposing =
@@ -195,10 +184,7 @@ export function useCompositionCompletion<C>({
 		onCompositionEnd?.({ before: composition.before, after });
 	}
 
-	// 変換中のキー操作。変換中なら true を返す（呼び出し側は、そのまま戻る）。
-	// - Tab：決定（選んでいなければ先頭）
-	// - Alt（Option）+↑↓：選択（素の矢印と Shift+矢印は、IME が使うので、IME に任せる）
-	// - Enter は、IME が変換中の文字を確定する操作。止めても、Mac の IME は、確定の入力をあとから送ってきて、置き換えた本文の先頭に入ってしまう。補完には使わない。
+	// 変換中のキー操作（決まりは readCompletionKey）。変換中なら true を返す（呼び出し側は、そのまま戻る）。
 	function handleKeyDown(
 		event: KeyboardEvent<HTMLTextAreaElement>,
 		{ shown, activeIndex, moveActive }: KeyContext<C>,
@@ -225,17 +211,12 @@ export function useCompositionCompletion<C>({
 			return true;
 		}
 
-		// Windows は、1回のキーで、keydown が2回届く（1回目は key が Process、2回目が本物のキー）。1回だけ扱う。
-		if (
-			event.altKey &&
-			!event.ctrlKey &&
-			!event.metaKey &&
-			!event.shiftKey &&
-			(event.key === "ArrowDown" || event.key === "ArrowUp")
-		) {
+		const key = readCompletionKey(event, true);
+
+		if (key === "up" || key === "down") {
 			event.preventDefault();
-			moveActive(event.key === "ArrowDown" ? "down" : "up");
-		} else if (event.code === "Tab" && !event.shiftKey) {
+			moveActive(key);
+		} else if (key === "accept") {
 			event.preventDefault();
 			void accept(target.completion, activeIndex ?? 0, {
 				text: target.text,
