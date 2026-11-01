@@ -67,6 +67,19 @@ export const amountRow = style({
 	selectors: { "&:first-child": { borderTop: 0 } },
 });
 
+// 「作った」の引いたもの：材料・数量・1行の「戻す」。
+export const amountRowWithAction = style({
+	gridTemplateColumns: "1fr auto auto",
+	alignItems: "center",
+});
+
+// 1行ずつ戻した行の数量（引いていないことを、線で示す）。
+export const returnedAmount = style({
+	color: "var(--color-text-muted)",
+	fontWeight: "var(--font-weight-medium)",
+	textDecoration: "line-through",
+});
+
 export const amount = style({
 	fontWeight: "var(--font-weight-bold)",
 	fontVariantNumeric: "tabular-nums",

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { buildInventoryListItem } from "#/test/builders/build-inventory-list-item";
@@ -105,8 +105,9 @@ describe("RecipeConsumeSection", () => {
 		const deducted = screen.getByRole("list", { name: "引いたもの" });
 
 		expect(deducted).toHaveTextContent("玉ねぎ2個");
+		expect(deducted).toHaveTextContent("卵4個");
 		expect(deducted).toHaveTextContent(
-			"卵4個在庫が足りず、ある分だけ（必要な量は6個）",
+			"在庫が足りず、ある分だけ（必要な量は6個）",
 		);
 		expect(
 			screen.getByRole("region", { name: /減らしていません/u }),
@@ -144,9 +145,10 @@ describe("RecipeConsumeSection", () => {
 				entry.quantity,
 			]),
 		).toEqual([["inv-pork", 70]]);
-		expect(screen.getByRole("list", { name: "引いたもの" })).toHaveTextContent(
-			"豚こま肉70g60~70gの多い方で引いています",
-		);
+		const deducted = screen.getByRole("list", { name: "引いたもの" });
+
+		expect(deducted).toHaveTextContent("豚こま肉70g");
+		expect(deducted).toHaveTextContent("60~70gの多い方で引いています");
 	});
 
 	it("形が決まっている冷凍（みじん切り）は、自動では引かず、ボタンで選んだときだけ、同じ操作に足して引く", async () => {
@@ -179,9 +181,10 @@ describe("RecipeConsumeSection", () => {
 			}),
 		);
 
-		expect(
-			await screen.findByRole("list", { name: "引いたもの" }),
-		).toHaveTextContent("玉ねぎ100g冷凍玉ねぎ(みじん切り)から");
+		const deducted = await screen.findByRole("list", { name: "引いたもの" });
+
+		expect(deducted).toHaveTextContent("玉ねぎ100g");
+		expect(deducted).toHaveTextContent("冷凍玉ねぎ(みじん切り)から");
 		expect(screen.getByText("在庫から1件を引きました")).toBeInTheDocument();
 
 		const [operation, only] = consume.mock.calls[1] ?? [];
@@ -251,8 +254,71 @@ describe("RecipeConsumeSection", () => {
 		await user.click(await screen.findByRole("button", { name: "元に戻す" }));
 
 		expect(await screen.findByText("元に戻しました")).toBeInTheDocument();
-		expect(undo).toHaveBeenCalledWith(consume.mock.calls[0]?.[0].sourceId);
+		expect(undo).toHaveBeenCalledWith({
+			sourceId: consume.mock.calls[0]?.[0].sourceId,
+		});
 		expect(screen.queryByRole("button", { name: "元に戻す" })).toBeNull();
+	});
+
+	it("1行だけ戻すと、その食材だけを、同じ操作の印で取り消す。全体の「元に戻す」は残る", async () => {
+		const user = userEvent.setup();
+		const { consume, undo } = setup();
+
+		await user.click(screen.getByRole("button", { name: /つくった/u }));
+		await user.click(
+			await screen.findByRole("button", { name: "玉ねぎを戻す" }),
+		);
+
+		const sourceId = consume.mock.calls[0]?.[0].sourceId;
+		const deducted = screen.getByRole("list", { name: "引いたもの" });
+
+		expect(undo).toHaveBeenCalledWith({
+			sourceId,
+			inventoryItemIds: ["inv-onion"],
+		});
+		expect(await within(deducted).findByText("戻しました")).toBeInTheDocument();
+		expect(screen.queryByRole("button", { name: "玉ねぎを戻す" })).toBeNull();
+		expect(
+			screen.getByRole("button", { name: "卵を戻す" }),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("button", { name: "元に戻す" }),
+		).toBeInTheDocument();
+	});
+
+	it("全部の行を1行ずつ戻したら、全体の「元に戻す」は出さない", async () => {
+		const user = userEvent.setup();
+
+		setup();
+
+		await user.click(screen.getByRole("button", { name: /つくった/u }));
+		await user.click(
+			await screen.findByRole("button", { name: "玉ねぎを戻す" }),
+		);
+		await user.click(await screen.findByRole("button", { name: "卵を戻す" }));
+
+		await waitFor(() =>
+			expect(screen.queryByRole("button", { name: "元に戻す" })).toBeNull(),
+		);
+	});
+
+	it("1行を戻せなかったときは、エラーを出し、その行の「戻す」を残す", async () => {
+		const user = userEvent.setup();
+		const { undo } = setup();
+
+		undo.mockRejectedValueOnce(new Error("offline"));
+
+		await user.click(screen.getByRole("button", { name: /つくった/u }));
+		await user.click(
+			await screen.findByRole("button", { name: "玉ねぎを戻す" }),
+		);
+
+		expect(
+			await screen.findByText(/玉ねぎを戻せませんでした/u),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("button", { name: "玉ねぎを戻す" }),
+		).toBeInTheDocument();
 	});
 
 	it("引けなかった行だけ、やり直せる", async () => {

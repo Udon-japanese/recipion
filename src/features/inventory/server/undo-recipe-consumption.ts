@@ -5,6 +5,13 @@ import { requireSession } from "#/integrations/better-auth/require-session";
 
 const undoRecipeConsumptionInputSchema = v.object({
 	sourceId: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(200)),
+	// 1行ずつ戻すときの、在庫の食材。省略は、全部。
+	inventoryItemIds: v.optional(
+		v.pipe(
+			v.array(v.pipe(v.string(), v.minLength(1), v.maxLength(200))),
+			v.maxLength(20),
+		),
+	),
 });
 
 export const undoRecipeConsumptionServerFn = createServerFn({
@@ -16,5 +23,6 @@ export const undoRecipeConsumptionServerFn = createServerFn({
 
 		return createDrizzleInventoryRepository(db, userId).undoRecipeConsumption(
 			data.sourceId,
+			data.inventoryItemIds,
 		);
 	});

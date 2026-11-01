@@ -26,6 +26,7 @@ import type {
 	RecipeConsumptionOperation,
 } from "#/features/recipes/application/consume-recipe-ingredients";
 import {
+	type RecipeConsumptionUndoTarget,
 	runRecipeConsumption,
 	undoRecipeConsumptionWithCache,
 } from "#/features/recipes/application/consume-recipe-ingredients";
@@ -208,7 +209,7 @@ function useRecipeViewSupport(
 	);
 
 	const undoConsumption = useCallback(
-		async (sourceId: string) => {
+		async (target: RecipeConsumptionUndoTarget) => {
 			if (!ownerScope || ownerScope === "guest") {
 				throw new Error("在庫を操作できるユーザーではありません");
 			}
@@ -216,8 +217,16 @@ function useRecipeViewSupport(
 			try {
 				return await undoRecipeConsumptionWithCache(
 					ownerScope,
-					sourceId,
-					(id) => undoRecipeConsumptionServerFn({ data: { sourceId: id } }),
+					target,
+					({ sourceId, inventoryItemIds }) =>
+						undoRecipeConsumptionServerFn({
+							data: {
+								sourceId,
+								...(inventoryItemIds
+									? { inventoryItemIds: [...inventoryItemIds] }
+									: {}),
+							},
+						}),
 					createDexieInventoryCacheRepository(),
 				);
 			} finally {

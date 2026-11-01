@@ -837,9 +837,28 @@ export function createDrizzleInventoryRepository(
 			});
 		},
 
-		async undoRecipeConsumption(sourceId: string) {
+		async undoRecipeConsumption(
+			sourceId: string,
+			inventoryItemIds?: readonly string[],
+		) {
+			// 1行ずつ戻すときは、その食材の履歴だけを対象にする。
+			const itemFilter =
+				inventoryItemIds === undefined
+					? undefined
+					: inArray(inventoryTransaction.inventoryItemId, [
+							...inventoryItemIds,
+						]);
+
+			if (inventoryItemIds !== undefined && inventoryItemIds.length === 0) {
+				return {
+					status: "nothing-to-undo" as const,
+					items: [],
+					unreturnedProduction: 0,
+				};
+			}
+
 			return db.transaction(async (transaction) => {
-				const consumed = await transaction
+				const targets = await transaction
 					.select({
 						inventoryItemId: inventoryTransaction.inventoryItemId,
 						inventoryLotId: inventoryTransaction.inventoryLotId,
@@ -857,10 +876,11 @@ export function createDrizzleInventoryRepository(
 								"recipe-production",
 							]),
 							eq(inventoryTransaction.sourceId, sourceId),
+							itemFilter,
 						),
 					);
 
-				if (consumed.length === 0) {
+				if (targets.length === 0) {
 					return {
 						status: "nothing-to-undo" as const,
 						items: [],
@@ -870,7 +890,7 @@ export function createDrizzleInventoryRepository(
 
 				// 食材の行を、順番を決めてロックする（同時に、別の操作と入れ違いにならないように）。
 				const itemIds = [
-					...new Set(consumed.map((row) => row.inventoryItemId)),
+					...new Set(targets.map((row) => row.inventoryItemId)),
 				].sort();
 
 				for (const itemId of itemIds) {
@@ -901,22 +921,32 @@ export function createDrizzleInventoryRepository(
 						}),
 					);
 
-				const [alreadyUndone] = await transaction
-					.select({ id: inventoryTransaction.id })
-					.from(inventoryTransaction)
-					.where(
-						and(
-							eq(inventoryTransaction.userId, userId),
-							inArray(inventoryTransaction.reason, [
-								"recipe-consumption-undo",
-								"recipe-production-undo",
-							]),
-							eq(inventoryTransaction.sourceId, sourceId),
-						),
-					)
-					.limit(1);
+				// すでに戻した食材（1行ずつ戻したもの・全体を戻したもの）。二重には戻さない。
+				const undoneItemIds = new Set(
+					(
+						await transaction
+							.selectDistinct({
+								inventoryItemId: inventoryTransaction.inventoryItemId,
+							})
+							.from(inventoryTransaction)
+							.where(
+								and(
+									eq(inventoryTransaction.userId, userId),
+									inArray(inventoryTransaction.reason, [
+										"recipe-consumption-undo",
+										"recipe-production-undo",
+									]),
+									eq(inventoryTransaction.sourceId, sourceId),
+									inArray(inventoryTransaction.inventoryItemId, itemIds),
+								),
+							)
+					).map((row) => row.inventoryItemId),
+				);
+				const consumed = targets.filter(
+					(row) => !undoneItemIds.has(row.inventoryItemId),
+				);
 
-				if (alreadyUndone) {
+				if (consumed.length === 0) {
 					return {
 						status: "already-undone" as const,
 						items: await loadItems(),

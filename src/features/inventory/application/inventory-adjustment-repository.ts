@@ -26,7 +26,7 @@ export type InventoryAdjustmentRepositoryResult = {
 };
 
 export type UndoRecipeConsumptionResult = {
-	// undone: 戻した / already-undone: すでに戻してある / nothing-to-undo: 戻す履歴がない。
+	// undone: 戻した / already-undone: 対象は、すべて戻してある / nothing-to-undo: 戻す履歴がない。
 	status: "undone" | "already-undone" | "nothing-to-undo";
 	// 戻した食材の、操作後の数量とロット（キャッシュの更新に使う）。
 	items: {
@@ -52,6 +52,10 @@ export interface MadeRecipeStockRepository {
 }
 
 export interface RecipeConsumptionUndoRepository {
-	// 「作った」で引いた分（同じ sourceId の履歴）を、引いたロットへ戻す。二重には戻さない。
-	undoRecipeConsumption(sourceId: string): Promise<UndoRecipeConsumptionResult>;
+	// 「作った」で引いた分（同じ sourceId の履歴）を、引いたロットへ戻す。二重には戻さない（食材ごとに判定）。
+	// inventoryItemIds を渡すと、その食材の分だけを戻す（1行ずつの「戻す」）。省略は、まだ戻していない全部。
+	undoRecipeConsumption(
+		sourceId: string,
+		inventoryItemIds?: readonly string[],
+	): Promise<UndoRecipeConsumptionResult>;
 }

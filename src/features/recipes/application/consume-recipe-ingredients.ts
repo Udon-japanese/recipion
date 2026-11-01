@@ -147,15 +147,23 @@ export async function runRecipeConsumption(
 	return results;
 }
 
+// 戻す対象：「作った」の操作（sourceId）と、1行ずつ戻すときの在庫の食材（省略は、全部）。
+export type RecipeConsumptionUndoTarget = {
+	sourceId: string;
+	inventoryItemIds?: readonly string[];
+};
+
 /** 引いた分を戻し、在庫のキャッシュも更新する。 */
 export async function undoRecipeConsumptionWithCache(
 	ownerScope: InventoryCacheOwnerScope,
-	sourceId: string,
-	undoRemote: (sourceId: string) => Promise<UndoRecipeConsumptionResult>,
+	target: RecipeConsumptionUndoTarget,
+	undoRemote: (
+		target: RecipeConsumptionUndoTarget,
+	) => Promise<UndoRecipeConsumptionResult>,
 	cacheRepository: InventoryCacheRepository,
 	now = new Date(),
 ): Promise<UndoRecipeConsumptionResult> {
-	const result = await undoRemote(sourceId);
+	const result = await undoRemote(target);
 
 	for (const item of result.items) {
 		try {
