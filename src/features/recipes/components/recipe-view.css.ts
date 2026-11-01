@@ -12,7 +12,11 @@ export const container = style({
 	lineHeight: "var(--line-height-relaxed)",
 });
 
+// 狭い幅（この部品の幅で決める）。操作（編集・…）と題名を横に並べると、題名が細く折れて読みにくい。
+const narrowWidth = "(max-width: 479px)";
+
 // 料理の絵（左）・題名と印（中）・操作（右）。
+// 狭い幅で操作があるときは、1段目に絵と操作、2段目に題名と印を、幅いっぱいに置く。
 export const header = style({
 	display: "grid",
 	gridTemplateColumns: "auto minmax(0, 1fr) auto",
@@ -21,6 +25,15 @@ export const header = style({
 	rowGap: 12,
 	selectors: {
 		'&[data-compact="true"]': { columnGap: 12 },
+	},
+	"@container": {
+		[narrowWidth]: {
+			selectors: {
+				'&[data-has-actions="true"]': {
+					gridTemplateColumns: "auto minmax(0, 1fr)",
+				},
+			},
+		},
 	},
 });
 
@@ -37,6 +50,16 @@ export const heading = style({
 	display: "grid",
 	gap: 6,
 	minWidth: 0,
+	"@container": {
+		[narrowWidth]: {
+			selectors: {
+				[`${header}[data-has-actions="true"] &`]: {
+					gridColumn: "1 / -1",
+					gridRow: 2,
+				},
+			},
+		},
+	},
 });
 
 export const title = style({
@@ -62,6 +85,18 @@ export const actions = style({
 	alignItems: "center",
 	alignSelf: "start",
 	gap: 4,
+	"@container": {
+		[narrowWidth]: {
+			selectors: {
+				[`${header}[data-has-actions="true"] &`]: {
+					gridColumn: 2,
+					gridRow: 1,
+					alignSelf: "center",
+					justifySelf: "end",
+				},
+			},
+		},
+	},
 });
 
 export const headerExtra = style({

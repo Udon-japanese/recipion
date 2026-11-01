@@ -315,7 +315,11 @@ export function RecipeView({
 
 	return (
 		<article className={styles.container}>
-			<header className={styles.header} data-compact={compact}>
+			<header
+				className={styles.header}
+				data-compact={compact}
+				data-has-actions={actions ? true : undefined}
+			>
 				<span className={styles.cover}>
 					<DishCoverView
 						cover={recipe.cover}

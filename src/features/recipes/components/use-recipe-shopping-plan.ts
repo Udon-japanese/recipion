@@ -83,6 +83,13 @@ export function useRecipeShoppingPlan({
 		Record<string, boolean>
 	>({});
 	const [isApplying, setIsApplying] = useState(false);
+	// 入れ終えた件数。チェックを変えるまで、ボタンを「入れました」のままにする
+	// （入れた行は「メモにあり」に変わり、選んでいなかった行の件数に変わって見えるため）。
+	const [appliedCount, setAppliedCount] = useState<number | null>(null);
+	// 「ある」で在庫に登録している食材の名前（押した行のボタンだけを、読み込み中にする）。
+	const [registeringNames, setRegisteringNames] = useState<ReadonlySet<string>>(
+		() => new Set(),
+	);
 	const [linkedSections, setLinkedSections] =
 		useState<LinkedShoppingSections>(noLinkedSections);
 
@@ -158,61 +165,69 @@ export function useRecipeShoppingPlan({
 			: all.filter((item) => !item.branchId);
 	}, [destination, shoppingRepository]);
 
-	const load = useCallback(async () => {
-		setIsLoading(true);
-		setErrorMessage(null);
+	// quiet：「ある」の登録のあとの読み直し。全体の読み込み中の表示を出さない。
+	const load = useCallback(
+		async ({ quiet = false } = {}) => {
+			if (!quiet) {
+				setIsLoading(true);
+			}
 
-		try {
-			setMemoItems(await loadMemoItems());
-		} catch {
-			setErrorMessage("買い物メモを読み込めませんでした");
-		}
+			setErrorMessage(null);
 
-		let loadedStock: InventoryListItem[] | null = null;
-
-		if (ownerScope && ownerScope !== "guest" && loadInventoryItems) {
 			try {
-				loadedStock = await loadInventoryItems();
-				setStockItems(loadedStock);
+				setMemoItems(await loadMemoItems());
 			} catch {
+				setErrorMessage("買い物メモを読み込めませんでした");
+			}
+
+			let loadedStock: InventoryListItem[] | null = null;
+
+			if (ownerScope && ownerScope !== "guest" && loadInventoryItems) {
+				try {
+					loadedStock = await loadInventoryItems();
+					setStockItems(loadedStock);
+				} catch {
+					setStockItems(null);
+					setErrorMessage(
+						"在庫を読み込めませんでした。在庫の情報なしとして、表示しています",
+					);
+				}
+			} else {
 				setStockItems(null);
-				setErrorMessage(
-					"在庫を読み込めませんでした。在庫の情報なしとして、表示しています",
-				);
 			}
-		} else {
-			setStockItems(null);
-		}
 
-		if (loadLinkedRecipe && resolvedNeeds.some((need) => need.linkedRecipe)) {
-			// 在庫に、リンク先のできあがり（作り置き）があれば、その分は、材料を数えない。
-			const result = await loadLinkedShoppingSections(
-				resolvedNeeds,
-				loadLinkedRecipe,
-				collectMadeRecipeStock(loadedStock ?? []),
-			);
-
-			setLinkedSections(result);
-
-			if (result.failedNames.length > 0) {
-				setErrorMessage(
-					`${result.failedNames.join("、")}の材料を読み込めませんでした`,
+			if (loadLinkedRecipe && resolvedNeeds.some((need) => need.linkedRecipe)) {
+				// 在庫に、リンク先のできあがり（作り置き）があれば、その分は、材料を数えない。
+				const result = await loadLinkedShoppingSections(
+					resolvedNeeds,
+					loadLinkedRecipe,
+					collectMadeRecipeStock(loadedStock ?? []),
 				);
-			}
-		}
 
-		setIsLoading(false);
-	}, [
-		loadInventoryItems,
-		loadLinkedRecipe,
-		loadMemoItems,
-		ownerScope,
-		resolvedNeeds,
-	]);
+				setLinkedSections(result);
+
+				if (result.failedNames.length > 0) {
+					setErrorMessage(
+						`${result.failedNames.join("、")}の材料を読み込めませんでした`,
+					);
+				}
+			}
+
+			setIsLoading(false);
+		},
+		[
+			loadInventoryItems,
+			loadLinkedRecipe,
+			loadMemoItems,
+			ownerScope,
+			resolvedNeeds,
+		],
+	);
 
 	// 選び直し・開き直しのとき、前の結果と、チェックの変更を消して、読み込む。
 	const start = useCallback(async () => {
 		setResultMessage(null);
+		setAppliedCount(null);
 		setCheckedOverrides({});
 		setLinkedSections(noLinkedSections);
 		await load();
@@ -251,12 +266,16 @@ export function useRecipeShoppingPlan({
 
 		setIsApplying(true);
 		setErrorMessage(null);
+		setResultMessage(null);
 
 		try {
 			await shoppingRepository.saveAll([
 				...changes.created,
 				...changes.updated,
 			]);
+
+			// メモを読み直す前に決める（読み直すと、入れた行が「メモにあり」に変わり、件数が変わる）。
+			setAppliedCount(selectedNeedIds.size);
 
 			setResultMessage(
 				[
@@ -282,7 +301,14 @@ export function useRecipeShoppingPlan({
 		}
 	}
 
+	// チェック・同じものの扱いを変えたら、入れ終えた表示をやめ、次に入れる件数を見せる。
+	function changeDuplicateMode(mode: DuplicateMode) {
+		setAppliedCount(null);
+		setDuplicateMode(mode);
+	}
+
 	function setChecked(row: RecipeShoppingRow, checked: boolean) {
+		setAppliedCount(null);
 		setCheckedOverrides((current) => ({
 			...current,
 			[row.need.id]: checked,
@@ -307,6 +333,7 @@ export function useRecipeShoppingPlan({
 		group: readonly RecipeShoppingRow[],
 		checked: boolean,
 	) {
+		setAppliedCount(null);
 		setCheckedOverrides((current) => ({
 			...current,
 			...Object.fromEntries(
@@ -326,12 +353,20 @@ export function useRecipeShoppingPlan({
 		}
 
 		setErrorMessage(null);
+		setRegisteringNames((current) => new Set(current).add(ingredientName));
 
 		try {
 			await register(ingredientName);
-			await load();
+			await load({ quiet: true });
 		} catch {
 			setErrorMessage("在庫に登録できませんでした。通信を確認してください");
+		} finally {
+			setRegisteringNames((current) => {
+				const next = new Set(current);
+				next.delete(ingredientName);
+
+				return next;
+			});
 		}
 	}
 
@@ -344,10 +379,14 @@ export function useRecipeShoppingPlan({
 		getGroupCheckState,
 		setGroupChecked,
 		selectedCount: selectedNeedIds.size,
+		appliedCount,
 		duplicateMode,
-		setDuplicateMode,
+		setDuplicateMode: changeDuplicateMode,
 		isLoading,
 		isApplying,
+		isRegistering: (ingredientName: string) =>
+			registeringNames.has(ingredientName),
+		hasRegistering: registeringNames.size > 0,
 		errorMessage,
 		resultMessage,
 		start,
