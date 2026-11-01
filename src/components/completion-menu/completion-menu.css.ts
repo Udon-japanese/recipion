@@ -5,22 +5,32 @@ import { thinScrollbar } from "./scrollbar.css";
 // メニュー（30）・確認のダイアログ（30）より、上。
 const layer = 40;
 
-// PC：カーソルの近くに出す、縦の一覧（メニューと同じ、白い丸角のカード）。
-export const popup = style({
+// PC の縦の一覧の、白い丸角のカード（メニューと同じ）。食材名の入力の一覧も、これを使う。
+export const popupFrame = style({
 	position: "fixed",
 	zIndex: layer,
 	display: "grid",
 	// 高さを縮めるとき（上に置くため）は、一覧が縮んで、中でスクロールする。
 	gridTemplateRows: "minmax(0, 1fr) auto",
 	gap: 4,
-	minWidth: 180,
-	maxWidth: "min(360px, 90vw)",
 	padding: 4,
 	background: "var(--color-surface)",
 	border: "1px solid var(--color-border)",
 	borderRadius: 16,
 	boxShadow: "var(--shadow-md)",
 });
+
+// PC：カーソルの近くに出す、縦の一覧。
+export const popup = style([
+	popupFrame,
+	{ minWidth: 180, maxWidth: "min(360px, 90vw)" },
+]);
+
+// 選んでいる候補（本文の補完は aria-current、食材名の入力は listbox の aria-selected で表す）。
+const activeItem = {
+	background: "var(--color-primary-soft)",
+	fontWeight: "var(--font-weight-bold)",
+} as const;
 
 export const popupList = style([
 	thinScrollbar,
@@ -54,10 +64,8 @@ export const popupItem = style({
 	cursor: "pointer",
 	selectors: {
 		"&:hover": { background: "var(--color-surface-muted)" },
-		'&[aria-current="true"]': {
-			background: "var(--color-primary-soft)",
-			fontWeight: "var(--font-weight-bold)",
-		},
+		'&[aria-current="true"]': activeItem,
+		'&[aria-selected="true"]': activeItem,
 	},
 });
 

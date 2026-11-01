@@ -16,6 +16,7 @@ import {
 } from "#/components/completion-menu/use-completion-layout";
 import { describeError } from "#/errors/user-facing-error";
 import type { CompositionStrategy } from "#/ime/choose-composition-strategy";
+import { readCompletionKey, stepCompletionIndex } from "#/ime/completion-keys";
 import { restoreFocus } from "#/ime/end-composition";
 import { editKindOfInput, type TextSnapshot } from "#/ime/text-history";
 import {
@@ -459,17 +460,11 @@ export function RecipeBodyTextarea({
 		edit({ text: result.text, caret: result.caret });
 	}
 
-	// 候補の選択を、1つ動かす（現在の選択がなければ、↓は先頭、↑は末尾）。端までいくと、反対側へ回る（押し続けると、循環する）。
+	// 候補の選択を、1つ動かす（押し続けると、循環する）。
 	function moveActive(direction: "up" | "down", itemCount: number) {
-		setActiveIndex((current) => {
-			if (direction === "down") {
-				return current === null ? 0 : (current + 1) % itemCount;
-			}
-
-			return current === null
-				? itemCount - 1
-				: (current - 1 + itemCount) % itemCount;
-		});
+		setActiveIndex((current) =>
+			stepCompletionIndex(current, direction, itemCount),
+		);
 	}
 
 	function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
@@ -504,20 +499,19 @@ export function RecipeBodyTextarea({
 			return;
 		}
 
-		switch (event.key) {
-			case "ArrowDown":
+		const key = readCompletionKey(event, false);
+
+		switch (key) {
+			case "down":
+			case "up":
 				event.preventDefault();
-				moveActive("down", completion.items.length);
+				moveActive(key, completion.items.length);
 				break;
-			case "ArrowUp":
-				event.preventDefault();
-				moveActive("up", completion.items.length);
-				break;
-			case "Tab":
+			case "accept":
 				event.preventDefault();
 				accept(activeIndex ?? 0);
 				break;
-			case "Enter":
+			case "accept-selected":
 				if (activeIndex !== null) {
 					event.preventDefault();
 					accept(activeIndex);
@@ -525,10 +519,15 @@ export function RecipeBodyTextarea({
 					continueList(event);
 				}
 				break;
-			case "Escape":
+			case "close":
 				event.preventDefault();
 				setClosedAt({ value, caret });
 				break;
+			default:
+				// 修飾キーつきの Enter は、候補が出ていないときと同じ扱い。
+				if (event.key === "Enter") {
+					continueList(event);
+				}
 		}
 	}
 
