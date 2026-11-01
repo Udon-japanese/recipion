@@ -58,7 +58,7 @@ export function startRecipeConsumption(
 }
 
 /**
- * 在庫にない材料の行に、形が決まっている代わりの食材（冷凍玉ねぎ(みじん切り)など）から引く分を足す。
+ * 選ぶ行（choose）に、本人が選んだ引く先（冷凍野菜などの代わりの食材、または、ある分だけの自分の食材）から引く分を足す。
  * 同じ操作の印（sourceId）に足すので、全体を「元に戻す」で、まとめて戻せる。
  * 引くのは、足したあとで、runRecipeConsumption（その行だけ）を呼んで行う。
  */
@@ -84,7 +84,7 @@ export function addAlternativeConsumption(
 		},
 		row: {
 			...row,
-			status: "consume",
+			status: alternative.isOwn ? "partial" : "consume",
 			target: {
 				inventoryItemId: alternative.inventoryItemId,
 				name: alternative.name,
@@ -92,8 +92,8 @@ export function addAlternativeConsumption(
 				stockUnitLabel: alternative.stockUnitLabel,
 			},
 			deduct: alternative.deduct,
-			required: alternative.deduct,
-			viaStandIn: true,
+			required: alternative.isOwn ? alternative.required : alternative.deduct,
+			viaStandIn: !alternative.isOwn,
 			alternatives: [],
 		},
 	};

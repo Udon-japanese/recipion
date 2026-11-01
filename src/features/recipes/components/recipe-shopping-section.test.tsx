@@ -350,7 +350,7 @@ describe("RecipeShoppingSection", () => {
 		expect(repository.items[0]?.name).toBe("ブロッコリー");
 	});
 
-	it("形が決まっている冷凍（みじん切り）の在庫は、足りているとはせず、在庫があることを知らせる", async () => {
+	it("形が決まっている冷凍（みじん切り）の在庫は、足りているとはせず、在庫の量とともに知らせる", async () => {
 		const user = userEvent.setup();
 
 		render(
@@ -367,7 +367,9 @@ describe("RecipeShoppingSection", () => {
 		const panel = within(await openPanel(user));
 
 		expect(
-			await panel.findByText(/冷凍玉ねぎ\(みじん切り\)の在庫があります/u),
+			await panel.findByText(
+				/冷凍玉ねぎ\(みじん切り\) 300gの在庫で足ります。使うなら、外してください/u,
+			),
 		).toBeInTheDocument();
 		expect(panel.getByLabelText("玉ねぎを買い物メモに入れる")).toBeChecked();
 	});

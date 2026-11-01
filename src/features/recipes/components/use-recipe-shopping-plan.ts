@@ -3,6 +3,7 @@ import type { InventoryPurchaseOwnerScope } from "#/features/inventory/applicati
 import type { InventoryListItem } from "#/features/inventory/application/inventory-query-repository";
 import type { ShoppingRepository } from "#/features/shopping/application/shopping-repository";
 import type { ShoppingItem } from "#/features/shopping/domain/shopping-item";
+import { useStorageItem } from "#/local-storage/use-storage-item";
 import {
 	buildShoppingChanges,
 	type ShoppingDestination,
@@ -24,6 +25,7 @@ import {
 } from "../domain/plan-shopping-from-recipe";
 import type { RecipeEditorIngredientNode } from "../domain/recipe-editor-document";
 import type { RecipeLinkView } from "../domain/recipe-links";
+import { standInModeItem } from "../infrastructure/stand-in-mode-storage";
 
 const noLinkViews: readonly RecipeLinkView[] = [];
 const noLinkedSections: LinkedShoppingSections = {
@@ -110,6 +112,8 @@ export function useRecipeShoppingPlan({
 		[memoItems],
 	);
 
+	const [standInMode] = useStorageItem(standInModeItem);
+
 	const rows = useMemo(
 		() =>
 			planShoppingFromRecipe({
@@ -122,8 +126,9 @@ export function useRecipeShoppingPlan({
 					unitLabel: item.unitLabel,
 				})),
 				duplicateMode,
+				standInMode,
 			}),
-		[needs, stockItems, unpurchasedMemoItems, duplicateMode],
+		[needs, stockItems, unpurchasedMemoItems, duplicateMode, standInMode],
 	);
 
 	const isChecked = (row: RecipeShoppingRow): boolean =>

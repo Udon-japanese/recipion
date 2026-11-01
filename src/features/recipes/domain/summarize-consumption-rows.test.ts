@@ -23,6 +23,8 @@ function row(
 			stockUnitCode: "count",
 			stockUnitLabel: "個",
 			deduct: 1,
+			isOwn: false,
+			required: 1,
 		})),
 	};
 }
@@ -56,9 +58,9 @@ describe("summarizeConsumptionRows", () => {
 		]);
 	});
 
-	it("代わりの食材を引ける行は、まとめず、1行ずつ残す（ボタンを付けるため）", () => {
+	it("代わりの食材を選ぶ行は、まとめず、1行ずつ残す（ボタンを付けるため）", () => {
 		const summary = summarizeConsumptionRows(
-			[row("玉ねぎ", "no-stock", 1), row("卵", "no-stock")],
+			[row("玉ねぎ", "choose", 1), row("卵", "no-stock")],
 			new Set(),
 		);
 

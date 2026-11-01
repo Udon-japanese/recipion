@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { StandInMode } from "./find-stand-ins";
 import {
 	flattenRecipeIngredients,
 	type PlanShoppingFromRecipeInput,
@@ -325,11 +326,51 @@ describe("planShoppingFromRecipe：冷凍野菜が代わりになる", () => {
 
 		expect(row?.stock).toMatchObject({
 			judgment: { status: "short" },
-			fixedShapeStandInNames: ["冷凍玉ねぎ(みじん切り)"],
+			askStandIns: [{ name: "冷凍玉ねぎ(みじん切り)", quantity: 300 }],
 		});
 		expect(row?.stock).not.toHaveProperty("standInName");
 		expect(row?.defaultChecked).toBe(true);
 	});
+
+	it("形が決まっている冷凍の量が足りなければ、在庫があるとも知らせない", () => {
+		const [row] = plan({
+			needs: [need("玉ねぎ", 2, "個")],
+			stockItems: [
+				{
+					name: "冷凍玉ねぎ(みじん切り)",
+					quantity: 300,
+					stockUnitCode: "g",
+					stockUnitLabel: "g",
+				},
+			],
+		});
+
+		expect(row?.stock).not.toHaveProperty("askStandIns");
+		expect(row?.defaultChecked).toBe(true);
+	});
+
+	// [設定, 足りている（チェックなし）か, 知らせるか]
+	const modeCases: [StandInMode, boolean, boolean][] = [
+		["auto", true, false],
+		["ask", false, true],
+		["off", false, false],
+	];
+
+	it.each(modeCases)(
+		"形が自由な冷凍で足りるとき、設定 %s では、足りている=%s・知らせる=%s",
+		(standInMode, isEnough, isAsked) => {
+			const [row] = plan({
+				needs: [need("ブロッコリー", 100, "g")],
+				stockItems: [frozenBroccoli],
+				standInMode,
+			});
+
+			expect(row?.defaultChecked).toBe(!isEnough);
+			expect(
+				row?.stock.kind === "judged" && row.stock.askStandIns !== undefined,
+			).toBe(isAsked);
+		},
+	);
 });
 
 describe("planShoppingFromRecipe：有無だけで管理している食材", () => {

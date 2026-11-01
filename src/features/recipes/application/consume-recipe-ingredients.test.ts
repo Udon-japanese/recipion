@@ -3,6 +3,7 @@ import { buildInventoryListItem } from "#/test/builders/build-inventory-list-ite
 import { createFakeInventoryCacheRepository } from "#/test/fakes/fake-inventory-cache-repository";
 import type { RecipeConsumptionRow } from "../domain/plan-recipe-consumption";
 import {
+	addAlternativeConsumption,
 	runRecipeConsumption,
 	startRecipeConsumption,
 	undoRecipeConsumptionWithCache,
@@ -61,6 +62,68 @@ describe("startRecipeConsumption", () => {
 		).toEqual([
 			["卵", 2, "id-2"],
 			["牛乳", 100, "id-3"],
+		]);
+	});
+});
+
+describe("addAlternativeConsumption", () => {
+	const chooseRow: RecipeConsumptionRow = {
+		...row("玉ねぎ", null, null),
+		status: "choose",
+	};
+	const base = { stockUnitLabel: "g", stockUnitCode: "g" as const };
+
+	// [説明, 選んだ引く先, 期待する行]
+	const cases: [
+		string,
+		RecipeConsumptionRow["alternatives"][number],
+		Partial<RecipeConsumptionRow>,
+	][] = [
+		[
+			"冷凍から引くときは、必要な量を全部引く（代わりの食材から）",
+			{
+				...base,
+				inventoryItemId: "inv-frozen",
+				name: "冷凍玉ねぎ(みじん切り)",
+				deduct: 400,
+				isOwn: false,
+				required: 400,
+			},
+			{ status: "consume", deduct: 400, required: 400, viaStandIn: true },
+		],
+		[
+			"自分の食材のある分だけを選ぶと、足りない分は残る",
+			{
+				...base,
+				stockUnitCode: "count",
+				stockUnitLabel: "個",
+				inventoryItemId: "inv-onion",
+				name: "玉ねぎ",
+				deduct: 1,
+				isOwn: true,
+				required: 2,
+			},
+			{ status: "partial", deduct: 1, required: 2, viaStandIn: false },
+		],
+	];
+
+	it.each(cases)("%s", (_title, alternative, expected) => {
+		const added = addAlternativeConsumption(
+			{ sourceId: "recipe-1:s", entries: [] },
+			chooseRow,
+			alternative,
+			createIds(),
+		);
+
+		expect(added.row).toMatchObject({ ...expected, alternatives: [] });
+		expect(added.operation.entries).toEqual([
+			{
+				needId: "玉ねぎ",
+				inventoryItemId: alternative.inventoryItemId,
+				quantity: alternative.deduct,
+				stockUnitCode: alternative.stockUnitCode,
+				transactionId: "id-1",
+			},
 		]);
 	});
 });

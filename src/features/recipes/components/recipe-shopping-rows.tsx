@@ -30,13 +30,27 @@ function describeStock(row: RecipeShoppingRow): {
 } {
 	const base = describeStockBase(row);
 
-	// 形が決まっている代わりの食材（冷凍玉ねぎ(みじん切り)など）は、足りているとは判定せず、在庫があることだけ知らせる。
-	const names =
-		row.stock.kind === "judged" ? row.stock.fixedShapeStandInNames : undefined;
+	// 使うかを本人が選ぶ代わりの食材（設定・形の決まった冷凍）は、足りているとは判定せず、在庫の量とともに知らせる。
+	// 量を満たすものだけが入っている（足りないものは、知らせない）。
+	const standIns =
+		row.stock.kind === "judged" ? row.stock.askStandIns : undefined;
 
-	return names && names.length > 0
-		? { ...base, text: `${base.text}（${names.join("、")}の在庫があります）` }
-		: base;
+	if (!standIns || standIns.length === 0) {
+		return base;
+	}
+
+	const names = standIns
+		.map((standIn) =>
+			standIn.isPresenceOnly
+				? standIn.name
+				: `${standIn.name} ${formatStockAmount(standIn.quantity, standIn.stockUnitCode)}${standIn.stockUnitLabel}`,
+		)
+		.join("、");
+
+	return {
+		...base,
+		text: `${base.text}（${names}の在庫で足ります。使うなら、外してください）`,
+	};
 }
 
 function describeStockBase(row: RecipeShoppingRow): {

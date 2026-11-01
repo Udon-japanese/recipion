@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { StandInMode } from "./find-stand-ins";
 import {
 	planRecipeConsumption,
 	type RecipeConsumptionStockItem,
@@ -111,10 +112,39 @@ const cases: [
 		{ status: "no-stock", deduct: null },
 	],
 	[
-		"形が決まっている冷凍は、自動では引かない",
+		"形が決まっている冷凍は、自動では引かず、選ぶ行にする",
 		need("玉ねぎ", 100, "g"),
 		[stock("冷凍玉ねぎ(みじん切り)", 500, "g", "g")],
+		{ status: "choose", deduct: null },
+	],
+	[
+		"形が決まっている冷凍の量が足りなければ、選ぶ行にもしない",
+		need("玉ねぎ", 600, "g"),
+		[stock("冷凍玉ねぎ(みじん切り)", 500, "g", "g")],
 		{ status: "no-stock", deduct: null },
+	],
+	[
+		"生が少しあり、冷凍で全量が足りるなら、冷凍から引く（組み合わせない）",
+		need("ブロッコリー", 300, "g"),
+		[
+			stock("ブロッコリー", 100, "g", "g"),
+			stock("冷凍ブロッコリー", 500, "g", "g"),
+		],
+		{
+			status: "consume",
+			deduct: 300,
+			target: "inv-冷凍ブロッコリー",
+			viaStandIn: true,
+		},
+	],
+	[
+		"生が少しあり、冷凍でも足りなければ、生のある分だけ引く",
+		need("ブロッコリー", 300, "g"),
+		[
+			stock("ブロッコリー", 100, "g", "g"),
+			stock("冷凍ブロッコリー", 200, "g", "g"),
+		],
+		{ status: "partial", deduct: 100, target: "inv-ブロッコリー" },
 	],
 ];
 
@@ -133,22 +163,57 @@ describe("planRecipeConsumption", () => {
 		}
 	});
 
-	it("形が決まっている冷凍は、候補として知らせる（引く量は、必要な量と在庫の少ない方）", () => {
+	it("選ぶ行の候補は、冷凍の必要な量（換算したもの）と、生のある分だけ", () => {
 		const [row] = planRecipeConsumption(
-			[need("玉ねぎ", 600, "g")],
-			[stock("冷凍玉ねぎ(みじん切り)", 500, "g", "g")],
+			[need("玉ねぎ", 2, "個")],
+			[
+				stock("玉ねぎ", 1, "count", "個"),
+				stock("冷凍玉ねぎ(みじん切り)", 500, "g", "g"),
+			],
 		);
 
+		expect(row?.status).toBe("choose");
 		expect(row?.alternatives).toEqual([
 			{
 				inventoryItemId: "inv-冷凍玉ねぎ(みじん切り)",
 				name: "冷凍玉ねぎ(みじん切り)",
 				stockUnitCode: "g",
 				stockUnitLabel: "g",
-				deduct: 500,
+				deduct: 400,
+				isOwn: false,
+				required: 400,
+			},
+			{
+				inventoryItemId: "inv-玉ねぎ",
+				name: "玉ねぎ",
+				stockUnitCode: "count",
+				stockUnitLabel: "個",
+				deduct: 1,
+				isOwn: true,
+				required: 2,
 			},
 		]);
 	});
+
+	// [設定, 期待する状態]
+	const modeCases: [StandInMode, string][] = [
+		["auto", "consume"],
+		["ask", "choose"],
+		["off", "no-stock"],
+	];
+
+	it.each(modeCases)(
+		"形が自由な冷凍で足りるとき、設定 %s なら %s",
+		(mode, status) => {
+			const [row] = planRecipeConsumption(
+				[need("ブロッコリー", 300, "g")],
+				[stock("冷凍ブロッコリー", 500, "g", "g")],
+				mode,
+			);
+
+			expect(row?.status).toBe(status);
+		},
+	);
 
 	it("同じ食材が複数行あるとき、残りの在庫を順に使う", () => {
 		const rows = planRecipeConsumption(

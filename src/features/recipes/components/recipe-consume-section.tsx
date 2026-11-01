@@ -6,6 +6,7 @@ import type { UndoRecipeConsumptionResult } from "#/features/inventory/applicati
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import type { InventoryListItem } from "#/features/inventory/application/inventory-query-repository";
 import { formatStockAmount } from "#/features/quantity/domain/format-quantity";
+import { useStorageItem } from "#/local-storage/use-storage-item";
 import {
 	addAlternativeConsumption,
 	type RecipeConsumptionEntryResult,
@@ -39,6 +40,7 @@ import {
 	type SkippedReason,
 	summarizeConsumptionRows,
 } from "../domain/summarize-consumption-rows";
+import { standInModeItem } from "../infrastructure/stand-in-mode-storage";
 import { RecipeMadeOptions } from "./recipe-made-options";
 import * as styles from "./recipe-shopping-section.css";
 
@@ -159,6 +161,7 @@ export function RecipeConsumeSection({
 	);
 	// リンク先のレシピは、在庫のできあがり（作り置き）があれば、先にそれから使う（初期値）。材料から作るときは、外す。
 	const [useMadeStock, setUseMadeStock] = useState(true);
+	const [standInMode] = useStorageItem(standInModeItem);
 
 	const resolvedNeeds = useMemo(
 		() =>
@@ -230,7 +233,7 @@ export function RecipeConsumeSection({
 			// 在庫のできあがり（作り置き）を先に引く。その分の材料は、needs に含まれない。
 			const rows = [
 				...planMadeRecipeConsumption(madeUses, stockItems),
-				...planRecipeConsumption(needs, stockItems),
+				...planRecipeConsumption(needs, stockItems, standInMode),
 			];
 			const operation = startRecipeConsumption(recipePublicId, rows);
 			const results = await consume(operation);
@@ -293,7 +296,7 @@ export function RecipeConsumeSection({
 		}
 	}
 
-	// 在庫にない材料を、形が決まっている代わりの食材（冷凍玉ねぎ(みじん切り)など）から引く。
+	// 選ぶ行（choose）を、本人が選んだ引く先（冷凍野菜など、または、ある分だけの自分の食材）から引く。
 	async function handleUseAlternative(
 		row: RecipeConsumptionRow,
 		alternative: RecipeConsumptionAlternative,
@@ -534,7 +537,10 @@ export function RecipeConsumeSection({
 										{summary.hasAlternatives.map((row) => (
 											<li className={styles.row} key={row.need.id}>
 												<span className={styles.status}>
-													{`${row.need.name}：在庫にないため、引いていません（${row.alternatives.map((alternative) => alternative.name).join("、")}の在庫があります）`}
+													{`${row.need.name}：まだ引いていません（${row.alternatives
+														.filter((alternative) => !alternative.isOwn)
+														.map((alternative) => alternative.name)
+														.join("、")}の在庫で足ります）`}
 												</span>
 												{row.alternatives.map((alternative) => (
 													<Button
@@ -546,7 +552,7 @@ export function RecipeConsumeSection({
 															void handleUseAlternative(row, alternative)
 														}
 													>
-														{`${alternative.name}を引く（${formatStockAmount(alternative.deduct, alternative.stockUnitCode)}${alternative.stockUnitLabel}）`}
+														{`${alternative.name}${alternative.isOwn ? "のある分だけ" : ""}を引く（${formatStockAmount(alternative.deduct, alternative.stockUnitCode)}${alternative.stockUnitLabel}）`}
 													</Button>
 												))}
 											</li>

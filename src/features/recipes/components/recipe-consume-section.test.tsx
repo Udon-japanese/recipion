@@ -170,7 +170,7 @@ describe("RecipeConsumeSection", () => {
 
 		expect(
 			await screen.findByText(
-				/玉ねぎ：在庫にないため.*冷凍玉ねぎ\(みじん切り\)の在庫があります/u,
+				/玉ねぎ：まだ引いていません（冷凍玉ねぎ\(みじん切り\)の在庫で足ります）/u,
 			),
 		).toBeInTheDocument();
 		expect(consume.mock.calls[0]?.[0].entries).toEqual([]);
