@@ -107,6 +107,15 @@ export function CornerSheet({
 
 		function handleKeyDown(event: KeyboardEvent) {
 			if (event.key === "Escape") {
+				// 候補を開いている入力欄（食材名など）の Esc は、候補だけを閉じる。シートは閉じない。
+				if (
+					event.target instanceof HTMLElement &&
+					event.target.getAttribute("role") === "combobox" &&
+					event.target.getAttribute("aria-expanded") === "true"
+				) {
+					return;
+				}
+
 				// 下のシートまで閉じないよう、ここで止める（シートより先に受ける）。
 				event.stopImmediatePropagation();
 				onDismissRef.current?.();

@@ -52,6 +52,49 @@ describe("CornerSheet", () => {
 		expect(onUndo).not.toHaveBeenCalled();
 	});
 
+	it("候補を開いている入力欄（combobox）の Esc では閉じない。候補を閉じていれば、閉じる", async () => {
+		const user = userEvent.setup();
+		const onDismiss = vi.fn();
+
+		const { rerender } = render(
+			<CornerSheet
+				open
+				title="買うものを入れる"
+				onDismiss={onDismiss}
+				right={{ label: "入れる", icon: "check", onClick: vi.fn() }}
+			>
+				<input
+					aria-label="食材名"
+					role="combobox"
+					aria-controls="list"
+					aria-expanded
+				/>
+			</CornerSheet>,
+		);
+
+		await user.click(screen.getByLabelText("食材名"));
+		await user.keyboard("{Escape}");
+		expect(onDismiss).not.toHaveBeenCalled();
+
+		rerender(
+			<CornerSheet
+				open
+				title="買うものを入れる"
+				onDismiss={onDismiss}
+				right={{ label: "入れる", icon: "check", onClick: vi.fn() }}
+			>
+				<input
+					aria-label="食材名"
+					role="combobox"
+					aria-controls="list"
+					aria-expanded={false}
+				/>
+			</CornerSheet>,
+		);
+		await user.keyboard("{Escape}");
+		expect(onDismiss).toHaveBeenCalledTimes(1);
+	});
+
 	it("onDismiss がなければ、Esc も暗幕も、何も起こさない", async () => {
 		const user = userEvent.setup();
 		const { onUndo, onClose } = setup();

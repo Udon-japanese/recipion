@@ -1,7 +1,7 @@
 // 変換中（IME の入力中）の入力欄から、フォーカスを外して、変換を確定させる。
 // 確定のイベント（compositionend）を待って、終わる。来なければ（Safari など）、少し待って終わる。
 export function endComposition(
-	textarea: HTMLTextAreaElement,
+	textarea: HTMLTextAreaElement | HTMLInputElement,
 	timeoutMs = 150,
 ): Promise<void> {
 	return new Promise((resolve) => {
@@ -20,7 +20,7 @@ export function endComposition(
 
 // フォーカスを戻して、カーソルを置く。フォーカスを外す処理の最中の focus() は、取り消されることがあるので、次の処理で行う。
 export function restoreFocus(
-	textarea: HTMLTextAreaElement,
+	textarea: HTMLTextAreaElement | HTMLInputElement,
 	caret: number,
 	retryMs = 50,
 ): void {
