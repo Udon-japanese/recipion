@@ -51,7 +51,7 @@
     "dexie": "^4.4.7",
     "drizzle-kit": "^0.31.11",
     "drizzle-orm": "^0.45.4",
-    "jose": "6.2.13",
+    "jose": "6.2.14",
     "nanoid": "^6.0.2",
     "pg": "^8.23.1",
     "react": "^19.3.1",
@@ -84,6 +84,6 @@
     "vite": "^8.3.5",
     "vitest": "^5.0.5",
     "vitest-browser-react": "^2.3.0",
-    "wrangler": "^4.155.0"
+    "wrangler": "^4.156.0"
   }
 }
