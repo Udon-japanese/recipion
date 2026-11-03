@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button } from "#/components/button/button";
+import { useButtonAction } from "#/components/button/use-button-action";
 import { input as fieldInput } from "#/components/field/field.css";
 import { Toggle } from "#/components/toggle/toggle";
 import { QuantityInput } from "#/features/quantity/components/quantity-input";
@@ -48,7 +49,7 @@ export function LotEditor({
 	const [quantityText, setQuantityText] = useState(initialQuantity);
 	const [expiry, setExpiry] = useState(initialExpiry);
 	const [saveAsDefault, setSaveAsDefault] = useState(false);
-	const [isSaving, setIsSaving] = useState(false);
+	const { status, run, isPending } = useButtonAction();
 
 	async function save() {
 		const edits: LotEdits = {};
@@ -71,15 +72,15 @@ export function LotEditor({
 			return;
 		}
 
-		setIsSaving(true);
+		await run(async () => {
+			const done = await onSave(edits);
 
-		const done = await onSave(edits);
+			if (done) {
+				onClose();
+			}
 
-		setIsSaving(false);
-
-		if (done) {
-			onClose();
-		}
+			return done;
+		});
 	}
 
 	return (
@@ -89,7 +90,7 @@ export function LotEditor({
 					className={fieldInput}
 					aria-label={`${label}の数量`}
 					value={quantityText}
-					disabled={isSaving}
+					disabled={isPending}
 					onChange={setQuantityText}
 					unitLabel={item.stockUnitLabel}
 					trailing={<span>{item.stockUnitLabel}</span>}
@@ -100,7 +101,7 @@ export function LotEditor({
 				value={expiry}
 				onChange={setExpiry}
 				today={today}
-				disabled={isSaving}
+				disabled={isPending}
 				extraDetails={
 					<div className={styles.checkLine}>
 						<Toggle
@@ -119,12 +120,17 @@ export function LotEditor({
 				<Button
 					variant="secondary"
 					size="sm"
-					disabled={isSaving}
+					disabled={isPending}
 					onClick={onClose}
 				>
 					やめる
 				</Button>
-				<Button size="sm" disabled={isSaving} onClick={() => void save()}>
+				<Button
+					size="sm"
+					status={status}
+					disabled={isPending}
+					onClick={() => void save()}
+				>
 					保存
 				</Button>
 			</div>
