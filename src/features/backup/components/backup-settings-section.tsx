@@ -189,7 +189,6 @@ export function BackupSettingsSection({
 				<h2 className={settingsStyles.sectionTitle} id="settings-data">
 					在庫とレシピ
 				</h2>
-				<p className={settingsStyles.sectionNote}>ファイルに保存</p>
 			</div>
 			<p className={styles.text}>
 				在庫とレシピを、この端末のファイルに書き出せます。書き出したファイルを読み込むと、その内容に戻せます（機種を変えたとき、アカウントを作り直したときなど）。

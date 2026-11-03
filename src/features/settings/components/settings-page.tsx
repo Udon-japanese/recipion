@@ -131,7 +131,6 @@ function InventorySettings() {
 				<h2 className={styles.sectionTitle} id="settings-inventory">
 					在庫
 				</h2>
-				<p className={styles.sectionNote}>この端末に保存</p>
 			</div>
 			<ExpiryEstimateSetting
 				level={expiryEstimateLevel}
