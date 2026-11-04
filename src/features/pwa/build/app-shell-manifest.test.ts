@@ -41,7 +41,7 @@ describe("createBuildId", () => {
 
 describe("renderBuildScript", () => {
 	it("サービスワーカーが読める形で、ビルド ID と一覧を出力する", () => {
-		const script = renderBuildScript("abc123", ["/assets/a.js"]);
+		const script = renderBuildScript("abc123", ["/assets/a.js"], ["/shopping"]);
 		const self: { __APP_BUILD__?: unknown } = {};
 
 		new Function("self", script)(self);
@@ -49,6 +49,7 @@ describe("renderBuildScript", () => {
 		expect(self.__APP_BUILD__).toEqual({
 			id: "abc123",
 			urls: ["/assets/a.js"],
+			shellPages: ["/shopping"],
 		});
 	});
 });
