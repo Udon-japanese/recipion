@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DishPlacement } from "../domain/dish-cover";
 import { findDishPart } from "../domain/dish-part";
 import { dishPartCategories } from "../domain/dish-part-category";
-import { DishCoverEditor } from "./dish-cover-editor";
+import { DishArtEditor } from "./dish-art-editor";
 
 // 主な入力が、指（coarse）か、マウス（fine）か。
 function mockPointer(coarse: boolean) {
@@ -30,7 +30,7 @@ function Harness() {
 
 	return (
 		<>
-			<DishCoverEditor placements={placements} onChange={setPlacements} />
+			<DishArtEditor placements={placements} onChange={setPlacements} />
 			<output data-testid="count">{placements.length}</output>
 		</>
 	);
@@ -52,7 +52,7 @@ function deleteHandle() {
 	return document.querySelector('[data-handle="delete"]');
 }
 
-describe("DishCoverEditor：選んだ部品を消す", () => {
+describe("DishArtEditor：選んだ部品を消す", () => {
 	it("指で操作する端末では、絵の上に「×」を出さず、道具の列の「この部品を消す」で消す", async () => {
 		mockPointer(true);
 		const user = userEvent.setup();

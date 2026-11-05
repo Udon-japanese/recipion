@@ -14,7 +14,7 @@ import {
 	setDishPartScale,
 	snapRotation,
 	turnDishPart,
-} from "./edit-dish-cover";
+} from "./edit-dish-art";
 
 const rice: DishPlacement = { partId: "rice", x: 20, y: 20, scale: 0.5 };
 const tofu: DishPlacement = { partId: "tofu", x: 25, y: 22, scale: 0.5 };
