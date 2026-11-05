@@ -14,9 +14,15 @@ import {
 	type RecipeConsumptionUndoTarget,
 	startRecipeConsumption,
 } from "../application/consume-recipe-ingredients";
-import { loadLinkedShoppingSections } from "../application/load-linked-shopping-sections";
+import {
+	describeLinkedSectionProblems,
+	loadLinkedShoppingSections,
+} from "../application/load-linked-shopping-sections";
 import type { RecipeDetail } from "../application/recipe-repository";
-import { resolveIngredientLinks } from "../domain/link-ingredient-needs";
+import {
+	findMissingIngredientLinks,
+	resolveIngredientLinks,
+} from "../domain/link-ingredient-needs";
 import {
 	collectMadeRecipeStock,
 	type MadeRecipeUse,
@@ -82,6 +88,8 @@ type Outcome = {
 	unreturnedProduction: number;
 	// 1行ずつ戻した、在庫の食材。
 	returnedItemIds: ReadonlySet<string>;
+	// リンク先のレシピが読めない・見つからないため、引く材料に入れなかったことの知らせ。
+	linkProblem: string | null;
 };
 
 // その行で引いた、在庫の食材（代わりの食材から引いた分も含む）。
@@ -168,6 +176,15 @@ export function RecipeConsumeSection({
 			resolveIngredientLinks(flattenRecipeIngredients(ingredients), linkViews),
 		[ingredients, linkViews],
 	);
+	// リンク先が見つからない材料（引く材料から外れる）。外したことを、結果のシートで知らせる。
+	const missingLinkNames = useMemo(
+		() =>
+			findMissingIngredientLinks(
+				flattenRecipeIngredients(ingredients),
+				linkViews,
+			),
+		[ingredients, linkViews],
+	);
 
 	if (!ownerScope || ownerScope === "guest" || resolvedNeeds.length === 0) {
 		return null;
@@ -177,6 +194,7 @@ export function RecipeConsumeSection({
 	async function loadNeeds(stockItems: readonly InventoryListItem[]): Promise<{
 		needs: RecipeShoppingNeed[];
 		madeUses: MadeRecipeUse[];
+		linkProblem: string | null;
 	}> {
 		const own = resolvedNeeds.filter((need) => !need.linkedRecipe);
 
@@ -184,6 +202,10 @@ export function RecipeConsumeSection({
 			return {
 				needs: mergeRecipeNeeds(own.map(withRangeUpperBound)),
 				madeUses: [],
+				linkProblem: describeLinkedSectionProblems({
+					failedNames: [],
+					missingNames: missingLinkNames,
+				}),
 			};
 		}
 
@@ -201,6 +223,10 @@ export function RecipeConsumeSection({
 				),
 			),
 			madeUses: linked.madeUses,
+			linkProblem: describeLinkedSectionProblems({
+				failedNames: linked.failedNames,
+				missingNames: [...missingLinkNames, ...linked.missingNames],
+			}),
 		};
 	}
 
@@ -229,7 +255,7 @@ export function RecipeConsumeSection({
 
 		try {
 			const stockItems = await loadInventoryItems();
-			const { needs, madeUses } = await loadNeeds(stockItems);
+			const { needs, madeUses, linkProblem } = await loadNeeds(stockItems);
 			// 在庫のできあがり（作り置き）を先に引く。その分の材料は、needs に含まれない。
 			const rows = [
 				...planMadeRecipeConsumption(madeUses, stockItems),
@@ -255,6 +281,7 @@ export function RecipeConsumeSection({
 						: null,
 				unreturnedProduction: 0,
 				returnedItemIds: new Set(),
+				linkProblem,
 			});
 		} catch {
 			setErrorMessage("在庫から引けませんでした。通信を確認してください");
@@ -390,9 +417,6 @@ export function RecipeConsumeSection({
 		}
 	}
 
-	const consumedCount = outcome
-		? outcome.operation.entries.length - outcome.failedNeedIds.size
-		: 0;
 	const hasPendingProduction =
 		outcome?.production !== null && outcome?.production?.isDone === false;
 	const summary = summarizeConsumptionRows(
@@ -405,6 +429,10 @@ export function RecipeConsumeSection({
 		itemIdsOf(outcome.operation, row).every((id) =>
 			outcome.returnedItemIds.has(id),
 		);
+	// 見出しの「n件」は、引いた材料の行の数（1行ずつ戻した行は、数えない）。
+	const consumedCount = summary.deducted.filter(
+		(row) => !isReturned(row),
+	).length;
 	// 引いた材料が1つだけなら、1行の「戻す」は出さない（全体の「元に戻す」と同じになるため）。
 	const canReturnRows = summary.deducted.length > 1;
 	const hasUndoableWork =
@@ -513,6 +541,9 @@ export function RecipeConsumeSection({
 											? "在庫に入れる分をやり直す"
 											: "引けなかった分をやり直す"}
 									</Button>
+								) : null}
+								{outcome.linkProblem ? (
+									<Note tone="warn">{outcome.linkProblem}</Note>
 								) : null}
 								{outcome.production && madeRecipe ? (
 									<p className={styles.status}>

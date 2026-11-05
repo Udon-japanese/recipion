@@ -284,6 +284,8 @@ describe("RecipeConsumeSection", () => {
 		expect(
 			screen.getByRole("button", { name: "元に戻す" }),
 		).toBeInTheDocument();
+		// 見出しの件数は、戻した行を数えない（2件 → 1件）。
+		expect(screen.getByText("在庫から1件を引きました")).toBeInTheDocument();
 	});
 
 	it("引いた材料が1つだけなら、1行の「戻す」は出さない（全体の「元に戻す」だけ）", async () => {
@@ -625,6 +627,49 @@ describe("RecipeConsumeSection", () => {
 				screen.queryByRole("button", { name: "作ったときの設定" }),
 			).toBeNull();
 		});
+
+		// リンク先のレシピが読めない・見つからないとき、その材料は引かないが、黙らずに、結果のシートで知らせる。
+		const missingText =
+			"和風ドレッシングは見つからない（削除された・見られなくなった）ため、材料に入れていません。";
+
+		it.each([
+			{
+				label: "読み込めない",
+				views: linkViews,
+				loadLinkedRecipe: async () => {
+					throw new Error("network");
+				},
+				text: "和風ドレッシングの材料を読み込めませんでした。",
+			},
+			{
+				label: "見つからない",
+				views: linkViews,
+				loadLinkedRecipe: async () => null,
+				text: missingText,
+			},
+			// 消えたあとに画面を読み込み直すと、リンク先は、はじめから空（取りにいかない）。
+			{
+				label: "はじめから空",
+				views: [{ label: "和風ドレッシング", target: null }],
+				loadLinkedRecipe: async () => dressing,
+				text: missingText,
+			},
+		])(
+			"リンク先が「$label」ときは、知らせる",
+			async ({ views, loadLinkedRecipe, text }) => {
+				const user = userEvent.setup();
+
+				setup({
+					ingredients: [linkIngredient, ingredient("own", "卵", 1, "個")],
+					linkViews: views,
+					loadLinkedRecipe,
+				});
+
+				await user.click(screen.getByRole("button", { name: /つくった/u }));
+
+				expect(await screen.findByText(text)).toBeInTheDocument();
+			},
+		);
 
 		it("できあがりの在庫がなければ、材料を引く", async () => {
 			const user = userEvent.setup();

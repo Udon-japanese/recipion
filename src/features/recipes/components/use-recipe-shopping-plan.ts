@@ -9,11 +9,15 @@ import {
 	type ShoppingDestination,
 } from "../application/build-shopping-changes";
 import {
+	describeLinkedSectionProblems,
 	type LinkedShoppingSections,
 	loadLinkedShoppingSections,
 } from "../application/load-linked-shopping-sections";
 import type { RecipeDetail } from "../application/recipe-repository";
-import { resolveIngredientLinks } from "../domain/link-ingredient-needs";
+import {
+	findMissingIngredientLinks,
+	resolveIngredientLinks,
+} from "../domain/link-ingredient-needs";
 import { collectMadeRecipeStock } from "../domain/made-recipe-stock";
 import { mergeRecipeNeeds } from "../domain/merge-recipe-needs";
 import {
@@ -32,6 +36,7 @@ const noLinkedSections: LinkedShoppingSections = {
 	sections: [],
 	madeUses: [],
 	failedNames: [],
+	missingNames: [],
 };
 
 // まとめのチェックの状態：全部・一部・なし。
@@ -97,6 +102,15 @@ export function useRecipeShoppingPlan({
 	const resolvedNeeds = useMemo(
 		() =>
 			resolveIngredientLinks(flattenRecipeIngredients(ingredients), linkViews),
+		[ingredients, linkViews],
+	);
+	// リンク先が見つからない材料（候補から外れる）。外したことを知らせる。
+	const missingLinkNames = useMemo(
+		() =>
+			findMissingIngredientLinks(
+				flattenRecipeIngredients(ingredients),
+				linkViews,
+			),
 		[ingredients, linkViews],
 	);
 
@@ -196,21 +210,26 @@ export function useRecipeShoppingPlan({
 				setStockItems(null);
 			}
 
+			let linked = noLinkedSections;
+
 			if (loadLinkedRecipe && resolvedNeeds.some((need) => need.linkedRecipe)) {
 				// 在庫に、リンク先のできあがり（作り置き）があれば、その分は、材料を数えない。
-				const result = await loadLinkedShoppingSections(
+				linked = await loadLinkedShoppingSections(
 					resolvedNeeds,
 					loadLinkedRecipe,
 					collectMadeRecipeStock(loadedStock ?? []),
 				);
 
-				setLinkedSections(result);
+				setLinkedSections(linked);
+			}
 
-				if (result.failedNames.length > 0) {
-					setErrorMessage(
-						`${result.failedNames.join("、")}の材料を読み込めませんでした`,
-					);
-				}
+			const linkProblem = describeLinkedSectionProblems({
+				failedNames: linked.failedNames,
+				missingNames: [...missingLinkNames, ...linked.missingNames],
+			});
+
+			if (linkProblem) {
+				setErrorMessage(linkProblem);
 			}
 
 			setIsLoading(false);
@@ -219,6 +238,7 @@ export function useRecipeShoppingPlan({
 			loadInventoryItems,
 			loadLinkedRecipe,
 			loadMemoItems,
+			missingLinkNames,
 			ownerScope,
 			resolvedNeeds,
 		],

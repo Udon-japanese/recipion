@@ -261,7 +261,7 @@ function judgeWithStandIns(
  * レシピの材料から、買い物メモへ入れる項目を決める。
  * - 在庫で足りているか判定する（数量を比べ、比べられなければ、在庫の有無。judgeIngredientStock）。
  * - 足りなければ、代わりの食材（冷凍野菜など）の在庫で、必要な量を満たすかも見る（設定に従う。findStandInCandidates）。
- * - 買い物メモに、同じ食材があれば、扱い（多い方に合わせる／合算／追加しない）に従う。
+ * - 買い物メモに、同じ食材があれば、扱い（多い方に合わせる／合算／追加しない）に従う（同じ単位の行を優先する）。
  * - 人数による量の調整はしない（レシピの量のまま）。
  */
 export function planShoppingFromRecipe(
@@ -303,11 +303,19 @@ export function planShoppingFromRecipe(
 					}
 				: toMemoAmount(need);
 
+		// 同じ食材の行が複数あれば、追加する量と同じ単位の行を相手にする（なければ、最初の行）。
+		// 比べるのは、その1行だけ（ほかの行は変えず、行をまとめることもしない）。
+		const sameIngredient = input.memoItems.filter(
+			(memoItem) =>
+				findInventoryItemByName([memoItem], need.name) !== undefined,
+		);
 		const existing =
-			input.memoItems.find(
+			sameIngredient.find(
 				(memoItem) =>
-					findInventoryItemByName([memoItem], need.name) !== undefined,
-			) ?? null;
+					(memoItem.unitLabel ?? null) === (amount.unitLabel ?? null),
+			) ??
+			sameIngredient[0] ??
+			null;
 
 		if (!existing) {
 			return {

@@ -242,6 +242,50 @@ describe("planShoppingFromRecipe：買い物メモに、同じ食材がある", 
 
 		expect(rows[0]?.existing?.id).toBe("m1");
 	});
+
+	// メモに、同じ食材の行が2つ（1袋・2個の順）。レシピは玉ねぎ3個（在庫なし）。
+	describe("同じ食材の行が複数あるとき、同じ単位の行を相手にする", () => {
+		const twoRows = [
+			{ id: "bag", name: "玉ねぎ", quantity: 1, unitLabel: "袋" },
+			{ id: "count", name: "玉ねぎ", quantity: 2, unitLabel: "個" },
+		];
+
+		it.each([
+			{ duplicateMode: "max", plan: "update", nextQuantity: 3 },
+			{ duplicateMode: "sum", plan: "update", nextQuantity: 5 },
+			{ duplicateMode: "skip", plan: "keep", nextQuantity: 2 },
+		] as const)(
+			"$duplicateMode：個の行（2個）を相手にする",
+			({ duplicateMode, plan: expectedPlan, nextQuantity }) => {
+				const rows = plan({
+					needs: [need("玉ねぎ", 3, "個")],
+					stockItems: stock,
+					memoItems: twoRows,
+					duplicateMode,
+				});
+
+				expect(rows[0]).toMatchObject({
+					existing: { id: "count" },
+					plan: expectedPlan,
+					nextQuantity,
+				});
+			},
+		);
+
+		it("同じ単位の行がなければ、最初の行（単位が違うので、変えない）", () => {
+			const rows = plan({
+				needs: [need("玉ねぎ", 300, "g")],
+				memoItems: twoRows,
+				duplicateMode: "sum",
+			});
+
+			expect(rows[0]).toMatchObject({
+				existing: { id: "bag" },
+				plan: "keep",
+				keepReason: "incomparable-unit",
+			});
+		});
+	});
 });
 
 describe("planShoppingFromRecipe：冷凍野菜が代わりになる", () => {

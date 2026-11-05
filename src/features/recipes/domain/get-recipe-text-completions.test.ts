@@ -411,18 +411,23 @@ describe("getRecipeTextCompletion（レシピへのリンク）", () => {
 		});
 	});
 
-	it("カーソルの後ろの ]] まで、置き換える（]] が重ならない）", () => {
-		const text = "[[かれ]] を煮る";
-		const completion = complete(text, 4);
+	it.each([
+		["]]", "[[かれ]] を煮る"],
+		["] が1つだけ", "[[かれ] を煮る"],
+	])(
+		"カーソルの後ろの閉じ括弧まで、置き換える（%s。]]] にならない）",
+		(_, text) => {
+			const completion = complete(text, 4);
 
-		if (!completion) {
-			throw new Error("補完の候補があるはず");
-		}
+			if (!completion) {
+				throw new Error("補完の候補があるはず");
+			}
 
-		expect(applyRecipeTextCompletion(text, completion, 0).text).toBe(
-			"[[カレーうどん]] を煮る",
-		);
-	});
+			expect(applyRecipeTextCompletion(text, completion, 0).text).toBe(
+				"[[カレーうどん]] を煮る",
+			);
+		},
+	);
 
 	it("カーソルの前後の文字を合わせて探す（[[か|れ]]）", () => {
 		const text = "[[かれ]]";

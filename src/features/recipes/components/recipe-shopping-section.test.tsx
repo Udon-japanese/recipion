@@ -302,7 +302,7 @@ describe("RecipeShoppingSection", () => {
 		expect(container).toBeEmptyDOMElement();
 	});
 
-	it("リンクした材料は、リンク先のレシピの材料に展開して、在庫と比べる。削除されたリンク先は、候補にしない", async () => {
+	it("リンクした材料は、リンク先のレシピの材料に展開して、在庫と比べる。削除されたリンク先は、候補にせず、知らせる", async () => {
 		const user = userEvent.setup();
 		const repository = createFakeShoppingRepository();
 		const loadLinkedRecipe = vi.fn(async (publicId: string) =>
@@ -348,7 +348,14 @@ describe("RecipeShoppingSection", () => {
 		expect(
 			panel.queryByLabelText("和風ドレッシングを買い物メモに入れる"),
 		).not.toBeInTheDocument();
-		expect(panel.queryByText(/消えたレシピ/u)).not.toBeInTheDocument();
+		expect(
+			panel.queryByLabelText("消えたレシピを買い物メモに入れる"),
+		).not.toBeInTheDocument();
+		expect(
+			panel.getByText(
+				"消えたレシピは見つからない（削除された・見られなくなった）ため、材料に入れていません。",
+			),
+		).toBeInTheDocument();
 		// リンク先の材料は、在庫と比べて、足りないものにチェックが入る
 		await waitFor(() =>
 			expect(panel.getByLabelText("醤油を買い物メモに入れる")).toBeChecked(),

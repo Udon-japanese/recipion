@@ -112,6 +112,9 @@ function EditRecipePage() {
 			loadLinkTargets={() => loadLinkTargets(recipe.publicId)}
 			initialLinkTargets={linkTargets}
 			preloadedLinkedRecipes={linkedRecipes}
+			missingLinkLabels={recipe.linkViews.flatMap((view) =>
+				view.target ? [] : [view.label],
+			)}
 			onSave={(document) =>
 				updateRecipeServerFn({
 					data: { publicId: recipe.publicId, document },
