@@ -639,6 +639,30 @@ describe("ShoppingList", () => {
 		});
 	});
 
+	it("読み込み時の分類では、分類した項目だけを保存し、ほかの項目は保存し直さない", async () => {
+		const repository = createFakeShoppingRepository([
+			{
+				...storedItem,
+				id: "unassigned-egg",
+				name: "卵",
+				categoryId: null,
+				categoryAssignment: null,
+			},
+			{ ...storedItem, id: "assigned-milk", name: "牛乳", sortOrder: 1 },
+		]);
+		const saveAll = vi.spyOn(repository, "saveAll");
+		const categorizeUnassigned = vi.spyOn(repository, "categorizeUnassigned");
+
+		render(<ShoppingList repository={repository} />);
+
+		await screen.findByRole("checkbox", { name: "卵をチェック" });
+
+		await waitFor(() => {
+			expect(categorizeUnassigned).toHaveBeenCalledWith(["unassigned-egg"]);
+		});
+		expect(saveAll).not.toHaveBeenCalled();
+	});
+
 	it("手動で未設定にしたカテゴリを自動分類しない", async () => {
 		const repository = createFakeShoppingRepository([
 			{
