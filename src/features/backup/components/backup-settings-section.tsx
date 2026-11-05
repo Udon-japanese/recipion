@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { Button } from "#/components/button/button";
+import { useButtonAction } from "#/components/button/use-button-action";
 import { Checkbox } from "#/components/checkbox/checkbox";
 import { CornerSheet } from "#/components/corner-sheet/corner-sheet";
 import { Note } from "#/components/note/note";
@@ -85,14 +86,17 @@ export function BackupSettingsSection({
 	now = () => new Date(),
 }: BackupSettingsSectionProps) {
 	const [isExportOpen, setIsExportOpen] = useState(false);
-	const [isExporting, setIsExporting] = useState(false);
+	// 書き出しの状態。書き出せたら閉じるので、見せるのは処理中と失敗だけ（失敗すると、開いたまま残る）。
+	const exportAction = useButtonAction();
+	const isExporting = exportAction.isPending;
 	const [exportError, setExportError] = useState<string | null>(null);
 	const [exported, setExported] = useState<{
 		recipes: number;
 		inventory: number;
 	} | null>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
-	const [isReading, setIsReading] = useState(false);
+	// ファイルを読む状態。読めたら確認のシートが開くので、見せるのは処理中と失敗だけ。
+	const readAction = useButtonAction();
 	const [importError, setImportError] = useState<string | null>(null);
 	const [preview, setPreview] = useState<BackupImportPreview | null>(null);
 	const [includeRecipes, setIncludeRecipes] = useState(true);
@@ -102,22 +106,23 @@ export function BackupSettingsSection({
 
 	async function exportBackup() {
 		setExportError(null);
-		setIsExporting(true);
 
-		try {
-			const file = await collectBackup(exportDependencies, now());
+		await exportAction.run(async () => {
+			try {
+				const file = await collectBackup(exportDependencies, now());
 
-			saveFile(formatBackupFileName(now()), JSON.stringify(file, null, "\t"));
-			setExported({
-				recipes: file.recipes.length,
-				inventory: file.inventory.length,
-			});
-			setIsExportOpen(false);
-		} catch (error) {
-			setExportError(describeError(error));
-		} finally {
-			setIsExporting(false);
-		}
+				saveFile(formatBackupFileName(now()), JSON.stringify(file, null, "\t"));
+				setExported({
+					recipes: file.recipes.length,
+					inventory: file.inventory.length,
+				});
+				setIsExportOpen(false);
+			} catch (error) {
+				setExportError(describeError(error));
+
+				return false;
+			}
+		});
 	}
 
 	async function readFile(file: File) {
@@ -130,27 +135,27 @@ export function BackupSettingsSection({
 			return;
 		}
 
-		setIsReading(true);
+		await readAction.run(async () => {
+			try {
+				const nextPreview = await previewBackupImport(
+					parseBackupFile(await file.text()),
+					importDependencies,
+				);
 
-		try {
-			const nextPreview = await previewBackupImport(
-				parseBackupFile(await file.text()),
-				importDependencies,
-			);
+				setPreview(nextPreview);
+				setIncludeRecipes(
+					nextPreview.newRecipeCount > 0 && nextPreview.recipeProblem === null,
+				);
+				setIncludeInventory(
+					nextPreview.inventoryItemCount > 0 &&
+						nextPreview.inventoryProblem === null,
+				);
+			} catch (error) {
+				setImportError(describeError(error));
 
-			setPreview(nextPreview);
-			setIncludeRecipes(
-				nextPreview.newRecipeCount > 0 && nextPreview.recipeProblem === null,
-			);
-			setIncludeInventory(
-				nextPreview.inventoryItemCount > 0 &&
-					nextPreview.inventoryProblem === null,
-			);
-		} catch (error) {
-			setImportError(describeError(error));
-		} finally {
-			setIsReading(false);
-		}
+				return false;
+			}
+		});
 	}
 
 	async function startImport() {
@@ -238,8 +243,9 @@ export function BackupSettingsSection({
 				/>
 				<Button
 					variant="secondary"
-					status={isReading ? "pending" : "idle"}
+					status={readAction.status}
 					pendingLabel="ファイルを読んでいます"
+					errorLabel="読めませんでした"
 					disabled={isImporting}
 					onClick={() => fileInputRef.current?.click()}
 				>
@@ -263,7 +269,8 @@ export function BackupSettingsSection({
 				right={{
 					label: "書き出す",
 					icon: "arrow-down",
-					pending: isExporting,
+					status: exportAction.status,
+					errorLabel: "書き出せませんでした",
 					onClick: () => void exportBackup(),
 				}}
 			>
@@ -294,7 +301,8 @@ export function BackupSettingsSection({
 					icon: "check",
 					danger: includeInventory,
 					disabled: !canImport,
-					pending: isImporting,
+					// 失敗しても閉じる（文は、シートの外に出す）ので、見せるのは処理中だけ。
+					status: isImporting ? "pending" : "idle",
 					onClick: () => void startImport(),
 				}}
 			>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button } from "#/components/button/button";
+import { useButtonAction } from "#/components/button/use-button-action";
 import { ConfirmDialog } from "#/components/dialog/confirm-dialog";
 import { Modal } from "#/components/dialog/modal";
 import { Icon } from "#/components/icon/icon";
@@ -43,7 +44,9 @@ export function AvatarField({ userId, avatar, onSave }: AvatarFieldProps) {
 	const [placements, setPlacements] = useState<DishPlacement[]>([]);
 	const [background, setBackground] = useState<AvatarBackground>("yolk");
 	const [isConfirmingDiscard, setIsConfirmingDiscard] = useState(false);
-	const [isSaving, setIsSaving] = useState(false);
+	// 保存の状態。保存できたら閉じるので、見せるのは処理中と失敗だけ。
+	const saveAction = useButtonAction();
+	const isSaving = saveAction.isPending;
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const isWide = useMediaQuery("(min-width: 768px)");
 	const isDirty =
@@ -77,22 +80,23 @@ export function AvatarField({ userId, avatar, onSave }: AvatarFieldProps) {
 			return;
 		}
 
-		setIsSaving(true);
 		setErrorMessage(null);
 
-		try {
-			const isSaved = await onSave({ background, placements });
+		await saveAction.run(async () => {
+			const isSaved = await onSave({ background, placements }).catch(
+				() => false,
+			);
 
-			if (isSaved) {
-				setOpen(false);
-			} else {
+			if (!isSaved) {
 				setErrorMessage(
 					"保存できませんでした。時間をおいてもう一度お試しください。",
 				);
+
+				return false;
 			}
-		} finally {
-			setIsSaving(false);
-		}
+
+			setOpen(false);
+		});
 	}
 
 	const editor = (
@@ -152,8 +156,9 @@ export function AvatarField({ userId, avatar, onSave }: AvatarFieldProps) {
 			</Button>
 			<Button
 				type="button"
-				status={isSaving ? "pending" : "idle"}
+				status={saveAction.status}
 				pendingLabel="保存中"
+				errorLabel="保存できませんでした"
 				onClick={() => void save()}
 			>
 				決定

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useButtonAction } from "#/components/button/use-button-action";
 import { CornerSheet } from "#/components/corner-sheet/corner-sheet";
 import { Icon } from "#/components/icon/icon";
 import { formatQuantityForUnit } from "#/features/quantity/domain/format-quantity";
@@ -50,7 +51,9 @@ export function ShoppingAddSheet({
 	const [isStoreChosen, setIsStoreChosen] = useState(false);
 	// 前回の店（名前に「いつも買う店」がないときに、続ける）。
 	const [carriedStoreId, setCarriedStoreId] = useState<string | null>(null);
-	const [isSubmitting, setIsSubmitting] = useState(false);
+	// 「追加」の状態（処理中・追加しました・失敗）。追加しても閉じないので、完了も見せる。
+	const submitAction = useButtonAction();
+	const isSubmitting = submitAction.isPending;
 	const [isNameMissing, setIsNameMissing] = useState(false);
 	// 入れたもの（このシートを開いてから）。
 	const [added, setAdded] = useState<string[]>([]);
@@ -75,9 +78,7 @@ export function ShoppingAddSheet({
 			return;
 		}
 
-		setIsSubmitting(true);
-
-		try {
+		await submitAction.run(async () => {
 			const parsedQuantity = parseQuantityInput(draft.quantity);
 			const isAdded = await onAdd({
 				name: draft.name,
@@ -103,9 +104,9 @@ export function ShoppingAddSheet({
 				setDraft({ ...emptyDraft, storeId: draft.storeId });
 				setIsStoreChosen(false);
 			}
-		} finally {
-			setIsSubmitting(false);
-		}
+
+			return isAdded;
+		});
 	}
 
 	return (
@@ -126,7 +127,8 @@ export function ShoppingAddSheet({
 			right={{
 				label: "追加",
 				icon: "plus",
-				pending: isSubmitting,
+				status: submitAction.status,
+				successLabel: "追加しました",
 				onClick: () => void handleSubmit(),
 			}}
 		>

@@ -546,7 +546,7 @@ export function RecipeConsumeSection({
 								label: "元に戻す",
 								icon: "undo",
 								disabled: isWorking,
-								pending: isUndoing,
+								status: isUndoing ? "pending" : "idle",
 								onClick: () => void handleUndo(),
 							}
 						: undefined

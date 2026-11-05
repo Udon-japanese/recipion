@@ -1,5 +1,6 @@
 import { type KeyboardEvent, useState } from "react";
 import { Button } from "#/components/button/button";
+import { useButtonAction } from "#/components/button/use-button-action";
 import { SelectBox, TextInput } from "#/components/field/field";
 import type { ShoppingStore } from "../domain/shopping-store";
 import * as styles from "./shopping-page.css";
@@ -25,26 +26,25 @@ export function ShoppingStoreSelect({
 }: ShoppingStoreSelectProps) {
 	const [isCreating, setIsCreating] = useState(false);
 	const [newName, setNewName] = useState("");
-	const [isSaving, setIsSaving] = useState(false);
+	// 店の追加の状態。追加できたら欄が閉じるので、見せるのは処理中と失敗だけ。
+	const createAction = useButtonAction();
 
 	async function handleCreate() {
 		if (newName.trim() === "") {
 			return;
 		}
 
-		setIsSaving(true);
-
-		try {
+		await createAction.run(async () => {
 			const store = await onCreateStore(newName);
 
-			if (store) {
-				onChange(store.id);
-				setIsCreating(false);
-				setNewName("");
+			if (!store) {
+				return false;
 			}
-		} finally {
-			setIsSaving(false);
-		}
+
+			onChange(store.id);
+			setIsCreating(false);
+			setNewName("");
+		});
 	}
 
 	// 入力欄の Enter で、外側の追加・編集のフォームが送信されないようにする。
@@ -96,7 +96,9 @@ export function ShoppingStoreSelect({
 					<div className={styles.inlineStoreButtons}>
 						<Button
 							size="sm"
-							disabled={isSaving || newName.trim() === ""}
+							status={createAction.status}
+							pendingLabel="店を追加しています"
+							disabled={newName.trim() === ""}
 							onClick={() => void handleCreate()}
 						>
 							この店を追加

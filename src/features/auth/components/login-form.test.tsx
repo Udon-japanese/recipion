@@ -313,4 +313,77 @@ describe("LoginForm（メールのワンタイムコード）", () => {
 			"/terms",
 		);
 	});
+
+	it("コードの確認に失敗したら、「ログインする」のボタンでも失敗を伝える", async () => {
+		const user = userEvent.setup();
+
+		mocks.signInEmailOtp.mockResolvedValue({
+			data: null,
+			error: { code: "INVALID_OTP", message: "Invalid OTP", status: 400 },
+		});
+
+		render(<LoginForm refetchSession={mocks.refetch} />);
+		await sendCodeFor(user, "user@example.com");
+
+		await user.click(codeInput());
+		await user.keyboard("111111");
+
+		expect(
+			await screen.findByText("ログインできませんでした", {
+				selector: "output",
+			}),
+		).toBeInTheDocument();
+	});
+
+	it("コードの送信に失敗したら、「コードを送る」のボタンでも失敗を伝える", async () => {
+		const user = userEvent.setup();
+
+		mocks.sendVerificationOtp.mockRejectedValue(new Error("network"));
+
+		render(<LoginForm refetchSession={mocks.refetch} />);
+		await sendCodeFor(user, "user@example.com");
+
+		expect(
+			await screen.findByText("送れませんでした", { selector: "output" }),
+		).toBeInTheDocument();
+	});
+
+	it("6桁が揃ったときの自動の確認と、ボタンが重なっても、確認は1回だけ", async () => {
+		const user = userEvent.setup();
+		let finish: (value: unknown) => void = () => {};
+
+		mocks.signInEmailOtp.mockImplementation(
+			() =>
+				new Promise((resolve) => {
+					finish = resolve;
+				}),
+		);
+
+		render(<LoginForm refetchSession={mocks.refetch} />);
+		await sendCodeFor(user, "user@example.com");
+
+		await user.click(codeInput());
+		await user.keyboard("123456");
+		await user.click(screen.getByRole("button", { name: /ログインする/u }));
+		await act(async () => {
+			finish({ data: {}, error: null });
+		});
+
+		await waitFor(() => expect(mocks.refetch).toHaveBeenCalledTimes(1));
+		expect(mocks.signInEmailOtp).toHaveBeenCalledTimes(1);
+	});
+
+	it("ログインできたら、「ログインする」のボタンで「ログインしました」と伝える", async () => {
+		const user = userEvent.setup();
+
+		render(<LoginForm refetchSession={mocks.refetch} />);
+		await sendCodeFor(user, "user@example.com");
+
+		await user.click(codeInput());
+		await user.keyboard("123456");
+
+		expect(
+			await screen.findByText("ログインしました", { selector: "output" }),
+		).toBeInTheDocument();
+	});
 });
