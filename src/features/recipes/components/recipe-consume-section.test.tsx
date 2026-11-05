@@ -424,6 +424,70 @@ describe("RecipeConsumeSection", () => {
 		).toBeInTheDocument();
 	});
 
+	describe("つくった記録", () => {
+		function cookLogMock() {
+			return {
+				record: vi.fn<(sourceId: string) => Promise<void>>(async () => {}),
+				cancel: vi.fn<(sourceId: string) => Promise<void>>(async () => {}),
+			};
+		}
+
+		it("つくった！で、在庫の操作と同じ印で記録し、元に戻すと同じ印で記録を消す", async () => {
+			const user = userEvent.setup();
+			const cookLog = cookLogMock();
+			const { consume } = setup({ cookLog });
+
+			await user.click(screen.getByRole("button", { name: /つくった/u }));
+			await user.click(await screen.findByRole("button", { name: "元に戻す" }));
+
+			expect(await screen.findByText("元に戻しました")).toBeInTheDocument();
+			const sourceId = consume.mock.calls[0]?.[0].sourceId;
+
+			expect(cookLog.record).toHaveBeenCalledExactlyOnceWith(sourceId);
+			expect(cookLog.cancel).toHaveBeenCalledExactlyOnceWith(sourceId);
+		});
+
+		it("記録できなかったときは、知らせて、同じ印でやり直せる（在庫は引き直さない）", async () => {
+			const user = userEvent.setup();
+			const cookLog = cookLogMock();
+
+			cookLog.record.mockRejectedValueOnce(new Error("network"));
+			const { consume } = setup({ cookLog });
+
+			await user.click(screen.getByRole("button", { name: /つくった/u }));
+
+			expect(
+				await screen.findByText("つくった記録に残せませんでした"),
+			).toBeInTheDocument();
+
+			await user.click(screen.getByRole("button", { name: "記録をやり直す" }));
+
+			await waitFor(() =>
+				expect(screen.queryByText("つくった記録に残せませんでした")).toBeNull(),
+			);
+			expect(cookLog.record).toHaveBeenCalledTimes(2);
+			expect(cookLog.record.mock.calls[1]?.[0]).toBe(
+				cookLog.record.mock.calls[0]?.[0],
+			);
+			expect(consume).toHaveBeenCalledTimes(2);
+			// やり直しで引くのは、引けなかった行だけ（ここでは、ない）。
+			expect(consume.mock.calls[1]?.[1]?.size).toBe(0);
+		});
+
+		it("在庫から何も引かなかったときも、元に戻すで記録を消せる", async () => {
+			const user = userEvent.setup();
+			const cookLog = cookLogMock();
+
+			setup({ cookLog, loadInventoryItems: async () => [] });
+
+			await user.click(screen.getByRole("button", { name: /つくった/u }));
+			await user.click(await screen.findByRole("button", { name: "元に戻す" }));
+
+			expect(await screen.findByText("元に戻しました")).toBeInTheDocument();
+			expect(cookLog.cancel).toHaveBeenCalledTimes(1);
+		});
+	});
+
 	it("できあがりを在庫に入れられなかったときは、知らせて、同じ操作でやり直せる（二重には入らない）", async () => {
 		const user = userEvent.setup();
 		const produce = vi

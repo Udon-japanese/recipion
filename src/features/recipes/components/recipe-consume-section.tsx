@@ -65,6 +65,11 @@ type RecipeConsumeSectionProps = {
 	undo: (
 		target: RecipeConsumptionUndoTarget,
 	) => Promise<UndoRecipeConsumptionResult>;
+	// 「つくった！」の記録（つくった一覧と、回数・最後の日）。sourceId は、在庫の操作と同じ印。
+	cookLog?: {
+		record: (sourceId: string) => Promise<void>;
+		cancel: (sourceId: string) => Promise<void>;
+	};
 	// 自分のレシピのとき、できあがりを在庫に入れる入口（押すときに、入れるかどうかを決める）。
 	// defaultChecked は、レシピの「作り置き」の設定（入れるかどうかの初期値）。
 	madeRecipe?: {
@@ -84,6 +89,8 @@ type Outcome = {
 	isUndone: boolean;
 	// できあがりを在庫に入れる操作（作り置きでなければ、なし）。transactionId は、再送しても二重に入らないための印。
 	production: { transactionId: string; isDone: boolean } | null;
+	// 「つくった！」の記録（記録しないときは、なし）。
+	cookRecord: { isDone: boolean } | null;
 	// 元に戻したとき、すでに使っていて戻せなかった、できあがりの量（回分）。
 	unreturnedProduction: number;
 	// 1行ずつ戻した、在庫の食材。
@@ -158,6 +165,7 @@ export function RecipeConsumeSection({
 	loadInventoryItems,
 	consume,
 	undo,
+	cookLog,
 	madeRecipe,
 }: RecipeConsumeSectionProps) {
 	const [isWorking, setIsWorking] = useState(false);
@@ -248,6 +256,21 @@ export function RecipeConsumeSection({
 		}
 	}
 
+	// 「つくった！」を記録する（再送しても、二重には記録しない）。記録できなければ false。
+	async function recordOnce(sourceId: string): Promise<boolean> {
+		if (!cookLog) {
+			return true;
+		}
+
+		try {
+			await cookLog.record(sourceId);
+
+			return true;
+		} catch {
+			return false;
+		}
+	}
+
 	async function handleMade() {
 		setIsWorking(true);
 		setErrorMessage(null);
@@ -279,6 +302,9 @@ export function RecipeConsumeSection({
 								isDone: await produceOnce(operation.sourceId, productionId),
 							}
 						: null,
+				cookRecord: cookLog
+					? { isDone: await recordOnce(operation.sourceId) }
+					: null,
 				unreturnedProduction: 0,
 				returnedItemIds: new Set(),
 				linkProblem,
@@ -310,10 +336,15 @@ export function RecipeConsumeSection({
 							),
 						}
 					: outcome.production;
+			const cookRecord =
+				outcome.cookRecord && !outcome.cookRecord.isDone
+					? { isDone: await recordOnce(outcome.operation.sourceId) }
+					: outcome.cookRecord;
 
 			setOutcome({
 				...outcome,
 				production,
+				cookRecord,
 				failedNeedIds: new Set(
 					results.filter((result) => !result.ok).map((result) => result.needId),
 				),
@@ -400,6 +431,7 @@ export function RecipeConsumeSection({
 
 		try {
 			const result = await undo({ sourceId: outcome.operation.sourceId });
+			await cookLog?.cancel(outcome.operation.sourceId);
 
 			setOutcome({
 				...outcome,
@@ -419,6 +451,7 @@ export function RecipeConsumeSection({
 
 	const hasPendingProduction =
 		outcome?.production !== null && outcome?.production?.isDone === false;
+	const hasPendingCookRecord = outcome?.cookRecord?.isDone === false;
 	const summary = summarizeConsumptionRows(
 		outcome?.rows ?? [],
 		outcome?.failedNeedIds ?? new Set(),
@@ -437,7 +470,8 @@ export function RecipeConsumeSection({
 	const canReturnRows = summary.deducted.length > 1;
 	const hasUndoableWork =
 		summary.deducted.some((row) => !isReturned(row)) ||
-		outcome?.production?.isDone === true;
+		outcome?.production?.isDone === true ||
+		outcome?.cookRecord?.isDone === true;
 
 	return (
 		<section className={styles.container} aria-label="作った">
@@ -530,17 +564,26 @@ export function RecipeConsumeSection({
 							</>
 						) : (
 							<>
-								{outcome.failedNeedIds.size > 0 || hasPendingProduction ? (
+								{outcome.failedNeedIds.size > 0 ||
+								hasPendingProduction ||
+								hasPendingCookRecord ? (
 									<Button
 										variant="secondary"
 										fullWidth
 										disabled={isWorking}
 										onClick={() => void handleRetry()}
 									>
-										{hasPendingProduction && outcome.failedNeedIds.size === 0
-											? "在庫に入れる分をやり直す"
-											: "引けなかった分をやり直す"}
+										{outcome.failedNeedIds.size > 0
+											? "引けなかった分をやり直す"
+											: hasPendingProduction
+												? "在庫に入れる分をやり直す"
+												: "記録をやり直す"}
 									</Button>
+								) : null}
+								{hasPendingCookRecord ? (
+									<p className={styles.status}>
+										つくった記録に残せませんでした
+									</p>
 								) : null}
 								{outcome.linkProblem ? (
 									<Note tone="warn">{outcome.linkProblem}</Note>

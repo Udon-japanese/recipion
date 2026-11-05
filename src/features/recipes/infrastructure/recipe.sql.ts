@@ -43,6 +43,8 @@ export const recipe = pgTable(
 		stocksWhenMade: boolean("stocks_when_made").default(false).notNull(),
 		// 料理の絵（部品の置き方）。null は、レシピ名から選ぶプリセットを見せる。
 		cover: jsonb("cover").$type<DishPlacement[]>(),
+		// 公開した日時（非公開から、限定公開・全体公開にしたとき）。非公開のあいだは null。限定公開と全体公開の切り替えでは変えない。
+		publishedAt: timestamp("published_at", { withTimezone: true }),
 		createdAt: timestamp("created_at", { withTimezone: true })
 			.defaultNow()
 			.notNull(),
@@ -67,6 +69,10 @@ export const recipe = pgTable(
 		check(
 			"recipe_public_has_no_source_url",
 			sql`${table.visibility} = 'private' OR ${table.sourceUrl} IS NULL`,
+		),
+		check(
+			"recipe_published_at_matches_visibility",
+			sql`(${table.visibility} = 'private') = (${table.publishedAt} IS NULL)`,
 		),
 		check(
 			"recipe_unlisted_has_passphrase",
@@ -295,5 +301,36 @@ export const recipeUnlockAttempt = pgTable(
 			table.publicId,
 			table.createdAt,
 		),
+	],
+);
+
+// 「つくった！」の記録（自分の記録だけを見る）。レシピが消えても記録は残し、名前はつくったときのものを見せる。
+// source_id は「つくった」の操作の印（在庫の取引と同じ値）。再送しても二重に記録しない。
+export const recipeCookLog = pgTable(
+	"recipe_cook_log",
+	{
+		id: uuid("id").defaultRandom().primaryKey(),
+		userId: text("user_id")
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade" }),
+		recipeId: uuid("recipe_id").references(() => recipe.id, {
+			onDelete: "set null",
+		}),
+		recipeName: text("recipe_name").notNull(),
+		sourceId: text("source_id").notNull(),
+		cookedAt: timestamp("cooked_at", { withTimezone: true })
+			.defaultNow()
+			.notNull(),
+	},
+	(table) => [
+		unique("recipe_cook_log_user_source_unique").on(
+			table.userId,
+			table.sourceId,
+		),
+		index("recipe_cook_log_user_cooked_at_idx").on(
+			table.userId,
+			table.cookedAt.desc(),
+		),
+		index("recipe_cook_log_recipe_idx").on(table.recipeId, table.userId),
 	],
 );
