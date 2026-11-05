@@ -9,6 +9,7 @@ import {
 } from "react";
 import { IconButton } from "#/components/icon-button/icon-button";
 import { SegmentedControl } from "#/components/segmented-control/segmented-control";
+import { useMediaQuery } from "#/components/use-media-query";
 import { type DishPlacement, dishCoverLimits } from "../domain/dish-cover";
 import { dishArtViewSize, findDishPart } from "../domain/dish-part";
 import {
@@ -131,6 +132,8 @@ export function DishCoverEditor({
 	extra,
 }: DishCoverEditorProps) {
 	const [selected, setSelected] = useState(-1);
+	// 指で操作する端末では、絵の上の「×」を出さない（小さい部品だと、つかもうとして触れてしまう）。消すのは、下の道具の列から。
+	const isCoarsePointer = useMediaQuery("(pointer: coarse)");
 	// 触って動かしている間の cursor（つまみから指・マウスが離れても、変わらないようにする）。
 	const [dragCursor, setDragCursor] = useState<string | null>(null);
 	// 空から始めるときは、土台になる「セット」から。
@@ -693,27 +696,29 @@ export function DishCoverEditor({
 						vectorEffect="non-scaling-stroke"
 					/>
 				</g>
-				<g data-handle="delete" className={styles.deleteHandle}>
-					<circle
-						cx={deleteHandle.x}
-						cy={deleteHandle.y}
-						r={hit}
-						fill="transparent"
-					/>
-					<circle
-						cx={deleteHandle.x}
-						cy={deleteHandle.y}
-						r={visual}
-						fill="var(--color-error)"
-					/>
-					<path
-						d={`M${deleteHandle.x - visual * 0.4} ${deleteHandle.y - visual * 0.4}l${visual * 0.8} ${visual * 0.8}M${deleteHandle.x + visual * 0.4} ${deleteHandle.y - visual * 0.4}l${-visual * 0.8} ${visual * 0.8}`}
-						stroke="var(--color-surface)"
-						strokeWidth={2}
-						strokeLinecap="round"
-						vectorEffect="non-scaling-stroke"
-					/>
-				</g>
+				{isCoarsePointer ? null : (
+					<g data-handle="delete" className={styles.deleteHandle}>
+						<circle
+							cx={deleteHandle.x}
+							cy={deleteHandle.y}
+							r={hit}
+							fill="transparent"
+						/>
+						<circle
+							cx={deleteHandle.x}
+							cy={deleteHandle.y}
+							r={visual}
+							fill="var(--color-error)"
+						/>
+						<path
+							d={`M${deleteHandle.x - visual * 0.4} ${deleteHandle.y - visual * 0.4}l${visual * 0.8} ${visual * 0.8}M${deleteHandle.x + visual * 0.4} ${deleteHandle.y - visual * 0.4}l${-visual * 0.8} ${visual * 0.8}`}
+							stroke="var(--color-surface)"
+							strokeWidth={2}
+							strokeLinecap="round"
+							vectorEffect="non-scaling-stroke"
+						/>
+					</g>
+				)}
 			</g>
 		);
 	}
@@ -838,6 +843,17 @@ export function DishCoverEditor({
 							label="後ろへ"
 							disabled={!selectedPlacement || selected <= 0}
 							onClick={() => reorder(-1)}
+						/>
+						<IconButton
+							size="std"
+							icon="trash"
+							tone="danger"
+							label="この部品を消す"
+							disabled={!selectedPlacement}
+							onClick={() => {
+								commit(removeDishPart(placements, selected));
+								setSelected(-1);
+							}}
 						/>
 					</div>
 					{/* 色の欄は、いつも同じ高さで置く（部品によって出たり消えたりすると、絵の位置がずれるため）。 */}
