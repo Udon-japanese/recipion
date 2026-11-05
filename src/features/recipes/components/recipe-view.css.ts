@@ -145,9 +145,11 @@ export const section = style({
 
 export const sectionHeader = style({
 	display: "flex",
+	flexWrap: "wrap",
 	alignItems: "center",
 	justifyContent: "space-between",
 	gap: 12,
+	rowGap: 8,
 	minHeight: 32,
 });
 
@@ -159,7 +161,7 @@ export const sectionFooter = style({
 
 export const sectionTitleGroup = style({
 	display: "flex",
-	alignItems: "baseline",
+	alignItems: "center",
 	gap: 8,
 	minWidth: 0,
 });

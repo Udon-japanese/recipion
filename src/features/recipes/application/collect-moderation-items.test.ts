@@ -18,6 +18,7 @@ describe("collectRecipeModerationItems", () => {
 
 		expect(collectRecipeModerationItems(recipe)).toEqual([
 			{ target: "recipe-title", text: "卵焼き" },
+			{ target: "recipe-yield", text: "2人分" },
 			{ target: "recipe-ingredient", text: "卵 2個" },
 			{ target: "recipe-preparation", text: "卵を室温に戻す" },
 			{ target: "recipe-instruction", text: "卵を溶く" },

@@ -27,7 +27,7 @@ function recipe(publicId: string, name: string): RecipeSummary {
 	return {
 		publicId,
 		name,
-		servings: 2,
+		yieldText: "2人分",
 		visibility: "private",
 		cover: null,
 		createdAt: "2026-10-23T00:00:00.000Z",

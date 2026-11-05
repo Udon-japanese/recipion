@@ -62,6 +62,11 @@ import {
 } from "../domain/recipe-links";
 import { isRecipeChangedElsewhereError } from "../domain/recipe-revision";
 import {
+	defaultRecipeYieldText,
+	maxRecipeYieldLength,
+	stepRecipeYield,
+} from "../domain/recipe-yield";
+import {
 	createIngredientSyncState,
 	emptyIngredientSyncState,
 	findGroupsConvertibleToIngredient,
@@ -197,11 +202,11 @@ export function RecipeEditor({
 	const [initialState] = useState(() => createInitialState(initialDocument));
 	const [title, setTitle] = useState(initialDocument?.name ?? "");
 	const [isTitleEditing, setIsTitleEditing] = useState(false);
-	const [servings, setServings] = useState(
-		String(initialDocument?.servings ?? 2),
+	const [yieldText, setYieldText] = useState(
+		initialDocument?.yieldText ?? defaultRecipeYieldText,
 	);
-	// 見出しの「材料（2人分）」から人数を入れるのは、人数を自分で触るまで。
-	const [isServingsTouched, setIsServingsTouched] = useState(isEditing);
+	// 見出しの「材料（2人分）」から、できあがりの量を入れるのは、その欄を自分で触るまで。
+	const [isYieldTouched, setIsYieldTouched] = useState(isEditing);
 	const [sourceUrl, setSourceUrl] = useState(initialDocument?.sourceUrl ?? "");
 	const [visibility, setVisibility] = useState<RecipeVisibility>(
 		initialDocument?.visibility ?? "private",
@@ -337,10 +342,10 @@ export function RecipeEditor({
 		setText(nextText);
 		setSync((current) => reconcileFromText(current, nextText));
 
-		const nextServings = splitRecipeSections(nextText).servings;
+		const nextYieldText = splitRecipeSections(nextText).yieldText;
 
-		if (nextServings !== null && !isServingsTouched) {
-			setServings(String(nextServings));
+		if (nextYieldText !== null && !isYieldTouched) {
+			setYieldText(nextYieldText);
 		}
 	}
 
@@ -551,13 +556,14 @@ export function RecipeEditor({
 		]);
 	}
 
-	// 人数を、1 ずつ増減する（直接の入力は、小数も可）。
-	function stepServings(delta: number) {
-		const current = Number(servings);
-		const base = Number.isFinite(current) && current > 0 ? current : 2;
+	// できあがりの量の数を、1 ずつ増減する（数のない「作りやすい分量」などは、増減しない）。
+	function stepYield(delta: number) {
+		const next = stepRecipeYield(yieldText, delta);
 
-		setServings(String(Math.max(1, Number((base + delta).toFixed(3)))));
-		setIsServingsTouched(true);
+		if (next !== null) {
+			setYieldText(next);
+			setIsYieldTouched(true);
+		}
 	}
 
 	function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
@@ -590,7 +596,7 @@ export function RecipeEditor({
 			const document = {
 				...createRecipeEditorDocument({
 					name: title,
-					servings: Number(servings),
+					yieldText,
 					preparationText: sections.preparationText,
 					instructionText: sections.instructionText,
 					note: sections.note,
@@ -664,35 +670,36 @@ export function RecipeEditor({
 
 				<div className={styles.metaRow}>
 					<div className={styles.metaField}>
-						<Field label="何人分">
+						<Field label="できあがり">
 							{(control) => (
-								<div className={styles.stepper}>
+								<div className={styles.yieldStepper}>
 									<IconButton
 										icon="minus"
-										label="人数を減らす"
+										label="できあがりの量を減らす"
 										tone="plain"
-										disabled={!(Number(servings) > 1)}
-										onClick={() => stepServings(-1)}
+										disabled={stepRecipeYield(yieldText, -1) === null}
+										onClick={() => stepYield(-1)}
 									/>
 									<input
 										{...control}
-										className={styles.stepperInput}
-										type="number"
-										min="0.001"
-										step="any"
-										value={servings}
+										className={styles.yieldInput}
+										type="text"
+										maxLength={maxRecipeYieldLength}
+										placeholder="2人分"
+										value={yieldText}
 										onChange={(event) => {
-											setServings(event.target.value);
-											setIsServingsTouched(true);
+											setYieldText(event.target.value);
+											setIsYieldTouched(true);
 										}}
 										onKeyDown={preventSubmitOnEnter}
 										required
 									/>
 									<IconButton
 										icon="plus"
-										label="人数を増やす"
+										label="できあがりの量を増やす"
 										tone="plain"
-										onClick={() => stepServings(1)}
+										disabled={stepRecipeYield(yieldText, 1) === null}
+										onClick={() => stepYield(1)}
 									/>
 								</div>
 							)}

@@ -236,7 +236,7 @@ function createFile(): BackupFile {
 	return parseBackupFile(
 		JSON.stringify({
 			format: "recipion-backup",
-			version: 1,
+			version: 2,
 			exportedAt: now.toISOString(),
 			recipes: [nikujaga, misoSoup, dashi],
 			inventory: [
@@ -449,7 +449,7 @@ describe("書き出し・読み込み", () => {
 		const file = parseBackupFile(
 			JSON.stringify({
 				format: "recipion-backup",
-				version: 1,
+				version: 2,
 				exportedAt: now.toISOString(),
 				recipes,
 				inventory: [],

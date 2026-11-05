@@ -8,7 +8,7 @@ import { RecipeView } from "./recipe-view";
 const recipe: RecipeDetail = {
 	publicId: "abc123",
 	name: "ケークサレ(鮭チーズ)",
-	servings: 2,
+	yieldText: "2人分",
 	note: "",
 	sourceUrl: null,
 	links: [],

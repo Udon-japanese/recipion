@@ -17,7 +17,7 @@ describe("validateRecipeEditorDocument", () => {
 		expect(validateRecipeEditorDocument(document)).toStrictEqual(document);
 	});
 
-	it("名前と人数を確認する", () => {
+	it("名前と、できあがりの量を確認する", () => {
 		const document = createDocument();
 
 		expect(() =>
@@ -25,7 +25,7 @@ describe("validateRecipeEditorDocument", () => {
 		).toThrow("レシピの入力内容を確認してください");
 
 		expect(() =>
-			validateRecipeEditorDocument({ ...document, servings: 0 }),
+			validateRecipeEditorDocument({ ...document, yieldText: "　" }),
 		).toThrow("レシピの入力内容を確認してください");
 	});
 

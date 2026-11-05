@@ -2,6 +2,7 @@ import {
 	isIngredientGroupEndLine,
 	parseRecipeIngredients,
 } from "./parse-recipe-ingredients";
+import { maxRecipeYieldLength, parseRecipeYield } from "./recipe-yield";
 
 export type RecipeSectionKind =
 	| "ingredients"
@@ -14,8 +15,8 @@ export type SplitRecipeSections = {
 	preparationText: string;
 	instructionText: string;
 	note: string;
-	// 「材料（2人分）」のような見出しから読み取った人数。なければ null。
-	servings: number | null;
+	// 「材料（2人分）」「材料（12個分）」のような見出しの括弧から読み取った、できあがりの量。なければ null。
+	yieldText: string | null;
 	// 見出しも番号もなく、種類を決められなかったブロック。
 	unclassifiedBlocks: string[];
 	// 見出しが1つでもあったか（なければ、ブロックごとに自動で判定している）。
@@ -44,12 +45,21 @@ const headingPattern = new RegExp(
 	"u",
 );
 
-const servingsPattern = /(\d+)\s*人分/u;
-
 export type RecipeHeading = {
 	kind: RecipeSectionKind;
-	servings: number | null;
+	yieldText: string | null;
 };
+
+// 見出しの括弧の中身を、できあがりの量として読む（数がある「2人分」「型1台分」、または「作りやすい分量」のような「〜分（量）」）。
+function readHeadingYield(content: string | undefined): string | null {
+	const text = content?.trim() ?? "";
+
+	if (text === "" || text.length > maxRecipeYieldLength) {
+		return null;
+	}
+
+	return parseRecipeYield(text) !== null || /分量?$/u.test(text) ? text : null;
+}
 
 export function parseRecipeHeading(line: string): RecipeHeading | null {
 	const match = line.normalize("NFKC").trim().match(headingPattern);
@@ -58,11 +68,9 @@ export function parseRecipeHeading(line: string): RecipeHeading | null {
 		return null;
 	}
 
-	const servingsMatch = match[2]?.match(servingsPattern);
-
 	return {
 		kind: headingKeywords[match[1]],
-		servings: servingsMatch ? Number(servingsMatch[1]) : null,
+		yieldText: readHeadingYield(match[2]),
 	};
 }
 
@@ -178,7 +186,7 @@ export function splitRecipeSections(input: string): SplitRecipeSections {
 		preparationText: "",
 		instructionText: "",
 		note: "",
-		servings: null,
+		yieldText: null,
 		unclassifiedBlocks: [],
 		hasHeadings,
 	};
@@ -216,7 +224,7 @@ export function splitRecipeSections(input: string): SplitRecipeSections {
 				flush();
 				currentKind = heading.kind;
 				currentLines = [];
-				result.servings = result.servings ?? heading.servings;
+				result.yieldText = result.yieldText ?? heading.yieldText;
 				continue;
 			}
 

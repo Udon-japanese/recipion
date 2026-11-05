@@ -5,11 +5,11 @@ const recipeName = "親子丼";
 async function openEditor(page: Page) {
 	await page.getByRole("link", { name: "編集" }).click();
 
-	const servings = page.getByLabel("何人分");
+	const yieldInput = page.getByLabel("できあがり");
 
-	await expect(servings).toBeVisible();
+	await expect(yieldInput).toBeVisible();
 
-	return servings;
+	return yieldInput;
 }
 
 async function saveAndWaitForView(page: Page) {
@@ -27,20 +27,21 @@ test.describe("レシピの編集", () => {
 		await page.goto("/recipes");
 		await page.getByRole("link", { name: recipeName }).click();
 
-		const servings = await openEditor(page);
-		const before = Number(await servings.inputValue());
+		const yieldInput = await openEditor(page);
+		const before = await yieldInput.inputValue();
 
-		await page.getByRole("button", { name: "人数を増やす" }).click();
-		await expect(servings).toHaveValue(String(before + 1));
+		await page.getByRole("button", { name: "できあがりの量を増やす" }).click();
+		await expect(yieldInput).not.toHaveValue(before);
+		const after = await yieldInput.inputValue();
 		await saveAndWaitForView(page);
 
 		const reopened = await openEditor(page);
 
-		await expect(reopened).toHaveValue(String(before + 1));
+		await expect(reopened).toHaveValue(after);
 
 		// シードの値に戻す（ほかのテストのため）。
-		await page.getByRole("button", { name: "人数を減らす" }).click();
-		await expect(reopened).toHaveValue(String(before));
+		await page.getByRole("button", { name: "できあがりの量を減らす" }).click();
+		await expect(reopened).toHaveValue(before);
 		await saveAndWaitForView(page);
 	});
 });

@@ -519,6 +519,37 @@ describe("RecipeConsumeSection", () => {
 		);
 	});
 
+	it("人数を変えているときは、その割合で引き、できあがりもその回分だけ在庫に入れる", async () => {
+		const user = userEvent.setup();
+		const produce = vi.fn(
+			async (_input: {
+				sourceId: string;
+				transactionId: string;
+				quantity: number;
+			}) => {},
+		);
+		const { consume } = setup({
+			ratio: 0.5,
+			madeRecipe: { name: "親子丼", defaultChecked: true, produce },
+		});
+
+		await user.click(screen.getByRole("button", { name: /つくった/u }));
+
+		expect(
+			await screen.findByText("親子丼：1/2回分を、在庫に入れました"),
+		).toBeInTheDocument();
+		expect(
+			consume.mock.calls[0]?.[0].entries.map((entry) => [
+				entry.inventoryItemId,
+				entry.quantity,
+			]),
+		).toEqual([
+			["inv-onion", 1],
+			["inv-egg", 3],
+		]);
+		expect(produce.mock.calls[0]?.[0]).toMatchObject({ quantity: 0.5 });
+	});
+
 	it("作り置きでないレシピは、在庫に入れない", async () => {
 		const user = userEvent.setup();
 
@@ -585,7 +616,7 @@ describe("RecipeConsumeSection", () => {
 		const dressing = {
 			publicId: "dressing-id",
 			name: "和風ドレッシング",
-			servings: 2,
+			yieldText: "2人分",
 			ingredients: [ingredient("d-0", "醤油", 100, "ml")],
 			linkViews: [],
 		} as unknown as Awaited<

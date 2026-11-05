@@ -57,6 +57,13 @@
       "when": 1793876789007,
       "tag": "0007_recipe_cook_log",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793879590191,
+      "tag": "0008_recipe_yield_text",
+      "breakpoints": true
     }
   ]
 }

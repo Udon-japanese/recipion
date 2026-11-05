@@ -33,10 +33,19 @@ describe("parseRecipeHeading", () => {
 		expect(parseRecipeHeading("＜メモ＞")?.kind).toBe("note");
 	});
 
-	it("見出しの人数を読み取る", () => {
-		expect(parseRecipeHeading("材料（2人分）")?.servings).toBe(2);
+	it.each([
+		["材料（2人分）", "2人分"],
+		["材料（12個分）", "12個分"],
+		["材料（18cmのパウンド型1台分）", "18cmのパウンド型1台分"],
+		["材料（作りやすい分量）", "作りやすい分量"],
+		["材料（下ごしらえ済み）", null],
+		["【材料】", null],
+	])("見出し %s から、できあがりの量 %s を読み取る", (line, expected) => {
+		expect(parseRecipeHeading(line)?.yieldText).toBe(expected);
+	});
+
+	it("括弧のない人数の見出しは、見出しにしない", () => {
 		expect(parseRecipeHeading("＜材料 ４人分＞")).toBeNull();
-		expect(parseRecipeHeading("【材料】")?.servings).toBeNull();
 	});
 
 	it("見出しではない行は、読み取らない", () => {
@@ -90,8 +99,10 @@ describe("splitRecipeSections（見出しあり）", () => {
 		expect(result.ingredientText).toBe("卵 1個");
 	});
 
-	it("見出しから人数を取り出す", () => {
-		expect(splitRecipeSections("材料（4人分）\n卵 1個").servings).toBe(4);
+	it("見出しから、できあがりの量を取り出す", () => {
+		expect(splitRecipeSections("材料（4人分）\n卵 1個").yieldText).toBe(
+			"4人分",
+		);
 	});
 });
 

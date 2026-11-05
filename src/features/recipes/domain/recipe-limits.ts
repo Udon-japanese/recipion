@@ -5,9 +5,12 @@ import type {
 	RecipeEditorDocument,
 	RecipeEditorIngredientNode,
 } from "./recipe-editor-document";
+import { maxRecipeYieldLength } from "./recipe-yield";
 
 export const recipeLimits = {
 	nameMaxLength: 100,
+	// できあがりの量（「4人分」「18cmのパウンド型1台」）。
+	yieldMaxLength: maxRecipeYieldLength,
 	maxIngredients: 100,
 	maxIngredientGroups: 30,
 	ingredientNameMaxLength: 100,
@@ -78,6 +81,10 @@ export function findRecipeLimitViolation(
 
 	if (length(document.name) > limits.nameMaxLength) {
 		return `レシピ名は${format(limits.nameMaxLength)}文字までです。`;
+	}
+
+	if (length(document.yieldText) > limits.yieldMaxLength) {
+		return `できあがりの量は${format(limits.yieldMaxLength)}文字までです。`;
 	}
 
 	const stats: IngredientStats = {

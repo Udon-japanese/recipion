@@ -28,7 +28,7 @@ const DISPLAY_NAME = "確認用アカウント";
 
 type Recipe = {
 	name: string;
-	servings: number;
+	yieldText: string;
 	ingredientText: string;
 	preparationText: string;
 	instructionText: string;
@@ -38,7 +38,7 @@ type Recipe = {
 const recipes: readonly Recipe[] = [
 	{
 		name: "豚の生姜焼き",
-		servings: 2,
+		yieldText: "2人分",
 		ingredientText: `豚ロース肉 200g
 玉ねぎ 1/2個
 キャベツ 2枚
@@ -57,7 +57,7 @@ A おろししょうが 小さじ1
 	},
 	{
 		name: "肉じゃが",
-		servings: 3,
+		yieldText: "3人分",
 		ingredientText: `じゃがいも 3個
 にんじん 1本
 玉ねぎ 1個
@@ -77,7 +77,7 @@ A みりん 大さじ2
 	},
 	{
 		name: "親子丼",
-		servings: 2,
+		yieldText: "2人分",
 		ingredientText: `鶏もも肉 1枚
 玉ねぎ 1/2個
 卵 3個
@@ -98,7 +98,7 @@ A 砂糖 小さじ2
 	},
 	{
 		name: "豆腐とわかめの味噌汁",
-		servings: 2,
+		yieldText: "2人分",
 		ingredientText: `木綿豆腐 1/2丁
 乾燥わかめ 小さじ2
 長ねぎ 1/3本
@@ -114,7 +114,7 @@ A 砂糖 小さじ2
 	},
 	{
 		name: "ほうれん草のおひたし",
-		servings: 2,
+		yieldText: "2人分",
 		ingredientText: `ほうれん草 1束
 A だし汁 大さじ3
 A 醤油 小さじ2

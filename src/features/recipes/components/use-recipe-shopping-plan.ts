@@ -29,6 +29,7 @@ import {
 } from "../domain/plan-shopping-from-recipe";
 import type { RecipeEditorIngredientNode } from "../domain/recipe-editor-document";
 import type { RecipeLinkView } from "../domain/recipe-links";
+import { scaleRecipeNeed } from "../domain/scale-recipe-need";
 import { standInModeItem } from "../infrastructure/stand-in-mode-storage";
 
 const noLinkViews: readonly RecipeLinkView[] = [];
@@ -58,10 +59,12 @@ type UseRecipeShoppingPlanOptions = {
 	onApplied?: () => void;
 	// 渡すと、この値が変わるたびに、自動で読み込みを始める（null は、まだ始めない）。
 	autoStartKey?: string | null;
+	ratio?: number;
 };
 
 // レシピの材料を、在庫と比べて、足りないものを、買い物メモに入れる計画（状態と操作）。
-// 人数による量の調整はしない（レシピの量のまま）。
+// ratio：人数を変えたときの割合（材料と、リンク先の材料に掛ける。省略は 1＝レシピの量のまま）。
+// 割合が変わったら、呼び出し側で作り直す（key）。読み込んだリンク先の材料は、そのときの割合で計算してある。
 export function useRecipeShoppingPlan({
 	ingredients,
 	linkViews = noLinkViews,
@@ -72,6 +75,7 @@ export function useRecipeShoppingPlan({
 	destination,
 	onApplied,
 	autoStartKey = null,
+	ratio = 1,
 }: UseRecipeShoppingPlanOptions) {
 	// 入れ先を考えた、新しい項目の並び順の起点（全項目の最大値）。
 	const [highestSortOrder, setHighestSortOrder] = useState(-1);
@@ -120,11 +124,13 @@ export function useRecipeShoppingPlan({
 		() =>
 			mergeRecipeNeeds(
 				[
-					...resolvedNeeds.filter((need) => !need.linkedRecipe),
+					...resolvedNeeds
+						.filter((need) => !need.linkedRecipe)
+						.map((need) => scaleRecipeNeed(need, ratio)),
 					...linkedSections.sections.flatMap((section) => section.needs),
 				].map(withRangeUpperBound),
 			),
-		[resolvedNeeds, linkedSections],
+		[resolvedNeeds, linkedSections, ratio],
 	);
 
 	// 未購入の買い物項目だけを、重複の対象にする。
@@ -218,6 +224,7 @@ export function useRecipeShoppingPlan({
 					resolvedNeeds,
 					loadLinkedRecipe,
 					collectMadeRecipeStock(loadedStock ?? []),
+					ratio,
 				);
 
 				setLinkedSections(linked);
@@ -240,6 +247,7 @@ export function useRecipeShoppingPlan({
 			loadMemoItems,
 			missingLinkNames,
 			ownerScope,
+			ratio,
 			resolvedNeeds,
 		],
 	);

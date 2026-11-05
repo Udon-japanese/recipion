@@ -17,7 +17,7 @@ export type CreatedRecipe = {
 export type RecipeSummary = {
 	publicId: string;
 	name: string;
-	servings: number;
+	yieldText: string;
 	visibility: RecipeVisibility;
 	// 料理の絵（なければ、レシピ名から選ぶプリセット）。
 	cover: DishPlacement[] | null;

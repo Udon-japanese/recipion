@@ -99,7 +99,7 @@ export function RecipeList({
 										thumbnailSeed={recipe.publicId}
 										cover={recipe.cover}
 										name={recipe.name}
-										servings={recipe.servings}
+										yieldText={recipe.yieldText}
 										extra={
 											recipe.visibility === "private" ? null : (
 												<Tag tone="soft">

@@ -776,7 +776,7 @@ describe("RecipeEditor", () => {
 		}));
 		const initialDocument = createRecipeEditorDocument({
 			name: "つくね",
-			servings: 4,
+			yieldText: "4人分",
 			ingredientText: "肉だね\n豚ひき肉 200g\n玉ねぎ 1/2個",
 			preparationText: "玉ねぎをみじん切りにする\n卵を溶いておく",
 			instructionText: "1. 材料を混ぜる\n2. フライパンで焼く\n途中で裏返す",
@@ -791,9 +791,9 @@ describe("RecipeEditor", () => {
 		expect(
 			screen.getByRole("button", { name: "レシピ名を編集" }).textContent,
 		).toBe("つくね");
-		expect(screen.getByRole("spinbutton", { name: "何人分" })).toHaveProperty(
+		expect(screen.getByRole("textbox", { name: "できあがり" })).toHaveProperty(
 			"value",
-			"4",
+			"4人分",
 		);
 		expect(
 			screen.getByRole("button", { name: "豚ひき肉の分量を編集" }).textContent,
@@ -812,7 +812,7 @@ describe("RecipeEditor", () => {
 		const saved = onSave.mock.calls[0]?.[0];
 
 		expect(saved?.name).toBe("鶏つくね");
-		expect(saved?.servings).toBe(4);
+		expect(saved?.yieldText).toBe("4人分");
 		expect(saved?.note).toBe("焼きすぎない");
 		// 材料は、グループも含めて、同じ ID のまま保存される
 		expect(saved?.ingredients).toEqual(initialDocument.ingredients);
@@ -1030,45 +1030,67 @@ describe("RecipeEditor", () => {
 		).toBeTruthy();
 	});
 
-	it("見出しの人数を、人数の欄に入れる（自分で直したあとは、変えない）", async () => {
+	it("見出しのできあがりの量を、欄に入れる（自分で直したあとは、変えない）", async () => {
 		const user = userEvent.setup();
 
 		render(<RecipeEditor onSave={vi.fn()} />);
 
 		await writeBody(user, "＜材料（4人分）＞\n卵 1個");
-		expect(screen.getByRole("spinbutton", { name: "何人分" })).toHaveProperty(
+		expect(screen.getByRole("textbox", { name: "できあがり" })).toHaveProperty(
 			"value",
-			"4",
+			"4人分",
 		);
 
-		const servings = screen.getByRole("spinbutton", { name: "何人分" });
+		const yieldInput = screen.getByRole("textbox", { name: "できあがり" });
 
-		await user.clear(servings);
-		await user.type(servings, "3");
+		await user.clear(yieldInput);
+		await user.type(yieldInput, "12個");
 		await writeBody(user, "＜材料（6人分）＞\n卵 1個");
 
-		expect(servings).toHaveProperty("value", "3");
+		expect(yieldInput).toHaveProperty("value", "12個");
 	});
 
-	it("人数を、ボタンで1ずつ増減でき、1より下には減らせない", async () => {
+	it("できあがりの量の最後の数を、ボタンで1ずつ増減でき（前後の文字は残す）、1より下には減らせない", async () => {
 		const user = userEvent.setup();
 
 		render(<RecipeEditor onSave={vi.fn()} />);
 
-		const servings = screen.getByRole("spinbutton", { name: "何人分" });
+		const yieldInput = screen.getByRole("textbox", { name: "できあがり" });
+		const decrease = () =>
+			screen.getByRole("button", { name: "できあがりの量を減らす" });
 
-		expect(servings).toHaveProperty("value", "2");
+		expect(yieldInput).toHaveProperty("value", "2人分");
 
-		await user.click(screen.getByRole("button", { name: "人数を増やす" }));
-		expect(servings).toHaveProperty("value", "3");
+		await user.clear(yieldInput);
+		await user.type(yieldInput, "18cmの型1台");
+		expect(decrease()).toHaveProperty("disabled", true);
 
-		await user.click(screen.getByRole("button", { name: "人数を減らす" }));
-		await user.click(screen.getByRole("button", { name: "人数を減らす" }));
-		expect(servings).toHaveProperty("value", "1");
-		expect(screen.getByRole("button", { name: "人数を減らす" })).toHaveProperty(
-			"disabled",
-			true,
+		await user.click(
+			screen.getByRole("button", { name: "できあがりの量を増やす" }),
 		);
+		expect(yieldInput).toHaveProperty("value", "18cmの型2台");
+
+		await user.click(decrease());
+		expect(yieldInput).toHaveProperty("value", "18cmの型1台");
+		expect(decrease()).toHaveProperty("disabled", true);
+	});
+
+	it("数のない量（作りやすい分量）は、ボタンで増減しない", async () => {
+		const user = userEvent.setup();
+
+		render(<RecipeEditor onSave={vi.fn()} />);
+
+		const yieldInput = screen.getByRole("textbox", { name: "できあがり" });
+
+		await user.clear(yieldInput);
+		await user.type(yieldInput, "作りやすい分量");
+
+		expect(
+			screen.getByRole("button", { name: "できあがりの量を増やす" }),
+		).toHaveProperty("disabled", true);
+		expect(
+			screen.getByRole("button", { name: "できあがりの量を減らす" }),
+		).toHaveProperty("disabled", true);
 	});
 
 	it("グループの中に、直接、材料を追加できる", async () => {
@@ -1577,7 +1599,7 @@ describe("RecipeEditor", () => {
 		it("保存前の確認で、リンクの材料は、読み取り専用で、保存後と同じ表示。分量がなくても、グループにならない。押すとプレビューが開く", async () => {
 			const user = userEvent.setup();
 			const loadLinkedRecipe = vi.fn(async () => ({
-				...createRecipeEditorDocument({ name: "カレー", servings: 2 }),
+				...createRecipeEditorDocument({ name: "カレー", yieldText: "2人分" }),
 				publicId: "curry-id",
 				linkViews: [],
 				createdAt: "2026-10-01T00:00:00+09:00",

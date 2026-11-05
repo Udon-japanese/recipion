@@ -44,8 +44,8 @@ describe("parseBackupFile", () => {
 		],
 		[
 			"違う版",
-			serialize({ ...createBackupFile([], [], now), version: 2 }),
-			"この版のファイルは読めません（版 2）",
+			serialize({ ...createBackupFile([], [], now), version: 3 }),
+			"この版のファイルは読めません（版 3）",
 		],
 		[
 			"在庫の日付が存在しない",

@@ -1,5 +1,6 @@
 import type { RecipeShoppingNeed } from "./plan-shopping-from-recipe";
 import { type RecipeLinkView, splitTextByLinks } from "./recipe-links";
+import { normalizeYieldUnit, parseRecipeYield } from "./recipe-yield";
 
 // 材料の名前の [[ラベル]] を、買い物メモの材料に直す。
 // - 名前が [[ラベル]] だけで、リンク先が見つかる：他のレシピで作るもの（linkedRecipe）。そのレシピの材料を、展開して使う。
@@ -55,11 +56,11 @@ export function resolveIngredientLinks(
 
 // リンク先のレシピの、何回分を使うか（割合）。
 // - 単位のない分数、「量」「倍」：その数（半分＝0.5、2倍＝2）
-// - 「人分」：人数÷リンク先のレシピの人数
-// - 数量がない、ほかの単位（g など。リンク先のできあがりの量が分からない）：1回分
+// - リンク先のできあがりと同じ単位（「人分」「個」など。最後の「分」は比べない）：数÷リンク先のできあがりの数
+// - 数量がない、ほかの単位（g など。リンク先のできあがりの量が分からない）、リンク先が増減できない：1回分
 export function linkedRecipeRatio(
 	need: Pick<RecipeShoppingNeed, "quantity" | "unitLabel">,
-	servings: number,
+	targetYieldText: string,
 ): number {
 	const { quantity, unitLabel } = need;
 
@@ -71,8 +72,13 @@ export function linkedRecipeRatio(
 		return quantity;
 	}
 
-	if (unitLabel === "人分" && servings > 0) {
-		return quantity / servings;
+	const targetYield = parseRecipeYield(targetYieldText);
+
+	if (
+		targetYield &&
+		normalizeYieldUnit(unitLabel) === normalizeYieldUnit(targetYield.suffix)
+	) {
+		return quantity / targetYield.quantity;
 	}
 
 	return 1;

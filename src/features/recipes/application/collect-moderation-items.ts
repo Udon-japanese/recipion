@@ -14,6 +14,7 @@ export function collectRecipeModerationItems(
 ): ModerationItem[] {
 	return [
 		{ target: "recipe-title", text: recipe.name },
+		{ target: "recipe-yield", text: recipe.yieldText },
 		...recipe.ingredients.map(
 			(node): ModerationItem => ({
 				target: "recipe-ingredient",

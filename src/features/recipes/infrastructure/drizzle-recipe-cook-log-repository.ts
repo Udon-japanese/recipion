@@ -54,6 +54,8 @@ export function createDrizzleRecipeCookLogRepository(db: DB, userId: string) {
 		async record(input: {
 			recipePublicId: string;
 			sourceId: string;
+			// つくった量（「2人分」）。
+			yieldText: string;
 		}): Promise<RecipeCookStats | null> {
 			const found = await findViewable(input.recipePublicId);
 
@@ -67,6 +69,7 @@ export function createDrizzleRecipeCookLogRepository(db: DB, userId: string) {
 					userId,
 					recipeId: found.id,
 					recipeName: found.name,
+					yieldText: input.yieldText,
 					sourceId: input.sourceId,
 				})
 				.onConflictDoNothing({
@@ -118,7 +121,7 @@ export function createDrizzleRecipeCookLogRepository(db: DB, userId: string) {
 					publicId: recipe.publicId,
 					name: recipe.name,
 					cover: recipe.cover,
-					servings: recipe.servings,
+					yieldText: recipeCookLog.yieldText,
 					authorName: user.name,
 					authorHandle: user.handle,
 					authorAvatar: user.avatar,
@@ -155,8 +158,7 @@ export function createDrizzleRecipeCookLogRepository(db: DB, userId: string) {
 						recipeName: canOpen && row.name ? row.name : row.snapshotName,
 						publicId: canOpen ? row.publicId : null,
 						cover: canOpen ? parseDishCover(row.cover) : null,
-						servings:
-							canOpen && row.servings !== null ? Number(row.servings) : null,
+						yieldText: row.yieldText,
 						author:
 							canOpen &&
 							row.recipeUserId !== null &&

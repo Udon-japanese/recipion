@@ -23,10 +23,7 @@ import {
 } from "../domain/recipe-link-permission";
 import { maxLinksPerRecipe } from "../domain/recipe-links";
 import { toRecipeRevision } from "../domain/recipe-revision";
-import {
-	formatRecipeIngredientQuantity,
-	formatRecipeServings,
-} from "./format-recipe-storage-number";
+import { formatRecipeIngredientQuantity } from "./format-recipe-storage-number";
 import {
 	recipe,
 	recipeIngredientNode,
@@ -276,7 +273,7 @@ export async function loadRecipeDetail(
 	return {
 		publicId: found.publicId,
 		name: found.name,
-		servings: Number(found.servings),
+		yieldText: found.yieldText,
 		note: found.note,
 		sourceUrl: found.sourceUrl,
 		visibility: parseRecipeVisibility(found.visibility),
@@ -349,7 +346,7 @@ export function createDrizzleRecipeRepository(
 						userId,
 						publicId: createPublicId(),
 						name: command.name,
-						servings: formatRecipeServings(command.servings),
+						yieldText: command.yieldText,
 						note: command.note,
 						sourceUrl: command.sourceUrl,
 						visibility: command.visibility,
@@ -405,7 +402,7 @@ export function createDrizzleRecipeRepository(
 					.update(recipe)
 					.set({
 						name: command.name,
-						servings: formatRecipeServings(command.servings),
+						yieldText: command.yieldText,
 						note: command.note,
 						sourceUrl: command.sourceUrl,
 						visibility: command.visibility,
@@ -529,7 +526,7 @@ export function createDrizzleRecipeRepository(
 				.select({
 					publicId: recipe.publicId,
 					name: recipe.name,
-					servings: recipe.servings,
+					yieldText: recipe.yieldText,
 					visibility: recipe.visibility,
 					cover: recipe.cover,
 					createdAt: recipe.createdAt,
@@ -541,7 +538,7 @@ export function createDrizzleRecipeRepository(
 			return rows.map((row) => ({
 				publicId: row.publicId,
 				name: row.name,
-				servings: Number(row.servings),
+				yieldText: row.yieldText,
 				visibility: parseRecipeVisibility(row.visibility),
 				cover: parseDishCover(row.cover),
 				createdAt: row.createdAt.toISOString(),

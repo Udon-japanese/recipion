@@ -89,7 +89,7 @@ export function RecipeCookList({ initialPage, loadMore }: RecipeCookListProps) {
 										thumbnailSeed={entry.publicId ?? entry.id}
 										cover={entry.cover}
 										name={entry.recipeName}
-										servings={entry.servings}
+										yieldText={entry.yieldText}
 										author={entry.author}
 										extra={
 											entry.publicId ? null : (

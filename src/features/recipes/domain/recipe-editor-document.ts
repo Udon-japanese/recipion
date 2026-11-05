@@ -9,6 +9,7 @@ import { parseRecipeInstructions } from "./parse-recipe-instructions";
 import { parseRecipePreparations } from "./parse-recipe-preparations";
 import type { RecipeVisibility } from "./recipe-link-permission";
 import type { RecipeLinkReference } from "./recipe-links";
+import { defaultRecipeYieldText } from "./recipe-yield";
 
 export type RecipeEditorIngredientItem = ParsedRecipeIngredientItem & {
 	id: string;
@@ -39,7 +40,8 @@ export type RecipeEditorInstruction = {
 
 export type RecipeEditorDocument = {
 	name: string;
-	servings: number;
+	// できあがりの量（「4人分」「12個」など）。
+	yieldText: string;
 	ingredients: RecipeEditorIngredientNode[];
 	preparations: RecipeEditorPreparation[];
 	instructions: RecipeEditorInstruction[];
@@ -58,7 +60,7 @@ export type RecipeEditorDocument = {
 
 export type CreateRecipeEditorDocumentInput = {
 	name?: string;
-	servings?: number;
+	yieldText?: string;
 	ingredientText?: string;
 	preparationText?: string;
 	instructionText?: string;
@@ -100,7 +102,7 @@ export function createRecipeEditorDocument(
 
 	return {
 		name: input.name?.trim() ?? "",
-		servings: input.servings ?? 2,
+		yieldText: input.yieldText?.trim() || defaultRecipeYieldText,
 		ingredients: parsedIngredients.map((node) =>
 			createIngredientNode(node, createId),
 		),

@@ -26,7 +26,7 @@ export type StoredRecipeIngredientNode = {
 
 export type PreparedRecipeForStorage = {
 	name: string;
-	servings: number;
+	yieldText: string;
 	note: string;
 	sourceUrl: string | null;
 	visibility: RecipeVisibility;
@@ -126,7 +126,7 @@ export function prepareRecipeForStorage(
 
 	return {
 		name: document.name.trim(),
-		servings: document.servings,
+		yieldText: document.yieldText,
 		note: document.note,
 		sourceUrl: document.sourceUrl,
 		visibility: document.visibility ?? "private",

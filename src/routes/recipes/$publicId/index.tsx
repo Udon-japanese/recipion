@@ -4,6 +4,7 @@ import {
 	useRouter,
 } from "@tanstack/react-router";
 import { useCallback, useState } from "react";
+import * as v from "valibot";
 import { ButtonLink } from "#/components/button/button-link";
 import { Tag } from "#/components/tag/tag";
 import { pageTitle } from "#/config/app";
@@ -42,12 +43,17 @@ import { RecipeRouteError } from "#/features/recipes/components/recipe-route-err
 import { RecipeShoppingSection } from "#/features/recipes/components/recipe-shopping-section";
 import { RecipeUnlockForm } from "#/features/recipes/components/recipe-unlock-form";
 import { RecipeViewWithLinks } from "#/features/recipes/components/recipe-view-with-links";
+import { RecipeYieldStepper } from "#/features/recipes/components/recipe-yield-stepper";
 import { collectRecipeLinkTargetIds } from "#/features/recipes/domain/ingredient-link-target";
 import type {
 	RecipeCookStats,
 	RecipeDates,
 } from "#/features/recipes/domain/recipe-cook-log";
 import { recipeVisibilityLabels } from "#/features/recipes/domain/recipe-visibility-label";
+import {
+	ratioForYield,
+	scaleRecipeYieldText,
+} from "#/features/recipes/domain/recipe-yield";
 import { deleteRecipeServerFn } from "#/features/recipes/server/delete-recipe";
 import { getLinkedRecipesServerFn } from "#/features/recipes/server/get-linked-recipes";
 import { getRecipeServerFn } from "#/features/recipes/server/get-recipe";
@@ -72,6 +78,12 @@ import { createUserNameReportServerFn } from "#/features/reports/server/create-u
 const maxPreloadedLinkTargets = 30;
 
 export const Route = createFileRoute("/recipes/$publicId/")({
+	// n：見る人が選んだ、できあがりの数（「4人分」のレシピを2人分で見る、など）。なければ、レシピの量のまま。
+	validateSearch: v.object({
+		n: v.optional(
+			v.pipe(v.number(), v.finite(), v.gtValue(0), v.maxValue(1000)),
+		),
+	}),
 	// 見てはいけないレシピと、存在しないレシピは、どちらも null（パスフレーズの入力画面になる）。
 	// リンク先（材料の下に開く分と、プレビューで見る分）も、前もって取る。
 	// 在庫は、前もって取らない（「買い物メモへ」「つくった」で使うときに、その時点の在庫を取る）。
@@ -130,6 +142,23 @@ function useRecipeViewSupport(
 	{ linkedRecipes, cookStats: preloadedCookStats }: RecipePreload,
 ) {
 	const ownerScope = useOwnerScope();
+	const { n: wanted } = Route.useSearch();
+	const navigate = useNavigate({ from: Route.fullPath });
+	// 見る人が選んだ量の割合（材料の表示・買い物メモ・つくった・リンク先に掛ける）。
+	const ratio = ratioForYield(recipe.yieldText, wanted);
+	const yieldControl = (
+		<RecipeYieldStepper
+			yieldText={recipe.yieldText}
+			wanted={ratio === 1 ? undefined : wanted}
+			onChange={(next) =>
+				void navigate({
+					search: next === undefined ? {} : { n: next },
+					replace: true,
+					resetScroll: false,
+				})
+			}
+		/>
+	);
 	// 自分がつくった回数と最後の日。「つくった！」と「元に戻す」で、サーバーが返した値に置き換える。
 	const [cookStats, setCookStats] = useState(preloadedCookStats);
 
@@ -138,7 +167,11 @@ function useRecipeViewSupport(
 		record: async (sourceId: string) => {
 			setCookStats(
 				await recordRecipeCookServerFn({
-					data: { recipePublicId: recipe.publicId, sourceId },
+					data: {
+						recipePublicId: recipe.publicId,
+						sourceId,
+						yieldText: scaleRecipeYieldText(recipe.yieldText, ratio),
+					},
 				}),
 			);
 		},
@@ -270,7 +303,11 @@ function useRecipeViewSupport(
 
 	// 作り置きのレシピ：「作った」で、できあがりを在庫に入れる。
 	const produce = useCallback(
-		async (input: { sourceId: string; transactionId: string }) => {
+		async (input: {
+			sourceId: string;
+			transactionId: string;
+			quantity: number;
+		}) => {
 			await stockMadeRecipeServerFn({
 				data: { recipePublicId: recipe.publicId, ...input },
 			});
@@ -280,6 +317,8 @@ function useRecipeViewSupport(
 
 	return {
 		ownerScope,
+		ratio,
+		yieldControl,
 		cookStats,
 		cookLog,
 		loadLinkedRecipe,
@@ -304,6 +343,8 @@ function OwnRecipePage({
 	const navigate = useNavigate();
 	const {
 		ownerScope,
+		ratio,
+		yieldControl,
 		cookStats,
 		cookLog,
 		loadLinkedRecipe,
@@ -324,6 +365,8 @@ function OwnRecipePage({
 				key={recipe.publicId}
 				recipe={recipe}
 				checklist
+				ratio={ratio}
+				yieldControl={yieldControl}
 				badges={
 					<>
 						<Tag
@@ -361,6 +404,8 @@ function OwnRecipePage({
 				instructionsAction={<RecipeKeepAwake />}
 				ingredientsAction={
 					<RecipeShoppingSection
+						key={ratio}
+						ratio={ratio}
 						ingredients={recipe.ingredients}
 						linkViews={recipe.linkViews}
 						loadLinkedRecipe={loadCurrentLinkedRecipe}
@@ -371,6 +416,8 @@ function OwnRecipePage({
 				}
 				madeAction={
 					<RecipeConsumeSection
+						key={ratio}
+						ratio={ratio}
 						recipePublicId={recipe.publicId}
 						ingredients={recipe.ingredients}
 						linkViews={recipe.linkViews}
@@ -407,6 +454,8 @@ function SharedRecipePage({
 }) {
 	const {
 		ownerScope,
+		ratio,
+		yieldControl,
 		cookStats,
 		cookLog,
 		loadLinkedRecipe,
@@ -423,6 +472,8 @@ function SharedRecipePage({
 				key={recipe.publicId}
 				recipe={recipe}
 				checklist
+				ratio={ratio}
+				yieldControl={yieldControl}
 				badges={
 					<>
 						<RecipeAuthorByline
@@ -450,6 +501,8 @@ function SharedRecipePage({
 				instructionsAction={<RecipeKeepAwake />}
 				ingredientsAction={
 					<RecipeShoppingSection
+						key={ratio}
+						ratio={ratio}
 						ingredients={recipe.ingredients}
 						linkViews={recipe.linkViews}
 						loadLinkedRecipe={loadCurrentLinkedRecipe}
@@ -460,6 +513,8 @@ function SharedRecipePage({
 				}
 				madeAction={
 					<RecipeConsumeSection
+						key={ratio}
+						ratio={ratio}
 						recipePublicId={recipe.publicId}
 						ingredients={recipe.ingredients}
 						linkViews={recipe.linkViews}
@@ -480,12 +535,13 @@ function SharedRecipePage({
 	);
 }
 
-// リンク先のプレビューの「レシピを開く」。
-function renderOpenLink(publicId: string) {
+// リンク先のプレビューの「レシピを開く」。リンクの行の量（半分など）で見ていたら、その量で開く。
+function renderOpenLink(publicId: string, wanted?: number) {
 	return (
 		<ButtonLink
 			to="/recipes/$publicId"
 			params={{ publicId }}
+			search={wanted === undefined ? {} : { n: wanted }}
 			variant="secondary"
 			size="sm"
 		>

@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import * as v from "valibot";
 import { requireSession } from "#/integrations/better-auth/require-session";
+import { maxRecipeYieldLength } from "../domain/recipe-yield";
 import { createDrizzleRecipeCookLogRepository } from "../infrastructure/drizzle-recipe-cook-log-repository";
 
 const publicIdSchema = v.pipe(v.string(), v.minLength(1), v.maxLength(100));
@@ -19,7 +20,23 @@ const cookInputSchema = v.pipe(
 
 // 「つくった！」を記録する（同じ印での再送は、1回だけ）。返すのは、そのレシピの回数と最後の日。
 export const recordRecipeCookServerFn = createServerFn({ method: "POST" })
-	.validator((input) => v.parse(cookInputSchema, input))
+	.validator((input) =>
+		v.parse(
+			v.intersect([
+				cookInputSchema,
+				v.object({
+					// つくった量（自分だけが見る記録。人数を変えたときは、変えたあとの量）。
+					yieldText: v.pipe(
+						v.string(),
+						v.trim(),
+						v.minLength(1),
+						v.maxLength(maxRecipeYieldLength + 10),
+					),
+				}),
+			]),
+			input,
+		),
+	)
 	.handler(async ({ data }) => {
 		const { db, userId } = await requireSession();
 
