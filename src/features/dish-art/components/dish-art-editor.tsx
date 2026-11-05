@@ -7,6 +7,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { TextInput } from "#/components/field/field";
 import { IconButton } from "#/components/icon-button/icon-button";
 import { SegmentedControl } from "#/components/segmented-control/segmented-control";
 import { useMediaQuery } from "#/components/use-media-query";
@@ -17,6 +18,7 @@ import {
 	dishPartCategories,
 	partsInCategory,
 } from "../domain/dish-part-category";
+import { searchDishParts } from "../domain/dish-part-search";
 import {
 	type Bounds,
 	boundsCorners,
@@ -143,6 +145,8 @@ export function DishArtEditor({
 	const [categoryId, setCategoryId] = useState(
 		initialCategoryId ?? dishPartCategories[0]?.id ?? "",
 	);
+	// 棚の検索の語。打っている間は、分類のタブの代わりに、全分類の結果を並べる（空に戻すと、前の分類へ）。
+	const [partQuery, setPartQuery] = useState("");
 	// 戻す・進む用。変える前の並びを積む。
 	const [history, setHistory] = useState<DishPlacement[][]>([]);
 	const [future, setFuture] = useState<DishPlacement[][]>([]);
@@ -171,6 +175,12 @@ export function DishArtEditor({
 	const category: DishPartCategory | undefined =
 		dishPartCategories.find((candidate) => candidate.id === categoryId) ??
 		dishPartCategories[0];
+	const isSearchingParts = partQuery.trim() !== "";
+	const shelfParts = isSearchingParts
+		? searchDishParts(partQuery)
+		: category
+			? partsInCategory(category)
+			: [];
 	const selectedPlacement = placements[selected];
 	const selectedPart = selectedPlacement
 		? findDishPart(selectedPlacement.partId)
@@ -901,22 +911,36 @@ export function DishArtEditor({
 
 				{tab === "parts" ? (
 					<>
-						<div className={styles.categoryTabs}>
-							{dishPartCategories.map((candidate) => (
-								<button
-									key={candidate.id}
-									type="button"
-									className={styles.categoryTab}
-									aria-pressed={candidate.id === category?.id}
-									onClick={() => setCategoryId(candidate.id)}
-								>
-									{candidate.label}
-								</button>
-							))}
-						</div>
-						{category ? (
+						<TextInput
+							type="search"
+							aria-label="部品を探す"
+							placeholder="部品を探す（例：からあげ）"
+							autoComplete="off"
+							value={partQuery}
+							onChange={(event) => setPartQuery(event.target.value)}
+						/>
+						{isSearchingParts ? null : (
+							<div className={styles.categoryTabs}>
+								{dishPartCategories.map((candidate) => (
+									<button
+										key={candidate.id}
+										type="button"
+										className={styles.categoryTab}
+										aria-pressed={candidate.id === category?.id}
+										onClick={() => setCategoryId(candidate.id)}
+									>
+										{candidate.label}
+									</button>
+								))}
+							</div>
+						)}
+						{isSearchingParts && shelfParts.length === 0 ? (
+							<p className={styles.shelfEmpty}>
+								見つかりませんでした。別の言葉で探してください。
+							</p>
+						) : (
 							<div className={styles.shelf}>
-								{partsInCategory(category).map((part) => (
+								{shelfParts.map((part) => (
 									<button
 										key={part.id}
 										type="button"
@@ -939,7 +963,7 @@ export function DishArtEditor({
 									</button>
 								))}
 							</div>
-						) : null}
+						)}
 					</>
 				) : (
 					<div className={styles.presets}>
