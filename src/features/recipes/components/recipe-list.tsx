@@ -1,14 +1,7 @@
-import { Link } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 import { ButtonLink } from "#/components/button/button-link";
 import { Card } from "#/components/card/card";
 import { Field, TextInput } from "#/components/field/field";
-import { Icon } from "#/components/icon/icon";
-import {
-	ListRow,
-	ListRowMeta,
-	ListRowName,
-} from "#/components/list-row/list-row";
 import { Mascot } from "#/components/mascot/mascot";
 import { SegmentedControl } from "#/components/segmented-control/segmented-control";
 import { Tag } from "#/components/tag/tag";
@@ -17,9 +10,9 @@ import { filterRecipesByName } from "../domain/filter-recipes-by-name";
 import { maxSearchQueryLength } from "../domain/public-recipe-search";
 import { recipeVisibilityLabels } from "../domain/recipe-visibility-label";
 import * as styles from "./recipe-list.css";
-import { RecipeThumbnail } from "./recipe-thumbnail";
+import { RecipeSummaryRow } from "./recipe-summary-row";
 
-export type RecipesTab = "mine" | "public";
+export type RecipesTab = "mine" | "public" | "made";
 
 type RecipeListProps = {
 	recipes: readonly RecipeSummary[];
@@ -27,6 +20,8 @@ type RecipeListProps = {
 	onTabChange?: (tab: RecipesTab) => void;
 	// 「みんなのレシピ」の中身（tab が public のとき、自分のレシピの代わりに出す）。
 	publicPanel?: ReactNode;
+	// 「つくった」の中身（tab が made のとき）。
+	madePanel?: ReactNode;
 };
 
 export function RecipeList({
@@ -34,6 +29,7 @@ export function RecipeList({
 	tab = "mine",
 	onTabChange,
 	publicPanel,
+	madePanel,
 }: RecipeListProps) {
 	const [searchText, setSearchText] = useState("");
 	const shownRecipes = filterRecipesByName(recipes, searchText);
@@ -55,12 +51,15 @@ export function RecipeList({
 					options={[
 						{ value: "mine", label: "自分のレシピ" },
 						{ value: "public", label: "みんなのレシピ" },
+						{ value: "made", label: "つくった" },
 					]}
 				/>
 			) : null}
 
 			{tab === "public" ? (
 				publicPanel
+			) : tab === "made" ? (
+				madePanel
 			) : recipes.length === 0 ? (
 				<div className={styles.empty}>
 					<Mascot size={64} motion="still" />
@@ -94,32 +93,21 @@ export function RecipeList({
 						<Card>
 							<ul className={styles.list}>
 								{shownRecipes.map((recipe) => (
-									<ListRow
+									<RecipeSummaryRow
 										key={recipe.publicId}
-										leading={
-											<RecipeThumbnail
-												cover={recipe.cover}
-												publicId={recipe.publicId}
-											/>
-										}
-										actions={<Icon name="chevron-right" size={20} />}
-									>
-										<Link
-											className={styles.link}
-											to="/recipes/$publicId"
-											params={{ publicId: recipe.publicId }}
-										>
-											<ListRowName>{recipe.name}</ListRowName>
-										</Link>
-										<ListRowMeta>
-											<Tag>{recipe.servings}人分</Tag>
-											{recipe.visibility === "private" ? null : (
+										publicId={recipe.publicId}
+										thumbnailSeed={recipe.publicId}
+										cover={recipe.cover}
+										name={recipe.name}
+										servings={recipe.servings}
+										extra={
+											recipe.visibility === "private" ? null : (
 												<Tag tone="soft">
 													{recipeVisibilityLabels[recipe.visibility]}
 												</Tag>
-											)}
-										</ListRowMeta>
-									</ListRow>
+											)
+										}
+									/>
 								))}
 							</ul>
 						</Card>

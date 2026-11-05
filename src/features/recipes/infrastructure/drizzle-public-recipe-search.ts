@@ -69,11 +69,6 @@ export async function searchPublicRecipes(
 			authorHandle: user.handle,
 			authorId: user.id,
 			authorAvatar: user.avatar,
-			ingredientCount: sql<number>`(
-				select count(*)::int from ${recipeIngredientNode}
-				where ${recipeIngredientNode.recipeId} = ${recipe.id}
-				and ${recipeIngredientNode.type} = 'ingredient'
-			)`,
 		})
 		.from(recipe)
 		.innerJoin(user, eq(user.id, recipe.userId))
@@ -104,7 +99,6 @@ export async function searchPublicRecipes(
 			publicId: row.publicId,
 			name: row.name,
 			servings: Number(row.servings),
-			ingredientCount: row.ingredientCount,
 			cover: parseDishCover(row.cover),
 			createdAt: row.createdAt.toISOString(),
 			authorName: row.authorName,

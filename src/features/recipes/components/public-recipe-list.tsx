@@ -1,22 +1,13 @@
-import { Link } from "@tanstack/react-router";
 import { type SubmitEvent, useState } from "react";
 import { Button } from "#/components/button/button";
 import { Card } from "#/components/card/card";
 import { Field, TextInput } from "#/components/field/field";
-import { Icon } from "#/components/icon/icon";
-import {
-	ListRow,
-	ListRowMeta,
-	ListRowName,
-} from "#/components/list-row/list-row";
 import { Mascot } from "#/components/mascot/mascot";
-import { Tag } from "#/components/tag/tag";
 import { UserFacingError } from "#/errors/user-facing-error";
-import { AvatarArt } from "#/features/avatar/components/avatar-art";
 import type { PublicRecipePage } from "../domain/public-recipe-search";
 import { maxSearchQueryLength } from "../domain/public-recipe-search";
 import * as styles from "./public-recipe-list.css";
-import { RecipeThumbnail } from "./recipe-thumbnail";
+import { RecipeSummaryRow } from "./recipe-summary-row";
 
 type PublicRecipeListProps = {
 	// 検索の欄の初期値と、最初のページ。
@@ -111,32 +102,19 @@ export function PublicRecipeList({
 				<Card>
 					<ul className={styles.list}>
 						{recipes.map((recipe) => (
-							<ListRow
+							<RecipeSummaryRow
 								key={recipe.publicId}
-								leading={
-									<RecipeThumbnail
-										cover={recipe.cover}
-										publicId={recipe.publicId}
-									/>
-								}
-								actions={<Icon name="chevron-right" size={20} />}
-							>
-								<Link
-									className={styles.link}
-									to="/recipes/$publicId"
-									params={{ publicId: recipe.publicId }}
-								>
-									<ListRowName>{recipe.name}</ListRowName>
-								</Link>
-								<ListRowMeta>
-									<Tag>{recipe.servings}人分</Tag>
-									<Tag tone="soft">材料{recipe.ingredientCount}</Tag>
-									<span className={styles.author}>
-										<AvatarArt avatar={recipe.authorAvatar} size={20} />
-										{recipe.authorName}（@{recipe.authorHandle}）
-									</span>
-								</ListRowMeta>
-							</ListRow>
+								publicId={recipe.publicId}
+								thumbnailSeed={recipe.publicId}
+								cover={recipe.cover}
+								name={recipe.name}
+								servings={recipe.servings}
+								author={{
+									name: recipe.authorName,
+									handle: recipe.authorHandle,
+									avatar: recipe.authorAvatar,
+								}}
+							/>
 						))}
 					</ul>
 				</Card>

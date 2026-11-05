@@ -291,7 +291,11 @@ export function createDrizzleReportRepository(db: DB): ReportRepository {
 						await transaction
 							.update(recipe)
 							// 限定公開のパスフレーズは、非公開では持たない（制約）。
-							.set({ visibility: "private", unlistedPassphrase: null })
+							.set({
+								visibility: "private",
+								unlistedPassphrase: null,
+								publishedAt: null,
+							})
 							.where(eq(recipe.id, report.recipeId));
 					}
 				}

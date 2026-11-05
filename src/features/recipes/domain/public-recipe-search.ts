@@ -6,7 +6,6 @@ export type PublicRecipeSummary = {
 	publicId: string;
 	name: string;
 	servings: number;
-	ingredientCount: number;
 	// 料理の絵（なければ、れしぽよの絵）。
 	cover: DishPlacement[] | null;
 	// 登録した日時（ISO 8601）。

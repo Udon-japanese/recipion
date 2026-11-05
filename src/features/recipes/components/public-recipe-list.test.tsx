@@ -29,7 +29,6 @@ function recipe(
 		publicId,
 		name,
 		servings: 2,
-		ingredientCount: 3,
 		cover: null,
 		createdAt: "2026-10-23T00:00:00.000Z",
 		authorName: "作者",
@@ -61,7 +60,7 @@ function renderList(
 }
 
 describe("PublicRecipeList", () => {
-	it("レシピ名・作者・材料の数を出し、レシピへのリンクにする", () => {
+	it("レシピ名・何人分・作者を出し、材料の数は出さず、レシピへのリンクにする", () => {
 		renderList({
 			recipes: [recipe("r1", "親子丼", { authorName: "たろう" })],
 			nextCursor: null,
@@ -72,7 +71,8 @@ describe("PublicRecipeList", () => {
 			"/recipes/r1",
 		);
 		expect(screen.getByText("たろう（@author）")).toBeInTheDocument();
-		expect(screen.getByText("材料3")).toBeInTheDocument();
+		expect(screen.getByText("2人分")).toBeInTheDocument();
+		expect(screen.queryByText(/^材料/u)).toBeNull();
 		expect(screen.queryByRole("button", { name: "もっと見る" })).toBeNull();
 	});
 

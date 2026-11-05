@@ -3,7 +3,7 @@ import {
 	useNavigate,
 	useRouter,
 } from "@tanstack/react-router";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { ButtonLink } from "#/components/button/button-link";
 import { Tag } from "#/components/tag/tag";
 import { pageTitle } from "#/config/app";
@@ -34,6 +34,7 @@ import type { RecipeDetail } from "#/features/recipes/application/recipe-reposit
 import { RecipeAuthorByline } from "#/features/recipes/components/recipe-author-byline";
 import { RecipeConsumeSection } from "#/features/recipes/components/recipe-consume-section";
 import * as styles from "#/features/recipes/components/recipe-detail-page.css";
+import { RecipeHistoryLine } from "#/features/recipes/components/recipe-history-line";
 import { RecipeKeepAwake } from "#/features/recipes/components/recipe-keep-awake";
 import { RecipeOwnerActions } from "#/features/recipes/components/recipe-owner-actions";
 import { RecipePassphraseSection } from "#/features/recipes/components/recipe-passphrase-section";
@@ -42,10 +43,19 @@ import { RecipeShoppingSection } from "#/features/recipes/components/recipe-shop
 import { RecipeUnlockForm } from "#/features/recipes/components/recipe-unlock-form";
 import { RecipeViewWithLinks } from "#/features/recipes/components/recipe-view-with-links";
 import { collectRecipeLinkTargetIds } from "#/features/recipes/domain/ingredient-link-target";
+import type {
+	RecipeCookStats,
+	RecipeDates,
+} from "#/features/recipes/domain/recipe-cook-log";
 import { recipeVisibilityLabels } from "#/features/recipes/domain/recipe-visibility-label";
 import { deleteRecipeServerFn } from "#/features/recipes/server/delete-recipe";
 import { getLinkedRecipesServerFn } from "#/features/recipes/server/get-linked-recipes";
 import { getRecipeServerFn } from "#/features/recipes/server/get-recipe";
+import {
+	cancelRecipeCookServerFn,
+	getRecipeCookStatsServerFn,
+	recordRecipeCookServerFn,
+} from "#/features/recipes/server/recipe-cook-log";
 import {
 	getRecipePassphraseServerFn,
 	regenerateRecipePassphraseServerFn,
@@ -66,9 +76,10 @@ export const Route = createFileRoute("/recipes/$publicId/")({
 	// リンク先（材料の下に開く分と、プレビューで見る分）も、前もって取る。
 	// 在庫は、前もって取らない（「買い物メモへ」「つくった」で使うときに、その時点の在庫を取る）。
 	loader: async ({ params }) => {
-		const viewable = await viewRecipeServerFn({
-			data: { publicId: params.publicId },
-		});
+		const [viewable, cookStats] = await Promise.all([
+			viewRecipeServerFn({ data: { publicId: params.publicId } }),
+			getRecipeCookStatsServerFn({ data: { publicId: params.publicId } }),
+		]);
 
 		if (!viewable) {
 			return null;
@@ -83,7 +94,7 @@ export const Route = createFileRoute("/recipes/$publicId/")({
 				? await getLinkedRecipesServerFn({ data: { publicIds: linkTargetIds } })
 				: {};
 
-		return { ...viewable, linkedRecipes };
+		return { ...viewable, linkedRecipes, cookStats };
 	},
 	head: ({ loaderData }) => ({
 		meta: [
@@ -102,6 +113,8 @@ export const Route = createFileRoute("/recipes/$publicId/")({
 
 type RecipePreload = {
 	linkedRecipes: Readonly<Record<string, RecipeDetail>>;
+	dates: RecipeDates;
+	cookStats: RecipeCookStats | null;
 };
 
 // 「買い物メモへ」「つくった」で、リンク先の材料を使うとき。画面を開いたあとに、リンク先が消された・見られなくなった
@@ -114,9 +127,29 @@ function loadCurrentLinkedRecipe(publicId: string) {
 // 見る人によらない、画面の支え（リンク先の取得、在庫、「ある」の登録）。
 function useRecipeViewSupport(
 	recipe: RecipeDetail,
-	{ linkedRecipes }: RecipePreload,
+	{ linkedRecipes, cookStats: preloadedCookStats }: RecipePreload,
 ) {
 	const ownerScope = useOwnerScope();
+	// 自分がつくった回数と最後の日。「つくった！」と「元に戻す」で、サーバーが返した値に置き換える。
+	const [cookStats, setCookStats] = useState(preloadedCookStats);
+
+	// 「つくった！」の記録。記録できなければ、例外（「つくった」のシートで、やり直せる）。
+	const cookLog = {
+		record: async (sourceId: string) => {
+			setCookStats(
+				await recordRecipeCookServerFn({
+					data: { recipePublicId: recipe.publicId, sourceId },
+				}),
+			);
+		},
+		cancel: async (sourceId: string) => {
+			setCookStats(
+				await cancelRecipeCookServerFn({
+					data: { recipePublicId: recipe.publicId, sourceId },
+				}),
+			);
+		},
+	};
 
 	// リンク先のレシピ（プレビューで見る分）。前もって取ってあれば、それを使う（すぐに開くため）。
 	const loadLinkedRecipe = useCallback(
@@ -247,6 +280,8 @@ function useRecipeViewSupport(
 
 	return {
 		ownerScope,
+		cookStats,
+		cookLog,
 		loadLinkedRecipe,
 		loadLinkedRecipes,
 		loadPassphrase,
@@ -269,6 +304,8 @@ function OwnRecipePage({
 	const navigate = useNavigate();
 	const {
 		ownerScope,
+		cookStats,
+		cookLog,
 		loadLinkedRecipe,
 		loadLinkedRecipes,
 		loadPassphrase,
@@ -288,15 +325,19 @@ function OwnRecipePage({
 				recipe={recipe}
 				checklist
 				badges={
-					<Tag
-						tone={
-							recipe.visibility === "public" || recipe.visibility === "unlisted"
-								? "soft"
-								: "default"
-						}
-					>
-						{recipeVisibilityLabels[recipe.visibility ?? "private"]}
-					</Tag>
+					<>
+						<Tag
+							tone={
+								recipe.visibility === "public" ||
+								recipe.visibility === "unlisted"
+									? "soft"
+									: "default"
+							}
+						>
+							{recipeVisibilityLabels[recipe.visibility ?? "private"]}
+						</Tag>
+						<RecipeHistoryLine dates={preload.dates} cookStats={cookStats} />
+					</>
 				}
 				actions={
 					<RecipeOwnerActions
@@ -338,6 +379,7 @@ function OwnRecipePage({
 						loadInventoryItems={loadInventoryItems}
 						consume={consume}
 						undo={undoConsumption}
+						cookLog={cookLog}
 						madeRecipe={{
 							name: recipe.name,
 							defaultChecked: recipe.stocksWhenMade ?? false,
@@ -365,6 +407,8 @@ function SharedRecipePage({
 }) {
 	const {
 		ownerScope,
+		cookStats,
+		cookLog,
 		loadLinkedRecipe,
 		loadLinkedRecipes,
 		loadInventoryItems,
@@ -380,11 +424,14 @@ function SharedRecipePage({
 				recipe={recipe}
 				checklist
 				badges={
-					<RecipeAuthorByline
-						name={author.name}
-						handle={author.handle}
-						avatar={author.avatar}
-					/>
+					<>
+						<RecipeAuthorByline
+							name={author.name}
+							handle={author.handle}
+							avatar={author.avatar}
+						/>
+						<RecipeHistoryLine dates={preload.dates} cookStats={cookStats} />
+					</>
 				}
 				actions={
 					<ReportMenu
@@ -421,6 +468,7 @@ function SharedRecipePage({
 						loadInventoryItems={loadInventoryItems}
 						consume={consume}
 						undo={undoConsumption}
+						cookLog={cookLog}
 					/>
 				}
 				loadLinkedRecipe={loadLinkedRecipe}

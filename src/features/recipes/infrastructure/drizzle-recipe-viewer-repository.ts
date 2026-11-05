@@ -9,6 +9,7 @@ import {
 	isPassphraseLocked,
 	normalizePassphraseInput,
 } from "../domain/passphrase";
+import type { RecipeDates } from "../domain/recipe-cook-log";
 import { parseRecipeVisibility } from "../domain/recipe-link-permission";
 import { loadRecipeDetail } from "./drizzle-recipe-repository";
 import { decryptPassphrase } from "./passphrase-cipher";
@@ -21,9 +22,40 @@ const maxFailuresPerHourOverall = 20;
 export type ViewableRecipe = {
 	recipe: RecipeDetail;
 	isOwn: boolean;
+	dates: RecipeDates;
 	// 作者の、公開される名前とアバター（メールアドレス・ユーザーの id は含めない）。
 	author: { name: string; handle: string; avatar: Avatar };
 };
+
+// 見る人（viewerUserId）が、そのレシピを見てよいか。自分のレシピ、全体公開、パスフレーズで開けた限定公開。
+export async function canViewRecipe(
+	db: DB,
+	viewerUserId: string,
+	target: Pick<typeof recipe.$inferSelect, "id" | "userId" | "visibility">,
+): Promise<boolean> {
+	const visibility = parseRecipeVisibility(target.visibility);
+
+	if (target.userId === viewerUserId || visibility === "public") {
+		return true;
+	}
+
+	if (visibility !== "unlisted") {
+		return false;
+	}
+
+	const [unlocked] = await db
+		.select({ recipeId: recipeUnlock.recipeId })
+		.from(recipeUnlock)
+		.where(
+			and(
+				eq(recipeUnlock.recipeId, target.id),
+				eq(recipeUnlock.userId, viewerUserId),
+			),
+		)
+		.limit(1);
+
+	return unlocked !== undefined;
+}
 
 // 見る人（viewerUserId）が見てよいレシピ。自分のレシピ、全体公開、パスフレーズで開けた限定公開。
 // 見てはいけない・存在しないレシピは、どちらも null（存在を推測させない）。
@@ -49,25 +81,8 @@ export async function findViewableRecipe(
 	}
 
 	const isOwn = row.recipe.userId === viewerUserId;
-	const visibility = parseRecipeVisibility(row.recipe.visibility);
-	let canView = isOwn || visibility === "public";
 
-	if (!canView && visibility === "unlisted") {
-		const [unlocked] = await db
-			.select({ recipeId: recipeUnlock.recipeId })
-			.from(recipeUnlock)
-			.where(
-				and(
-					eq(recipeUnlock.recipeId, row.recipe.id),
-					eq(recipeUnlock.userId, viewerUserId),
-				),
-			)
-			.limit(1);
-
-		canView = unlocked !== undefined;
-	}
-
-	if (!canView) {
+	if (!(await canViewRecipe(db, viewerUserId, row.recipe))) {
 		return null;
 	}
 
@@ -81,6 +96,11 @@ export async function findViewableRecipe(
 					author: { name: row.authorName, handle: row.authorHandle },
 				},
 		isOwn,
+		dates: {
+			createdAt: row.recipe.createdAt.toISOString(),
+			publishedAt: row.recipe.publishedAt?.toISOString() ?? null,
+			updatedAt: row.recipe.updatedAt.toISOString(),
+		},
 		author: {
 			name: row.authorName,
 			handle: row.authorHandle,

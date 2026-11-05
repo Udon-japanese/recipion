@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import * as v from "valibot";
 import type { DB } from "#/db/client";
@@ -356,6 +356,7 @@ export function createDrizzleRecipeRepository(
 						stocksWhenMade: command.stocksWhenMade,
 						cover: command.cover,
 						unlistedPassphrase: command.passphraseCipher ?? null,
+						publishedAt: command.visibility === "private" ? null : new Date(),
 					})
 					.returning({ id: recipe.id, publicId: recipe.publicId });
 
@@ -410,6 +411,11 @@ export function createDrizzleRecipeRepository(
 						visibility: command.visibility,
 						stocksWhenMade: command.stocksWhenMade,
 						cover: command.cover,
+						// 非公開から公開したときだけ、いまの日時。公開のままなら、最初に公開した日時を残す。
+						publishedAt:
+							command.visibility === "private"
+								? null
+								: sql`coalesce(${recipe.publishedAt}, now())`,
 						// undefined は、いまのまま。変えるときは、これまでに開けた人の記録を消す。
 						...(command.passphraseCipher === undefined
 							? {}

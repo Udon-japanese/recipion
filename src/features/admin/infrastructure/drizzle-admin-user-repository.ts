@@ -128,7 +128,11 @@ export function createDrizzleAdminUserRepository(db: DB): AdminUserRepository {
 					// 限定公開のパスフレーズは、非公開では持たない（制約）。
 					await transaction
 						.update(recipe)
-						.set({ visibility: "private", unlistedPassphrase: null })
+						.set({
+							visibility: "private",
+							unlistedPassphrase: null,
+							publishedAt: null,
+						})
 						.where(
 							sql`${recipe.userId} = ${userId} and ${recipe.visibility} <> 'private'`,
 						);

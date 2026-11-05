@@ -30,15 +30,6 @@ export const list = style({
 	listStyle: "none",
 });
 
-// 行全体を押せるように、リンクの範囲を行いっぱいに広げる。
-export const link = style({
-	color: "inherit",
-	textDecoration: "none",
-	selectors: {
-		"&::after": { content: '""', position: "absolute", inset: 0 },
-	},
-});
-
 export const empty = style({
 	display: "grid",
 	justifyItems: "center",
