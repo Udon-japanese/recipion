@@ -167,7 +167,7 @@ function isInsideOpenLink(before: string): boolean {
 }
 
 // [[ のあとに打った文字で、自分のレシピの候補を出す。書き終えた名前でも出す（選んで、リンク先を決めるため）。
-// カーソルの後ろに、すぐ ]] があれば、その手前の文字も、打った文字とみなし、]] まで置き換える。
+// カーソルの後ろに、すぐ ]] があれば、その手前の文字も、打った文字とみなし、]] まで置き換える（] が1つだけでも、同じ。]]] にしない）。
 function completeRecipeLink(
 	before: string,
 	after: string,
@@ -177,10 +177,10 @@ function completeRecipeLink(
 ): RecipeTextCompletion | null {
 	const open = before.lastIndexOf("[[");
 	const typed = before.slice(open + 2);
-	const closed = after.match(/^([^[\]\n]*)\]\]/u);
+	const closed = after.match(/^([^[\]\n]*)(\]{1,2})/u);
 	const afterPart = closed?.[1] ?? "";
 	const replaceFrom = lineStart + open;
-	const replaceTo = caret + afterPart.length + (closed ? 2 : 0);
+	const replaceTo = caret + afterPart.length + (closed?.[2].length ?? 0);
 	const otherQuery = linkContext.others
 		? parseOtherLinkQuery(`${typed}${afterPart}`)
 		: null;
@@ -267,8 +267,8 @@ function completeRecipeLink(
 			return {
 				label: formatLinkTargetLabel(target, hints),
 				insert: formatLink(label),
-				from: lineStart + open,
-				to: caret + afterPart.length + (closed ? 2 : 0),
+				from: replaceFrom,
+				to: replaceTo,
 				link: { label, targetPublicId: target.publicId },
 			};
 		}),

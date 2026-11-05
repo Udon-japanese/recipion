@@ -77,3 +77,23 @@ export function linkedRecipeRatio(
 
 	return 1;
 }
+
+// 名前が [[ラベル]] だけの材料のうち、リンク先が見つからない（削除された・見られない）もののラベル。
+// resolveIngredientLinks は、これらを買い物の候補から外す。外したことを、画面で知らせるために使う。
+export function findMissingIngredientLinks(
+	needs: readonly Pick<RecipeShoppingNeed, "name">[],
+	linkViews: readonly RecipeLinkView[],
+): string[] {
+	return needs.flatMap((need) => {
+		const segments = splitTextByLinks(need.name);
+		const [only] = segments;
+
+		if (segments.length !== 1 || only.type !== "link") {
+			return [];
+		}
+
+		const view = linkViews.find((candidate) => candidate.label === only.label);
+
+		return view && !view.target ? [only.label] : [];
+	});
+}

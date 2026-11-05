@@ -1,4 +1,5 @@
 import {
+	findMissingIngredientLinks,
 	linkedRecipeRatio,
 	resolveIngredientLinks,
 } from "../domain/link-ingredient-needs";
@@ -21,9 +22,27 @@ export type LinkedShoppingSections = {
 	sections: LinkedShoppingSection[];
 	// 在庫のできあがり（作り置き）から使う分。この分の材料は、sections に含めない。
 	madeUses: MadeRecipeUse[];
-	// 読み込めなかった、リンク先のレシピの名前。
+	// 読み込めなかった（通信の失敗など）、リンク先のレシピの名前。
 	failedNames: string[];
+	// 見つからなかった（削除された・見られなくなった）、リンク先のレシピの名前。
+	missingNames: string[];
 };
+
+// リンク先の材料が入っていないことの知らせ（なければ null）。黙って材料を落とさない。
+export function describeLinkedSectionProblems(
+	result: Pick<LinkedShoppingSections, "failedNames" | "missingNames">,
+): string | null {
+	const messages = [
+		result.failedNames.length > 0
+			? `${result.failedNames.join("、")}の材料を読み込めませんでした`
+			: null,
+		result.missingNames.length > 0
+			? `${[...new Set(result.missingNames)].join("、")}は見つからない（削除された・見られなくなった）ため、材料に入れていません`
+			: null,
+	].filter((message) => message !== null);
+
+	return messages.length > 0 ? `${messages.join("。")}。` : null;
+}
 
 function round(value: number): number {
 	return Number(value.toFixed(6));
@@ -34,7 +53,7 @@ const maxDepth = 3;
 
 /**
  * 材料が、他のレシピへのリンクのとき、そのレシピの材料を取ってきて、まとまり（リンク先の名前ごと）にする。
- * - リンク先の中にあるリンクも、たどる。リンク先が見つからないレシピは、含めない。
+ * - リンク先の中にあるリンクも、たどる。リンク先が見つからないレシピは、含めない（名前を返し、画面で知らせる）。
  * - リンクの行の分量は、リンク先の何回分を使うかの割合（半分・2倍・2人分など）。材料の分量に掛ける。入れ子のときは掛け合わせる。
  * - 同じレシピに複数のリンクがあるときは、割合を足して、1つのまとまりにする。
  * - 在庫に、リンク先のできあがり（作り置き。madeStock：元のレシピの publicId → 回分）があれば、その分を先に使い、
@@ -48,6 +67,7 @@ export async function loadLinkedShoppingSections(
 	const remainingMade = new Map(madeStock);
 	const madeUses = new Map<string, MadeRecipeUse>();
 	const failedNames: string[] = [];
+	const missingNames: string[] = [];
 	const failedPublicIds = new Set<string>();
 	// 出てきた順。割合は、リンクをたどった道すじごとの割合の合計。
 	const entries = new Map<
@@ -91,16 +111,22 @@ export async function loadLinkedShoppingSections(
 				}
 
 				if (!recipe) {
+					missingNames.push(target.name);
 					failedPublicIds.add(target.publicId);
 					continue;
 				}
 
+				const flattened = flattenRecipeIngredients(recipe.ingredients);
+
+				// リンク先の中の、見つからないリンク（材料に入らない）も、知らせる。
+				missingNames.push(
+					...findMissingIngredientLinks(flattened, recipe.linkViews).filter(
+						(name) => !missingNames.includes(name),
+					),
+				);
 				entry = {
 					recipe,
-					resolved: resolveIngredientLinks(
-						flattenRecipeIngredients(recipe.ingredients),
-						recipe.linkViews,
-					),
+					resolved: resolveIngredientLinks(flattened, recipe.linkViews),
 					ratio: 0,
 				};
 				entries.set(target.publicId, entry);
@@ -162,5 +188,10 @@ export async function loadLinkedShoppingSections(
 				})),
 		}));
 
-	return { sections, madeUses: [...madeUses.values()], failedNames };
+	return {
+		sections,
+		madeUses: [...madeUses.values()],
+		failedNames,
+		missingNames,
+	};
 }

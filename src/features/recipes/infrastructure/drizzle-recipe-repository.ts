@@ -21,6 +21,7 @@ import {
 	canLinkToRecipe,
 	parseRecipeVisibility,
 } from "../domain/recipe-link-permission";
+import { maxLinksPerRecipe } from "../domain/recipe-links";
 import {
 	formatRecipeIngredientQuantity,
 	formatRecipeServings,
@@ -116,13 +117,41 @@ async function insertRecipeChildren(
 }
 
 // リンク先を調べて、リンクを保存する。リンク先が見つからない、リンクしてはいけないレシピ、自分自身の場合は、例外にして、保存全体を取り消す。
+// リンク先が消えた（削除された・見られなくなった）リンクは、画面から送られてこない。本文にラベルが残っていれば、今の記録のまま残す
+// （捨てると、リンク先を決めていないラベルと同じになり、買い物メモ・「つくった」で、ふつうの材料として扱われてしまう）。
 async function replaceRecipeLinks(
 	transaction: Transaction,
 	userId: string,
 	recipeId: string,
-	links: CreateRecipeCommand["links"],
+	{
+		links,
+		usedLinkLabels,
+	}: Pick<CreateRecipeCommand, "links" | "usedLinkLabels">,
 ): Promise<void> {
+	const sentLabels = new Set(links.map((link) => link.label));
+	const keptRows = (
+		await transaction
+			.select({
+				label: recipeLink.label,
+				targetRecipeId: recipeLink.targetRecipeId,
+			})
+			.from(recipeLink)
+			.where(eq(recipeLink.recipeId, recipeId))
+	).filter(
+		(row) => usedLinkLabels.includes(row.label) && !sentLabels.has(row.label),
+	);
+
+	if (links.length + keptRows.length > maxLinksPerRecipe) {
+		throw new UserFacingError(`リンクは${maxLinksPerRecipe}個までです。`);
+	}
+
 	await transaction.delete(recipeLink).where(eq(recipeLink.recipeId, recipeId));
+
+	if (keptRows.length > 0) {
+		await transaction
+			.insert(recipeLink)
+			.values(keptRows.map((row) => ({ ...row, recipeId, userId })));
+	}
 
 	if (links.length === 0) {
 		return;
@@ -343,7 +372,7 @@ export function createDrizzleRecipeRepository(
 					transaction,
 					userId,
 					createdRecipe.id,
-					command.links,
+					command,
 				);
 
 				return { id: createdRecipe.id, publicId: createdRecipe.publicId };
@@ -433,12 +462,7 @@ export function createDrizzleRecipeRepository(
 					.where(eq(recipeInstruction.recipeId, existing.id));
 
 				await insertRecipeChildren(transaction, userId, existing.id, command);
-				await replaceRecipeLinks(
-					transaction,
-					userId,
-					existing.id,
-					command.links,
-				);
+				await replaceRecipeLinks(transaction, userId, existing.id, command);
 
 				return { publicId };
 			});

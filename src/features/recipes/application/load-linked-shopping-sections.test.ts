@@ -68,7 +68,7 @@ describe("loadLinkedShoppingSections", () => {
 		expect(load).toHaveBeenCalledTimes(2);
 	});
 
-	it("見つからないレシピは含めず、読み込めなかったレシピの名前を返す", async () => {
+	it("見つからないレシピは含めず、読み込めなかった・見つからなかったレシピの名前を返す", async () => {
 		const load = vi.fn(async (publicId: string) => {
 			if (publicId === "x") {
 				throw new Error("network");
@@ -84,6 +84,23 @@ describe("loadLinkedShoppingSections", () => {
 
 		expect(result.sections).toEqual([]);
 		expect(result.failedNames).toEqual(["X"]);
+		// 見つからない（削除された・見られなくなった）レシピも、名前を返す（黙って材料から落とさない）。
+		expect(result.missingNames).toEqual(["Y"]);
+	});
+
+	it("リンク先の中の、リンク先が消えた材料も、見つからない名前として返す", async () => {
+		const load = vi.fn(async () =>
+			recipe(
+				"A",
+				["醤油", "[[消えたたれ]]"],
+				[{ label: "消えたたれ", target: null }],
+			),
+		);
+
+		const result = await loadLinkedShoppingSections([linkNeed("a", "A")], load);
+
+		expect(result.sections[0]?.needs.map((n) => n.name)).toEqual(["醤油"]);
+		expect(result.missingNames).toEqual(["消えたたれ"]);
 	});
 
 	it("リンクの行の割合を、材料の分量に掛ける。入れ子のときは掛け合わせる", async () => {

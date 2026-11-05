@@ -40,6 +40,20 @@ describe("prepareRecipeForStorage（リンク）", () => {
 		expect(prepareRecipeForStorage(document).links).toEqual([]);
 	});
 
+	// リンク先が消えたリンク（画面からは送られてこない）を、サーバーが残すために使う。
+	it("本文に出てくるラベルは、リンク先を決めていなくても、すべて返す", () => {
+		const document = createRecipeEditorDocument({
+			name: "カレー丼",
+			ingredientText: "[[消えたたれ]] 大さじ1\n[[ごはん]] 1杯",
+			links: [rice, curry],
+		});
+
+		expect(prepareRecipeForStorage(document).usedLinkLabels).toEqual([
+			"消えたたれ",
+			"ごはん",
+		]);
+	});
+
 	it("リンクがなければ、空の一覧", () => {
 		const document = createRecipeEditorDocument({ name: "卵焼き" });
 

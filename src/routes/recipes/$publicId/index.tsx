@@ -103,6 +103,13 @@ type RecipePreload = {
 	linkedRecipes: Readonly<Record<string, RecipeDetail>>;
 };
 
+// 「買い物メモへ」「つくった」で、リンク先の材料を使うとき。画面を開いたあとに、リンク先が消された・見られなくなった
+// こともあるので、前もって取った分は使わず、押したときに取り直す（在庫と同じ。見つからなければ、知らせる）。
+// 画面の中の値を使わないので、コンポーネントの外に置く（いつも同じ関数のまま）。
+function loadCurrentLinkedRecipe(publicId: string) {
+	return getRecipeServerFn({ data: { publicId } });
+}
+
 // 見る人によらない、画面の支え（リンク先の取得、在庫、「ある」の登録）。
 function useRecipeViewSupport(
 	recipe: RecipeDetail,
@@ -110,7 +117,7 @@ function useRecipeViewSupport(
 ) {
 	const ownerScope = useOwnerScope();
 
-	// リンク先のレシピ（プレビューと、買い物メモへの展開で使う）。前もって取ってあれば、それを使う。
+	// リンク先のレシピ（プレビューで見る分）。前もって取ってあれば、それを使う（すぐに開くため）。
 	const loadLinkedRecipe = useCallback(
 		async (publicId: string) =>
 			linkedRecipes[publicId] ??
@@ -302,7 +309,7 @@ function OwnRecipePage({
 					<RecipeShoppingSection
 						ingredients={recipe.ingredients}
 						linkViews={recipe.linkViews}
-						loadLinkedRecipe={loadLinkedRecipe}
+						loadLinkedRecipe={loadCurrentLinkedRecipe}
 						ownerScope={ownerScope}
 						loadInventoryItems={loadInventoryItems}
 						registerAvailable={registerAvailable}
@@ -313,7 +320,7 @@ function OwnRecipePage({
 						recipePublicId={recipe.publicId}
 						ingredients={recipe.ingredients}
 						linkViews={recipe.linkViews}
-						loadLinkedRecipe={loadLinkedRecipe}
+						loadLinkedRecipe={loadCurrentLinkedRecipe}
 						ownerScope={ownerScope}
 						loadInventoryItems={loadInventoryItems}
 						consume={consume}
@@ -384,7 +391,7 @@ function SharedRecipePage({
 					<RecipeShoppingSection
 						ingredients={recipe.ingredients}
 						linkViews={recipe.linkViews}
-						loadLinkedRecipe={loadLinkedRecipe}
+						loadLinkedRecipe={loadCurrentLinkedRecipe}
 						ownerScope={ownerScope}
 						loadInventoryItems={loadInventoryItems}
 						registerAvailable={registerAvailable}
@@ -395,7 +402,7 @@ function SharedRecipePage({
 						recipePublicId={recipe.publicId}
 						ingredients={recipe.ingredients}
 						linkViews={recipe.linkViews}
-						loadLinkedRecipe={loadLinkedRecipe}
+						loadLinkedRecipe={loadCurrentLinkedRecipe}
 						ownerScope={ownerScope}
 						loadInventoryItems={loadInventoryItems}
 						consume={consume}

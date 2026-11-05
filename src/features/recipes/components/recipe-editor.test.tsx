@@ -801,6 +801,25 @@ describe("RecipeEditor", () => {
 		expect(screen.getByText("冷凍できる")).toBeTruthy();
 	});
 
+	// リンク先が消えたリンクは、保存しても残る（サーバーが残す）。決めていないラベルと、見分けられるようにする。
+	it.each([
+		["リンク先が消えた", ["消えたたれ"], "（見つからないレシピ）"],
+		["リンク先を決めていない", [], "消えたたれ"],
+	])("保存前の確認で、%sラベルの表示", (_, missingLinkLabels, expected) => {
+		render(
+			<RecipeEditor
+				onSave={vi.fn()}
+				initialDocument={createRecipeEditorDocument({
+					name: "冷やしうどん",
+					instructionText: "1. [[消えたたれ]]",
+				})}
+				missingLinkLabels={missingLinkLabels}
+			/>,
+		);
+
+		expect(screen.getByText(expected)).toBeInTheDocument();
+	});
+
 	it("見出しがなくても、材料と作り方を判別して保存できる", async () => {
 		const user = userEvent.setup();
 		const onSave = vi.fn(async (_document: RecipeEditorDocument) => ({

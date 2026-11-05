@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+	findMissingIngredientLinks,
 	linkedRecipeRatio,
 	resolveIngredientLinks,
 } from "./link-ingredient-needs";
@@ -58,6 +59,20 @@ describe("resolveIngredientLinks", () => {
 
 		expect(result?.name).toBe("かける 和風ドレッシング");
 		expect(result?.linkedRecipe).toBeUndefined();
+	});
+});
+
+describe("findMissingIngredientLinks", () => {
+	it.each([
+		["リンク先が見つからない", "[[消えたレシピ]]", ["消えたレシピ"]],
+		["リンク先が見つかる", "[[自家製ドレッシング]]", []],
+		["リンク先を決めていない", "[[未設定]]", []],
+		["文章の途中のリンク", "かける [[消えたレシピ]]", []],
+		["リンクのない材料", "玉ねぎ", []],
+	])("%s：%s → %j", (_, name, expected) => {
+		expect(findMissingIngredientLinks([need("1", name)], views)).toEqual(
+			expected,
+		);
 	});
 });
 

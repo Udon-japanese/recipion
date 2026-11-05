@@ -105,6 +105,9 @@ type RecipeEditorProps = {
 	initialLinkTargets?: readonly RecipeLinkTarget[];
 	// 画面の読み込みで、前もって取ったリンク先のレシピ（保存前の確認のプレビューで、すぐに出す）。
 	preloadedLinkedRecipes?: Readonly<Record<string, RecipeDetail>>;
+	// 保存済みのリンクのうち、リンク先が消えた（削除された・見られなくなった）もののラベル。
+	// 保存前の確認で「（見つからないレシピ）」と出す（保存しても、サーバーがそのまま残す。リンク先を選び直せば、付け直せる）。
+	missingLinkLabels?: readonly string[];
 	// 保存前の確認で、リンクを押したとき、リンク先のレシピのプレビューを開く（取ってくる方法と、「レシピを開く」のリンク）。
 	loadLinkedRecipe?: (publicId: string) => Promise<RecipeDetail | null>;
 	renderOpenLink?: (publicId: string) => ReactNode;
@@ -177,6 +180,7 @@ export function RecipeEditor({
 	loadLinkTargets,
 	initialLinkTargets,
 	preloadedLinkedRecipes,
+	missingLinkLabels,
 	loadLinkedRecipe,
 	renderOpenLink,
 	loadLinkedRecipes,
@@ -283,9 +287,11 @@ export function RecipeEditor({
 		[text, links, linkTargets],
 	);
 	// 保存前の確認で、リンクを、保存後と同じように表示するための、リンク先（リンク先を決めていないラベルは、含めない）。
+	// リンク先が消えたラベル（開いたときのまま。選び直したラベルは、links のほうを使う）。
+	const [missingLabels] = useState(() => missingLinkLabels ?? []);
 	const linkViews = useMemo<RecipeLinkView[]>(
-		() =>
-			links.map((link) => ({
+		() => [
+			...links.map((link) => ({
 				label: link.label,
 				target: {
 					publicId: link.targetPublicId,
@@ -295,7 +301,11 @@ export function RecipeEditor({
 						)?.name ?? link.label,
 				},
 			})),
-		[links, linkTargets],
+			...missingLabels
+				.filter((label) => !links.some((link) => link.label === label))
+				.map((label) => ({ label, target: null })),
+		],
+		[links, linkTargets, missingLabels],
 	);
 	// 保存前の確認で、プレビューを開いているリンク先（閉じると、押したリンクに、フォーカスを戻す）。
 	const [openedLinkPublicId, setOpenedLinkPublicId] = useState<string | null>(
