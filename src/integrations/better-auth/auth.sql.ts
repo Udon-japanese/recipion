@@ -3,6 +3,7 @@ import {
 	boolean,
 	check,
 	index,
+	integer,
 	jsonb,
 	pgTable,
 	text,
@@ -25,6 +26,8 @@ export const user = pgTable(
 		handle: text("handle").notNull(),
 		// アバター（公開される）。料理の絵の部品の並びと背景。null は、ユーザーごとに決まったプリセット。
 		avatar: jsonb("avatar").$type<Avatar>(),
+		// うちの人数（本人だけが使う設定。公開しない）。「人分」のレシピを、最初からこの人数の量で見せる。null は、設定しない。
+		householdSize: integer("household_size"),
 		createdAt: timestamp("created_at").defaultNow().notNull(),
 		updatedAt: timestamp("updated_at")
 			.defaultNow()
@@ -34,6 +37,10 @@ export const user = pgTable(
 	(table) => [
 		unique("user_handle_unique").on(table.handle),
 		check("user_handle_format", sql`${table.handle} ~ '^[a-z0-9_-]{3,20}$'`),
+		check(
+			"user_household_size_range",
+			sql`${table.householdSize} IS NULL OR ${table.householdSize} BETWEEN 1 AND 20`,
+		),
 	],
 );
 

@@ -15,6 +15,7 @@ import { listInventoryItemsServerFn } from "#/features/inventory/server/list-inv
 import { registerInventoryItemServerFn } from "#/features/inventory/server/register-inventory-item";
 import { RecipeToShoppingPicker } from "#/features/recipes/components/recipe-to-shopping-picker";
 import { getRecipeServerFn } from "#/features/recipes/server/get-recipe";
+import { getHouseholdSizeServerFn } from "#/features/recipes/server/household-size";
 import { listRecipesServerFn } from "#/features/recipes/server/list-recipes";
 import type { RecipePickerContext } from "#/features/shopping/components/recipe-picker-slot";
 import { ShoppingList } from "#/features/shopping/components/shopping-list";
@@ -24,6 +25,11 @@ export const Route = createFileRoute("/shopping")({
 	ssr: false,
 	component: ShoppingPage,
 });
+
+// うちの人数（「人分」のレシピは、この人数の量で入れる）。画面の外に置く（いつも同じ関数）。
+function loadHouseholdSize() {
+	return getHouseholdSizeServerFn();
+}
 
 function ShoppingPage() {
 	const ownerScope = useOwnerScope();
@@ -109,6 +115,7 @@ function ShoppingPage() {
 								loadRecipe={loadRecipe}
 								loadInventoryItems={loadInventoryItems}
 								registerAvailable={registerAvailable}
+								loadHouseholdSize={loadHouseholdSize}
 							/>
 						)
 					: undefined

@@ -29,7 +29,10 @@ const recipes: Record<string, RecipeDetail> = {
 };
 
 function setup(
-	options: { destination?: { branchId: string; side: "then" | "else" } } = {},
+	options: {
+		destination?: { branchId: string; side: "then" | "else" };
+		householdSize?: number | null;
+	} = {},
 ) {
 	const repository = createFakeShoppingRepository();
 	const onClose = vi.fn();
@@ -47,6 +50,11 @@ function setup(
 			listRecipes={async () => targets}
 			loadRecipe={async (publicId) => recipes[publicId] ?? null}
 			loadInventoryItems={async () => []}
+			loadHouseholdSize={
+				options.householdSize === undefined
+					? undefined
+					: async () => options.householdSize ?? null
+			}
 		/>,
 	);
 
@@ -102,6 +110,31 @@ describe("RecipeToShoppingPicker", () => {
 		expect(onApplied).toHaveBeenCalledWith("カレー");
 		// 買い物メモの画面の中なので、「買い物メモを開く」のリンクは出さない。
 		expect(screen.queryByRole("link", { name: "買い物メモを開く" })).toBeNull();
+	});
+
+	it("うちの人数があれば、「人分」のレシピは、その人数の量で入れ、そのことを書く", async () => {
+		const user = userEvent.setup();
+		const { repository } = setup({ householdSize: 4 });
+
+		await user.click(await screen.findByRole("button", { name: "カレー" }));
+
+		expect(
+			await screen.findByText(
+				/うちの人数で、4人分の量で入れます（レシピは2人分）/u,
+			),
+		).toBeInTheDocument();
+		await waitFor(() =>
+			expect(screen.getByLabelText("玉ねぎを買い物メモに入れる")).toBeChecked(),
+		);
+		await user.click(
+			screen.getByRole("button", { name: "選んだものを入れる（2件）" }),
+		);
+
+		await waitFor(() => expect(repository.items).toHaveLength(2));
+		expect(repository.items.map((item) => [item.name, item.quantity])).toEqual([
+			["玉ねぎ", 4],
+			["卵", 6],
+		]);
 	});
 
 	it("入れたあとも閉じず、別のレシピを続けて選べる", async () => {

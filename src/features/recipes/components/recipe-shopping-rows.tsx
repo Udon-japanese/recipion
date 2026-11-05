@@ -124,6 +124,8 @@ type RecipeShoppingRowsProps = {
 	registerAvailable?: (ingredientName: string) => Promise<void>;
 	// 買い物メモの画面の中では、「買い物メモを開く」のリンクを出さない。
 	resultLink?: React.ReactNode;
+	// レシピの量と違う量で入れるときの知らせ（「4人分の量で入れます（レシピは2人分）」）。
+	amountNote?: string | null;
 };
 
 // 「買い物メモに入れる」の中身：説明・同じものがあるときの扱い・材料の行・結果。
@@ -132,6 +134,7 @@ export function RecipeShoppingRows({
 	ownerScope,
 	registerAvailable,
 	resultLink,
+	amountNote,
 }: RecipeShoppingRowsProps) {
 	const { rows } = plan;
 	const isGuest = ownerScope === "guest";
@@ -141,7 +144,13 @@ export function RecipeShoppingRows({
 			<p className={styles.hint}>
 				{isGuest
 					? "ログインすると、在庫と比べて、足りないものだけを選べます。"
-					: "在庫と比べて、足りないものを選んでいます。人数による量の調整は、していません（レシピの量のままです）。"}
+					: "在庫と比べて、足りないものを選んでいます。"}
+				{amountNote ? (
+					<>
+						<br />
+						{amountNote}
+					</>
+				) : null}
 			</p>
 
 			{plan.isLoading ? (

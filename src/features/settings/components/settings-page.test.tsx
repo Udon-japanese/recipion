@@ -24,6 +24,7 @@ function TestSettingsPage({
 		<SettingsPage
 			tab={tab}
 			onTabChange={setTab}
+			recipe={loggedIn ? <p>レシピの欄</p> : undefined}
 			data={<p>データの欄</p>}
 			account={
 				loggedIn ? (
@@ -103,6 +104,8 @@ describe("SettingsPage", () => {
 		render(<TestSettingsPage initialTab="account" />);
 
 		expect(screen.queryByRole("tab", { name: "アカウント" })).toBeNull();
+		// レシピの設定（うちの人数）も、ログインしているときだけ。
+		expect(screen.queryByRole("tab", { name: "レシピ" })).toBeNull();
 		expect(screen.getByRole("tab", { name: "在庫" })).toHaveAttribute(
 			"aria-selected",
 			"true",

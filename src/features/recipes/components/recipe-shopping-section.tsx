@@ -9,6 +9,7 @@ import { dexieShoppingRepository } from "#/features/shopping/infrastructure/dexi
 import type { RecipeDetail } from "../application/recipe-repository";
 import type { RecipeEditorIngredientNode } from "../domain/recipe-editor-document";
 import type { RecipeLinkView } from "../domain/recipe-links";
+import { describeShoppingAmount } from "../domain/recipe-yield";
 import { RecipeDialog } from "./recipe-dialog";
 import {
 	RecipeShoppingFooter,
@@ -30,6 +31,8 @@ type RecipeShoppingSectionProps = {
 	registerAvailable?: (ingredientName: string) => Promise<void>;
 	// 人数を変えたときの割合（省略は 1）。変えたら、作り直す（key）。
 	ratio?: number;
+	// レシピのできあがりの量（割合が1でないとき、入れる量を知らせる）。
+	yieldText?: string;
 };
 
 // レシピの参照画面で、材料を、在庫と比べて、足りないものを、買い物メモに入れる（材料の見出しの右に置く）。
@@ -42,7 +45,8 @@ export function RecipeShoppingSection({
 	loadInventoryItems,
 	shoppingRepository = dexieShoppingRepository,
 	registerAvailable,
-	ratio,
+	ratio = 1,
+	yieldText,
 }: RecipeShoppingSectionProps) {
 	const [isOpen, setIsOpen] = useState(false);
 	const plan = useRecipeShoppingPlan({
@@ -91,6 +95,11 @@ export function RecipeShoppingSection({
 						ownerScope={ownerScope}
 						registerAvailable={registerAvailable}
 						resultLink={<Link to="/shopping">買い物メモを開く</Link>}
+						amountNote={
+							yieldText === undefined
+								? null
+								: describeShoppingAmount(yieldText, ratio)
+						}
 					/>
 				</section>
 			</RecipeDialog>
