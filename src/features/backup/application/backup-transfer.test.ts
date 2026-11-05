@@ -12,12 +12,14 @@ import {
 } from "../domain/backup-file";
 import {
 	decideRecipeImport,
+	deriveImportPublicId,
 	prepareRecipeImportDocument,
 } from "../domain/plan-recipe-import";
 import {
 	type BackupExportDependencies,
 	type BackupImportDependencies,
 	collectBackup,
+	type ImportedRecipe,
 	previewBackupImport,
 	runBackupImport,
 } from "./backup-transfer";
@@ -60,10 +62,23 @@ function createFakeServer() {
 		};
 		const importDependencies: BackupImportDependencies = {
 			async inspect(publicIds) {
+				const owned: string[] = [];
+
+				// サーバーと同じく、他の人と重なる ID は、代わりの ID を自分が持っていれば、持っているものとする。
+				for (const publicId of publicIds) {
+					const owner = recipes.get(publicId)?.ownerUserId;
+					const checkedId =
+						owner !== undefined && owner !== userId
+							? await deriveImportPublicId(userId, publicId)
+							: publicId;
+
+					if (recipes.get(checkedId)?.ownerUserId === userId) {
+						owned.push(publicId);
+					}
+				}
+
 				return {
-					ownedPublicIds: publicIds.filter(
-						(publicId) => recipes.get(publicId)?.ownerUserId === userId,
-					),
+					ownedPublicIds: owned,
 					recipeCount: [...recipes.values()].filter(
 						(recipe) => recipe.ownerUserId === userId,
 					).length,
@@ -76,23 +91,41 @@ function createFakeServer() {
 					throw new Error("通信に失敗しました");
 				}
 
-				return batchRecipes.map((recipe) => {
-					const stored = recipes.get(recipe.publicId);
+				const ownerOf = (publicId: string) => {
+					const stored = recipes.get(publicId);
+
+					return stored === undefined
+						? null
+						: stored.ownerUserId === userId
+							? "self"
+							: "other";
+				};
+				const results: ImportedRecipe[] = [];
+
+				for (const recipe of batchRecipes) {
+					const owner = ownerOf(recipe.publicId);
+					const derivedId =
+						owner === "other"
+							? await deriveImportPublicId(userId, recipe.publicId)
+							: null;
 					const decision = decideRecipeImport(
 						recipe.publicId,
-						stored === undefined
+						owner,
+						derivedId === null
 							? null
-							: stored.ownerUserId === userId
-								? "self"
-								: "other",
+							: { publicId: derivedId, owner: ownerOf(derivedId) },
 					);
 
 					if (decision.action === "skip") {
-						return {
+						results.push({
 							filePublicId: recipe.publicId,
 							publicId: decision.publicId,
-							status: "skipped" as const,
-						};
+							status: "skipped",
+							attachLinks:
+								(recipes.get(decision.publicId)?.content.links.length ?? 0) ===
+								0,
+						});
+						continue;
 					}
 
 					sequence += 1;
@@ -110,13 +143,15 @@ function createFakeServer() {
 						).toISOString(),
 						content,
 					});
-
-					return {
+					results.push({
 						filePublicId: recipe.publicId,
 						publicId,
-						status: "created" as const,
-					};
-				});
+						status: "created",
+						attachLinks: true,
+					});
+				}
+
+				return results;
 			},
 			async importLinks(items) {
 				let dropped = 0;
@@ -306,6 +341,100 @@ describe("書き出し・読み込み", () => {
 		expect(server.inventories.get("other")?.[1]?.sourceRecipePublicId).toBe(
 			ownMisoSoup?.[0],
 		);
+	});
+
+	it("リンクを付ける前に止まっても、読み込み直すと、前に作ったレシピにもリンクが付く", async () => {
+		const server = createFakeServer();
+		// 1回目は、レシピを作ったあと、リンクを付ける段で止まる。
+		const file = createFile();
+
+		await expect(
+			runBackupImport(
+				file,
+				{ recipes: true, inventory: false },
+				{
+					...server.forUser("user").importDependencies,
+					importLinks: async () => {
+						throw new Error("通信に失敗しました");
+					},
+				},
+			),
+		).rejects.toThrow("通信に失敗しました");
+		expect(server.recipes.get("miso-soup")?.content.links).toEqual([]);
+
+		await runBackupImport(
+			file,
+			{ recipes: true, inventory: false },
+			server.forUser("user").importDependencies,
+		);
+
+		expect(server.recipes.get("miso-soup")?.content.links).toEqual([
+			{ label: "だし", targetPublicId: "dashi" },
+		]);
+	});
+
+	it("読み込んだあとに直したリンクは、読み込み直しても、ファイルの内容に戻さない", async () => {
+		const server = createFakeServer();
+		const file = createFile();
+		const user = server.forUser("user");
+
+		await runBackupImport(
+			file,
+			{ recipes: true, inventory: false },
+			user.importDependencies,
+		);
+
+		const misoSoup = server.recipes.get("miso-soup");
+
+		if (!misoSoup) {
+			throw new Error("みそ汁が入っていません");
+		}
+
+		const edited = [{ label: "だし", targetPublicId: "nikujaga" }];
+
+		misoSoup.content = { ...misoSoup.content, links: edited };
+
+		await runBackupImport(
+			file,
+			{ recipes: true, inventory: false },
+			user.importDependencies,
+		);
+
+		expect(server.recipes.get("miso-soup")?.content.links).toEqual(edited);
+	});
+
+	it("他の人と公開 ID が重なるファイルは、何度読み込んでも、増えない", async () => {
+		const server = createFakeServer();
+		const file = createFile();
+
+		await runBackupImport(
+			file,
+			{ recipes: true, inventory: false },
+			server.forUser("original").importDependencies,
+		);
+
+		const other = server.forUser("other");
+
+		await runBackupImport(
+			file,
+			{ recipes: true, inventory: false },
+			other.importDependencies,
+		);
+		const second = await runBackupImport(
+			file,
+			{ recipes: true, inventory: false },
+			other.importDependencies,
+		);
+
+		expect(second).toMatchObject({ createdRecipes: 0, skippedRecipes: 3 });
+		expect(
+			[...server.recipes.values()].filter(
+				(recipe) => recipe.ownerUserId === "other",
+			),
+		).toHaveLength(3);
+		await expect(
+			previewBackupImport(file, other.importDependencies),
+		).resolves.toMatchObject({ newRecipeCount: 0, skippedRecipeCount: 3 });
 	});
 
 	it("途中で失敗しても、同じファイルで読み込み直すと、続きから入る", async () => {

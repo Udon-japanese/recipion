@@ -9,7 +9,9 @@ type CreateId = () => string;
 // 読み込むレシピの公開 ID の決め方。
 // 自分が持っている → 同じレシピなので、飛ばす（二重の読み込み・途中からのやり直しで、増やさない）。
 // 空いている → そのまま使う（退会のあと、新しいアカウントで戻すとき）。
-// 他の人が使っている → 新しい ID にする。
+// 他の人が使っている → 「その人とファイルの ID から決まる ID」（derived）を使う。毎回同じ ID になるので、
+//   やり直しでも、その ID を自分が持っていれば飛ばせる（他の人の書き出したファイルを、何度読んでも増えない）。
+//   derived まで他の人が使っていれば（まず起きない）、新しい ID。
 export type PublicIdOwner = "self" | "other" | null;
 
 export type RecipeImportDecision =
@@ -19,12 +21,40 @@ export type RecipeImportDecision =
 export function decideRecipeImport(
 	filePublicId: string,
 	owner: PublicIdOwner,
+	derived: { publicId: string; owner: PublicIdOwner } | null = null,
 ): RecipeImportDecision {
 	if (owner === "self") {
 		return { action: "skip", publicId: filePublicId };
 	}
 
-	return { action: "create", publicId: owner === null ? filePublicId : null };
+	if (owner === null) {
+		return { action: "create", publicId: filePublicId };
+	}
+
+	if (derived?.owner === "self") {
+		return { action: "skip", publicId: derived.publicId };
+	}
+
+	return {
+		action: "create",
+		publicId: derived?.owner === null ? derived.publicId : null,
+	};
+}
+
+// 他の人と重なった公開 ID の代わりに使う ID（ユーザーとファイルの ID から、いつも同じ値。21文字の英数字・_・-）。
+export async function deriveImportPublicId(
+	userId: string,
+	filePublicId: string,
+): Promise<string> {
+	const digest = await crypto.subtle.digest(
+		"SHA-256",
+		new TextEncoder().encode(`${userId}\n${filePublicId}`),
+	);
+
+	return btoa(String.fromCharCode(...new Uint8Array(digest)))
+		.replace(/\+/gu, "-")
+		.replace(/\//gu, "_")
+		.slice(0, 21);
 }
 
 function renewIngredientIds(

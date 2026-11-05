@@ -2,17 +2,55 @@ import { describe, expect, it } from "vitest";
 import { buildBackupRecipe } from "#/test/builders/build-backup";
 import {
 	decideRecipeImport,
+	deriveImportPublicId,
 	prepareRecipeImportDocument,
 	remapRecipeLinks,
 } from "./plan-recipe-import";
 
 describe("decideRecipeImport", () => {
 	it.each([
-		["自分が持っている", "self", { action: "skip", publicId: "abc" }],
-		["空いている", null, { action: "create", publicId: "abc" }],
-		["他の人が使っている", "other", { action: "create", publicId: null }],
-	] as const)("%s", (_, owner, expected) => {
-		expect(decideRecipeImport("abc", owner)).toEqual(expected);
+		["自分が持っている", "self", null, { action: "skip", publicId: "abc" }],
+		["空いている", null, null, { action: "create", publicId: "abc" }],
+		[
+			"他の人が使っている・代わりの ID が空いている",
+			"other",
+			null,
+			{ action: "create", publicId: "derived" },
+		],
+		[
+			"他の人が使っている・代わりの ID を自分が持っている（やり直し）",
+			"other",
+			"self",
+			{ action: "skip", publicId: "derived" },
+		],
+		[
+			"他の人が使っている・代わりの ID も他の人",
+			"other",
+			"other",
+			{ action: "create", publicId: null },
+		],
+	] as const)("%s", (_, owner, derivedOwner, expected) => {
+		expect(
+			decideRecipeImport("abc", owner, {
+				publicId: "derived",
+				owner: derivedOwner,
+			}),
+		).toEqual(expected);
+	});
+});
+
+describe("deriveImportPublicId", () => {
+	it("同じユーザーとファイルの ID なら、いつも同じ。どちらかが違えば、違う", async () => {
+		const first = await deriveImportPublicId("user-a", "abc");
+
+		expect(first).toMatch(/^[\w-]{21}$/u);
+		await expect(deriveImportPublicId("user-a", "abc")).resolves.toBe(first);
+		await expect(deriveImportPublicId("user-b", "abc")).resolves.not.toBe(
+			first,
+		);
+		await expect(deriveImportPublicId("user-a", "abd")).resolves.not.toBe(
+			first,
+		);
 	});
 });
 

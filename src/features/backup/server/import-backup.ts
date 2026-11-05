@@ -14,9 +14,53 @@ import {
 } from "../domain/backup-file";
 import {
 	decideRecipeImport,
+	deriveImportPublicId,
 	prepareRecipeImportDocument,
+	type RecipeImportDecision,
 } from "../domain/plan-recipe-import";
 import { createDrizzleBackupRepository } from "../infrastructure/drizzle-backup-repository";
+
+type BackupRepository = ReturnType<typeof createDrizzleBackupRepository>;
+
+// ファイルの公開 ID ごとの、読み込み方（他の人と重なる ID は、代わりの ID の持ち主も見る）。
+async function decideRecipeImports(
+	repository: BackupRepository,
+	userId: string,
+	filePublicIds: readonly string[],
+): Promise<Map<string, RecipeImportDecision>> {
+	const owners = await repository.findPublicIdOwners(filePublicIds);
+	const derivedIds = new Map<string, string>();
+
+	for (const publicId of filePublicIds) {
+		if (owners.get(publicId) === "other") {
+			derivedIds.set(publicId, await deriveImportPublicId(userId, publicId));
+		}
+	}
+
+	const derivedOwners = await repository.findPublicIdOwners([
+		...derivedIds.values(),
+	]);
+
+	return new Map(
+		filePublicIds.map((publicId) => {
+			const derivedId = derivedIds.get(publicId);
+
+			return [
+				publicId,
+				decideRecipeImport(
+					publicId,
+					owners.get(publicId) ?? null,
+					derivedId === undefined
+						? null
+						: {
+								publicId: derivedId,
+								owner: derivedOwners.get(derivedId) ?? null,
+							},
+				),
+			];
+		}),
+	);
+}
 
 // 読み込む前の確かめ：ファイルのレシピのうち、もう自分が持っているもの（飛ばすもの）と、今のレシピの数。
 export const inspectBackupServerFn = createServerFn({ method: "POST" })
@@ -34,14 +78,14 @@ export const inspectBackupServerFn = createServerFn({ method: "POST" })
 	.handler(async ({ data }) => {
 		const { db, userId } = await requireSession();
 		const repository = createDrizzleBackupRepository(db, userId);
-		const [owners, recipeCount] = await Promise.all([
-			repository.findPublicIdOwners(data.publicIds),
+		const [decisions, recipeCount] = await Promise.all([
+			decideRecipeImports(repository, userId, data.publicIds),
 			repository.countRecipes(),
 		]);
 
 		return {
-			ownedPublicIds: [...owners]
-				.filter(([, owner]) => owner === "self")
+			ownedPublicIds: [...decisions]
+				.filter(([, decision]) => decision.action === "skip")
 				.map(([publicId]) => publicId),
 			recipeCount,
 		};
@@ -51,6 +95,9 @@ export type ImportedRecipeResult = {
 	filePublicId: string;
 	publicId: string;
 	status: "created" | "skipped";
+	// リンクを付ける（作ったもの・前の読み込みでリンクを付ける前に止まったもの）。
+	// 飛ばしたレシピのうち、もうリンクがあるものは付け直さない（あとで直したリンクを、ファイルの内容に戻さない）。
+	attachLinks: boolean;
 };
 
 // レシピを読み込む（リンクは付けない。非公開で作るので、審査はしない）。
@@ -72,22 +119,30 @@ export const importBackupRecipesServerFn = createServerFn({ method: "POST" })
 	.handler(async ({ data: recipes }): Promise<ImportedRecipeResult[]> => {
 		const { db, userId } = await requireSession();
 		const repository = createDrizzleBackupRepository(db, userId);
-		const owners = await repository.findPublicIdOwners(
+		const decisions = await decideRecipeImports(
+			repository,
+			userId,
 			recipes.map((recipe) => recipe.publicId),
+		);
+		const linked = await repository.findPublicIdsWithLinks(
+			[...decisions.values()]
+				.filter((decision) => decision.action === "skip")
+				.map((decision) => decision.publicId),
 		);
 		const results: ImportedRecipeResult[] = [];
 
 		for (const recipe of recipes) {
-			const decision = decideRecipeImport(
-				recipe.publicId,
-				owners.get(recipe.publicId) ?? null,
-			);
+			const decision = decisions.get(recipe.publicId) ?? {
+				action: "create",
+				publicId: null,
+			};
 
 			if (decision.action === "skip") {
 				results.push({
 					filePublicId: recipe.publicId,
 					publicId: decision.publicId,
 					status: "skipped",
+					attachLinks: !linked.has(decision.publicId),
 				});
 				continue;
 			}
@@ -101,6 +156,7 @@ export const importBackupRecipesServerFn = createServerFn({ method: "POST" })
 				filePublicId: recipe.publicId,
 				publicId: created.publicId,
 				status: "created",
+				attachLinks: true,
 			});
 		}
 
