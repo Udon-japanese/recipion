@@ -190,9 +190,16 @@ const viteManifest = JSON.parse(
 	readFileSync(viteManifestPath, "utf8"),
 ) as Record<string, ViteManifestEntry>;
 const urls = collectPrecacheUrls(viteManifest);
-const buildId = createBuildId([shell, ...urls]);
+const buildId = createBuildId([
+	shell,
+	...shellCopies.map((copy) => copy.html),
+	...urls,
+]);
 
-writeFileSync(buildScriptPath, renderBuildScript(buildId, urls));
+writeFileSync(
+	buildScriptPath,
+	renderBuildScript(buildId, urls, [...shellCopyPaths]),
+);
 
 // 一覧の読み取り用で、配信は不要。
 rmSync(`${clientDir}/.vite`, { recursive: true, force: true });

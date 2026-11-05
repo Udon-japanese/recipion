@@ -37,8 +37,13 @@ export function createBuildId(parts: readonly string[]): string {
 
 // sw.js が importScripts で読む、ビルドごとのファイル。
 // 中身（ビルド ID）が変わるので、ブラウザがサービスワーカーの更新を検出する。
-export function renderBuildScript(id: string, urls: readonly string[]): string {
-	return `self.__APP_BUILD__ = ${JSON.stringify({ id, urls })};\n`;
+// shellPages：ブラウザだけで描画する画面（静的シェルの写し）。中身がビルドで決まるので、サービスワーカーは、キャッシュから先に返す。
+export function renderBuildScript(
+	id: string,
+	urls: readonly string[],
+	shellPages: readonly string[],
+): string {
+	return `self.__APP_BUILD__ = ${JSON.stringify({ id, urls, shellPages })};\n`;
 }
 
 // 静的シェルが「ルートだけの骨組み」であることの確認。
