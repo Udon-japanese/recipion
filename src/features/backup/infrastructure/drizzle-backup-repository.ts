@@ -111,6 +111,28 @@ export function createDrizzleBackupRepository(db: DB, userId: string) {
 			return owners;
 		},
 
+		// 自分のレシピのうち、リンクが1つ以上あるものの公開 ID。
+		async findPublicIdsWithLinks(
+			publicIds: readonly string[],
+		): Promise<Set<string>> {
+			if (publicIds.length === 0) {
+				return new Set();
+			}
+
+			const rows = await db
+				.selectDistinct({ publicId: recipe.publicId })
+				.from(recipe)
+				.innerJoin(recipeLink, eq(recipeLink.recipeId, recipe.id))
+				.where(
+					and(
+						eq(recipe.userId, userId),
+						inArray(recipe.publicId, [...publicIds]),
+					),
+				);
+
+			return new Set(rows.map((row) => row.publicId));
+		},
+
 		// レシピを作る。決めた公開 ID が、ちょうど他の人に使われたときは、新しい ID で作り直す。
 		async createRecipe(
 			prepared: PreparedRecipeForStorage,

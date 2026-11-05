@@ -33,6 +33,7 @@ function createDependencies() {
 					filePublicId: recipe.publicId,
 					publicId: recipe.publicId,
 					status: recipe.publicId === "owned" ? "skipped" : "created",
+					attachLinks: recipe.publicId !== "owned",
 				})),
 		),
 		importLinks: vi.fn(async () => ({ dropped: 0 })),

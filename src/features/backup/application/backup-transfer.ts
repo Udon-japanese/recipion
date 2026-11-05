@@ -41,6 +41,8 @@ export type ImportedRecipe = {
 	filePublicId: string;
 	publicId: string;
 	status: "created" | "skipped";
+	// リンクを付けるか（作ったもの、または、前の読み込みが、リンクを付ける前に止まったもの）。
+	attachLinks: boolean;
 };
 
 export type BackupImportDependencies = {
@@ -173,10 +175,16 @@ export async function runBackupImport(
 			.filter((recipe) => recipe.status === "created")
 			.map((recipe) => recipe.filePublicId),
 	);
+	// 途中で止まったあとのやり直しでは、前に作ったレシピは「飛ばす」になるが、リンクがまだなければ付ける。
+	const linkFilePublicIds = new Set(
+		imported
+			.filter((recipe) => recipe.attachLinks)
+			.map((recipe) => recipe.filePublicId),
+	);
 	const linkUpdates = recipes.flatMap((recipe) => {
 		const publicId = publicIdByFilePublicId.get(recipe.publicId);
 
-		if (publicId === undefined || !createdFilePublicIds.has(recipe.publicId)) {
+		if (publicId === undefined || !linkFilePublicIds.has(recipe.publicId)) {
 			return [];
 		}
 
