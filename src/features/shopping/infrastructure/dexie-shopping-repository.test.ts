@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { getLocalDatabase } from "../../../local-db/database";
-import { createShoppingItem } from "../domain/shopping-item";
+import { createShoppingItem, type ShoppingItem } from "../domain/shopping-item";
 import { dexieShoppingRepository } from "./dexie-shopping-repository";
 
 describe("dexieShoppingRepository", () => {
@@ -100,4 +100,72 @@ describe("dexieShoppingRepository", () => {
 
 		expect(items.map((item) => item.name)).toEqual(["牛乳", "卵"]);
 	});
+
+	// 読み込みの写しを取ったあと、補完を保存するまでの間に、別のタブで変えたとき。
+	const now = new Date("2026-09-21T12:00:00.000Z");
+	const unassignedEgg = createShoppingItem(
+		{ name: "卵" },
+		new Date("2026-09-21T10:00:00.000Z"),
+	);
+
+	it.each<{
+		title: string;
+		changeElsewhere: (item: ShoppingItem) => Promise<void>;
+		expected: Partial<ShoppingItem> | undefined;
+	}>([
+		{
+			title: "ほかの欄の変更は残し、カテゴリだけ埋める",
+			changeElsewhere: (item) =>
+				dexieShoppingRepository.save({
+					...item,
+					quantity: 3,
+					status: "checked",
+				}),
+			expected: {
+				quantity: 3,
+				status: "checked",
+				categoryId: "eggs",
+				categoryAssignment: "automatic",
+				updatedAt: now.toISOString(),
+			},
+		},
+		{
+			title: "手で決めたカテゴリは変えない",
+			changeElsewhere: (item) =>
+				dexieShoppingRepository.save({
+					...item,
+					categoryId: "pantry",
+					categoryAssignment: "manual",
+				}),
+			expected: {
+				categoryId: "pantry",
+				categoryAssignment: "manual",
+				updatedAt: unassignedEgg.updatedAt,
+			},
+		},
+		{
+			title: "消した項目は戻さない",
+			changeElsewhere: (item) => dexieShoppingRepository.remove(item.id),
+			expected: undefined,
+		},
+	])(
+		"カテゴリの補完は、保存されている今の値に行う：$title",
+		async ({ changeElsewhere, expected }) => {
+			await dexieShoppingRepository.save(unassignedEgg);
+			await changeElsewhere(unassignedEgg);
+
+			await dexieShoppingRepository.categorizeUnassigned(
+				[unassignedEgg.id],
+				now,
+			);
+
+			const stored = await dexieShoppingRepository.findById(unassignedEgg.id);
+
+			if (expected === undefined) {
+				expect(stored).toBeUndefined();
+			} else {
+				expect(stored).toMatchObject(expected);
+			}
+		},
+	);
 });

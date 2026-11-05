@@ -1,11 +1,13 @@
 import type { ShoppingRepository } from "#/features/shopping/application/shopping-repository";
 import type { ShoppingItem } from "#/features/shopping/domain/shopping-item";
+import { categorizeUnassignedShoppingItems } from "#/features/shopping/domain/shopping-item-categorization";
 
 type RepositoryMethod =
 	| "list"
 	| "findById"
 	| "save"
 	| "saveAll"
+	| "categorizeUnassigned"
 	| "remove"
 	| "removeAll";
 
@@ -68,6 +70,16 @@ export function createFakeShoppingRepository(
 			guard("saveAll");
 			stored = new Map(stored);
 			for (const item of items) {
+				stored.set(item.id, item);
+			}
+		},
+
+		async categorizeUnassigned(ids, now = new Date()) {
+			guard("categorizeUnassigned");
+			const storedItems = ids.flatMap((id) => stored.get(id) ?? []);
+
+			stored = new Map(stored);
+			for (const item of categorizeUnassignedShoppingItems(storedItems, now)) {
 				stored.set(item.id, item);
 			}
 		},

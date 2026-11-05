@@ -34,20 +34,21 @@ export function useShoppingItems(repository: ShoppingRepository) {
 		let isActive = true;
 
 		// 最初に届いた一覧だけ、カテゴリが未設定の項目を自動で埋めて保存する。
+		// 保存は、埋めた項目の ID だけを渡し、保存先の今の値から判定し直す（別のタブの変更を、この写しで上書きしない）。
 		async function applyInitialItems(storedItems: ShoppingItem[]) {
 			const categorizedItems = categorizeUnassignedShoppingItems(storedItems);
-			const categoryChanged = categorizedItems.some(
-				(item, index) => item !== storedItems[index],
-			);
+			const changedIds = categorizedItems
+				.filter((item, index) => item !== storedItems[index])
+				.map((item) => item.id);
 
 			if (isActive) {
 				setItems(categorizedItems);
 				setIsLoading(false);
 			}
 
-			if (categoryChanged) {
+			if (changedIds.length > 0) {
 				try {
-					await repository.saveAll(categorizedItems);
+					await repository.categorizeUnassigned(changedIds);
 				} catch {
 					if (isActive) {
 						setErrorMessage("買い物メモの商品カテゴリを保存できませんでした");
