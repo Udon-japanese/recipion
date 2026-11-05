@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Button } from "#/components/button/button";
 import { CornerSheet } from "#/components/corner-sheet/corner-sheet";
 import { Note } from "#/components/note/note";
+import type { IngredientDictionary } from "#/features/ingredients/domain/ingredient-dictionary";
 import type { UndoRecipeConsumptionResult } from "#/features/inventory/application/inventory-adjustment-repository";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import type { InventoryListItem } from "#/features/inventory/application/inventory-query-repository";
@@ -58,6 +59,8 @@ type RecipeConsumeSectionProps = {
 	loadLinkedRecipe?: (publicId: string) => Promise<RecipeDetail | null>;
 	ownerScope: InventoryPurchaseOwnerScope | null;
 	loadInventoryItems: () => Promise<InventoryListItem[]>;
+	// ユーザーの食材辞書（自分で足した呼び名でも、同じ食材から引く）。省略はカタログだけ。
+	dictionary?: IngredientDictionary;
 	// 操作の行を、在庫から引く（onlyNeedIds があれば、その行だけ）。
 	consume: (
 		operation: RecipeConsumptionOperation,
@@ -168,6 +171,7 @@ export function RecipeConsumeSection({
 	loadLinkedRecipe,
 	ownerScope,
 	loadInventoryItems,
+	dictionary,
 	consume,
 	undo,
 	ratio = 1,
@@ -216,7 +220,7 @@ export function RecipeConsumeSection({
 
 		if (!loadLinkedRecipe || !resolvedNeeds.some((need) => need.linkedRecipe)) {
 			return {
-				needs: mergeRecipeNeeds(own.map(withRangeUpperBound)),
+				needs: mergeRecipeNeeds(own.map(withRangeUpperBound), dictionary),
 				madeUses: [],
 				linkProblem: describeLinkedSectionProblems({
 					failedNames: [],
@@ -238,6 +242,7 @@ export function RecipeConsumeSection({
 				[...own, ...linked.sections.flatMap((section) => section.needs)].map(
 					withRangeUpperBound,
 				),
+				dictionary,
 			),
 			madeUses: linked.madeUses,
 			linkProblem: describeLinkedSectionProblems({
@@ -291,7 +296,7 @@ export function RecipeConsumeSection({
 			// 在庫のできあがり（作り置き）を先に引く。その分の材料は、needs に含まれない。
 			const rows = [
 				...planMadeRecipeConsumption(madeUses, stockItems),
-				...planRecipeConsumption(needs, stockItems, standInMode),
+				...planRecipeConsumption(needs, stockItems, standInMode, dictionary),
 			];
 			const operation = startRecipeConsumption(recipePublicId, rows);
 			const results = await consume(operation);

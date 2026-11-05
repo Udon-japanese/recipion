@@ -1,4 +1,8 @@
 import { findIngredientCatalogEntry } from "#/features/ingredients/domain/ingredient-catalog";
+import {
+	type IngredientDictionary,
+	toCanonicalIngredientName,
+} from "#/features/ingredients/domain/ingredient-dictionary";
 import { normalizeIngredientName } from "#/features/ingredients/domain/normalize-ingredient-name";
 import {
 	type ExpiryEstimateLevel,
@@ -68,21 +72,28 @@ export function buildExpiryPrefill(
 
 // 在庫の食材の一覧から、名前（別名を含む）が同じ食材を探す。
 // 「作った」で入れたできあがり（作り置き）は、同じ名前の材料とは別物なので、探さない。
+// dictionary：ユーザーの食材辞書。あれば、両方の名前を辞書の代表の名前にしてから比べる（自分で足した呼び名でも当たる）。
 export function findInventoryItemByName<
 	T extends { name: string; sourceRecipePublicId?: string },
->(items: readonly T[], ingredientName: string): T | undefined {
-	const catalogId = findIngredientCatalogEntry(ingredientName)?.id;
-	const normalizedName = normalizeIngredientName(ingredientName);
+>(
+	items: readonly T[],
+	ingredientName: string,
+	dictionary?: IngredientDictionary,
+): T | undefined {
+	const name = toCanonicalIngredientName(ingredientName, dictionary);
+	const catalogId = findIngredientCatalogEntry(name)?.id;
+	const normalizedName = normalizeIngredientName(name);
 
 	return items.find((item) => {
 		if (item.sourceRecipePublicId !== undefined) {
 			return false;
 		}
 
-		const itemCatalogId = findIngredientCatalogEntry(item.name)?.id;
+		const itemName = toCanonicalIngredientName(item.name, dictionary);
+		const itemCatalogId = findIngredientCatalogEntry(itemName)?.id;
 
 		return catalogId !== undefined && itemCatalogId !== undefined
 			? catalogId === itemCatalogId
-			: normalizeIngredientName(item.name) === normalizedName;
+			: normalizeIngredientName(itemName) === normalizedName;
 	});
 }

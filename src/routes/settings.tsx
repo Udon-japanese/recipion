@@ -18,6 +18,11 @@ import {
 	inspectBackupServerFn,
 	replaceBackupInventoryServerFn,
 } from "#/features/backup/server/import-backup";
+import { IngredientDictionarySection } from "#/features/ingredients/components/ingredient-dictionary-section";
+import {
+	listIngredientDictionaryServerFn,
+	manageIngredientDictionaryServerFn,
+} from "#/features/ingredients/server/ingredient-dictionary";
 import { createDexieInventoryPurchaseOutboxRepository } from "#/features/inventory/infrastructure/dexie-inventory-purchase-outbox-repository";
 import { AccountDeletionSection } from "#/features/profile/components/account-deletion-section";
 import { AccountSettingsSection } from "#/features/settings/components/account-settings-section";
@@ -31,7 +36,7 @@ import { useAppSession } from "#/integrations/better-auth/use-app-session";
 
 export const Route = createFileRoute("/settings")({
 	head: () => ({ meta: [{ title: pageTitle("設定") }] }),
-	// tab：在庫（inventory）／データ（data）／アカウント（account）。
+	// tab：在庫（inventory）／材料（ingredients）／データ（data）／アカウント（account）。
 	validateSearch: v.object({
 		tab: v.optional(v.picklist(settingsTabs), "inventory"),
 	}),
@@ -72,6 +77,40 @@ function SettingsRoute() {
 		<SettingsPage
 			tab={tab}
 			onTabChange={(next) => navigate({ search: { tab: next }, replace: true })}
+			ingredients={
+				session ? (
+					<IngredientDictionarySection
+						loadEntries={() =>
+							listIngredientDictionaryServerFn({
+								data: { expectedUserId: session.user.id },
+							})
+						}
+						runCommand={(command) =>
+							manageIngredientDictionaryServerFn({
+								data: { expectedUserId: session.user.id, command },
+							})
+						}
+					/>
+				) : (
+					<section
+						className={settingsStyles.section}
+						aria-labelledby="settings-ingredients"
+					>
+						<h2
+							className={settingsStyles.sectionTitle}
+							id="settings-ingredients"
+						>
+							材料
+						</h2>
+						<p className={settingsStyles.sectionNote}>
+							ログインすると、自分の材料と呼び名を登録できます。
+						</p>
+						<div>
+							<ButtonLink to="/login">ログイン</ButtonLink>
+						</div>
+					</section>
+				)
+			}
 			data={
 				session ? (
 					<BackupSettingsSection

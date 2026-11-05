@@ -15,6 +15,7 @@ import {
 	useCompletionLayout,
 } from "#/components/completion-menu/use-completion-layout";
 import { describeError } from "#/errors/user-facing-error";
+import { useIngredientDictionaryContext } from "#/features/ingredients/components/ingredient-dictionary-context";
 import type { CompositionStrategy } from "#/ime/choose-composition-strategy";
 import { readCompletionKey, stepCompletionIndex } from "#/ime/completion-keys";
 import { restoreFocus } from "#/ime/end-composition";
@@ -211,6 +212,8 @@ export function RecipeBodyTextarea({
 			});
 	}, [recipesHandle]);
 
+	// 自分の食材辞書（画面が渡したもの。ゲスト・テストは undefined で、カタログだけ）。
+	const dictionary = useIngredientDictionaryContext();
 	const completion = useMemo(
 		() =>
 			getRecipeTextCompletion(
@@ -225,10 +228,11 @@ export function RecipeBodyTextarea({
 						: undefined,
 				},
 				// 変換中（未確定）は、完全一致の候補も出す。確定したあとは、書き終えたとみなして出さない。
-				{ includeExact: composing.isComposing },
+				{ includeExact: composing.isComposing, dictionary },
 			),
 		[
 			composing.isComposing,
+			dictionary,
 			value,
 			caret,
 			recipeNames,

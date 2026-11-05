@@ -24,6 +24,7 @@ function TestSettingsPage({
 		<SettingsPage
 			tab={tab}
 			onTabChange={setTab}
+			ingredients={<p>材料の欄</p>}
 			data={<p>データの欄</p>}
 			account={
 				loggedIn ? (

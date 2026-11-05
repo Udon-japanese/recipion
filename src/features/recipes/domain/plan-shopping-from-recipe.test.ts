@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { buildDictionary } from "#/test/builders/build-ingredient-dictionary";
 import type { StandInMode } from "./find-stand-ins";
 import {
 	flattenRecipeIngredients,
@@ -506,5 +507,34 @@ describe("範囲の分量（60~70g）", () => {
 			amount: { quantity: 20, unitLabel: "g" },
 			defaultChecked: true,
 		});
+	});
+});
+
+describe("planShoppingFromRecipe（自分の食材辞書）", () => {
+	const dictionary = buildDictionary([
+		{ name: "マイだし", aliases: ["うちのだし"] },
+	]);
+
+	it("自分で足した呼び名でも、在庫とメモの同じ食材に当て、行の名前は元のまま", () => {
+		const [row] = plan({
+			needs: [need("うちのだし", null, null)],
+			stockItems: [
+				{
+					name: "マイだし",
+					quantity: 200,
+					stockUnitCode: "ml",
+					stockUnitLabel: "ml",
+				},
+			],
+			memoItems: [{ id: "m1", name: "マイだし", quantity: 1, unitLabel: null }],
+			dictionary,
+		});
+
+		expect(row?.need.name).toBe("うちのだし");
+		expect(row?.stock).toMatchObject({
+			kind: "judged",
+			judgment: { status: "enough" },
+		});
+		expect(row?.existing?.id).toBe("m1");
 	});
 });

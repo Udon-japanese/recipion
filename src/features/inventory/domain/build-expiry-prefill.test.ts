@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { buildDictionary } from "#/test/builders/build-ingredient-dictionary";
 import {
 	buildExpiryPrefill,
 	emptyExpiryFields,
@@ -88,5 +89,22 @@ describe("findInventoryItemByName", () => {
 	it("カタログにない食材は、正規化した名前で探す", () => {
 		expect(findInventoryItemByName(items, "ミニ　トマト")).toBe(items[1]);
 		expect(findInventoryItemByName(items, "牛乳")).toBeUndefined();
+	});
+});
+
+describe("findInventoryItemByName（自分の食材辞書）", () => {
+	const dictionary = buildDictionary([
+		{ name: "マイだし", aliases: ["うちのだし"] },
+	]);
+	const items = [{ name: "マイだし" }];
+
+	it("自分で足した呼び名でも、在庫の食材に当たる", () => {
+		expect(findInventoryItemByName(items, "うちのだし", dictionary)).toBe(
+			items[0],
+		);
+	});
+
+	it("辞書がなければ、呼び名では当たらない（今までどおり）", () => {
+		expect(findInventoryItemByName(items, "うちのだし")).toBeUndefined();
 	});
 });

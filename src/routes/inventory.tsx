@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useState } from "react";
 import { pageTitle } from "#/config/app";
+import { IngredientDictionaryProvider } from "#/features/ingredients/components/ingredient-dictionary-context";
+import { useIngredientDictionary } from "#/features/ingredients/hooks/use-ingredient-dictionary";
 import { adjustInventoryWithCache } from "#/features/inventory/application/adjust-inventory-with-cache";
 import { changeInventoryTrackingModeWithCache } from "#/features/inventory/application/change-inventory-tracking-mode-with-cache";
 import type { InventoryAdjustmentCommand } from "#/features/inventory/application/inventory-adjustment-repository";
@@ -58,7 +60,12 @@ function InventoryPage() {
 
 	const ownerScope = useOwnerScope();
 	const [expiryEstimateLevel] = useExpiryEstimateLevel();
-	const lookupIngredientDefaults = useIngredientExpiryDefaults(ownerScope);
+	// 自分の食材辞書（期限の初期値の照合と、名前の補完に使う）。
+	const dictionary = useIngredientDictionary(ownerScope);
+	const lookupIngredientDefaults = useIngredientExpiryDefaults(
+		ownerScope,
+		dictionary,
+	);
 
 	const loadInventoryItems = useCallback(async () => {
 		if (!ownerScope || ownerScope === "guest") {
@@ -218,28 +225,30 @@ function InventoryPage() {
 	);
 
 	return (
-		<InventoryList
-			ownerScope={ownerScope}
-			loadInventoryItems={loadInventoryItems}
-			adjustInventoryItem={adjustInventoryItem}
-			updateInventoryLot={updateInventoryLot}
-			changeTrackingMode={changeTrackingMode}
-			deleteInventoryItem={deleteInventoryItem}
-			renameInventoryItem={renameInventoryItem}
-			changeStockUnit={changeStockUnit}
-			setLotQuantity={setLotQuantity}
-			refreshKey={inventoryRefreshKey}
-			registration={{
-				registerInventoryItem,
-				expiryEstimateLevel,
-				lookupIngredientDefaults,
-			}}
-			notices={
-				<PurchaseOutboxSync
-					ownerScope={ownerScope}
-					syncPurchases={syncPurchases}
-				/>
-			}
-		/>
+		<IngredientDictionaryProvider value={dictionary}>
+			<InventoryList
+				ownerScope={ownerScope}
+				loadInventoryItems={loadInventoryItems}
+				adjustInventoryItem={adjustInventoryItem}
+				updateInventoryLot={updateInventoryLot}
+				changeTrackingMode={changeTrackingMode}
+				deleteInventoryItem={deleteInventoryItem}
+				renameInventoryItem={renameInventoryItem}
+				changeStockUnit={changeStockUnit}
+				setLotQuantity={setLotQuantity}
+				refreshKey={inventoryRefreshKey}
+				registration={{
+					registerInventoryItem,
+					expiryEstimateLevel,
+					lookupIngredientDefaults,
+				}}
+				notices={
+					<PurchaseOutboxSync
+						ownerScope={ownerScope}
+						syncPurchases={syncPurchases}
+					/>
+				}
+			/>
+		</IngredientDictionaryProvider>
 	);
 }

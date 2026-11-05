@@ -235,14 +235,30 @@ export function listIngredientSearchTerms(name: string): string[] {
 	].map(foldForSearch);
 }
 
-/**
- * 入力した文字に合う食材を、近い順に返す（名前の候補表示用）。
- * 完全一致 → 前方一致 → 部分一致の順。同じ順位では、カタログに書いた順。
- */
-export function searchIngredientCatalog(
+// 検索用にそろえた名前の、入力との近さ（0：完全一致、1：前方一致、2：部分一致、Infinity：合わない）。
+export function rankFoldedSearchNames(
+	foldedNames: readonly string[],
+	foldedQuery: string,
+): number {
+	let rank = Number.POSITIVE_INFINITY;
+
+	for (const name of foldedNames) {
+		if (name === foldedQuery) {
+			rank = Math.min(rank, 0);
+		} else if (name.startsWith(foldedQuery)) {
+			rank = Math.min(rank, 1);
+		} else if (name.includes(foldedQuery)) {
+			rank = Math.min(rank, 2);
+		}
+	}
+
+	return rank;
+}
+
+// 入力に合う食材と、その近さ（近い順。同じ順位では、カタログに書いた順）。
+export function rankIngredientCatalog(
 	query: string,
-	limit = 8,
-): IngredientCatalogEntry[] {
+): { entry: IngredientCatalogEntry; rank: number }[] {
 	const foldedQuery = foldForSearch(query);
 
 	if (foldedQuery.length === 0) {
@@ -252,17 +268,7 @@ export function searchIngredientCatalog(
 	const ranked: { entry: IngredientCatalogEntry; rank: number }[] = [];
 
 	for (const { entry, names } of searchIndex) {
-		let rank = Number.POSITIVE_INFINITY;
-
-		for (const name of names) {
-			if (name === foldedQuery) {
-				rank = Math.min(rank, 0);
-			} else if (name.startsWith(foldedQuery)) {
-				rank = Math.min(rank, 1);
-			} else if (name.includes(foldedQuery)) {
-				rank = Math.min(rank, 2);
-			}
-		}
+		const rank = rankFoldedSearchNames(names, foldedQuery);
 
 		if (Number.isFinite(rank)) {
 			ranked.push({ entry, rank });
@@ -270,8 +276,18 @@ export function searchIngredientCatalog(
 	}
 
 	// sort は安定なので、同じ順位は、カタログの順のまま。
-	return ranked
-		.sort((a, b) => a.rank - b.rank)
+	return ranked.sort((a, b) => a.rank - b.rank);
+}
+
+/**
+ * 入力した文字に合う食材を、近い順に返す（名前の候補表示用）。
+ * 完全一致 → 前方一致 → 部分一致の順。同じ順位では、カタログに書いた順。
+ */
+export function searchIngredientCatalog(
+	query: string,
+	limit = 8,
+): IngredientCatalogEntry[] {
+	return rankIngredientCatalog(query)
 		.slice(0, limit)
 		.map(({ entry }) => entry);
 }

@@ -1,6 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { ButtonLink } from "#/components/button/button-link";
 import { pageTitle } from "#/config/app";
+import { IngredientDictionaryProvider } from "#/features/ingredients/components/ingredient-dictionary-context";
+import { useIngredientDictionary } from "#/features/ingredients/hooks/use-ingredient-dictionary";
 import { useOwnerScope } from "#/features/inventory/hooks/use-owner-scope";
 import { RecipeEditor } from "#/features/recipes/components/recipe-editor";
 import { createRecipeServerFn } from "#/features/recipes/server/create-recipe";
@@ -59,6 +61,8 @@ export const Route = createFileRoute("/recipes/new")({
 
 function NewRecipePage() {
 	const ownerScope = useOwnerScope();
+	// 自分の食材辞書（本文の材料の補完に、自分の材料も出す）。
+	const dictionary = useIngredientDictionary(ownerScope);
 	const navigate = useNavigate();
 	const { linkTargets } = Route.useLoaderData();
 
@@ -69,25 +73,27 @@ function NewRecipePage() {
 	}
 
 	return (
-		<RecipeEditor
-			loadLinkedRecipe={loadLinkedRecipe}
-			renderOpenLink={renderOpenLink}
-			loadLinkedRecipes={loadLinkedRecipes}
-			loadLinkTargets={loadLinkTargets}
-			initialLinkTargets={linkTargets}
-			searchLinkableUsers={(query) =>
-				searchLinkableUsersServerFn({ data: { query } })
-			}
-			loadUserRecipes={(handle) =>
-				listUserPublicRecipesServerFn({ data: { handle } })
-			}
-			onSave={(document) => createRecipeServerFn({ data: document })}
-			onSaved={(recipe) =>
-				void navigate({
-					to: "/recipes/$publicId",
-					params: { publicId: recipe.publicId },
-				})
-			}
-		/>
+		<IngredientDictionaryProvider value={dictionary}>
+			<RecipeEditor
+				loadLinkedRecipe={loadLinkedRecipe}
+				renderOpenLink={renderOpenLink}
+				loadLinkedRecipes={loadLinkedRecipes}
+				loadLinkTargets={loadLinkTargets}
+				initialLinkTargets={linkTargets}
+				searchLinkableUsers={(query) =>
+					searchLinkableUsersServerFn({ data: { query } })
+				}
+				loadUserRecipes={(handle) =>
+					listUserPublicRecipesServerFn({ data: { handle } })
+				}
+				onSave={(document) => createRecipeServerFn({ data: document })}
+				onSaved={(recipe) =>
+					void navigate({
+						to: "/recipes/$publicId",
+						params: { publicId: recipe.publicId },
+					})
+				}
+			/>
+		</IngredientDictionaryProvider>
 	);
 }

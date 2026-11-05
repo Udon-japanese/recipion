@@ -1,4 +1,8 @@
 import { findIngredientCatalogEntry } from "#/features/ingredients/domain/ingredient-catalog";
+import {
+	type IngredientDictionary,
+	toCanonicalIngredientName,
+} from "#/features/ingredients/domain/ingredient-dictionary";
 import { normalizeIngredientName } from "#/features/ingredients/domain/normalize-ingredient-name";
 import { formatQuantity } from "#/features/quantity/domain/format-quantity";
 import type { RecipeShoppingNeed } from "./plan-shopping-from-recipe";
@@ -34,10 +38,15 @@ function round(value: number): number {
 	return Number(value.toFixed(6));
 }
 
-function groupKey(need: RecipeShoppingNeed): string {
-	const catalogId = findIngredientCatalogEntry(need.name)?.id;
+// まとめる鍵：見出し＋同じ食材（辞書の代表の名前 → カタログの食材 → 正規化した名前）。
+function groupKey(
+	need: RecipeShoppingNeed,
+	dictionary: IngredientDictionary | undefined,
+): string {
+	const name = toCanonicalIngredientName(need.name, dictionary);
+	const catalogId = findIngredientCatalogEntry(name)?.id;
 
-	return `${need.sectionTitle ?? ""}|${catalogId ?? normalizeIngredientName(need.name)}`;
+	return `${need.sectionTitle ?? ""}|${catalogId ?? normalizeIngredientName(name)}`;
 }
 
 // 同じ仲間の、数量のある行を、1つにまとめる。同じ単位ならその単位で、違う単位（大さじと小さじなど）なら g / ml で表す。
@@ -145,6 +154,7 @@ export function describeAmountRange(
  */
 export function mergeRecipeNeeds(
 	needs: readonly RecipeShoppingNeed[],
+	dictionary?: IngredientDictionary,
 ): RecipeShoppingNeed[] {
 	const groups = new Map<string, RecipeShoppingNeed[]>();
 	const order: (string | RecipeShoppingNeed)[] = [];
@@ -155,7 +165,7 @@ export function mergeRecipeNeeds(
 			continue;
 		}
 
-		const key = groupKey(need);
+		const key = groupKey(need, dictionary);
 		const group = groups.get(key);
 
 		if (group) {

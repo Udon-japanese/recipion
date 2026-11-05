@@ -13,6 +13,7 @@ import {
 	findIngredientCatalogEntry,
 	getDefaultStockUnitLabel,
 } from "#/features/ingredients/domain/ingredient-catalog";
+import { useIngredientDictionary } from "#/features/ingredients/hooks/use-ingredient-dictionary";
 import { userIdOfOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import { loadInventoryItemsWithCache } from "#/features/inventory/application/load-inventory-items-with-cache";
 import { useOwnerScope } from "#/features/inventory/hooks/use-owner-scope";
@@ -142,6 +143,8 @@ function useRecipeViewSupport(
 	{ linkedRecipes, cookStats: preloadedCookStats }: RecipePreload,
 ) {
 	const ownerScope = useOwnerScope();
+	// 自分の食材辞書（買い物メモ・つくったの照合に使う）。ゲストは undefined。
+	const dictionary = useIngredientDictionary(ownerScope);
 	const { n: wanted } = Route.useSearch();
 	const navigate = useNavigate({ from: Route.fullPath });
 	// 見る人が選んだ量の割合（材料の表示・買い物メモ・つくった・リンク先に掛ける）。
@@ -319,6 +322,7 @@ function useRecipeViewSupport(
 
 	return {
 		ownerScope,
+		dictionary,
 		ratio,
 		yieldControl,
 		cookStats,
@@ -345,6 +349,7 @@ function OwnRecipePage({
 	const navigate = useNavigate();
 	const {
 		ownerScope,
+		dictionary,
 		ratio,
 		yieldControl,
 		cookStats,
@@ -414,6 +419,7 @@ function OwnRecipePage({
 						ownerScope={ownerScope}
 						loadInventoryItems={loadInventoryItems}
 						registerAvailable={registerAvailable}
+						dictionary={dictionary}
 					/>
 				}
 				madeAction={
@@ -426,6 +432,7 @@ function OwnRecipePage({
 						loadLinkedRecipe={loadCurrentLinkedRecipe}
 						ownerScope={ownerScope}
 						loadInventoryItems={loadInventoryItems}
+						dictionary={dictionary}
 						consume={consume}
 						undo={undoConsumption}
 						cookLog={cookLog}
@@ -456,6 +463,7 @@ function SharedRecipePage({
 }) {
 	const {
 		ownerScope,
+		dictionary,
 		ratio,
 		yieldControl,
 		cookStats,
@@ -511,6 +519,7 @@ function SharedRecipePage({
 						ownerScope={ownerScope}
 						loadInventoryItems={loadInventoryItems}
 						registerAvailable={registerAvailable}
+						dictionary={dictionary}
 					/>
 				}
 				madeAction={
@@ -523,6 +532,7 @@ function SharedRecipePage({
 						loadLinkedRecipe={loadCurrentLinkedRecipe}
 						ownerScope={ownerScope}
 						loadInventoryItems={loadInventoryItems}
+						dictionary={dictionary}
 						consume={consume}
 						undo={undoConsumption}
 						cookLog={cookLog}

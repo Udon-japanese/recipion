@@ -1,5 +1,9 @@
 import { convertToStockQuantity } from "#/features/ingredients/domain/convert-to-stock-quantity";
 import { findIngredientCatalogEntry } from "#/features/ingredients/domain/ingredient-catalog";
+import {
+	type IngredientDictionary,
+	toCanonicalIngredientName,
+} from "#/features/ingredients/domain/ingredient-dictionary";
 import { findInventoryItemByName } from "#/features/inventory/domain/build-expiry-prefill";
 import type { InventoryUnitCode } from "#/features/inventory/domain/inventory-unit";
 import { findStandInCandidates, type StandInMode } from "./find-stand-ins";
@@ -97,6 +101,8 @@ export function planRecipeConsumption(
 	needs: readonly RecipeShoppingNeed[],
 	stockItems: readonly RecipeConsumptionStockItem[],
 	standInMode: StandInMode = "auto",
+	// ユーザーの食材辞書（自分で足した呼び名でも、在庫の同じ食材から引く）。
+	dictionary?: IngredientDictionary,
 ): RecipeConsumptionRow[] {
 	const remaining = new Map(
 		stockItems.map((item) => [item.inventoryItemId, item.quantity]),
@@ -117,10 +123,15 @@ export function planRecipeConsumption(
 	};
 
 	return needs.map((need): RecipeConsumptionRow => {
-		const own = findInventoryItemByName(stockItems, need.name);
+		// 照合・換算・代わりの食材は、辞書の代表の名前で見る（行に出す need は、元のまま）。
+		const match = {
+			...need,
+			name: toCanonicalIngredientName(need.name, dictionary),
+		};
+		const own = findInventoryItemByName(stockItems, match.name, dictionary);
 		const ownStock = own && remainingOf(own) > 0 ? own : undefined;
 		const candidates = findStandInCandidates(
-			need,
+			match,
 			stockItems,
 			standInMode,
 			remainingOf,
@@ -161,7 +172,7 @@ export function planRecipeConsumption(
 			return row("unmeasurable");
 		}
 
-		const requiredOwn = ownStock ? requiredIn(need, ownStock) : null;
+		const requiredOwn = ownStock ? requiredIn(match, ownStock) : null;
 
 		if (ownStock && requiredOwn === null) {
 			return row("unmeasurable");

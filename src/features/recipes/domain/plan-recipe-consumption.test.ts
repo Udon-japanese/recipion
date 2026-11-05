@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { buildDictionary } from "#/test/builders/build-ingredient-dictionary";
 import type { StandInMode } from "./find-stand-ins";
 import {
 	planRecipeConsumption,
@@ -236,5 +237,26 @@ describe("planRecipeConsumption", () => {
 
 		expect(row?.status).toBe("no-stock");
 		expect(row?.deduct).toBeNull();
+	});
+});
+
+describe("planRecipeConsumption（自分の食材辞書）", () => {
+	it("自分で足した呼び名でも、在庫の同じ食材から引く", () => {
+		const dictionary = buildDictionary([
+			{ name: "マイだし", aliases: ["うちのだし"] },
+		]);
+		const [row] = planRecipeConsumption(
+			[need("うちのだし", 50, "ml")],
+			[stock("マイだし", 200, "ml", "ml")],
+			"auto",
+			dictionary,
+		);
+
+		expect(row).toMatchObject({
+			status: "consume",
+			deduct: 50,
+			target: { name: "マイだし" },
+			need: { name: "うちのだし" },
+		});
 	});
 });

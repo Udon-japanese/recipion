@@ -9,6 +9,7 @@ import { IconButton } from "#/components/icon-button/icon-button";
 import { Note } from "#/components/note/note";
 import { Sheet } from "#/components/sheet/sheet";
 import { useMediaQuery } from "#/components/use-media-query";
+import type { IngredientDictionary } from "#/features/ingredients/domain/ingredient-dictionary";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import type { InventoryListItem } from "#/features/inventory/application/inventory-query-repository";
 import type { RecipePickerContext } from "#/features/shopping/components/recipe-picker-slot";
@@ -31,6 +32,8 @@ type RecipeToShoppingPickerProps = {
 	loadRecipe: (publicId: string) => Promise<RecipeDetail | null>;
 	loadInventoryItems: () => Promise<InventoryListItem[]>;
 	registerAvailable?: (ingredientName: string) => Promise<void>;
+	// ユーザーの食材辞書（照合に使う）。ゲストは省略。
+	dictionary?: IngredientDictionary;
 };
 
 const maxListedRecipes = 50;
@@ -45,6 +48,7 @@ export function RecipeToShoppingPicker({
 	loadRecipe,
 	loadInventoryItems,
 	registerAvailable,
+	dictionary,
 }: RecipeToShoppingPickerProps) {
 	const isWide = useMediaQuery("(min-width: 768px)");
 	const [recipes, setRecipes] = useState<RecipeLinkTarget[] | null>(null);
@@ -61,6 +65,7 @@ export function RecipeToShoppingPicker({
 		loadInventoryItems,
 		shoppingRepository: context.repository,
 		destination: context.destination,
+		dictionary,
 		onApplied: () => {
 			if (selected) {
 				context.onApplied(selected.name);

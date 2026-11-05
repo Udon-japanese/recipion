@@ -1,10 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback } from "react";
 import { pageTitle } from "#/config/app";
+import { IngredientDictionaryProvider } from "#/features/ingredients/components/ingredient-dictionary-context";
 import {
 	findIngredientCatalogEntry,
 	getDefaultStockUnitLabel,
 } from "#/features/ingredients/domain/ingredient-catalog";
+import { useIngredientDictionary } from "#/features/ingredients/hooks/use-ingredient-dictionary";
 import { userIdOfOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import { loadInventoryItemsWithCache } from "#/features/inventory/application/load-inventory-items-with-cache";
 import { PurchaseOutboxSync } from "#/features/inventory/components/purchase-outbox-sync";
@@ -28,6 +30,8 @@ export const Route = createFileRoute("/shopping")({
 function ShoppingPage() {
 	const ownerScope = useOwnerScope();
 	const isLoggedIn = ownerScope !== null && ownerScope !== "guest";
+	// 自分の食材辞書（レシピから入れるときの照合と、名前の補完に使う）。ゲストは undefined。
+	const dictionary = useIngredientDictionary(ownerScope);
 
 	// 自分のレシピの一覧（「レシピから入れる」で選ぶ）。
 	const listRecipes = useCallback(async () => {
@@ -90,29 +94,32 @@ function ShoppingPage() {
 	);
 
 	return (
-		<ShoppingList
-			ownerScope={ownerScope}
-			notices={
-				<PurchaseOutboxSync
-					ownerScope={ownerScope}
-					syncPurchases={syncDexieInventoryPurchaseOutbox}
-				/>
-			}
-			syncPurchases={syncDexieInventoryPurchaseOutbox}
-			renderRecipePicker={
-				isLoggedIn
-					? (context: RecipePickerContext) => (
-							<RecipeToShoppingPicker
-								context={context}
-								ownerScope={ownerScope}
-								listRecipes={listRecipes}
-								loadRecipe={loadRecipe}
-								loadInventoryItems={loadInventoryItems}
-								registerAvailable={registerAvailable}
-							/>
-						)
-					: undefined
-			}
-		/>
+		<IngredientDictionaryProvider value={dictionary}>
+			<ShoppingList
+				ownerScope={ownerScope}
+				notices={
+					<PurchaseOutboxSync
+						ownerScope={ownerScope}
+						syncPurchases={syncDexieInventoryPurchaseOutbox}
+					/>
+				}
+				syncPurchases={syncDexieInventoryPurchaseOutbox}
+				renderRecipePicker={
+					isLoggedIn
+						? (context: RecipePickerContext) => (
+								<RecipeToShoppingPicker
+									context={context}
+									ownerScope={ownerScope}
+									listRecipes={listRecipes}
+									loadRecipe={loadRecipe}
+									loadInventoryItems={loadInventoryItems}
+									registerAvailable={registerAvailable}
+									dictionary={dictionary}
+								/>
+							)
+						: undefined
+				}
+			/>
+		</IngredientDictionaryProvider>
 	);
 }
