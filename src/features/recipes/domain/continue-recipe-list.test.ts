@@ -41,6 +41,9 @@ describe("continueRecipeList", () => {
 		expect(enterAtEnd("1/2個")).toBeNull();
 		expect(enterAtEnd("2個")).toBeNull();
 		expect(enterAtEnd("")).toBeNull();
+		// 材料のグループの終わりの行は、箇条書きの印ではない
+		expect(enterAtEnd("---")).toBeNull();
+		expect(enterAtEnd("ーーー")).toBeNull();
 	});
 
 	it("印だけの行で Enter を押すと、印を消す", () => {

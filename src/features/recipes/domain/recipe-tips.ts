@@ -5,7 +5,10 @@ export function buildRecipeTips(options: {
 	canLinkOwn: boolean;
 	canLinkOthers: boolean;
 }): string[] {
-	const tips = ["材料名・食材名は、入力すると補完が出ます"];
+	const tips = [
+		"材料名・食材名は、入力すると補完が出ます",
+		"材料の「☆ソース」のような行の下はグループになり、--- の行でグループを終えられます",
+	];
 
 	if (options.canLinkOwn && options.canLinkOthers) {
 		tips.push("[[ で自分のレシピ、[[@ で他の人のレシピをリンクできます");

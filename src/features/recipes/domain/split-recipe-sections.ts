@@ -1,4 +1,7 @@
-import { parseRecipeIngredients } from "./parse-recipe-ingredients";
+import {
+	isIngredientGroupEndLine,
+	parseRecipeIngredients,
+} from "./parse-recipe-ingredients";
 
 export type RecipeSectionKind =
 	| "ingredients"
@@ -66,10 +69,15 @@ export function parseRecipeHeading(line: string): RecipeHeading | null {
 // 材料の行頭の箇条書きの印（・ ● - * •）を外す。
 const bulletPattern = /^[・●◦•\-*]\s*/u;
 
+// グループの終わりの行（---）は、印ではないので、そのまま残す。
 function stripBullets(text: string): string {
 	return text
 		.split(/\r?\n/u)
-		.map((line) => line.trim().replace(bulletPattern, ""))
+		.map((line) =>
+			isIngredientGroupEndLine(line)
+				? line.trim()
+				: line.trim().replace(bulletPattern, ""),
+		)
 		.join("\n");
 }
 

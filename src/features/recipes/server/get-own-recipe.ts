@@ -7,7 +7,8 @@ const getRecipeInputSchema = v.object({
 	publicId: v.pipe(v.string(), v.maxLength(100)),
 });
 
-// 自分のレシピだけ（編集の画面で使う）。存在しない場合と、他のユーザーのレシピの場合は、どちらも null。
+// 自分のレシピだけ（編集の画面で使う）。内容と、いまの版（保存のときに、ほかの画面で先に保存されていないかを確かめる）。
+// 存在しない場合と、他のユーザーのレシピの場合は、どちらも null。
 export const getOwnRecipeServerFn = createServerFn({
 	method: "GET",
 })
@@ -15,7 +16,5 @@ export const getOwnRecipeServerFn = createServerFn({
 	.handler(async ({ data }) => {
 		const { db, userId } = await requireSession();
 
-		return createDrizzleRecipeRepository(db, userId).getByPublicId(
-			data.publicId,
-		);
+		return createDrizzleRecipeRepository(db, userId).getForEdit(data.publicId);
 	});

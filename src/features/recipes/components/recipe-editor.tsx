@@ -60,6 +60,7 @@ import {
 	type RecipeLinkView,
 	stripLinkBrackets,
 } from "../domain/recipe-links";
+import { isRecipeChangedElsewhereError } from "../domain/recipe-revision";
 import {
 	createIngredientSyncState,
 	emptyIngredientSyncState,
@@ -93,7 +94,11 @@ import type { LoadLinkedRecipes } from "./recipe-view-with-tree";
 type SavedRecipe = { publicId: string };
 
 type RecipeEditorProps = {
-	onSave: (document: RecipeEditorDocument) => Promise<SavedRecipe>;
+	// overwrite：ほかの画面で先に保存されていても、この内容で上書きする（本人が確認で選んだとき）。
+	onSave: (
+		document: RecipeEditorDocument,
+		options: { overwrite: boolean },
+	) => Promise<SavedRecipe>;
 	onSaved?: (recipe: SavedRecipe) => void;
 	// 保存済みのレシピを編集するときの初期値。なければ、新規登録。
 	initialDocument?: RecipeEditorDocument;
@@ -210,6 +215,8 @@ export function RecipeEditor({
 	const saveAction = useButtonAction();
 	// 公開していないレシピを、公開して保存するときの確認（同意の文は、ここで出す）。
 	const [isConfirmingPublish, setIsConfirmingPublish] = useState(false);
+	// ほかの画面（別のタブ・端末）で、先に保存されていたときの確認（上書きするか）。
+	const [isConfirmingOverwrite, setIsConfirmingOverwrite] = useState(false);
 	const needsPublishConsent =
 		visibility !== "private" &&
 		(initialDocument?.visibility ?? "private") === "private";
@@ -565,10 +572,10 @@ export function RecipeEditor({
 			return;
 		}
 
-		void saveAction.run(save);
+		void saveAction.run(() => save());
 	}
 
-	async function save() {
+	async function save(options: { overwrite: boolean } = { overwrite: false }) {
 		try {
 			const document = {
 				...createRecipeEditorDocument({
@@ -598,11 +605,19 @@ export function RecipeEditor({
 				return false;
 			}
 
-			const result = await onSave(document);
+			const result = await onSave(document, options);
 			onSaved?.(result);
 
 			return true;
 		} catch (error) {
+			// ほかの画面で先に保存されていた。黙って上書きせず、どうするかを聞く（この画面の入力は、そのまま残す）。
+			if (isRecipeChangedElsewhereError(error)) {
+				setErrorMessage(null);
+				setIsConfirmingOverwrite(true);
+
+				return false;
+			}
+
 			setErrorMessage(describeError(error, "レシピを保存できませんでした"));
 
 			return false;
@@ -931,7 +946,7 @@ export function RecipeEditor({
 				onCancel={() => setIsConfirmingPublish(false)}
 				onConfirm={() => {
 					setIsConfirmingPublish(false);
-					void saveAction.run(save);
+					void saveAction.run(() => save());
 				}}
 			>
 				自分で考えたか、自分の言葉で書いたレシピだけを公開してください。レシピと一緒に、アバター・表示名・ハンドルも公開されます（メールアドレスは見えません。
@@ -943,6 +958,21 @@ export function RecipeEditor({
 					利用規約
 				</Link>
 				）。
+			</ConfirmDialog>
+
+			<ConfirmDialog
+				open={isConfirmingOverwrite}
+				title="ほかの画面で、このレシピが保存されています"
+				cancelLabel="やめる"
+				confirmLabel="上書きして保存"
+				danger
+				onCancel={() => setIsConfirmingOverwrite(false)}
+				onConfirm={() => {
+					setIsConfirmingOverwrite(false);
+					void saveAction.run(() => save({ overwrite: true }));
+				}}
+			>
+				別のタブや端末で、このレシピを開いたあとに保存されています。この画面の内容で上書きすると、そちらで保存した内容は消えます。やめると、この画面の入力はそのまま残ります（必要なら、本文をコピーしてから開き直してください）。
 			</ConfirmDialog>
 
 			{deletion ? (

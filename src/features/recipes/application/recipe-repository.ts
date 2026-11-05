@@ -40,13 +40,23 @@ export type UpdateRecipeCommand = PreparedRecipeForStorage & {
 export type RecipeRepository = {
 	create(command: CreateRecipeCommand): Promise<CreatedRecipe>;
 	// 内容をすべて置き換える。存在しない場合と、他のユーザーのレシピの場合は、どちらも null を返す。
+	// expectedRevision：編集を開いたときの版。いまの版と違えば、書かずに conflict（null は、確かめずに上書き）。
 	update(
 		publicId: string,
 		command: UpdateRecipeCommand,
-	): Promise<{ publicId: string } | null>;
+		expectedRevision: string | null,
+	): Promise<
+		| { status: "updated"; publicId: string; revision: string }
+		| { status: "conflict" }
+		| null
+	>;
 	// 存在しない場合と、他のユーザーのレシピの場合は、どちらも false を返す。
 	delete(publicId: string): Promise<boolean>;
 	// 存在しない場合と、他のユーザーのレシピの場合は、どちらも null を返す。
 	getByPublicId(publicId: string): Promise<RecipeDetail | null>;
+	// 編集の画面で使う。内容と、いまの版。
+	getForEdit(
+		publicId: string,
+	): Promise<{ recipe: RecipeDetail; revision: string } | null>;
 	list(): Promise<RecipeSummary[]>;
 };

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+	formatIngredientText,
 	formatInstructionText,
 	formatPreparationText,
 	formatRecipeEditorText,
@@ -107,5 +108,36 @@ describe("formatRecipeEditorText", () => {
 		expect(formatRecipeTemplateText()).toBe(
 			"＜下準備＞\n\n＜材料＞\n\n＜作り方＞\n\n＜メモ＞\n",
 		);
+	});
+});
+
+describe("formatIngredientText", () => {
+	it.each([
+		{
+			label: "グループのあとに、グループ外の材料",
+			text: "☆ソース\nケチャップ 大さじ2\n---\n卵 1個",
+		},
+		{
+			label: "グループ外の材料のあとに、グループ",
+			text: "卵 1個\n☆ソース\nケチャップ 大さじ2",
+		},
+		{
+			label: "グループが続く",
+			text: "☆ソース\nケチャップ 大さじ2\n☆たれ\n砂糖 小さじ1",
+		},
+		{
+			label: "グループのあとに、分量のない材料",
+			text: "☆ソース\nケチャップ 大さじ2\n---\n塩\n卵 1個",
+		},
+	])("$label：書き戻した文章を読み直すと、同じ形に戻る", ({ text }) => {
+		const nodes = parseRecipeIngredients(text, { plainLines: ["塩"] });
+		const formatted = formatIngredientText(nodes);
+
+		expect(formatted).toBe(text);
+		expect(
+			parseRecipeIngredients(formatted, { plainLines: ["塩"] }).map(
+				(node) => node.name,
+			),
+		).toEqual(nodes.map((node) => node.name));
 	});
 });

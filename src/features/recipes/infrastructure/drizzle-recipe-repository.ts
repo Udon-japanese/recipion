@@ -21,6 +21,7 @@ import {
 	canLinkToRecipe,
 	parseRecipeVisibility,
 } from "../domain/recipe-link-permission";
+import { toRecipeRevision } from "../domain/recipe-revision";
 import {
 	formatRecipeIngredientQuantity,
 	formatRecipeServings,
@@ -350,18 +351,27 @@ export function createDrizzleRecipeRepository(
 			});
 		},
 
-		async update(publicId, command) {
+		async update(publicId, command, expectedRevision) {
 			validateIds(command);
 
 			return db.transaction(async (transaction) => {
+				// 版の確かめから書き込みまでの間に、別の保存が割り込まないよう、行をロックする。
 				const [existing] = await transaction
-					.select({ id: recipe.id })
+					.select({ id: recipe.id, updatedAt: recipe.updatedAt })
 					.from(recipe)
-					.where(and(eq(recipe.publicId, publicId), eq(recipe.userId, userId)));
+					.where(and(eq(recipe.publicId, publicId), eq(recipe.userId, userId)))
+					.for("update");
 
 				if (!existing) return null;
 
-				await transaction
+				if (
+					expectedRevision !== null &&
+					toRecipeRevision(existing.updatedAt) !== expectedRevision
+				) {
+					return { status: "conflict" as const };
+				}
+
+				const [saved] = await transaction
 					.update(recipe)
 					.set({
 						name: command.name,
@@ -376,7 +386,8 @@ export function createDrizzleRecipeRepository(
 							? {}
 							: { unlistedPassphrase: command.passphraseCipher }),
 					})
-					.where(eq(recipe.id, existing.id));
+					.where(eq(recipe.id, existing.id))
+					.returning({ updatedAt: recipe.updatedAt });
 
 				// 作り置きのできあがり（在庫の食材）がすでにあれば、レシピの名前の変更に合わせる。
 				const [madeItem] = await transaction
@@ -440,7 +451,11 @@ export function createDrizzleRecipeRepository(
 					command.links,
 				);
 
-				return { publicId };
+				return {
+					status: "updated" as const,
+					publicId,
+					revision: toRecipeRevision(saved?.updatedAt ?? existing.updatedAt),
+				};
 			});
 		},
 
@@ -463,6 +478,20 @@ export function createDrizzleRecipeRepository(
 			if (!found) return null;
 
 			return loadRecipeDetail(db, found, userId);
+		},
+
+		async getForEdit(publicId) {
+			const [found] = await db
+				.select()
+				.from(recipe)
+				.where(and(eq(recipe.publicId, publicId), eq(recipe.userId, userId)));
+
+			if (!found) return null;
+
+			return {
+				recipe: await loadRecipeDetail(db, found, userId),
+				revision: toRecipeRevision(found.updatedAt),
+			};
 		},
 
 		async list() {
