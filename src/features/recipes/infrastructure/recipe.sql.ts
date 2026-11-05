@@ -39,6 +39,8 @@ export const recipe = pgTable(
 		unlistedPassphrase: text("unlisted_passphrase"),
 		// 「作った」で、できあがりを在庫に入れる（作り置き。他のレシピから材料としてリンクされるものなど）。
 		stocksWhenMade: boolean("stocks_when_made").default(false).notNull(),
+		// 量を変えられるか。false は「この分量で作る」（量の操作を出さず、他のレシピからのリンクも、いつも1回分）。
+		scalable: boolean("scalable").default(true).notNull(),
 		// 料理の絵（部品の置き方）。null は、レシピ名から選ぶプリセットを見せる。
 		cover: jsonb("cover").$type<DishPlacement[]>(),
 		// 公開した日時（非公開から、限定公開・全体公開にしたとき）。非公開のあいだは null。限定公開と全体公開の切り替えでは変えない。
@@ -108,6 +110,10 @@ export const recipeIngredientNode = pgTable(
 			scale: 6,
 		}),
 		unitLabel: text("unit_label"),
+		// 量を変えたときの増減のしかた（scale-weight.ts の選択肢の値。グループは 1）。
+		scaleWeight: numeric("scale_weight", { precision: 3, scale: 2 })
+			.default("1")
+			.notNull(),
 	},
 	(table) => [
 		foreignKey({
@@ -135,6 +141,10 @@ export const recipeIngredientNode = pgTable(
 		check(
 			"recipe_ingredient_sort_order_nonnegative",
 			sql`${table.sortOrder} >= 0`,
+		),
+		check(
+			"recipe_ingredient_scale_weight_valid",
+			sql`${table.scaleWeight} IN (0, 0.5, 0.8, 1) AND (${table.type} = 'ingredient' OR ${table.scaleWeight} = 1)`,
 		),
 		check(
 			"recipe_ingredient_name_nonempty",

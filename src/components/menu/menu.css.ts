@@ -60,6 +60,38 @@ export const item = recipe({
 	defaultVariants: { tone: "default" },
 });
 
+// 下の階層へ進む項目の、名前（伸びる）と、いまの値（右に薄く）。
+export const itemLabel = style({ flex: 1 });
+
+export const itemDetail = style({
+	color: "var(--color-text-muted)",
+	fontSize: 14,
+	fontWeight: "var(--font-weight-regular)",
+});
+
+// 選択肢のチェックの印の場所（印がない行も、文字の位置をそろえる）。
+export const checkSlot = style({
+	display: "inline-flex",
+	width: 20,
+	flex: "none",
+});
+
+// 下の階層の見出し（戻る・見出しの文字）。
+export const submenuHeader = style({
+	display: "flex",
+	alignItems: "center",
+	gap: 4,
+	padding: "0 12px 4px 0",
+	marginBottom: 4,
+	borderBottom: "1px solid var(--color-border)",
+});
+
+export const submenuTitle = style({
+	color: "var(--color-text-muted)",
+	fontSize: 14,
+	fontWeight: "var(--font-weight-semibold)",
+});
+
 // props の型は、スタイルの定義から作る（種類を足すときは、ここだけを直す）。
 export type MenuItemTone = NonNullable<
 	NonNullable<RecipeVariants<typeof item>>["tone"]

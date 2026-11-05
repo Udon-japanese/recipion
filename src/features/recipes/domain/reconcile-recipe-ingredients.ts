@@ -25,6 +25,8 @@ export type IngredientSyncState = {
 	dismissed: readonly string[];
 	// グループと推定された行を、ユーザーが材料と決めた、元の行。解析し直しても、グループにしない（行を書き換えると、推定に戻る）。
 	plainLines: readonly string[];
+	// 材料名 → 増減のしかた（通常でないもの）。行を書き換えて作り直された材料に、引き継ぐ。
+	scaleWeights?: ReadonlyMap<string, number>;
 };
 
 type PreviousEntry = {
@@ -49,6 +51,10 @@ function flatten(
 }
 
 // ☆ ★ や A などの印を除いた、グループ名の比較用の文字列。
+function normalizeIngredientName(name: string): string {
+	return name.normalize("NFKC").trim();
+}
+
 export function normalizeGroupName(name: string): string {
 	return name
 		.normalize("NFKC")
@@ -232,6 +238,30 @@ export function reconcileRecipeIngredients(
 		},
 	);
 
+	// 材料名ごとの増減のしかた（編集のあいだ覚えておく）。行を書き換えると、別の材料として作り直されるので、
+	// 同じ名前の材料に、重みを引き継ぐ（「醤油 大さじ1」→ 打っている途中の「醤油 大さじ」→「醤油 大さじ2」でも残る）。
+	const scaleWeights = new Map(previous.scaleWeights ?? []);
+
+	for (const entry of previousEntries) {
+		if (entry.node.type !== "ingredient") {
+			continue;
+		}
+
+		const key = normalizeIngredientName(entry.node.name);
+
+		if (entry.node.scaleWeight === undefined) {
+			scaleWeights.delete(key);
+		} else {
+			scaleWeights.set(key, entry.node.scaleWeight);
+		}
+	}
+
+	function rememberedWeight(name: string) {
+		const weight = scaleWeights.get(normalizeIngredientName(name));
+
+		return weight === undefined ? {} : { scaleWeight: weight };
+	}
+
 	const sources = new Map<string, string>();
 	const edited = new Set<string>();
 	const usedGroupIds = new Set<string>();
@@ -248,7 +278,7 @@ export function reconcileRecipeIngredients(
 
 			sources.set(id, parsed.rawText);
 
-			return { ...parsed, id };
+			return { ...parsed, id, ...rememberedWeight(parsed.name) };
 		}
 
 		const id = entry.node.id;
@@ -262,7 +292,10 @@ export function reconcileRecipeIngredients(
 			return entry.node;
 		}
 
-		return { ...parsed, id };
+		// 増減のしかたは、本文の行にない設定なので、行が同じなら、そのまま残す。
+		return entry.node.scaleWeight === undefined
+			? { ...parsed, id }
+			: { ...parsed, id, scaleWeight: entry.node.scaleWeight };
 	}
 
 	function buildGroup(
@@ -391,6 +424,7 @@ export function reconcileRecipeIngredients(
 		edited,
 		dismissed: usedDismissed,
 		plainLines: previous.plainLines,
+		scaleWeights,
 	};
 }
 

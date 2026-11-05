@@ -85,6 +85,7 @@ async function insertRecipeChildren(
 					? null
 					: formatRecipeIngredientQuantity(node.quantity),
 			unitLabel: node.unitLabel,
+			scaleWeight: String(node.scaleWeight),
 		});
 	}
 
@@ -278,6 +279,7 @@ export async function loadRecipeDetail(
 		sourceUrl: found.sourceUrl,
 		visibility: parseRecipeVisibility(found.visibility),
 		stocksWhenMade: found.stocksWhenMade,
+		scalable: found.scalable,
 		cover: parseDishCover(found.cover),
 		ingredients: restoreRecipeIngredients(
 			ingredientRows.map((row) => ({
@@ -295,6 +297,7 @@ export async function loadRecipeDetail(
 				amountText: row.amountText,
 				quantity: row.quantity === null ? null : Number(row.quantity),
 				unitLabel: row.unitLabel,
+				scaleWeight: Number(row.scaleWeight),
 			})),
 		),
 		preparations: preparationRows.map((row) => ({
@@ -351,6 +354,7 @@ export function createDrizzleRecipeRepository(
 						sourceUrl: command.sourceUrl,
 						visibility: command.visibility,
 						stocksWhenMade: command.stocksWhenMade,
+						scalable: command.scalable,
 						cover: command.cover,
 						unlistedPassphrase: command.passphraseCipher ?? null,
 						publishedAt: command.visibility === "private" ? null : new Date(),
@@ -407,6 +411,7 @@ export function createDrizzleRecipeRepository(
 						sourceUrl: command.sourceUrl,
 						visibility: command.visibility,
 						stocksWhenMade: command.stocksWhenMade,
+						scalable: command.scalable,
 						cover: command.cover,
 						// 非公開から公開したときだけ、いまの日時。公開のままなら、最初に公開した日時を残す。
 						publishedAt:

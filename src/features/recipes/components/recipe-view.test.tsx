@@ -478,6 +478,55 @@ describe("RecipeView：材料のチェックリスト", () => {
 			expect(screen.getByText("120~140g")).toBeInTheDocument();
 		});
 
+		it("量を変えているときだけ、通常でない増減のしかたを、分量に添える", () => {
+			const weighted: RecipeDetail = {
+				...recipe,
+				ingredients: [
+					{
+						...amountItem("w1", "醤油", "大さじ1", 1, "大さじ"),
+						scaleWeight: 0,
+					},
+				],
+			};
+			const { unmount } = render(<RecipeView recipe={weighted} />);
+
+			expect(screen.queryByText("固定")).toBeNull();
+			unmount();
+
+			render(<RecipeView recipe={weighted} ratio={2} />);
+
+			expect(screen.getByText("大さじ1")).toBeInTheDocument();
+			expect(screen.getByText("固定")).toBeInTheDocument();
+		});
+
+		it("リンク先が「この分量で作る」なら、割合によらず1回分で開き、そのことを知らせる", () => {
+			const dough: RecipeDetail = {
+				...recipe,
+				publicId: "dough",
+				name: "生地",
+				scalable: false,
+				note: "",
+				sourceUrl: null,
+				preparations: [],
+				instructions: [],
+				ingredients: [amountItem("d1", "薄力粉", "100g", 100, "g")],
+			};
+			const root: RecipeDetail = {
+				...recipe,
+				ingredients: [amountItem("r1", "[[生地]]", "1/2量", 0.5, "量")],
+				linkViews: [
+					{ label: "生地", target: { publicId: "dough", name: "生地" } },
+				],
+			};
+
+			render(<RecipeView recipe={root} linkedRecipes={{ dough }} ratio={3} />);
+
+			expect(screen.getByText("100g")).toBeInTheDocument();
+			expect(
+				screen.getByText("このレシピは、量を変えずに作ります（1回分）"),
+			).toBeInTheDocument();
+		});
+
 		it("その場で開くリンク先の分量は、このレシピの割合 × リンクの行の割合", () => {
 			const dough: RecipeDetail = {
 				...recipe,

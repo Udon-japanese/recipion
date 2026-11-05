@@ -29,6 +29,8 @@ export type RecipeShoppingNeed = {
 	sectionTitle?: string;
 	// 同じ食材の行を1行にまとめたとき、元の分量の原文（内訳の表示用）。まとめていなければ、なし。
 	mergedAmountTexts?: string[];
+	// 量を変えたときの増減のしかた（scale-weight.ts。省略は通常）。
+	scaleWeight?: number;
 };
 
 // 在庫の1食材（在庫の一覧から、必要な項目だけ）。
@@ -123,6 +125,9 @@ export function flattenRecipeIngredients(
 				unitLabel: node.unitLabel,
 				amountText: node.amountText,
 				...(range ? { range } : {}),
+				...(node.scaleWeight === undefined
+					? {}
+					: { scaleWeight: node.scaleWeight }),
 			});
 		}
 	}

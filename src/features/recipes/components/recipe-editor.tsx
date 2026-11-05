@@ -32,6 +32,7 @@ import {
 	removeIngredientGroup,
 	removeIngredientItem,
 	renameIngredientGroup,
+	setIngredientScaleWeight,
 	updateIngredientItem,
 } from "../domain/edit-recipe-ingredients";
 import {
@@ -214,6 +215,7 @@ export function RecipeEditor({
 	const [stocksWhenMade, setStocksWhenMade] = useState(
 		initialDocument?.stocksWhenMade ?? false,
 	);
+	const [scalable, setScalable] = useState(initialDocument?.scalable ?? true);
 	const [cover, setCover] = useState<DishPlacement[] | null>(
 		initialDocument?.cover ?? null,
 	);
@@ -603,6 +605,7 @@ export function RecipeEditor({
 					sourceUrl,
 					visibility,
 					stocksWhenMade,
+					scalable,
 					cover,
 					// 本文に出てくるラベルのリンクだけを送る（本文から消したリンクは、送らない）。
 					links: links.filter((link) =>
@@ -868,6 +871,11 @@ export function RecipeEditor({
 									onGroupToIngredient={convertGroupToIngredient}
 									onRemove={removeIngredient}
 									onRevert={revertEdit}
+									onScaleWeightChange={(id, weight) =>
+										editIngredients((current) =>
+											setIngredientScaleWeight(current, id, weight),
+										)
+									}
 									onAdd={addIngredient}
 									linkViews={linkViews}
 									onOpenLink={handleOpenLink}
@@ -937,6 +945,8 @@ export function RecipeEditor({
 					onVisibilityChange={setVisibility}
 					hasSourceUrl={sourceUrl.trim() !== ""}
 					stocksWhenMade={stocksWhenMade}
+					scalable={scalable}
+					onScalableChange={setScalable}
 					onStocksWhenMadeChange={setStocksWhenMade}
 				/>
 

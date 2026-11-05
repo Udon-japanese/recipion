@@ -4,6 +4,7 @@ import {
 	parseAmountRange,
 } from "#/features/ingredients/domain/parse-ingredient-line";
 import { describeAmount, describeAmountRange } from "./merge-recipe-needs";
+import { weightedRatio } from "./scale-weight";
 
 // 小数で表す単位。10以上は整数、10未満は小数第1位。
 const smallDecimalUnits = new Set(["g", "ml", "cc"]);
@@ -97,10 +98,13 @@ export function scaleIngredientAmountText(
 		unitLabel: string | null;
 		amountText: string | null;
 		range?: AmountRange;
+		scaleWeight?: number;
 	},
-	ratio: number,
+	baseRatio: number,
 ): string | null {
 	const { amountText } = item;
+	// 材料ごとの増減のしかた（やや控えめ・固定など）を掛けた割合。
+	const ratio = weightedRatio(baseRatio, item.scaleWeight);
 
 	if (ratio === 1 || amountText === null) {
 		return amountText;

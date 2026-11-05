@@ -10,6 +10,7 @@ import { validateRecipeEditorDocument } from "#/features/recipes/domain/validate
 // 在庫とレシピを書き出したファイル（バックアップ）の形。読めるのは、いまの版だけ（古い版の読み替えはしない）。
 export const backupFormat = "recipion-backup";
 // 2：レシピの人数（servings）を、できあがりの量の文字（yieldText）にした。
+// 材料の増減のしかた（scaleWeight）と、この分量で作る（scalable）は、省略できる（通常・量を変えられる）ので、版2のまま。
 export const backupVersion = 2;
 
 // ファイルの上限。レシピは1人の上限まで、在庫は、ふつうの家庭の量を大きく超える数。

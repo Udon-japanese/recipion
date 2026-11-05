@@ -1,6 +1,11 @@
 import type { RecipeEditorIngredientNode } from "../domain/recipe-editor-document";
 import type { StoredRecipeIngredientNode } from "./prepare-recipe-for-storage";
 
+// 増減のしかた。通常（1）は、持たない（省略は通常）。
+function scaleWeightOf(stored: StoredRecipeIngredientNode) {
+	return stored.scaleWeight === 1 ? {} : { scaleWeight: stored.scaleWeight };
+}
+
 // prepareRecipeForStorage の逆。parentId と sortOrder の平坦な形から、グループが children を持つ木へ戻す。
 export function restoreRecipeIngredients(
 	storedNodes: readonly StoredRecipeIngredientNode[],
@@ -51,6 +56,7 @@ export function restoreRecipeIngredients(
 					amountText: stored.amountText,
 					quantity: stored.quantity,
 					unitLabel: stored.unitLabel,
+					...scaleWeightOf(stored),
 				};
 			}
 
@@ -64,6 +70,7 @@ export function restoreRecipeIngredients(
 					amountText: null,
 					quantity: null,
 					unitLabel: null,
+					...scaleWeightOf(stored),
 				};
 			}
 

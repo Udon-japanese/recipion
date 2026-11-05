@@ -533,6 +533,28 @@ function PartsGallery() {
 								items={[
 									{ label: "編集", icon: "edit", onSelect: () => {} },
 									{
+										label: "量を変えたときの増減",
+										icon: "ruler",
+										detail: "通常",
+										submenu: {
+											title: "量を変えたときの増減",
+											items: [
+												{ label: "通常", checked: true, onSelect: () => {} },
+												{
+													label: "やや控えめ",
+													checked: false,
+													onSelect: () => {},
+												},
+												{
+													label: "半分だけ",
+													checked: false,
+													onSelect: () => {},
+												},
+												{ label: "固定", checked: false, onSelect: () => {} },
+											],
+										},
+									},
+									{
 										label: "上へ",
 										icon: "arrow-up",
 										disabled: true,

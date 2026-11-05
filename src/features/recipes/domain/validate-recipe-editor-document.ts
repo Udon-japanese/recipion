@@ -8,9 +8,14 @@ import type {
 import { findRecipeLimitViolation } from "./recipe-limits";
 import { isValidLinkLabel, maxLinksPerRecipe } from "./recipe-links";
 import { maxRecipeYieldLength } from "./recipe-yield";
+import { scaleWeightOptions } from "./scale-weight";
 
 const requiredText = v.pipe(v.string(), v.trim(), v.minLength(1));
 const idSchema = requiredText;
+// 量を変えたときの増減のしかた（選択肢の値だけ。省略は通常）。
+const scaleWeightSchema = v.optional(
+	v.picklist(scaleWeightOptions.map((option) => option.weight)),
+);
 
 const ingredientSchema: v.GenericSchema<RecipeEditorIngredientNode> = v.lazy(
 	() =>
@@ -24,6 +29,7 @@ const ingredientSchema: v.GenericSchema<RecipeEditorIngredientNode> = v.lazy(
 				amountText: requiredText,
 				quantity: v.nullable(v.pipe(v.number(), v.finite(), v.gtValue(0))),
 				unitLabel: v.nullable(requiredText),
+				scaleWeight: scaleWeightSchema,
 			}),
 			v.object({
 				type: v.literal("ingredient"),
@@ -34,6 +40,7 @@ const ingredientSchema: v.GenericSchema<RecipeEditorIngredientNode> = v.lazy(
 				amountText: v.null(),
 				quantity: v.null(),
 				unitLabel: v.null(),
+				scaleWeight: scaleWeightSchema,
 			}),
 			v.object({
 				type: v.literal("group"),
@@ -80,6 +87,7 @@ const documentSchema = v.object({
 		"private",
 	),
 	stocksWhenMade: v.optional(v.boolean(), false),
+	scalable: v.optional(v.boolean(), true),
 	cover: v.optional(v.nullable(dishPlacementsSchema), null),
 	// 古い画面（links を送らない）からの保存も受け付ける。
 	links: v.optional(

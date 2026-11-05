@@ -22,6 +22,31 @@ describe("restoreRecipeIngredients", () => {
 		expect(restoreRecipeIngredients(shuffled)).toEqual(document.ingredients);
 	});
 
+	it("材料の増減のしかたを保存して戻せる（通常は、持たない形に戻る）", () => {
+		let sequence = 0;
+		const created = createRecipeEditorDocument(
+			{ name: "照り焼き", ingredientText: "醤油 大さじ1\n鶏もも肉 1枚" },
+			() => `00000000-0000-4000-8000-${String(++sequence).padStart(12, "0")}`,
+		);
+		const document = {
+			...created,
+			ingredients: created.ingredients.map((node, index) =>
+				index === 0 && node.type === "ingredient"
+					? { ...node, scaleWeight: 0.8 }
+					: node,
+			),
+		};
+
+		const stored = prepareRecipeForStorage(document);
+
+		expect(stored.ingredients.map((node) => node.scaleWeight)).toEqual([
+			0.8, 1,
+		]);
+		expect(restoreRecipeIngredients(stored.ingredients)).toEqual(
+			document.ingredients,
+		);
+	});
+
 	it("親をたどれない材料があるときは、捨てずにエラーにする", () => {
 		expect(() =>
 			restoreRecipeIngredients([
@@ -37,6 +62,7 @@ describe("restoreRecipeIngredients", () => {
 					amountText: "1個",
 					quantity: 1,
 					unitLabel: "個",
+					scaleWeight: 1,
 				},
 			]),
 		).toThrow("親子関係");

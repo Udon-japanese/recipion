@@ -12,6 +12,7 @@ import { IconButton } from "#/components/icon-button/icon-button";
 import { Menu, type MenuItem } from "#/components/menu/menu";
 import type { RecipeEditorIngredientNode } from "../domain/recipe-editor-document";
 import { type RecipeLinkView, splitTextByLinks } from "../domain/recipe-links";
+import { scaleWeightLabel, scaleWeightOptions } from "../domain/scale-weight";
 import { InlineText } from "./inline-text";
 import * as styles from "./recipe-editor.css";
 import { RecipeText } from "./recipe-text";
@@ -56,6 +57,8 @@ type IngredientPreviewNodeProps = {
 	// グループにせず、材料として読む（グループ名は、分量のない材料になる）。
 	onGroupToIngredient: (id: string) => void;
 	onRevert: (id: string) => void;
+	// 量を変えたときの増減のしかた（scale-weight.ts の選択肢）を変える。
+	onScaleWeightChange: (id: string, weight: number) => void;
 	// グループの中に、材料を足す（groupId が null なら、グループ外）。
 	onAdd: (groupId: string | null, name: string, amountText: string) => void;
 	// 材料の名前の [[ラベル]] の、リンク先。リンクの材料は、保存後と同じ表示にして、ここでは、直せない（直すときは、入力欄の文章を直す）。
@@ -100,6 +103,7 @@ export function IngredientPreviewNode({
 	convertibleGroupIds,
 	onGroupToIngredient,
 	onRevert,
+	onScaleWeightChange,
 	onAdd,
 	linkViews,
 	onOpenLink,
@@ -183,6 +187,7 @@ export function IngredientPreviewNode({
 							convertibleGroupIds={convertibleGroupIds}
 							onGroupToIngredient={onGroupToIngredient}
 							onRevert={onRevert}
+							onScaleWeightChange={onScaleWeightChange}
 							onAdd={onAdd}
 							linkViews={linkViews}
 							onOpenLink={onOpenLink}
@@ -204,7 +209,25 @@ export function IngredientPreviewNode({
 		(segment) => segment.type === "link",
 	);
 
+	const currentWeight = node.scaleWeight ?? 1;
+	const weightLabel = scaleWeightLabel(node.scaleWeight);
 	const menuItems: MenuItem[] = [
+		// 量を変えたときの増減のしかた。選ぶと、同じメニューの中で、選択肢の階層に替わる（いまの設定にチェック）。
+		{
+			label: "量を変えたときの増減",
+			icon: "ruler",
+			detail:
+				scaleWeightOptions.find((option) => option.weight === currentWeight)
+					?.label ?? "通常",
+			submenu: {
+				title: "量を変えたときの増減",
+				items: scaleWeightOptions.map((option) => ({
+					label: option.label,
+					checked: option.weight === currentWeight,
+					onSelect: () => onScaleWeightChange(node.id, option.weight),
+				})),
+			},
+		},
 		...groups
 			.filter((group) => group.id !== parentGroupId)
 			.map((group) => ({
@@ -249,13 +272,24 @@ export function IngredientPreviewNode({
 						weight="strong"
 					/>
 				)}
-				<InlineText
-					value={node.amountText ?? ""}
-					onChange={(value) => onChange(node.id, { amountText: value })}
-					label={`${node.name}の分量`}
-					placeholder="分量なし"
-					align="end"
-				/>
+				{/* 分量の列の中に、通常でない増減のしかたを、分量の下に小さく添える（行の列を増やさない）。 */}
+				<div className={styles.amountCell}>
+					<InlineText
+						value={node.amountText ?? ""}
+						onChange={(value) => onChange(node.id, { amountText: value })}
+						label={`${node.name}の分量`}
+						placeholder="分量なし"
+						align="end"
+					/>
+					{weightLabel ? (
+						<span
+							className={styles.weightNote}
+							title="量を変えたときの増減のしかた"
+						>
+							{weightLabel}
+						</span>
+					) : null}
+				</div>
 				{editedIds.has(node.id) ? (
 					<RevertButton label={node.name} onRevert={() => onRevert(node.id)} />
 				) : (
