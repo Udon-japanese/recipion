@@ -39,6 +39,7 @@ function renderList(
 	const loadInventoryItems = vi.fn(async () => ({
 		items,
 		source: "network" as const,
+		cacheReason: null,
 		cachedAt: "2026-10-14T00:00:00.000Z",
 	}));
 

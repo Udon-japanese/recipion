@@ -45,6 +45,7 @@ function createNetworkResult(items: InventoryListItem[]) {
 	return {
 		items,
 		source: "network" as const,
+		cacheReason: null,
 		cachedAt: "2026-09-23T00:00:00.000Z",
 	};
 }
@@ -178,6 +179,74 @@ describe("InventoryList", () => {
 		await user.click(screen.getByRole("button", { name: "おうちで見る" }));
 
 		expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+	});
+
+	describe("ログインしている人が変わったとき", () => {
+		it("前の人の読み込みが、あとから届いても、表示しない", async () => {
+			let resolveFirst: (
+				result: ReturnType<typeof createNetworkResult>,
+			) => void = () => {};
+			const firstLoad = () =>
+				new Promise<ReturnType<typeof createNetworkResult>>((resolve) => {
+					resolveFirst = resolve;
+				});
+			const secondLoad = async () =>
+				createNetworkResult([stocked({ inventoryItemId: "b", name: "牛乳" })]);
+
+			const { rerender } = render(
+				<InventoryList
+					ownerScope="user:first"
+					loadInventoryItems={firstLoad}
+				/>,
+			);
+
+			rerender(
+				<InventoryList
+					ownerScope="user:second"
+					loadInventoryItems={secondLoad}
+				/>,
+			);
+
+			expect(
+				await screen.findByRole("button", { name: /^牛乳、/u }),
+			).toBeInTheDocument();
+
+			resolveFirst(createNetworkResult([stocked({ name: "卵" })]));
+			await new Promise((resolve) => setTimeout(resolve, 0));
+
+			expect(
+				screen.queryByRole("button", { name: /^卵、/u }),
+			).not.toBeInTheDocument();
+			expect(
+				screen.getByRole("button", { name: /^牛乳、/u }),
+			).toBeInTheDocument();
+		});
+
+		it("開いている食材のパネルを閉じ、前の人の在庫を消す", async () => {
+			const user = userEvent.setup();
+			const { rerender } = render(
+				<InventoryList
+					ownerScope="user:first"
+					loadInventoryItems={async () =>
+						createNetworkResult([stocked({ name: "卵" })])
+					}
+				/>,
+			);
+
+			await openPanel(user, "卵");
+
+			rerender(
+				<InventoryList
+					ownerScope="user:second"
+					loadInventoryItems={() => new Promise<never>(() => {})}
+				/>,
+			);
+
+			expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+			expect(
+				screen.queryByRole("button", { name: /^卵、/u }),
+			).not.toBeInTheDocument();
+		});
 	});
 
 	describe("読み込み中は、保存した表示に合わせる", () => {
@@ -576,6 +645,7 @@ describe("InventoryList", () => {
 			loadInventoryItems: async () => ({
 				items: [stocked()],
 				source: "cache" as const,
+				cacheReason: "offline" as const,
 				cachedAt: "2026-09-23T10:00:00.000Z",
 			}),
 			adjustInventoryItem,

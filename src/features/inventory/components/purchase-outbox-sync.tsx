@@ -18,6 +18,10 @@ async function loadGuestPurchaseCount(): Promise<number> {
 	return entries.length;
 }
 
+async function discardPurchase(entryId: string): Promise<void> {
+	await createDexieInventoryPurchaseOutboxRepository().remove(entryId);
+}
+
 type PurchaseOutboxSyncProps = {
 	ownerScope: InventoryPurchaseOwnerScope | null;
 	syncPurchases: SyncPurchases;
@@ -48,6 +52,7 @@ export function PurchaseOutboxSync({
 			<InventoryPurchaseSync
 				ownerScope={ownerScope}
 				syncPurchases={syncPurchases}
+				discardPurchase={discardPurchase}
 			/>
 		</>
 	);

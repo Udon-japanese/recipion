@@ -5,6 +5,7 @@ import {
 	findIngredientCatalogEntry,
 	getDefaultStockUnitLabel,
 } from "#/features/ingredients/domain/ingredient-catalog";
+import { userIdOfOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import { loadInventoryItemsWithCache } from "#/features/inventory/application/load-inventory-items-with-cache";
 import { PurchaseOutboxSync } from "#/features/inventory/components/purchase-outbox-sync";
 import { useOwnerScope } from "#/features/inventory/hooks/use-owner-scope";
@@ -52,7 +53,10 @@ function ShoppingPage() {
 
 		const result = await loadInventoryItemsWithCache(
 			ownerScope,
-			() => listInventoryItemsServerFn(),
+			() =>
+				listInventoryItemsServerFn({
+					data: { expectedUserId: userIdOfOwnerScope(ownerScope) },
+				}),
 			createDexieInventoryCacheRepository(),
 		);
 
@@ -60,22 +64,30 @@ function ShoppingPage() {
 	}, [ownerScope]);
 
 	// 塩・醤油のように、量を追わない食材を、「ある」で登録する。
-	const registerAvailable = useCallback(async (ingredientName: string) => {
-		const entry = findIngredientCatalogEntry(ingredientName);
-		const stockUnitCode = entry?.stockUnitCode ?? "count";
+	const registerAvailable = useCallback(
+		async (ingredientName: string) => {
+			const entry = findIngredientCatalogEntry(ingredientName);
+			const stockUnitCode = entry?.stockUnitCode ?? "count";
 
-		await registerInventoryItemServerFn({
-			data: {
-				transactionId: crypto.randomUUID(),
-				ingredientName,
-				stockUnitCode,
-				stockUnitLabel: getDefaultStockUnitLabel(stockUnitCode),
-				trackingMode: entry?.defaultTrackingMode ?? "estimated",
-				initialQuantity: 0,
-				markAsAvailable: true,
-			},
-		});
-	}, []);
+			if (!ownerScope || ownerScope === "guest") {
+				throw new Error("在庫に登録できるユーザーではありません");
+			}
+
+			await registerInventoryItemServerFn({
+				data: {
+					expectedUserId: userIdOfOwnerScope(ownerScope),
+					transactionId: crypto.randomUUID(),
+					ingredientName,
+					stockUnitCode,
+					stockUnitLabel: getDefaultStockUnitLabel(stockUnitCode),
+					trackingMode: entry?.defaultTrackingMode ?? "estimated",
+					initialQuantity: 0,
+					markAsAvailable: true,
+				},
+			});
+		},
+		[ownerScope],
+	);
 
 	return (
 		<ShoppingList

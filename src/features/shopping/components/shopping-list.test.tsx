@@ -1,6 +1,7 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { notifyPurchaseSyncStarted } from "#/features/inventory/application/purchase-sync-events";
 import {
 	addDays,
 	toDateString,
@@ -884,7 +885,8 @@ describe("ShoppingList", () => {
 
 		const syncPurchases = vi.fn().mockResolvedValue({
 			syncedCount: 1,
-			failedEntryId: null,
+			failures: [],
+			stoppedBy: null,
 		});
 
 		render(
@@ -909,6 +911,51 @@ describe("ShoppingList", () => {
 			});
 			expect(syncPurchases).toHaveBeenCalledWith("user:user-id");
 		});
+	});
+
+	it("在庫へ送れなかったときの文は、在庫へ送り始めたら消す", async () => {
+		const user = userEvent.setup();
+		const checkedItem: ShoppingItem = {
+			...storedItem,
+			status: "checked",
+			inventoryConversion: {
+				inputUnitCode: "count",
+				stockUnitCode: "count",
+				stockUnitLabel: "個",
+				stockQuantityPerInputUnit: 1,
+				trackingMode: "exact",
+			},
+		};
+
+		render(
+			<ShoppingList
+				repository={createFakeShoppingRepository([checkedItem])}
+				ownerScope="user:user-id"
+				confirmPurchases={vi.fn().mockResolvedValue({
+					status: "confirmed",
+					items: [{ ...checkedItem, status: "purchased" }],
+				})}
+				syncPurchases={vi.fn().mockResolvedValue({
+					syncedCount: 0,
+					failures: [],
+					stoppedBy: "offline",
+				})}
+			/>,
+		);
+
+		await user.click(
+			await screen.findByRole("button", { name: "購入を確定（1件）" }),
+		);
+		await user.click(await screen.findByRole("button", { name: "購入確定" }));
+
+		const message = "購入は保存しました。通信が戻ったら、在庫に入れます";
+
+		expect(await screen.findByText(message)).toBeInTheDocument();
+
+		// 通信が戻った・画面に戻ったなどで、在庫へ送り始めた。
+		act(() => notifyPurchaseSyncStarted());
+
+		expect(screen.queryByText(message)).toBeNull();
 	});
 
 	it("目安を付けられる食材は、確認のあとで購入確定し、期限を目安として記録する", async () => {
