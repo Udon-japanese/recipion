@@ -324,3 +324,129 @@ describe("RecipeView", () => {
 		});
 	});
 });
+
+describe("RecipeView：材料のチェックリスト", () => {
+	// グループに2つの材料（全部チェックの確認用）。
+	const withGroup: RecipeDetail = {
+		...recipe,
+		ingredients: [
+			...recipe.ingredients.slice(0, 1),
+			{
+				type: "group",
+				id: "g1",
+				name: "たれ",
+				rawText: "たれ",
+				inferred: false,
+				children: [
+					{
+						type: "ingredient",
+						status: "parsed",
+						id: "i2",
+						name: "しょうゆ",
+						rawText: "しょうゆ 大さじ1",
+						amountText: "大さじ1",
+						quantity: 1,
+						unitLabel: "大さじ",
+					},
+					{
+						type: "ingredient",
+						status: "parsed",
+						id: "i3",
+						name: "みりん",
+						rawText: "みりん 大さじ1",
+						amountText: "大さじ1",
+						quantity: 1,
+						unitLabel: "大さじ",
+					},
+				],
+			},
+		],
+	};
+
+	it("初めは、ふつうの表示（チェックボックスを出さない）。詳細の画面でなければ、切り替えも出さない", () => {
+		const { unmount } = render(<RecipeView recipe={withGroup} checklist />);
+
+		expect(
+			screen.getByRole("switch", { name: "チェックリストで見る" }),
+		).not.toBeChecked();
+		expect(screen.queryByRole("checkbox")).toBeNull();
+
+		unmount();
+		render(<RecipeView recipe={withGroup} />);
+
+		expect(
+			screen.queryByRole("switch", { name: "チェックリストで見る" }),
+		).toBeNull();
+	});
+
+	it("切り替えると、材料ごとにチェックできる。グループ外の材料にも出す", async () => {
+		const user = userEvent.setup();
+
+		render(<RecipeView recipe={withGroup} checklist />);
+
+		await user.click(
+			screen.getByRole("switch", { name: "チェックリストで見る" }),
+		);
+		await user.click(
+			screen.getByRole("checkbox", { name: "ベーコンをチェック" }),
+		);
+
+		expect(
+			screen.getByRole("checkbox", { name: "ベーコンをチェック" }),
+		).toBeChecked();
+		expect(
+			screen.getByRole("checkbox", { name: "しょうゆをチェック" }),
+		).not.toBeChecked();
+	});
+
+	it("グループの「全部チェック」で、グループの中だけをまとめてチェックし、「全部外す」で外す", async () => {
+		const user = userEvent.setup();
+
+		render(<RecipeView recipe={withGroup} checklist />);
+
+		await user.click(
+			screen.getByRole("switch", { name: "チェックリストで見る" }),
+		);
+		await user.click(
+			screen.getByRole("button", { name: "たれを全部チェック" }),
+		);
+
+		expect(
+			screen.getByRole("checkbox", { name: "しょうゆをチェック" }),
+		).toBeChecked();
+		expect(
+			screen.getByRole("checkbox", { name: "みりんをチェック" }),
+		).toBeChecked();
+		expect(
+			screen.getByRole("checkbox", { name: "ベーコンをチェック" }),
+		).not.toBeChecked();
+
+		await user.click(screen.getByRole("button", { name: "たれを全部外す" }));
+
+		expect(
+			screen.getByRole("checkbox", { name: "しょうゆをチェック" }),
+		).not.toBeChecked();
+	});
+
+	it("ふつうの表示に戻しても、もう一度チェックリストにすれば、チェックは残っている（画面を開いている間）", async () => {
+		const user = userEvent.setup();
+
+		render(<RecipeView recipe={withGroup} checklist />);
+
+		const toggle = screen.getByRole("switch", { name: "チェックリストで見る" });
+
+		await user.click(toggle);
+		await user.click(
+			screen.getByRole("checkbox", { name: "みりんをチェック" }),
+		);
+		await user.click(toggle);
+
+		expect(screen.queryByRole("checkbox")).toBeNull();
+
+		await user.click(toggle);
+
+		expect(
+			screen.getByRole("checkbox", { name: "みりんをチェック" }),
+		).toBeChecked();
+	});
+});

@@ -1,13 +1,16 @@
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useId, useState } from "react";
+import { Button } from "#/components/button/button";
 import { Card } from "#/components/card/card";
+import { Checkbox } from "#/components/checkbox/checkbox";
 import { Icon } from "#/components/icon/icon";
 import { IconButton } from "#/components/icon-button/icon-button";
 import { SegmentedControl } from "#/components/segmented-control/segmented-control";
+import { Toggle } from "#/components/toggle/toggle";
 import { DishCoverView } from "#/features/dish-art/components/dish-cover-view";
 import type { RecipeDetail } from "../application/recipe-repository";
 import { findIngredientLinkTarget } from "../domain/ingredient-link-target";
 import type { RecipeEditorIngredientNode } from "../domain/recipe-editor-document";
-import type { RecipeLinkView } from "../domain/recipe-links";
+import { type RecipeLinkView, stripLinkBrackets } from "../domain/recipe-links";
 import { RecipeText } from "./recipe-text";
 import * as styles from "./recipe-view.css";
 
@@ -21,7 +24,15 @@ const groupToneCount = 5;
 
 type LinkedRecipes = Readonly<Record<string, RecipeDetail>>;
 
+// 調理中のチェックリスト（材料の ID → 用意した）。画面を開いている間だけで、どこにも保存しない（在庫・買い物メモ・本文も変えない）。
+type IngredientChecklist = {
+	checked: ReadonlySet<string>;
+	setChecked: (ids: readonly string[], checked: boolean) => void;
+};
+
 type IngredientTreeProps = {
+	// チェックリストで見ているとき。
+	checklist?: IngredientChecklist;
 	linkedRecipes?: LinkedRecipes;
 	onOpenLink?: OpenLink;
 	// 何段目のリンク先か（このレシピ自身は 0）。
@@ -136,6 +147,62 @@ function LinkedIngredient({
 	);
 }
 
+// その材料の行が、リンク先のレシピとして開くもの（その場で材料を展開する）なら、そのレシピ。
+function linkedRecipeOf(
+	node: IngredientLeafNode,
+	linkViews: readonly RecipeLinkView[],
+	tree: IngredientTreeProps,
+): RecipeDetail | undefined {
+	const target = findIngredientLinkTarget(node.name, linkViews);
+
+	if (!target || tree.ancestors.includes(target.publicId)) {
+		return undefined;
+	}
+
+	return tree.linkedRecipes?.[target.publicId];
+}
+
+// チェックできる行（グループの直下の、ふつうの材料。リンク先の見出しの行は、中の材料をチェックする）。
+function checkableIds(
+	nodes: readonly RecipeEditorIngredientNode[],
+	linkViews: readonly RecipeLinkView[],
+	tree: IngredientTreeProps,
+): string[] {
+	return nodes.flatMap((node) =>
+		node.type === "group" || linkedRecipeOf(node, linkViews, tree)
+			? []
+			: [node.id],
+	);
+}
+
+// グループの見出しの、全部チェック／全部外す。
+function GroupChecklistAction({
+	ids,
+	groupName,
+	checklist,
+}: {
+	ids: readonly string[];
+	groupName: string;
+	checklist: IngredientChecklist;
+}) {
+	if (ids.length === 0) {
+		return null;
+	}
+
+	const isAllChecked = ids.every((id) => checklist.checked.has(id));
+
+	return (
+		<Button
+			variant="secondary"
+			size="sm"
+			aria-label={`${groupName}を${isAllChecked ? "全部外す" : "全部チェック"}`}
+			onClick={() => checklist.setChecked(ids, !isAllChecked)}
+		>
+			{isAllChecked ? "全部外す" : "全部チェック"}
+		</Button>
+	);
+}
+
 // グループ名で、色つきの枠に囲む。枠の中は、1段の行。
 // リンク先の箱の中（nested）では、枠にせず、小さな見出しだけにする。
 function IngredientList({
@@ -155,7 +222,16 @@ function IngredientList({
 						className={tree.nested ? styles.nestedGroup : styles.groupBox}
 						data-tone={block.colorIndex % groupToneCount}
 					>
-						<h4 className={styles.groupTitle}>{block.group.name}</h4>
+						<div className={styles.groupHeader}>
+							<h4 className={styles.groupTitle}>{block.group.name}</h4>
+							{tree.checklist ? (
+								<GroupChecklistAction
+									ids={checkableIds(block.group.children, linkViews, tree)}
+									groupName={block.group.name}
+									checklist={tree.checklist}
+								/>
+							) : null}
+						</div>
 						<IngredientList
 							nodes={block.group.children}
 							linkViews={linkViews}
@@ -188,14 +264,13 @@ function IngredientItem({
 	linkViews: readonly RecipeLinkView[];
 }) {
 	const target = findIngredientLinkTarget(node.name, linkViews);
-	const linkedRecipe = target
-		? tree.linkedRecipes?.[target.publicId]
-		: undefined;
+	const linkedRecipe = linkedRecipeOf(node, linkViews, tree);
 	const isCycle = target ? tree.ancestors.includes(target.publicId) : false;
+	const isChecked = tree.checklist?.checked.has(node.id) ?? false;
 
 	return (
 		<li className={styles.ingredientItem}>
-			{linkedRecipe && !isCycle ? (
+			{linkedRecipe ? (
 				<LinkedIngredient
 					node={node}
 					recipe={linkedRecipe}
@@ -204,7 +279,20 @@ function IngredientItem({
 					depth={tree.depth + 1}
 				/>
 			) : (
-				<div className={styles.ingredientRow}>
+				<div
+					className={styles.ingredientRow}
+					data-checklist={tree.checklist ? true : undefined}
+					data-checked={isChecked || undefined}
+				>
+					{tree.checklist ? (
+						<Checkbox
+							label={`${stripLinkBrackets(node.name)}をチェック`}
+							checked={isChecked}
+							onChange={(event) =>
+								tree.checklist?.setChecked([node.id], event.target.checked)
+							}
+						/>
+					) : null}
 					<span className={styles.ingredientName}>
 						<RecipeText
 							text={node.name}
@@ -280,6 +368,8 @@ export type RecipeViewProps = {
 	madeAction?: ReactNode;
 	// プレビューの中など、狭い枠で使うとき（料理の絵を小さくする）。
 	compact?: boolean;
+	// 材料を、調理中のチェックリストで見られるようにする（レシピの詳細の画面）。初めは、ふつうの表示。
+	checklist?: boolean;
 };
 
 type RecipeTab = "prepare" | "cook";
@@ -302,8 +392,33 @@ export function RecipeView({
 	ingredientsAction,
 	madeAction,
 	compact = false,
+	checklist: canUseChecklist = false,
 }: RecipeViewProps) {
 	const [tab, setTab] = useState<RecipeTab>("prepare");
+	const [isChecklist, setIsChecklist] = useState(false);
+	const [checkedIds, setCheckedIds] = useState<ReadonlySet<string>>(
+		() => new Set(),
+	);
+	const checklistToggleId = useId();
+	const checklist: IngredientChecklist | undefined = isChecklist
+		? {
+				checked: checkedIds,
+				setChecked: (ids, checked) =>
+					setCheckedIds((current) => {
+						const next = new Set(current);
+
+						for (const id of ids) {
+							if (checked) {
+								next.add(id);
+							} else {
+								next.delete(id);
+							}
+						}
+
+						return next;
+					}),
+			}
+		: undefined;
 	const hasIngredients = recipe.ingredients.length > 0;
 	const hasPreparePane = hasIngredients || recipe.preparations.length > 0;
 	const hasCookPane =
@@ -367,6 +482,19 @@ export function RecipeView({
 									action={ingredientsAction}
 									footer={hasInstructions ? undefined : madeAction}
 								>
+									{canUseChecklist ? (
+										<div className={styles.checklistToggle}>
+											<label htmlFor={checklistToggleId} aria-hidden="true">
+												チェックリストで見る
+											</label>
+											<Toggle
+												id={checklistToggleId}
+												label="チェックリストで見る"
+												checked={isChecklist}
+												onChange={setIsChecklist}
+											/>
+										</div>
+									) : null}
 									<IngredientList
 										nodes={recipe.ingredients}
 										linkViews={recipe.linkViews}
@@ -374,6 +502,7 @@ export function RecipeView({
 										linkedRecipes={linkedRecipes}
 										depth={0}
 										ancestors={[recipe.publicId]}
+										checklist={checklist}
 									/>
 								</RecipeSection>
 							) : null}

@@ -286,6 +286,7 @@ function OwnRecipePage({
 			<RecipeViewWithLinks
 				key={recipe.publicId}
 				recipe={recipe}
+				checklist
 				badges={
 					<Tag
 						tone={
@@ -377,6 +378,7 @@ function SharedRecipePage({
 			<RecipeViewWithLinks
 				key={recipe.publicId}
 				recipe={recipe}
+				checklist
 				badges={
 					<RecipeAuthorByline
 						name={author.name}
