@@ -34,7 +34,8 @@ export const side = style({
 		[wide]: {
 			maxHeight: "min(68dvh, 640px)",
 			overflowY: "auto",
-			paddingInlineEnd: 4,
+			// スクロールする箱は、はみ出したものを切る。欄やボタンのフォーカスの輪（3px＋間2px）が欠けないよう、内側に余白を取る。
+			padding: 6,
 		},
 	},
 });
@@ -186,6 +187,14 @@ export const shelfItem = style({
 	color: "var(--color-text)",
 	fontSize: "var(--font-size-xs)",
 	cursor: "grab",
+});
+
+// 検索で見つからなかったときの文。
+export const shelfEmpty = style({
+	margin: 0,
+	padding: "16px 4px",
+	color: "var(--color-text-muted)",
+	fontSize: "var(--font-size-sm)",
 });
 
 export const presets = style({

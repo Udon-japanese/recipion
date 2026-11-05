@@ -91,3 +91,46 @@ describe("DishArtEditor：選んだ部品を消す", () => {
 		).toBeDisabled();
 	});
 });
+
+describe("DishArtEditor：棚の部品を探す", () => {
+	it("打つと分類のタブを隠して全分類から探し、押すと置ける。空に戻すと、分類に戻る", async () => {
+		const user = userEvent.setup();
+
+		render(<Harness />);
+		await user.click(screen.getByRole("button", { name: "パーツ" }));
+
+		const firstCategory = dishPartCategories[0];
+
+		if (!firstCategory) throw new Error("分類がありません");
+
+		await user.type(
+			screen.getByRole("searchbox", { name: "部品を探す" }),
+			"からあげ",
+		);
+
+		expect(
+			screen.queryByRole("button", { name: firstCategory.label }),
+		).toBeNull();
+		fireEvent.click(screen.getByRole("button", { name: "唐揚げ" }));
+		expect(screen.getByTestId("count")).toHaveTextContent("1");
+
+		await user.clear(screen.getByRole("searchbox", { name: "部品を探す" }));
+
+		expect(
+			screen.getByRole("button", { name: firstCategory.label }),
+		).toBeVisible();
+	});
+
+	it("見つからなければ、そう伝える", async () => {
+		const user = userEvent.setup();
+
+		render(<Harness />);
+		await user.click(screen.getByRole("button", { name: "パーツ" }));
+		await user.type(
+			screen.getByRole("searchbox", { name: "部品を探す" }),
+			"存在しない部品",
+		);
+
+		expect(screen.getByText(/見つかりませんでした/u)).toBeVisible();
+	});
+});
