@@ -97,7 +97,23 @@ export function InventoryList({
 		"network",
 	);
 	const [cachedAt, setCachedAt] = useState<string | null>(null);
+	const [cacheReason, setCacheReason] =
+		useState<LoadInventoryItemsResult["cacheReason"]>(null);
+	// 登録はできたが、そのあとの読み直しが、サーバーから取れなかった（一覧に、まだ出ていない）。
+	const [isRegisteredButStale, setIsRegisteredButStale] = useState(false);
 	const [selection, setSelection] = useState<Selection | null>(null);
+	// 一覧が誰のものか。別の人（ゲストを含む）に変わったら、前の人の一覧・開いているパネルを、すぐに消す。
+	const [itemsOwner, setItemsOwner] = useState(ownerScope);
+	// 最後に始めた読み込みの番号（あとから届いた古い結果は、捨てる）。
+	const latestLoadRef = useRef(0);
+
+	if (ownerScope !== null && ownerScope !== itemsOwner) {
+		setItemsOwner(ownerScope);
+		setItems([]);
+		setSelection(null);
+		setHasLoaded(false);
+		setIsRegisteredButStale(false);
+	}
 	const [isRegistrationOpen, setIsRegistrationOpen] = useState(false);
 	// 最後に選んだ表示（読み込み中の見た目も、これに合わせる）。この画面はサーバーで描かないので、最初の描画から保存した値になる。
 	const [view, setView] = useStorageItem(inventoryViewStorage);
@@ -130,37 +146,58 @@ export function InventoryList({
 
 	const isMember = ownerScope !== null && ownerScope !== "guest";
 
-	const loadItems = useCallback(async () => {
-		if (!ownerScope || ownerScope === "guest") {
-			setItems([]);
-			setItemsSource("network");
-			setCachedAt(null);
+	// 読み込んで、表示に反映する。反映した結果を返す（失敗・古くなった・ゲストは null）。
+	const loadItems =
+		useCallback(async (): Promise<LoadInventoryItemsResult | null> => {
+			const loadId = latestLoadRef.current + 1;
+
+			latestLoadRef.current = loadId;
+
+			if (!ownerScope || ownerScope === "guest") {
+				setItems([]);
+				setItemsSource("network");
+				setCachedAt(null);
+				setCacheReason(null);
+				setErrorMessage(null);
+				setIsLoading(false);
+
+				return null;
+			}
+
+			setIsLoading(true);
 			setErrorMessage(null);
 
-			return true;
-		}
+			try {
+				const result = await loadInventoryItems();
 
-		setIsLoading(true);
-		setErrorMessage(null);
+				if (latestLoadRef.current !== loadId) {
+					return null;
+				}
 
-		try {
-			const result = await loadInventoryItems();
+				setItems(result.items);
+				setItemsSource(result.source);
+				setCachedAt(result.cachedAt);
+				setCacheReason(result.cacheReason);
+				setHasLoaded(true);
+				setOrderEpoch((epoch) => epoch + 1);
 
-			setItems(result.items);
-			setItemsSource(result.source);
-			setCachedAt(result.cachedAt);
-			setHasLoaded(true);
-			setOrderEpoch((epoch) => epoch + 1);
+				if (result.source === "network") {
+					setIsRegisteredButStale(false);
+				}
 
-			return true;
-		} catch {
-			setErrorMessage("在庫を読み込めませんでした");
+				return result;
+			} catch {
+				if (latestLoadRef.current === loadId) {
+					setErrorMessage("在庫を読み込めませんでした");
+				}
 
-			return false;
-		} finally {
-			setIsLoading(false);
-		}
-	}, [ownerScope, loadInventoryItems]);
+				return null;
+			} finally {
+				if (latestLoadRef.current === loadId) {
+					setIsLoading(false);
+				}
+			}
+		}, [ownerScope, loadInventoryItems]);
 
 	async function refresh() {
 		setRefreshStatus("refreshing");
@@ -300,7 +337,11 @@ export function InventoryList({
 			addedItemIdsRef.current.add(info.inventoryItemId);
 		}
 
-		void loadItems();
+		void loadItems().then((result) => {
+			if (result?.source !== "network") {
+				setIsRegisteredButStale(true);
+			}
+		});
 	}
 
 	function handleRegistrationOpenChange(open: boolean) {
@@ -466,9 +507,17 @@ export function InventoryList({
 				<Note tone="success">在庫を更新しました</Note>
 			) : null}
 
+			{isRegisteredButStale ? (
+				<Note tone="warn">
+					在庫に追加しましたが、一覧を読み直せませんでした。「更新」を押すか、通信が戻ってから開き直すと、出てきます。
+				</Note>
+			) : null}
+
 			{isOffline && hasItems ? (
 				<Note tone="neutral" icon="wifi-off">
-					通信できないため、保存済みの在庫を表示しています。
+					{cacheReason === "server"
+						? "在庫を読み込めなかったため、保存済みの在庫を表示しています。"
+						: "通信できないため、保存済みの在庫を表示しています。"}
 					{cachedAt ? (
 						<>
 							{" "}

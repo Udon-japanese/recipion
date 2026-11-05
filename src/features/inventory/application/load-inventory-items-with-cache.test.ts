@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-
+import {
+	ACCOUNT_CHANGED_MESSAGE,
+	GENERIC_ERROR_MESSAGE,
+	UserFacingError,
+} from "#/errors/user-facing-error";
 import { buildInventoryListItem } from "#/test/builders/build-inventory-list-item";
 import { createFakeInventoryCacheRepository } from "#/test/fakes/fake-inventory-cache-repository";
 import type { InventoryCacheSnapshot } from "./inventory-cache-repository";
@@ -29,6 +33,7 @@ describe("loadInventoryItemsWithCache", () => {
 			items: [egg],
 			source: "network",
 			cachedAt: "2026-09-23T12:00:00.000Z",
+			cacheReason: null,
 		});
 	});
 
@@ -49,6 +54,7 @@ describe("loadInventoryItemsWithCache", () => {
 			items: [egg],
 			source: "cache",
 			cachedAt: "2026-09-23T10:00:00.000Z",
+			cacheReason: "offline",
 		});
 	});
 
@@ -77,6 +83,39 @@ describe("loadInventoryItemsWithCache", () => {
 			items: [egg],
 			source: "network",
 			cachedAt: null,
+			cacheReason: null,
 		});
+	});
+
+	it("サーバーの中の失敗なら、保存済みの在庫を返し、理由を分ける", async () => {
+		const result = await loadInventoryItemsWithCache(
+			"user:user-id",
+			vi.fn().mockRejectedValue(new UserFacingError(GENERIC_ERROR_MESSAGE)),
+			createFakeInventoryCacheRepository([
+				{
+					ownerScope: "user:user-id",
+					items: [egg],
+					cachedAt: "2026-09-23T10:00:00.000Z",
+				},
+			]),
+		);
+
+		expect(result).toMatchObject({ source: "cache", cacheReason: "server" });
+	});
+
+	it("アカウントが変わっていたら、保存済みの在庫も出さずに失敗する", async () => {
+		await expect(
+			loadInventoryItemsWithCache(
+				"user:user-id",
+				vi.fn().mockRejectedValue(new UserFacingError(ACCOUNT_CHANGED_MESSAGE)),
+				createFakeInventoryCacheRepository([
+					{
+						ownerScope: "user:user-id",
+						items: [egg],
+						cachedAt: "2026-09-23T10:00:00.000Z",
+					},
+				]),
+			),
+		).rejects.toThrow(ACCOUNT_CHANGED_MESSAGE);
 	});
 });

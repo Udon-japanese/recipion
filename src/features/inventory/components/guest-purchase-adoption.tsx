@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "#/components/dialog/confirm-dialog";
 import { Note } from "#/components/note/note";
 
 import type { AdoptGuestInventoryPurchasesResult } from "../application/adopt-guest-inventory-purchases";
 import type { InventoryPurchaseOwnerScope } from "../application/inventory-purchase-outbox";
+import { isPurchaseOutboxSynced } from "../application/sync-inventory-purchase-outbox";
 import {
 	type LastOwnerMemory,
 	localStorageLastOwnerMemory,
@@ -40,6 +41,12 @@ export function GuestPurchaseAdoption({
 	const [guestPurchaseCount, setGuestPurchaseCount] = useState(0);
 	const [status, setStatus] = useState<AdoptionStatus>("idle");
 	const [isDismissed, setIsDismissed] = useState(false);
+	// いまの所有者（引き継いでいる間に、ログアウト・別の人に変わったら、古い結果を出さない）。
+	const currentScope = useRef(ownerScope);
+
+	useEffect(() => {
+		currentScope.current = ownerScope;
+	}, [ownerScope]);
 
 	const adopt = useCallback(async () => {
 		if (!ownerScope || ownerScope === "guest") {
@@ -51,17 +58,25 @@ export function GuestPurchaseAdoption({
 		try {
 			const result = await adoptGuestPurchases(ownerScope);
 
-			setGuestPurchaseCount(0);
+			// 引き継ぎ（端末の中の付け替え）は、この人のもの。送るのは、サーバーが Cookie の人と照らして断る。
 			lastOwnerMemory.set(ownerScope);
 
-			if (result.syncResult?.failedEntryId) {
+			if (currentScope.current !== ownerScope) {
+				return;
+			}
+
+			setGuestPurchaseCount(0);
+
+			if (result.syncResult && !isPurchaseOutboxSynced(result.syncResult)) {
 				setStatus("waiting");
 				return;
 			}
 
 			setStatus("adopted");
 		} catch {
-			setStatus("error");
+			if (currentScope.current === ownerScope) {
+				setStatus("error");
+			}
 		}
 	}, [ownerScope, adoptGuestPurchases, lastOwnerMemory]);
 
@@ -137,7 +152,7 @@ export function GuestPurchaseAdoption({
 	if (status === "waiting") {
 		return (
 			<Note tone="neutral">
-				ログインする前に買ったものを受け取りました。在庫への反映は、通信が戻ってからもう一度試します
+				ログインする前に買ったものを受け取りました。在庫に入れられなかった分は、通信が戻ったときや、この画面に戻ったときに、もう一度送ります
 			</Note>
 		);
 	}

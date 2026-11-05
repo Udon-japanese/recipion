@@ -13,6 +13,7 @@ import type {
 	UpdateInventoryLotCommand,
 } from "#/features/inventory/application/inventory-lot-repository";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
+import { userIdOfOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import type { ChangeInventoryTrackingModeCommand } from "#/features/inventory/application/inventory-tracking-mode-repository";
 import { loadInventoryItemsWithCache } from "#/features/inventory/application/load-inventory-items-with-cache";
 import {
@@ -66,7 +67,10 @@ function InventoryPage() {
 
 		return loadInventoryItemsWithCache(
 			ownerScope,
-			() => listInventoryItemsServerFn(),
+			() =>
+				listInventoryItemsServerFn({
+					data: { expectedUserId: userIdOfOwnerScope(ownerScope) },
+				}),
 			createDexieInventoryCacheRepository(),
 		);
 	}, [ownerScope]);
@@ -201,9 +205,16 @@ function InventoryPage() {
 	);
 
 	const registerInventoryItem = useCallback(
-		async (input: RegisterInventoryItemInput) =>
-			registerInventoryItemServerFn({ data: input }),
-		[],
+		async (input: RegisterInventoryItemInput) => {
+			if (!ownerScope || ownerScope === "guest") {
+				throw new Error("在庫に登録できるユーザーではありません");
+			}
+
+			return registerInventoryItemServerFn({
+				data: { ...input, expectedUserId: userIdOfOwnerScope(ownerScope) },
+			});
+		},
+		[ownerScope],
 	);
 
 	return (

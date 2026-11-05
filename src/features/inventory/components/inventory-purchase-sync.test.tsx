@@ -1,14 +1,16 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import type { SyncInventoryPurchaseOutboxResult } from "../application/sync-inventory-purchase-outbox";
 import { InventoryPurchaseSync } from "./inventory-purchase-sync";
+
+function synced(count: number): SyncInventoryPurchaseOutboxResult {
+	return { syncedCount: count, failures: [], stoppedBy: null };
+}
 
 describe("InventoryPurchaseSync", () => {
 	it("ログイン済みなら表示時に未送信在庫を同期する", async () => {
-		const syncPurchases = vi.fn().mockResolvedValue({
-			syncedCount: 2,
-			failedEntryId: null,
-		});
+		const syncPurchases = vi.fn().mockResolvedValue(synced(2));
 
 		render(
 			<InventoryPurchaseSync
@@ -39,6 +41,65 @@ describe("InventoryPurchaseSync", () => {
 		expect(syncPurchases).not.toHaveBeenCalled();
 	});
 
+	// 送れなかった理由ごとに、次に何が起きるかを伝える。
+	it.each([
+		{
+			label: "届かない",
+			result: { syncedCount: 0, failures: [], stoppedBy: "offline" },
+			text: /通信できないため、買ったものを在庫に入れていません/,
+		},
+		{
+			label: "ログインの状態",
+			result: { syncedCount: 0, failures: [], stoppedBy: "account" },
+			text: /ログインの状態を確かめられないため/,
+		},
+		{
+			label: "サーバーの中の失敗",
+			result: {
+				syncedCount: 0,
+				failures: [
+					{
+						entryId: "entry-id",
+						ingredientName: "卵",
+						kind: "server",
+						message: "うまく処理できませんでした",
+					},
+				],
+				stoppedBy: null,
+			},
+			text: /1件の買ったものを、サーバーで在庫に入れられませんでした/,
+		},
+		{
+			label: "内容で断られた",
+			result: {
+				syncedCount: 0,
+				failures: [
+					{
+						entryId: "entry-id",
+						ingredientName: "卵",
+						kind: "rejected",
+						message: "在庫の単位に換算できません",
+					},
+				],
+				stoppedBy: null,
+			},
+			text: "卵を在庫に入れられません：在庫の単位に換算できません",
+		},
+	] satisfies {
+		label: string;
+		result: SyncInventoryPurchaseOutboxResult;
+		text: RegExp | string;
+	}[])("送れなかった理由が「$label」", async ({ result, text }) => {
+		render(
+			<InventoryPurchaseSync
+				ownerScope="user:user-id"
+				syncPurchases={vi.fn().mockResolvedValue(result)}
+			/>,
+		);
+
+		expect(await screen.findByText(text)).toBeInTheDocument();
+	});
+
 	it("同期失敗後に手動で再試行できる", async () => {
 		const user = userEvent.setup();
 
@@ -46,12 +107,10 @@ describe("InventoryPurchaseSync", () => {
 			.fn()
 			.mockResolvedValueOnce({
 				syncedCount: 0,
-				failedEntryId: "entry-id",
-			})
-			.mockResolvedValueOnce({
-				syncedCount: 1,
-				failedEntryId: null,
-			});
+				failures: [],
+				stoppedBy: "offline",
+			} satisfies SyncInventoryPurchaseOutboxResult)
+			.mockResolvedValueOnce(synced(1));
 
 		render(
 			<InventoryPurchaseSync
@@ -75,11 +134,51 @@ describe("InventoryPurchaseSync", () => {
 		).toBeInTheDocument();
 	});
 
-	it("オンライン復帰通知で再同期する", async () => {
-		const syncPurchases = vi.fn().mockResolvedValue({
-			syncedCount: 0,
-			failedEntryId: null,
+	it("内容で断られた購入は、確かめてから、在庫に入れずに消せる", async () => {
+		const user = userEvent.setup();
+		const discardPurchase = vi.fn().mockResolvedValue(undefined);
+		const syncPurchases = vi
+			.fn()
+			.mockResolvedValueOnce({
+				syncedCount: 0,
+				failures: [
+					{
+						entryId: "entry-id",
+						ingredientName: "卵",
+						kind: "rejected",
+						message: "在庫の単位に換算できません",
+					},
+				],
+				stoppedBy: null,
+			} satisfies SyncInventoryPurchaseOutboxResult)
+			.mockResolvedValue(synced(0));
+
+		render(
+			<InventoryPurchaseSync
+				ownerScope="user:user-id"
+				syncPurchases={syncPurchases}
+				discardPurchase={discardPurchase}
+			/>,
+		);
+
+		await user.click(
+			await screen.findByRole("button", { name: "在庫に入れない" }),
+		);
+
+		expect(discardPurchase).not.toHaveBeenCalled();
+
+		await user.click(await screen.findByRole("button", { name: "消す" }));
+
+		await waitFor(() => {
+			expect(discardPurchase).toHaveBeenCalledWith("entry-id");
 		});
+		await waitFor(() => {
+			expect(syncPurchases).toHaveBeenCalledTimes(2);
+		});
+	});
+
+	it("オンライン復帰通知で再同期する", async () => {
+		const syncPurchases = vi.fn().mockResolvedValue(synced(0));
 
 		render(
 			<InventoryPurchaseSync
@@ -97,5 +196,70 @@ describe("InventoryPurchaseSync", () => {
 		await waitFor(() => {
 			expect(syncPurchases).toHaveBeenCalledTimes(2);
 		});
+	});
+
+	it("画面に戻ったとき（スリープからの復帰も）に再同期する", async () => {
+		const syncPurchases = vi.fn().mockResolvedValue(synced(0));
+
+		render(
+			<InventoryPurchaseSync
+				ownerScope="user:user-id"
+				syncPurchases={syncPurchases}
+			/>,
+		);
+
+		await waitFor(() => {
+			expect(syncPurchases).toHaveBeenCalledTimes(1);
+		});
+
+		document.dispatchEvent(new Event("visibilitychange"));
+
+		await waitFor(() => {
+			expect(syncPurchases).toHaveBeenCalledTimes(2);
+		});
+	});
+
+	it("送っている間に別の人に変わったら、前の人の結果を出さない", async () => {
+		let resolveFirst: (result: SyncInventoryPurchaseOutboxResult) => void =
+			() => {};
+		const syncPurchases = vi
+			.fn()
+			.mockImplementationOnce(
+				() =>
+					new Promise<SyncInventoryPurchaseOutboxResult>((resolve) => {
+						resolveFirst = resolve;
+					}),
+			)
+			.mockResolvedValue(synced(0));
+
+		const { rerender } = render(
+			<InventoryPurchaseSync
+				ownerScope="user:first"
+				syncPurchases={syncPurchases}
+			/>,
+		);
+
+		await waitFor(() => {
+			expect(syncPurchases).toHaveBeenCalledWith("user:first");
+		});
+
+		rerender(
+			<InventoryPurchaseSync
+				ownerScope="user:second"
+				syncPurchases={syncPurchases}
+			/>,
+		);
+
+		await waitFor(() => {
+			expect(syncPurchases).toHaveBeenCalledWith("user:second");
+		});
+
+		resolveFirst(synced(3));
+
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		expect(
+			screen.queryByText("3件の在庫を反映しました"),
+		).not.toBeInTheDocument();
 	});
 });

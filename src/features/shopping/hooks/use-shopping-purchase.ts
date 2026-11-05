@@ -1,5 +1,13 @@
-import { useMemo, useRef, useState } from "react";
+import {
+	type Dispatch,
+	type SetStateAction,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
+import { subscribePurchaseSyncStarted } from "#/features/inventory/application/purchase-sync-events";
 import type { SyncInventoryPurchaseOutboxResult } from "#/features/inventory/application/sync-inventory-purchase-outbox";
 import {
 	type ExpiryFieldsValue,
@@ -49,7 +57,7 @@ type UseShoppingPurchaseOptions = {
 	ownerScope: InventoryPurchaseOwnerScope | null;
 	confirmPurchases: ConfirmPurchases;
 	syncPurchases?: SyncPurchases;
-	setErrorMessage: (message: string | null) => void;
+	setErrorMessage: Dispatch<SetStateAction<string | null>>;
 	// 購入が確定した項目（購入済みになったもの）を、画面の一覧へ反映する。
 	applyPurchasedItems: (purchasedItems: ShoppingItem[]) => void;
 	// 換算の設定を保存する（成功したら、更新後の項目）。
@@ -75,6 +83,35 @@ export type ConversionOverwriteRequest = {
 };
 
 // チェック済みの購入確定の流れ（期限の確認 → 確定 → 在庫換算の設定 → 在庫への反映）。
+// 購入確定のあと、在庫へ送れなかったときの文（送れたら null）。理由ごとに、次に何が起きるかを伝える。
+function describePurchaseSyncProblem(
+	result: SyncInventoryPurchaseOutboxResult,
+): string | null {
+	if (result.stoppedBy === "offline") {
+		return "購入は保存しました。通信が戻ったら、在庫に入れます";
+	}
+
+	if (result.stoppedBy === "account") {
+		return "購入は保存しました。ログインの状態を確かめられないため、在庫にはまだ入れていません";
+	}
+
+	const rejected = result.failures.filter(
+		(failure) => failure.kind === "rejected",
+	);
+
+	if (rejected.length > 0) {
+		return `購入は保存しました。在庫に入れられなかったものがあります：${rejected
+			.map((failure) => `${failure.ingredientName}（${failure.message}）`)
+			.join("、")}`;
+	}
+
+	if (result.failures.length > 0) {
+		return "購入は保存しました。サーバーで在庫に入れられなかったため、あとでもう一度送ります";
+	}
+
+	return null;
+}
+
 export function useShoppingPurchase({
 	items,
 	ownerScope,
@@ -86,6 +123,24 @@ export function useShoppingPurchase({
 	conversionMemory,
 }: UseShoppingPurchaseOptions) {
 	const [isConfirmingPurchase, setIsConfirmingPurchase] = useState(false);
+	// 購入確定のあと、在庫へ送れなかったときに出した文。在庫へ送り始めたら（通信が戻った・画面に戻った・再試行など）消す。
+	const syncProblemRef = useRef<string | null>(null);
+
+	useEffect(
+		() =>
+			subscribePurchaseSyncStarted(() => {
+				const shown = syncProblemRef.current;
+
+				if (shown === null) {
+					return;
+				}
+
+				syncProblemRef.current = null;
+				// そのあとに別の文が出ていれば、それは消さない。
+				setErrorMessage((current) => (current === shown ? null : current));
+			}),
+		[setErrorMessage],
+	);
 	const [isSavingConversion, setIsSavingConversion] = useState(false);
 	// 記憶と違う換算を設定したとき、答えを待つあいだ（複数あるときは、1件ずつ聞く）。
 	const [overwriteQueue, setOverwriteQueue] = useState<
@@ -330,19 +385,16 @@ export function useShoppingPurchase({
 				return;
 			}
 
-			try {
-				const syncResult = await syncPurchases(ownerScope);
+			let problem: string | null;
 
-				if (syncResult.failedEntryId) {
-					setErrorMessage(
-						"購入は保存しました。在庫への反映は通信復旧後に再試行します",
-					);
-				}
+			try {
+				problem = describePurchaseSyncProblem(await syncPurchases(ownerScope));
 			} catch {
-				setErrorMessage(
-					"購入は保存しました。在庫への反映は通信復旧後に再試行します",
-				);
+				problem = "購入は保存しました。在庫への反映は、あとでもう一度試します";
 			}
+
+			syncProblemRef.current = problem;
+			setErrorMessage(problem);
 		} catch {
 			setErrorMessage("購入確定を保存できませんでした。もう一度お試しください");
 		} finally {

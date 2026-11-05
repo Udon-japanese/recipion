@@ -4,6 +4,11 @@ export type InventoryPurchaseOutboxStatus = "pending" | "failed";
 
 export type InventoryPurchaseOwnerScope = "guest" | `user:${string}`;
 
+// ログインした人の所有者の印から、ユーザー ID を取り出す（サーバー関数の expectedUserId に渡す）。
+export function userIdOfOwnerScope(ownerScope: `user:${string}`): string {
+	return ownerScope.slice("user:".length);
+}
+
 export type InventoryPurchaseOutboxEntry = {
 	id: string;
 	ownerScope: InventoryPurchaseOwnerScope;

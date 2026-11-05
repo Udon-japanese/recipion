@@ -55,7 +55,7 @@ export function useInventoryExpiry(
 		setState(loading);
 		loadInventoryItemsWithCache(
 			`user:${userId}`,
-			() => listInventoryItemsServerFn(),
+			() => listInventoryItemsServerFn({ data: { expectedUserId: userId } }),
 			createDexieInventoryCacheRepository(),
 		).then(
 			(result) => {

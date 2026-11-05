@@ -51,7 +51,8 @@ describe("GuestPurchaseAdoption", () => {
 			adoptedCount: 2,
 			syncResult: {
 				syncedCount: 2,
-				failedEntryId: null,
+				failures: [],
+				stoppedBy: null,
 			},
 		});
 
@@ -150,7 +151,7 @@ describe("GuestPurchaseAdoption", () => {
 	it("前にも、この端末を使った同じ人には、聞かずに引き継ぐ", async () => {
 		const adoptGuestPurchases = vi.fn().mockResolvedValue({
 			adoptedCount: 2,
-			syncResult: { syncedCount: 2, failedEntryId: null },
+			syncResult: { syncedCount: 2, failures: [], stoppedBy: null },
 		});
 		const { memory } = createMemory("user:user-id");
 
@@ -198,7 +199,7 @@ describe("GuestPurchaseAdoption", () => {
 				loadGuestPurchaseCount={() => Promise.resolve(1)}
 				adoptGuestPurchases={vi.fn().mockResolvedValue({
 					adoptedCount: 1,
-					syncResult: { syncedCount: 1, failedEntryId: null },
+					syncResult: { syncedCount: 1, failures: [], stoppedBy: null },
 				})}
 				lastOwnerMemory={adopted.memory}
 			/>,

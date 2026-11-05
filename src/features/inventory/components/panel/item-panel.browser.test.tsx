@@ -43,6 +43,7 @@ it("PC では、入れた分の編集を、食材のパネルの横に、重な�
 			loadInventoryItems={async () => ({
 				items: [milk],
 				source: "network",
+				cacheReason: null,
 				cachedAt: null,
 			})}
 			setLotQuantity={vi.fn()}
@@ -71,6 +72,7 @@ it("食材のパネルを動かすと、横の編集も、付いて動く", asyn
 			loadInventoryItems={async () => ({
 				items: [milk],
 				source: "network",
+				cacheReason: null,
 				cachedAt: null,
 			})}
 			setLotQuantity={vi.fn()}

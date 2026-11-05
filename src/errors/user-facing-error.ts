@@ -14,6 +14,18 @@ export function isAuthRequiredError(error: unknown): boolean {
 	return error instanceof Error && error.message === AUTH_REQUIRED_MESSAGE;
 }
 
+// 停止中のアカウントのエラーの文。
+export const ACCOUNT_SUSPENDED_MESSAGE = "アカウントが停止されています";
+
+// 画面が思っているユーザーと、Cookie のユーザーが違うとき（別のタブで、ログアウト・別のアカウントでログインした、など）の文。
+// 画面は、これを見て、送るのをやめる（別の人の在庫に入れない）。
+export const ACCOUNT_CHANGED_MESSAGE =
+	"ログインしているアカウントが変わりました。画面を読み込み直してください";
+
+export function isAccountChangedError(error: unknown): boolean {
+	return error instanceof Error && error.message === ACCOUNT_CHANGED_MESSAGE;
+}
+
 // 内部のエラーの代わりに、画面に出す文。
 export const GENERIC_ERROR_MESSAGE =
 	"うまく処理できませんでした。時間をおいてもう一度お試しください。";
