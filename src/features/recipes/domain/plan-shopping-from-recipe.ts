@@ -1,4 +1,8 @@
 import {
+	type IngredientDictionary,
+	toCanonicalIngredientName,
+} from "#/features/ingredients/domain/ingredient-dictionary";
+import {
 	type AmountRange,
 	parseAmountRange,
 } from "#/features/ingredients/domain/parse-ingredient-line";
@@ -204,6 +208,8 @@ export type PlanShoppingFromRecipeInput = {
 	duplicateMode: DuplicateMode;
 	// 冷凍野菜を、生の野菜の代わりに使うか（省略は auto）。
 	standInMode?: StandInMode;
+	// ユーザーの食材辞書（自分で足した呼び名でも、在庫・メモの同じ食材に当てる）。ゲストは省略。
+	dictionary?: IngredientDictionary;
 };
 
 function toIngredientStock(item: RecipeShoppingStockItem): IngredientStock {
@@ -273,12 +279,14 @@ export function planShoppingFromRecipe(
 	input: PlanShoppingFromRecipeInput,
 ): RecipeShoppingRow[] {
 	return input.needs.map((need) => {
+		// 照合・換算・代わりの食材は、辞書の代表の名前で見る（行に出す名前は、元のまま）。
+		const matchName = toCanonicalIngredientName(need.name, input.dictionary);
 		const stockItem = input.stockItems
-			? findInventoryItemByName(input.stockItems, need.name)
+			? findInventoryItemByName(input.stockItems, matchName, input.dictionary)
 			: undefined;
 
 		const needForJudgment = {
-			name: need.name,
+			name: matchName,
 			quantity: need.quantity,
 			unitLabel: need.unitLabel,
 		};
@@ -312,7 +320,8 @@ export function planShoppingFromRecipe(
 		// 比べるのは、その1行だけ（ほかの行は変えず、行をまとめることもしない）。
 		const sameIngredient = input.memoItems.filter(
 			(memoItem) =>
-				findInventoryItemByName([memoItem], need.name) !== undefined,
+				findInventoryItemByName([memoItem], matchName, input.dictionary) !==
+				undefined,
 		);
 		const existing =
 			sameIngredient.find(

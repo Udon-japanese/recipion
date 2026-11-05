@@ -7,12 +7,19 @@ import { standInModeItem } from "#/features/recipes/infrastructure/stand-in-mode
 import { useStorageItem } from "#/local-storage/use-storage-item";
 import * as styles from "./settings-page.css";
 
-export const settingsTabs = ["inventory", "recipe", "data", "account"] as const;
+export const settingsTabs = [
+	"inventory",
+	"ingredients",
+	"recipe",
+	"data",
+	"account",
+] as const;
 
 export type SettingsTab = (typeof settingsTabs)[number];
 
 const tabLabels: Record<SettingsTab, string> = {
 	inventory: "在庫",
+	ingredients: "材料",
 	recipe: "レシピ",
 	data: "データ",
 	account: "アカウント",
@@ -21,6 +28,8 @@ const tabLabels: Record<SettingsTab, string> = {
 type SettingsPageProps = {
 	tab: SettingsTab;
 	onTabChange: (tab: SettingsTab) => void;
+	// 材料の欄（自分の材料と呼び名）。
+	ingredients: ReactNode;
 	// レシピの欄（うちの人数。ログインしているときだけ渡す。なければ、タブも出さない）。
 	recipe?: ReactNode;
 	// データの欄（書き出し・読み込み）。
@@ -34,6 +43,7 @@ type SettingsPageProps = {
 export function SettingsPage({
 	tab,
 	onTabChange,
+	ingredients,
 	recipe,
 	data,
 	account,
@@ -118,6 +128,7 @@ export function SettingsPage({
 					aria-labelledby={`settings-tab-${activeTab}`}
 				>
 					{activeTab === "inventory" ? <InventorySettings /> : null}
+					{activeTab === "ingredients" ? ingredients : null}
 					{activeTab === "recipe" ? recipe : null}
 					{activeTab === "data" ? data : null}
 					{activeTab === "account" ? account : null}

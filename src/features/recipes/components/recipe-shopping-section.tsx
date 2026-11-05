@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { Button } from "#/components/button/button";
 import { Icon } from "#/components/icon/icon";
+import type { IngredientDictionary } from "#/features/ingredients/domain/ingredient-dictionary";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import type { InventoryListItem } from "#/features/inventory/application/inventory-query-repository";
 import type { ShoppingRepository } from "#/features/shopping/application/shopping-repository";
@@ -33,6 +34,8 @@ type RecipeShoppingSectionProps = {
 	ratio?: number;
 	// レシピのできあがりの量（割合が1でないとき、入れる量を知らせる）。
 	yieldText?: string;
+	// ユーザーの食材辞書（照合に使う）。ゲストは省略。
+	dictionary?: IngredientDictionary;
 };
 
 // レシピの参照画面で、材料を、在庫と比べて、足りないものを、買い物メモに入れる（材料の見出しの右に置く）。
@@ -47,6 +50,7 @@ export function RecipeShoppingSection({
 	registerAvailable,
 	ratio = 1,
 	yieldText,
+	dictionary,
 }: RecipeShoppingSectionProps) {
 	const [isOpen, setIsOpen] = useState(false);
 	const plan = useRecipeShoppingPlan({
@@ -57,6 +61,7 @@ export function RecipeShoppingSection({
 		loadInventoryItems,
 		shoppingRepository,
 		ratio,
+		dictionary,
 	});
 
 	if (plan.needsCount === 0) {

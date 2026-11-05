@@ -1,4 +1,5 @@
-import { searchIngredientCatalog } from "#/features/ingredients/domain/ingredient-catalog";
+import type { IngredientDictionary } from "#/features/ingredients/domain/ingredient-dictionary";
+import { searchIngredientNames } from "#/features/ingredients/domain/search-ingredient-names";
 import type { ShoppingMemoStore } from "./parse-shopping-memo";
 
 // 「まとめて追加」の入力欄の補完（純粋な関数）。カーソルがある行の、書きかけの部分の候補を返す。
@@ -27,13 +28,15 @@ function fold(text: string): string {
 export type ShoppingMemoCompletionOptions = {
 	// 入力と完全に一致する候補も出す。変換中（IME で未確定）は出し、確定したあとは出さない（確定済みとみなす）。
 	includeExact?: boolean;
+	// ユーザーの食材辞書（自分の材料も候補に出す）。ゲストは省略。
+	dictionary?: IngredientDictionary;
 };
 
 export function getShoppingMemoCompletion(
 	text: string,
 	caret: number,
 	stores: readonly ShoppingMemoStore[],
-	{ includeExact = false }: ShoppingMemoCompletionOptions = {},
+	{ includeExact = false, dictionary }: ShoppingMemoCompletionOptions = {},
 ): ShoppingMemoCompletion | null {
 	const lineStart = text.lastIndexOf("\n", caret - 1) + 1;
 	const nextBreak = text.indexOf("\n", caret);
@@ -83,8 +86,8 @@ export function getShoppingMemoCompletion(
 	}
 
 	const folded = fold(typedLine);
-	const ingredients = searchIngredientCatalog(typedLine, maxItems + 1)
-		.map((entry) => entry.name)
+	const ingredients = searchIngredientNames(typedLine, dictionary, maxItems + 1)
+		.map((suggestion) => suggestion.name)
 		.filter((name) => includeExact || fold(name) !== folded)
 		.slice(0, maxItems)
 		.map(

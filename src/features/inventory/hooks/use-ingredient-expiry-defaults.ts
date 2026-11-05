@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import type { IngredientDictionary } from "#/features/ingredients/domain/ingredient-dictionary";
 import type { InventoryPurchaseOwnerScope } from "../application/inventory-purchase-outbox";
 import type { InventoryListItem } from "../application/inventory-query-repository";
 import {
@@ -11,6 +12,8 @@ import { createDexieInventoryCacheRepository } from "../infrastructure/dexie-inv
 // ログインしていない、または、まだ在庫を読み込んでいないときは、見つからない（null）。
 export function useIngredientExpiryDefaults(
 	ownerScope: InventoryPurchaseOwnerScope | null,
+	// ユーザーの食材辞書（自分で足した呼び名でも、同じ食材の初期値を使う）。
+	dictionary?: IngredientDictionary,
 ): (ingredientName: string) => IngredientExpiryDefaults | null {
 	const [items, setItems] = useState<readonly InventoryListItem[]>([]);
 
@@ -41,7 +44,7 @@ export function useIngredientExpiryDefaults(
 
 	return useCallback(
 		(ingredientName: string) => {
-			const item = findInventoryItemByName(items, ingredientName);
+			const item = findInventoryItemByName(items, ingredientName, dictionary);
 
 			if (!item || (!item.defaultExpiryKind && !item.defaultStorage)) {
 				return null;
@@ -52,6 +55,6 @@ export function useIngredientExpiryDefaults(
 				storage: item.defaultStorage,
 			};
 		},
-		[items],
+		[items, dictionary],
 	);
 }

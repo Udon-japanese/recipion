@@ -17,6 +17,7 @@ import { SegmentedControl } from "#/components/segmented-control/segmented-contr
 import { Sheet } from "#/components/sheet/sheet";
 import { Tag } from "#/components/tag/tag";
 import { useMediaQuery } from "#/components/use-media-query";
+import { useIngredientDictionaryContext } from "#/features/ingredients/components/ingredient-dictionary-context";
 import { readCompletionKey, stepCompletionIndex } from "#/ime/completion-keys";
 import { editKindOfInput } from "#/ime/text-history";
 import {
@@ -109,16 +110,19 @@ export function ShoppingBulkAdd({
 			),
 		[text, stores, conversionDefaults],
 	);
+	// 自分の食材辞書（画面が渡したもの。ゲスト・テストは undefined で、カタログだけ）。
+	const dictionary = useIngredientDictionaryContext();
 	const completion = useMemo(() => {
 		// 変換中（未確定）は、入力と完全に一致する候補も出す。確定したあとは、確定済みとみなして出さない。
 		const found = getShoppingMemoCompletion(text, caret, stores, {
 			includeExact: composing.isComposing,
+			dictionary,
 		});
 
 		return found && !(closedAt?.text === text && closedAt.caret === caret)
 			? found
 			: null;
-	}, [text, caret, stores, closedAt, composing.isComposing]);
+	}, [text, caret, stores, closedAt, composing.isComposing, dictionary]);
 	// 変換中に補完できない環境（iPhone・Firefox など）は、確定したあとに出す。
 	const isMenuOpen =
 		isFocused && completion !== null && composing.canCompleteWhileComposing;

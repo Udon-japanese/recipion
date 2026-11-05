@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { IngredientDictionary } from "#/features/ingredients/domain/ingredient-dictionary";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import type { InventoryListItem } from "#/features/inventory/application/inventory-query-repository";
 import type { ShoppingRepository } from "#/features/shopping/application/shopping-repository";
@@ -60,6 +61,8 @@ type UseRecipeShoppingPlanOptions = {
 	// 渡すと、この値が変わるたびに、自動で読み込みを始める（null は、まだ始めない）。
 	autoStartKey?: string | null;
 	ratio?: number;
+	// ユーザーの食材辞書（自分で足した呼び名でも、同じ食材にまとめ、在庫・メモに当てる）。ゲストは省略。
+	dictionary?: IngredientDictionary;
 };
 
 // レシピの材料を、在庫と比べて、足りないものを、買い物メモに入れる計画（状態と操作）。
@@ -76,6 +79,7 @@ export function useRecipeShoppingPlan({
 	onApplied,
 	autoStartKey = null,
 	ratio = 1,
+	dictionary,
 }: UseRecipeShoppingPlanOptions) {
 	// 入れ先を考えた、新しい項目の並び順の起点（全項目の最大値）。
 	const [highestSortOrder, setHighestSortOrder] = useState(-1);
@@ -129,8 +133,9 @@ export function useRecipeShoppingPlan({
 						.map((need) => scaleRecipeNeed(need, ratio)),
 					...linkedSections.sections.flatMap((section) => section.needs),
 				].map(withRangeUpperBound),
+				dictionary,
 			),
-		[resolvedNeeds, linkedSections, ratio],
+		[resolvedNeeds, linkedSections, ratio, dictionary],
 	);
 
 	// 未購入の買い物項目だけを、重複の対象にする。
@@ -154,8 +159,16 @@ export function useRecipeShoppingPlan({
 				})),
 				duplicateMode,
 				standInMode,
+				dictionary,
 			}),
-		[needs, stockItems, unpurchasedMemoItems, duplicateMode, standInMode],
+		[
+			needs,
+			stockItems,
+			unpurchasedMemoItems,
+			duplicateMode,
+			standInMode,
+			dictionary,
+		],
 	);
 
 	const isChecked = (row: RecipeShoppingRow): boolean =>

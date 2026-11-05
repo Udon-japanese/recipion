@@ -1,8 +1,9 @@
 import {
 	foldIngredientSearchText,
 	listIngredientSearchTerms,
-	searchIngredientCatalog,
 } from "#/features/ingredients/domain/ingredient-catalog";
+import type { IngredientDictionary } from "#/features/ingredients/domain/ingredient-dictionary";
+import { searchIngredientNames } from "#/features/ingredients/domain/search-ingredient-names";
 import { filterLinkTargets } from "./filter-link-targets";
 import {
 	formatHeading,
@@ -315,6 +316,7 @@ function completeIngredientName(
 	after: string,
 	caret: number,
 	includeExact: boolean,
+	dictionary: IngredientDictionary | undefined,
 ): RecipeTextCompletion | null {
 	// 行頭の箇条書きの印と、グループの印（☆ など）は、材料名ではないので除く。
 	const token = before
@@ -330,12 +332,12 @@ function completeIngredientName(
 	// カーソルの後ろに続く文字（分量などの手前まで）も、打った文字列に含める。
 	const afterToken = takeWhile(after, (char) => !nameBreakPattern.test(char));
 	const typed = `${token}${afterToken}`;
-	const items = searchIngredientCatalog(typed, maxItems + 1)
-		.filter((entry) => includeExact || entry.name !== typed)
+	const items = searchIngredientNames(typed, dictionary, maxItems + 1)
+		.filter((suggestion) => includeExact || suggestion.name !== typed)
 		.slice(0, maxItems)
-		.map((entry) => ({
-			label: entry.name,
-			insert: entry.name,
+		.map((suggestion) => ({
+			label: suggestion.name,
+			insert: suggestion.name,
 			from: caret - token.length,
 			to: caret + afterToken.length,
 		}));
@@ -528,6 +530,8 @@ function mergeCompletions(
 export type RecipeTextCompletionOptions = {
 	// 打った文字列と完全に一致する候補（書き終えた名前・見出し）も出す。変換中（IME で未確定）は出し、確定したあとは出さない。
 	includeExact?: boolean;
+	// ユーザーの食材辞書（＜材料＞の中で、自分の材料も候補に出す）。
+	dictionary?: IngredientDictionary;
 };
 
 export function getRecipeTextCompletion(
@@ -535,7 +539,7 @@ export function getRecipeTextCompletion(
 	caret: number,
 	recipeNames: readonly string[] = [],
 	linkContext: RecipeLinkContext = emptyLinkContext,
-	{ includeExact = false }: RecipeTextCompletionOptions = {},
+	{ includeExact = false, dictionary }: RecipeTextCompletionOptions = {},
 ): RecipeTextCompletion | null {
 	const lineStart = text.lastIndexOf("\n", caret - 1) + 1;
 	const lineEndIndex = text.indexOf("\n", caret);
@@ -572,7 +576,7 @@ export function getRecipeTextCompletion(
 		case "ingredients":
 			return mergeCompletions(
 				symbolCompletion,
-				completeIngredientName(before, after, caret, includeExact),
+				completeIngredientName(before, after, caret, includeExact, dictionary),
 			);
 		case "preparations":
 		case "instructions":

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { buildDictionary } from "#/test/builders/build-ingredient-dictionary";
 import { mergeRecipeNeeds } from "./merge-recipe-needs";
 import type { RecipeShoppingNeed } from "./plan-shopping-from-recipe";
 
@@ -157,5 +158,24 @@ describe("mergeRecipeNeeds", () => {
 			mergedAmountTexts: ["60~70g", "100g"],
 		});
 		expect(merged?.range).toBeUndefined();
+	});
+});
+
+describe("mergeRecipeNeeds（自分の食材辞書）", () => {
+	it("自分で足した呼び名の行も、同じ材料として1行にまとめる", () => {
+		const dictionary = buildDictionary([
+			{ name: "マイだし", aliases: ["うちのだし"] },
+		]);
+		const merged = mergeRecipeNeeds(
+			[
+				need("a", "マイだし", 100, "ml", "100ml"),
+				need("b", "うちのだし", 50, "ml", "50ml"),
+			],
+			dictionary,
+		);
+
+		expect(
+			merged.map(({ id, name, quantity }) => [id, name, quantity]),
+		).toEqual([["a", "マイだし", 150]]);
 	});
 });

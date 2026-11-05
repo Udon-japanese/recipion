@@ -2,6 +2,8 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
+import { buildDictionary } from "#/test/builders/build-ingredient-dictionary";
+import { IngredientDictionaryProvider } from "./ingredient-dictionary-context";
 import { IngredientNameInput } from "./ingredient-name-input";
 
 function Harness({ onSelectEntry }: { onSelectEntry?: (id: string) => void }) {
@@ -130,5 +132,30 @@ describe("IngredientNameInput", () => {
 
 		await user.keyboard("{Escape}");
 		expect(screen.queryByRole("listbox")).toBeNull();
+	});
+
+	it("画面が渡した自分の食材辞書の材料も、「自分の材料」の印つきで候補に出す", async () => {
+		const user = userEvent.setup();
+		const onSelectEntry = vi.fn();
+
+		render(
+			<IngredientDictionaryProvider
+				value={buildDictionary([{ name: "マイだし", aliases: ["うちのだし"] }])}
+			>
+				<Harness onSelectEntry={onSelectEntry} />
+			</IngredientDictionaryProvider>,
+		);
+
+		const input = screen.getByLabelText("食材名");
+
+		await user.type(input, "うちの");
+		const option = await screen.findByRole("option", { name: /マイだし/u });
+
+		expect(option).toHaveTextContent("自分の材料");
+		await user.click(option);
+
+		expect(input).toHaveValue("マイだし");
+		// カタログの食材ではないので、単位などを入れる onSelectEntry は呼ばない。
+		expect(onSelectEntry).not.toHaveBeenCalled();
 	});
 });

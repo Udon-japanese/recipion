@@ -29,8 +29,13 @@ import { useCompositionStrategy } from "#/ime/use-composition-strategy";
 import {
 	findIngredientCatalogEntry,
 	type IngredientCatalogEntry,
-	searchIngredientCatalog,
 } from "../domain/ingredient-catalog";
+import type { IngredientDictionary } from "../domain/ingredient-dictionary";
+import {
+	type IngredientSuggestion,
+	searchIngredientNames,
+} from "../domain/search-ingredient-names";
+import { useIngredientDictionaryContext } from "./ingredient-dictionary-context";
 import * as styles from "./ingredient-name-input.css";
 
 type IngredientNameInputProps = {
@@ -47,7 +52,12 @@ type IngredientNameInputProps = {
 	describeEntry?: (entry: IngredientCatalogEntry) => string | undefined;
 	// 変換中の補完の方式（なければ、ブラウザから判定する）。テストで指定する。
 	compositionStrategy?: CompositionStrategy;
+	// ユーザーの食材辞書（自分の材料も、候補に出す）。省略すると、画面の IngredientDictionaryProvider のもの（なければ、カタログだけ）。
+	dictionary?: IngredientDictionary;
 };
+
+// 自分の材料（カタログにない、辞書の食材）の候補に出す印。
+const ownBadge = "自分の材料";
 
 // PC の一覧の位置（画面の左上が基準）。
 type ListPosition = {
@@ -79,6 +89,7 @@ export function IngredientNameInput({
 	disabled,
 	describeEntry,
 	compositionStrategy,
+	dictionary,
 }: IngredientNameInputProps) {
 	const listboxId = useId();
 	const [isOpen, setIsOpen] = useState(false);
@@ -96,20 +107,27 @@ export function IngredientNameInput({
 	const strategy = useCompositionStrategy(compositionStrategy);
 	// 変換中の入力の直前に出ていた候補。Safari は、Tab の前に IME が変換して入力が変わってから、キーのイベントが届くので、そのときに使う。
 	const previousRef = useRef<{
-		suggestions: IngredientCatalogEntry[];
+		suggestions: IngredientSuggestion[];
 		at: number;
 	} | null>(null);
 	// 変換中に候補を決める処理の最中（変換を確定させるのを待っている間）。
 	const isAcceptingRef = useRef(false);
 
-	const suggestions = useMemo(() => searchIngredientCatalog(value), [value]);
+	const contextDictionary = useIngredientDictionaryContext();
+	const activeDictionary = dictionary ?? contextDictionary;
+	const suggestions = useMemo(
+		() => searchIngredientNames(value, activeDictionary),
+		[value, activeDictionary],
+	);
 
 	// 入力がカタログの名前と完全に一致しているときは、確定済みとみなして、候補を出さない。
 	// ただし、変換中は出す（変換が終わる前に、候補から選べるように）。
 	const isVisible =
 		isOpen &&
 		suggestions.length > 0 &&
-		(isComposing || findIngredientCatalogEntry(value) === undefined);
+		(isComposing ||
+			(findIngredientCatalogEntry(value) === undefined &&
+				!suggestions.some((suggestion) => suggestion.name === value)));
 
 	const isPopup = isVisible && layout !== "keyboard-bar";
 
@@ -198,16 +216,25 @@ export function IngredientNameInput({
 			<CompletionHint isComposing={isComposing} />
 		);
 
-	function select(entry: IngredientCatalogEntry) {
-		onChange(entry.name);
-		onSelectEntry?.(entry);
+	// 候補の右の補足：カタログの食材は、呼ぶ側が決める（カテゴリ名など）。自分の材料は「自分の材料」。
+	function badgeOf(suggestion: IngredientSuggestion): string | undefined {
+		return suggestion.entry ? describeEntry?.(suggestion.entry) : ownBadge;
+	}
+
+	function select(suggestion: IngredientSuggestion) {
+		onChange(suggestion.name);
+
+		if (suggestion.entry) {
+			onSelectEntry?.(suggestion.entry);
+		}
+
 		setIsOpen(false);
 		setActiveIndex(null);
 	}
 
 	// 変換中に、候補を決める。Chromium 系は、変換を確定させてから置き換え、フォーカスを戻す。
 	// Safari・Android は、変換中のまま置き換える（ブラウザが変換を取り消す）。
-	async function selectWhileComposing(entry: IngredientCatalogEntry) {
+	async function selectWhileComposing(entry: IngredientSuggestion) {
 		const input = inputRef.current;
 
 		if (!input || isAcceptingRef.current) {
@@ -237,7 +264,7 @@ export function IngredientNameInput({
 	function findKeyTargets(
 		key: CompletionKey | null,
 		isComposingKey: boolean,
-	): readonly IngredientCatalogEntry[] {
+	): readonly IngredientSuggestion[] {
 		if (isExpanded || (!isComposingKey && (key === "up" || key === "down"))) {
 			return suggestions;
 		}
@@ -360,10 +387,10 @@ export function IngredientNameInput({
 					layout="keyboard-bar"
 					open
 					caret={0}
-					items={suggestions.map((entry) => ({
-						key: entry.id,
-						label: entry.name,
-						badge: describeEntry?.(entry),
+					items={suggestions.map((suggestion) => ({
+						key: suggestion.key,
+						label: suggestion.name,
+						badge: badgeOf(suggestion),
 					}))}
 					activeIndex={activeIndex}
 					onAccept={(index) => {
@@ -397,7 +424,7 @@ export function IngredientNameInput({
 								ref={listRef}
 							>
 								{suggestions.map((entry, index) => {
-									const note = describeEntry?.(entry);
+									const note = badgeOf(entry);
 
 									return (
 										<button
@@ -407,7 +434,7 @@ export function IngredientNameInput({
 											tabIndex={-1}
 											id={`${listboxId}-${index}`}
 											aria-selected={index === activeIndex}
-											key={entry.id}
+											key={entry.key}
 											// 入力欄からフォーカスを外さずに選べるようにする。
 											onMouseDown={(event) => event.preventDefault()}
 											onClick={() => select(entry)}

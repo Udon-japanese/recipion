@@ -1,4 +1,5 @@
 import Dexie, { type Table } from "dexie";
+import type { IngredientDictionarySnapshot } from "../features/ingredients/application/ingredient-dictionary-cache";
 import type { InventoryCacheSnapshot } from "../features/inventory/application/inventory-cache-repository";
 import type { InventoryPurchaseOutboxEntry } from "../features/inventory/application/inventory-purchase-outbox";
 import type { ShoppingBranch } from "../features/shopping/domain/shopping-branch";
@@ -33,6 +34,7 @@ export class LocalDatabase extends Dexie {
 	shoppingBranches!: Table<ShoppingBranch, string>;
 	shoppingStoreDefaults!: Table<ShoppingStoreDefault, string>;
 	shoppingConversionMemories!: Table<ShoppingConversionMemoryRecord, string>;
+	ingredientDictionaries!: Table<IngredientDictionarySnapshot, string>;
 
 	// 公開済みなので、バージョンは、まとめず、スキーマを変えるたびに足す（古いデータを直すときは .upgrade）。
 	// version(1) は、公開したときの形。変えない。
@@ -57,6 +59,10 @@ export class LocalDatabase extends Dexie {
 		this.version(3).stores({
 			shoppingConversionDefaults: null,
 			shoppingConversionMemories: "key, nameKey",
+		});
+		// ユーザーの食材辞書の控え（所有者ごと。オフラインの補完と照合に使う）。
+		this.version(4).stores({
+			ingredientDictionaries: "ownerScope",
 		});
 	}
 }
