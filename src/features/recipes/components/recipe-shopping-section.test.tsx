@@ -64,6 +64,46 @@ async function openPanel(user: ReturnType<typeof userEvent.setup>) {
 }
 
 describe("RecipeShoppingSection", () => {
+	it("量を変えているときは、その量で数え、入れる量を知らせる（レシピの量のままなら、知らせない）", async () => {
+		const user = userEvent.setup();
+		const repository = createFakeShoppingRepository();
+
+		render(
+			<RecipeShoppingSection
+				ingredients={ingredients}
+				ownerScope="user:user-id"
+				loadInventoryItems={async () => []}
+				shoppingRepository={repository}
+				ratio={2}
+				yieldText="2人分"
+			/>,
+		);
+
+		const dialog = await openPanel(user);
+		const panel = within(dialog);
+
+		expect(dialog).toHaveTextContent(
+			"在庫と比べて、足りないものを選んでいます。4人分の量で入れます（レシピは2人分）",
+		);
+		expect(dialog).not.toHaveTextContent("人数による量の調整");
+		await waitFor(() =>
+			expect(panel.getByLabelText("玉ねぎを買い物メモに入れる")).toBeChecked(),
+		);
+		await user.click(
+			panel.getByRole("button", { name: "選んだものを入れる（3件）" }),
+		);
+
+		await waitFor(() => expect(repository.items).toHaveLength(3));
+		expect(
+			repository.items
+				.filter((item) => item.name !== "塩")
+				.map((item) => [item.name, item.quantity]),
+		).toEqual([
+			["玉ねぎ", 6],
+			["卵", 4],
+		]);
+	});
+
 	it("在庫と比べて、足りないものにチェックを入れ、選んだものを買い物メモに追加する", async () => {
 		const user = userEvent.setup();
 		const repository = createFakeShoppingRepository();

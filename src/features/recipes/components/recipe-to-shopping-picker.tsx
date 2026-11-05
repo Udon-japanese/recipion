@@ -14,7 +14,9 @@ import type { InventoryListItem } from "#/features/inventory/application/invento
 import type { RecipePickerContext } from "#/features/shopping/components/recipe-picker-slot";
 import type { RecipeDetail } from "../application/recipe-repository";
 import { filterLinkTargets } from "../domain/filter-link-targets";
+import { resolveWantedYield } from "../domain/household-size";
 import type { RecipeLinkTarget } from "../domain/recipe-links";
+import { describeShoppingAmount, ratioForYield } from "../domain/recipe-yield";
 import {
 	RecipeShoppingFooter,
 	RecipeShoppingRows,
@@ -31,6 +33,8 @@ type RecipeToShoppingPickerProps = {
 	loadRecipe: (publicId: string) => Promise<RecipeDetail | null>;
 	loadInventoryItems: () => Promise<InventoryListItem[]>;
 	registerAvailable?: (ingredientName: string) => Promise<void>;
+	// うちの人数（設定）を読む。「人分」のレシピは、その人数の量で入れる。なければ、レシピの量のまま。
+	loadHouseholdSize?: () => Promise<number | null>;
 };
 
 const maxListedRecipes = 50;
@@ -45,6 +49,7 @@ export function RecipeToShoppingPicker({
 	loadRecipe,
 	loadInventoryItems,
 	registerAvailable,
+	loadHouseholdSize,
 }: RecipeToShoppingPickerProps) {
 	const isWide = useMediaQuery("(min-width: 768px)");
 	const [recipes, setRecipes] = useState<RecipeLinkTarget[] | null>(null);
@@ -52,6 +57,16 @@ export function RecipeToShoppingPicker({
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [isOpeningRecipe, setIsOpeningRecipe] = useState(false);
 	const [selected, setSelected] = useState<RecipeDetail | null>(null);
+	const [householdSize, setHouseholdSize] = useState<number | null>(null);
+	// 入れる量の割合（うちの人数を使う「人分」のレシピだけ。ほかは、レシピの量のまま）。
+	const wanted = selected
+		? resolveWantedYield({
+				recipe: selected,
+				urlWanted: undefined,
+				householdSize,
+			})
+		: undefined;
+	const ratio = selected ? ratioForYield(selected.yieldText, wanted) : 1;
 
 	const plan = useRecipeShoppingPlan({
 		ingredients: selected?.ingredients ?? [],
@@ -66,8 +81,32 @@ export function RecipeToShoppingPicker({
 				context.onApplied(selected.name);
 			}
 		},
-		autoStartKey: selected?.publicId ?? null,
+		// うちの人数を読み終えて、割合が変わったときも、数え直す。
+		autoStartKey: selected ? `${selected.publicId}:${ratio}` : null,
+		ratio,
 	});
+
+	useEffect(() => {
+		if (!loadHouseholdSize) {
+			return;
+		}
+
+		let isActive = true;
+
+		// 読めなければ、レシピの量のまま入れる（知らせるほどのことではない）。
+		loadHouseholdSize().then(
+			(size) => {
+				if (isActive) {
+					setHouseholdSize(size);
+				}
+			},
+			() => {},
+		);
+
+		return () => {
+			isActive = false;
+		};
+	}, [loadHouseholdSize]);
 
 	useEffect(() => {
 		let isActive = true;
@@ -133,6 +172,11 @@ export function RecipeToShoppingPicker({
 				plan={plan}
 				ownerScope={ownerScope}
 				registerAvailable={registerAvailable}
+				amountNote={describeShoppingAmount(
+					selected.yieldText,
+					ratio,
+					"うちの人数で、",
+				)}
 			/>
 		</section>
 	) : (

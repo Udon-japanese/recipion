@@ -108,3 +108,16 @@ export function ratioForYield(
 
 	return wanted / recipeYield.quantity;
 }
+
+// 買い物メモへ入れる量の知らせ（割合が1なら、なし）。例：「4人分の量で入れます（レシピは2人分）」。
+export function describeShoppingAmount(
+	yieldText: string,
+	ratio: number,
+	reason?: string,
+): string | null {
+	if (ratio === 1) {
+		return null;
+	}
+
+	return `${reason ?? ""}${scaleRecipeYieldText(yieldText, ratio)}の量で入れます（レシピは${yieldText}）`;
+}

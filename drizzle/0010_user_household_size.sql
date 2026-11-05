@@ -1,0 +1,2 @@
+ALTER TABLE "user" ADD COLUMN "household_size" integer;--> statement-breakpoint
+ALTER TABLE "user" ADD CONSTRAINT "user_household_size_range" CHECK ("user"."household_size" IS NULL OR "user"."household_size" BETWEEN 1 AND 20);

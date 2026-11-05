@@ -44,6 +44,10 @@ import { RecipeShoppingSection } from "#/features/recipes/components/recipe-shop
 import { RecipeUnlockForm } from "#/features/recipes/components/recipe-unlock-form";
 import { RecipeViewWithLinks } from "#/features/recipes/components/recipe-view-with-links";
 import { RecipeYieldStepper } from "#/features/recipes/components/recipe-yield-stepper";
+import {
+	resolveWantedYield,
+	usesHouseholdSize,
+} from "#/features/recipes/domain/household-size";
 import { collectRecipeLinkTargetIds } from "#/features/recipes/domain/ingredient-link-target";
 import type {
 	RecipeCookStats,
@@ -51,12 +55,14 @@ import type {
 } from "#/features/recipes/domain/recipe-cook-log";
 import { recipeVisibilityLabels } from "#/features/recipes/domain/recipe-visibility-label";
 import {
+	parseRecipeYield,
 	ratioForYield,
 	scaleRecipeYieldText,
 } from "#/features/recipes/domain/recipe-yield";
 import { deleteRecipeServerFn } from "#/features/recipes/server/delete-recipe";
 import { getLinkedRecipesServerFn } from "#/features/recipes/server/get-linked-recipes";
 import { getRecipeServerFn } from "#/features/recipes/server/get-recipe";
+import { getHouseholdSizeServerFn } from "#/features/recipes/server/household-size";
 import {
 	cancelRecipeCookServerFn,
 	getRecipeCookStatsServerFn,
@@ -88,9 +94,10 @@ export const Route = createFileRoute("/recipes/$publicId/")({
 	// リンク先（材料の下に開く分と、プレビューで見る分）も、前もって取る。
 	// 在庫は、前もって取らない（「買い物メモへ」「つくった」で使うときに、その時点の在庫を取る）。
 	loader: async ({ params }) => {
-		const [viewable, cookStats] = await Promise.all([
+		const [viewable, cookStats, householdSize] = await Promise.all([
 			viewRecipeServerFn({ data: { publicId: params.publicId } }),
 			getRecipeCookStatsServerFn({ data: { publicId: params.publicId } }),
+			getHouseholdSizeServerFn(),
 		]);
 
 		if (!viewable) {
@@ -106,7 +113,7 @@ export const Route = createFileRoute("/recipes/$publicId/")({
 				? await getLinkedRecipesServerFn({ data: { publicIds: linkTargetIds } })
 				: {};
 
-		return { ...viewable, linkedRecipes, cookStats };
+		return { ...viewable, linkedRecipes, cookStats, householdSize };
 	},
 	head: ({ loaderData }) => ({
 		meta: [
@@ -127,6 +134,8 @@ type RecipePreload = {
 	linkedRecipes: Readonly<Record<string, RecipeDetail>>;
 	dates: RecipeDates;
 	cookStats: RecipeCookStats | null;
+	// うちの人数（設定。なければ null）。
+	householdSize: number | null;
 };
 
 // 「買い物メモへ」「つくった」で、リンク先の材料を使うとき。画面を開いたあとに、リンク先が消された・見られなくなった
@@ -139,22 +148,33 @@ function loadCurrentLinkedRecipe(publicId: string) {
 // 見る人によらない、画面の支え（リンク先の取得、在庫、「ある」の登録）。
 function useRecipeViewSupport(
 	recipe: RecipeDetail,
-	{ linkedRecipes, cookStats: preloadedCookStats }: RecipePreload,
+	{
+		linkedRecipes,
+		cookStats: preloadedCookStats,
+		householdSize,
+	}: RecipePreload,
 ) {
 	const ownerScope = useOwnerScope();
-	const { n: wanted } = Route.useSearch();
+	const { n: urlWanted } = Route.useSearch();
 	const navigate = useNavigate({ from: Route.fullPath });
-	// 見る人が選んだ量の割合（材料の表示・買い物メモ・つくった・リンク先に掛ける）。
+	// 見せるできあがりの数：URL の ?n= → うちの人数（「人分」のレシピだけ）→ レシピの量。
 	// 「この分量で作る」レシピは、量を変えない（?n= は無視して、量の操作も出さない）。
 	const isScalable = recipe.scalable !== false;
-	const ratio = isScalable ? ratioForYield(recipe.yieldText, wanted) : 1;
+	const wanted = resolveWantedYield({ recipe, urlWanted, householdSize });
+	// 見る人が選んだ量の割合（材料の表示・買い物メモ・つくった・リンク先に掛ける）。
+	const ratio = ratioForYield(recipe.yieldText, wanted);
+	// レシピの量に戻すとき：うちの人数を使うレシピは、?n= を消すと、うちの人数に戻ってしまうので、元の数を入れる。
+	const originalSearch =
+		householdSize !== null && usesHouseholdSize(recipe)
+			? { n: parseRecipeYield(recipe.yieldText)?.quantity }
+			: {};
 	const yieldControl = isScalable ? (
 		<RecipeYieldStepper
 			yieldText={recipe.yieldText}
 			wanted={ratio === 1 ? undefined : wanted}
 			onChange={(next) =>
 				void navigate({
-					search: next === undefined ? {} : { n: next },
+					search: next === undefined ? originalSearch : { n: next },
 					replace: true,
 					resetScroll: false,
 				})
@@ -408,6 +428,7 @@ function OwnRecipePage({
 					<RecipeShoppingSection
 						key={ratio}
 						ratio={ratio}
+						yieldText={recipe.yieldText}
 						ingredients={recipe.ingredients}
 						linkViews={recipe.linkViews}
 						loadLinkedRecipe={loadCurrentLinkedRecipe}
@@ -505,6 +526,7 @@ function SharedRecipePage({
 					<RecipeShoppingSection
 						key={ratio}
 						ratio={ratio}
+						yieldText={recipe.yieldText}
 						ingredients={recipe.ingredients}
 						linkViews={recipe.linkViews}
 						loadLinkedRecipe={loadCurrentLinkedRecipe}

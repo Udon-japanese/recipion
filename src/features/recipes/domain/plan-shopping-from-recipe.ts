@@ -267,7 +267,7 @@ function judgeWithStandIns(
  * - 在庫で足りているか判定する（数量を比べ、比べられなければ、在庫の有無。judgeIngredientStock）。
  * - 足りなければ、代わりの食材（冷凍野菜など）の在庫で、必要な量を満たすかも見る（設定に従う。findStandInCandidates）。
  * - 買い物メモに、同じ食材があれば、扱い（多い方に合わせる／合算／追加しない）に従う（同じ単位の行を優先する）。
- * - 人数による量の調整はしない（レシピの量のまま）。
+ * - 量は、渡された needs のまま（人数を変えたときの割合は、呼び出し側で掛けてある。scaleRecipeNeed）。
  */
 export function planShoppingFromRecipe(
 	input: PlanShoppingFromRecipeInput,

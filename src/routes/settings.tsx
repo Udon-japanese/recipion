@@ -20,6 +20,11 @@ import {
 } from "#/features/backup/server/import-backup";
 import { createDexieInventoryPurchaseOutboxRepository } from "#/features/inventory/infrastructure/dexie-inventory-purchase-outbox-repository";
 import { AccountDeletionSection } from "#/features/profile/components/account-deletion-section";
+import { HouseholdSizeSetting } from "#/features/recipes/components/household-size-setting";
+import {
+	getHouseholdSizeServerFn,
+	updateHouseholdSizeServerFn,
+} from "#/features/recipes/server/household-size";
 import { AccountSettingsSection } from "#/features/settings/components/account-settings-section";
 import {
 	SettingsPage,
@@ -31,7 +36,7 @@ import { useAppSession } from "#/integrations/better-auth/use-app-session";
 
 export const Route = createFileRoute("/settings")({
 	head: () => ({ meta: [{ title: pageTitle("設定") }] }),
-	// tab：在庫（inventory）／データ（data）／アカウント（account）。
+	// tab：在庫（inventory）／レシピ（recipe）／データ（data）／アカウント（account）。
 	validateSearch: v.object({
 		tab: v.optional(v.picklist(settingsTabs), "inventory"),
 	}),
@@ -39,6 +44,15 @@ export const Route = createFileRoute("/settings")({
 	ssr: false,
 	component: SettingsRoute,
 });
+
+// うちの人数（画面の外に置く：いつも同じ関数にして、開いたときに1回だけ読む）。
+function loadHouseholdSize() {
+	return getHouseholdSizeServerFn();
+}
+
+function saveHouseholdSize(householdSize: number | null) {
+	return updateHouseholdSizeServerFn({ data: { householdSize } });
+}
 
 const exportDependencies: BackupExportDependencies = {
 	loadRecipePage: (offset) => exportBackupRecipesServerFn({ data: { offset } }),
@@ -72,6 +86,22 @@ function SettingsRoute() {
 		<SettingsPage
 			tab={tab}
 			onTabChange={(next) => navigate({ search: { tab: next }, replace: true })}
+			recipe={
+				session ? (
+					<section
+						className={settingsStyles.section}
+						aria-labelledby="settings-recipe"
+					>
+						<h2 className={settingsStyles.sectionTitle} id="settings-recipe">
+							レシピ
+						</h2>
+						<HouseholdSizeSetting
+							load={loadHouseholdSize}
+							save={saveHouseholdSize}
+						/>
+					</section>
+				) : undefined
+			}
 			data={
 				session ? (
 					<BackupSettingsSection
