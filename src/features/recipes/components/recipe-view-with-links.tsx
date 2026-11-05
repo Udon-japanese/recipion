@@ -16,6 +16,7 @@ type RecipeViewWithLinksProps = Pick<
 	| "instructionsAction"
 	| "ingredientsAction"
 	| "madeAction"
+	| "checklist"
 > & {
 	loadLinkedRecipe: (publicId: string) => Promise<RecipeDetail | null>;
 	renderOpenLink: (publicId: string) => ReactNode;

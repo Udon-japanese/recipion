@@ -198,9 +198,43 @@ export const ingredientRow = style({
 	justifyContent: "space-between",
 	gap: 16,
 	paddingBlock: 8,
+	selectors: {
+		// チェックリストで見ているとき：左にチェックボックス（押せる範囲 44px）。名前は、分量の手前まで伸ばす。
+		'&[data-checklist="true"]': {
+			alignItems: "center",
+			gap: 8,
+			paddingBlock: 0,
+		},
+		// 用意した材料は、薄くして、線を引く（色だけに頼らない）。
+		'&[data-checked="true"]': {
+			color: "var(--color-text-muted)",
+			textDecoration: "line-through",
+		},
+	},
+});
+
+// チェックリストの切り替え（材料の上、右寄せ）。
+export const checklistToggle = style({
+	display: "flex",
+	alignItems: "center",
+	justifyContent: "flex-end",
+	gap: 8,
+	marginBlockEnd: 4,
+	color: "var(--color-text-muted)",
+	fontSize: "var(--font-size-sm)",
+	fontWeight: "var(--font-weight-medium)",
+});
+
+// グループの見出し（名前と、全部チェック）。
+export const groupHeader = style({
+	display: "flex",
+	alignItems: "center",
+	justifyContent: "space-between",
+	gap: 8,
 });
 
 export const ingredientName = style({
+	flex: 1,
 	minWidth: 0,
 	overflowWrap: "anywhere",
 });
