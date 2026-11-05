@@ -6,10 +6,10 @@ import { Icon } from "#/components/icon/icon";
 import { Sheet } from "#/components/sheet/sheet";
 import { useMediaQuery } from "#/components/use-media-query";
 import {
-	DishCoverEditor,
+	DishArtEditor,
 	type DishEditorPreset,
-} from "#/features/dish-art/components/dish-cover-editor";
-import * as editorStyles from "#/features/dish-art/components/dish-cover-editor.css";
+} from "#/features/dish-art/components/dish-art-editor";
+import * as editorStyles from "#/features/dish-art/components/dish-art-editor.css";
 import type { DishPlacement } from "#/features/dish-art/domain/dish-cover";
 import {
 	type Avatar,
@@ -96,7 +96,7 @@ export function AvatarField({ userId, avatar, onSave }: AvatarFieldProps) {
 	}
 
 	const editor = (
-		<DishCoverEditor
+		<DishArtEditor
 			placements={placements}
 			onChange={setPlacements}
 			maxParts={avatarLimits.maxParts}

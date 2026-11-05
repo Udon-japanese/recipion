@@ -38,14 +38,14 @@ import {
 	snapRotation,
 	tintDishPart,
 	turnDishPart,
-} from "../domain/edit-dish-cover";
+} from "../domain/edit-dish-art";
 import { DishArt, DishArtLayers, DishPartPreview } from "./dish-art";
-import * as styles from "./dish-cover-editor.css";
+import * as styles from "./dish-art-editor.css";
 
 // 「セット」に並べる組み合わせ。background は、見本の地の色（アバターの背景など）。
 export type DishEditorPreset = DishPreset & { background?: string };
 
-type DishCoverEditorProps = {
+type DishArtEditorProps = {
 	placements: readonly DishPlacement[];
 	onChange: (placements: DishPlacement[]) => void;
 	// ここから下は、料理の絵以外（アバター）で使うときの設定。省略すると、料理の絵のまま。
@@ -119,7 +119,7 @@ function keepInside(point: Point, margin: number): Point {
 }
 
 // 料理の絵を組み立てる画面。触って動かす（移動・つまみで拡大と回転・2本指・棚から置く）。
-export function DishCoverEditor({
+export function DishArtEditor({
 	placements,
 	onChange,
 	maxParts = dishCoverLimits.maxParts,
@@ -130,7 +130,7 @@ export function DishCoverEditor({
 	initialCategoryId,
 	label = "料理の絵。",
 	extra,
-}: DishCoverEditorProps) {
+}: DishArtEditorProps) {
 	const [selected, setSelected] = useState(-1);
 	// 指で操作する端末では、絵の上の「×」を出さない（小さい部品だと、つかもうとして触れてしまう）。消すのは、下の道具の列から。
 	const isCoarsePointer = useMediaQuery("(pointer: coarse)");

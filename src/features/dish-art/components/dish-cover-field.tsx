@@ -6,8 +6,8 @@ import { Icon } from "#/components/icon/icon";
 import { Sheet } from "#/components/sheet/sheet";
 import { useMediaQuery } from "#/components/use-media-query";
 import type { DishPlacement } from "../domain/dish-cover";
-import { DishCoverEditor } from "./dish-cover-editor";
-import * as styles from "./dish-cover-editor.css";
+import { DishArtEditor } from "./dish-art-editor";
+import * as styles from "./dish-art-editor.css";
 import { DishCoverView } from "./dish-cover-view";
 
 type DishCoverFieldProps = {
@@ -48,7 +48,7 @@ export function DishCoverField({ seed, cover, onChange }: DishCoverFieldProps) {
 		setOpen(false);
 	}
 
-	const editor = <DishCoverEditor placements={draft} onChange={setDraft} />;
+	const editor = <DishArtEditor placements={draft} onChange={setDraft} />;
 	const footer = (
 		<>
 			<Button type="button" variant="secondary" onClick={requestClose}>

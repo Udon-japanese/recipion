@@ -3,7 +3,7 @@ import {
 	DishArt,
 	DishPartPreview,
 } from "#/features/dish-art/components/dish-art";
-import { DishCoverEditor } from "#/features/dish-art/components/dish-cover-editor";
+import { DishArtEditor } from "#/features/dish-art/components/dish-art-editor";
 import type { DishPlacement } from "#/features/dish-art/domain/dish-cover";
 import { dishParts } from "#/features/dish-art/domain/dish-part";
 import { dishPlaceholders } from "#/features/dish-art/domain/dish-placeholder";
@@ -31,7 +31,7 @@ export function DishPartsGallery() {
 		<section style={{ display: "grid", gap: 12 }}>
 			<h2 style={{ margin: 0, fontSize: 18 }}>料理の絵の部品（試作）</h2>
 			<div style={{ maxWidth: 960 }}>
-				<DishCoverEditor placements={draft} onChange={setDraft} />
+				<DishArtEditor placements={draft} onChange={setDraft} />
 			</div>
 			<div style={wrap}>
 				{dishParts.map((part) => (
