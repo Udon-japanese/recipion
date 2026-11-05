@@ -81,4 +81,87 @@ describe("Menu", () => {
 
 		expect(screen.queryByRole("menu")).toBeNull();
 	});
+
+	describe("下の階層", () => {
+		function renderSubmenu(onChoose = vi.fn()) {
+			render(
+				<Menu
+					label="醤油のその他"
+					icon="more-horizontal"
+					items={[
+						{
+							label: "量を変えたときの増減",
+							detail: "通常",
+							submenu: {
+								title: "量を変えたときの増減",
+								items: [
+									{ label: "通常", checked: true, onSelect: vi.fn() },
+									{
+										label: "やや控えめ",
+										checked: false,
+										onSelect: () => onChoose("やや控えめ"),
+									},
+								],
+							},
+						},
+						{ label: "削除", tone: "danger", onSelect: vi.fn() },
+					]}
+				/>,
+			);
+		}
+
+		it("選ぶと、同じ枠の中身が見出しと選択肢に替わり、選んでいる選択肢にフォーカスが移る。選ぶと実行して閉じる", async () => {
+			const user = userEvent.setup();
+			const onChoose = vi.fn();
+
+			renderSubmenu(onChoose);
+			await user.click(screen.getByRole("button", { name: "醤油のその他" }));
+			await user.click(
+				screen.getByRole("menuitem", { name: /量を変えたときの増減/u }),
+			);
+
+			expect(screen.getByText("量を変えたときの増減")).toBeInTheDocument();
+			expect(screen.queryByRole("menuitem", { name: "削除" })).toBeNull();
+			expect(screen.getByRole("menuitemradio", { name: "通常" })).toHaveFocus();
+			expect(
+				screen.getByRole("menuitemradio", { name: "通常" }),
+			).toHaveAttribute("aria-checked", "true");
+
+			await user.click(
+				screen.getByRole("menuitemradio", { name: "やや控えめ" }),
+			);
+
+			expect(onChoose).toHaveBeenCalledWith("やや控えめ");
+			expect(screen.queryByRole("menu")).toBeNull();
+		});
+
+		it("戻る・Esc で上の階層へ戻り、もう一度 Esc で閉じる", async () => {
+			const user = userEvent.setup();
+
+			renderSubmenu();
+			await user.click(screen.getByRole("button", { name: "醤油のその他" }));
+			await user.click(
+				screen.getByRole("menuitem", { name: /量を変えたときの増減/u }),
+			);
+			await user.click(screen.getByRole("button", { name: "戻る" }));
+
+			expect(
+				screen.getByRole("menuitem", { name: "削除" }),
+			).toBeInTheDocument();
+
+			await user.keyboard("{ArrowRight}");
+
+			expect(screen.getByRole("menuitemradio", { name: "通常" })).toHaveFocus();
+
+			await user.keyboard("{Escape}");
+
+			expect(
+				screen.getByRole("menuitem", { name: "削除" }),
+			).toBeInTheDocument();
+
+			await user.keyboard("{Escape}");
+
+			expect(screen.queryByRole("menu")).toBeNull();
+		});
+	});
 });

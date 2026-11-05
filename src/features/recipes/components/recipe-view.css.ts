@@ -447,3 +447,17 @@ export const linkButton = style({
 export const missingLink = style({
 	color: "var(--color-text-muted)",
 });
+
+// 量を変えているときの、通常でない増減のしかた（「やや控えめ」「固定」）。分量の下に小さく。
+export const weightLabel = style({
+	display: "block",
+	fontSize: "var(--font-size-xs)",
+	lineHeight: "var(--line-height-tight)",
+});
+
+// リンク先が「この分量で作る」ときの知らせ（その場で開いた材料の上）。
+export const fixedBatchNote = style({
+	margin: "0 0 4px",
+	color: "var(--color-text-muted)",
+	fontSize: "var(--font-size-sm)",
+});

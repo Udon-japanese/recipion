@@ -1,0 +1,3 @@
+ALTER TABLE "recipe" ADD COLUMN "scalable" boolean DEFAULT true NOT NULL;--> statement-breakpoint
+ALTER TABLE "recipe_ingredient_node" ADD COLUMN "scale_weight" numeric(3, 2) DEFAULT '1' NOT NULL;--> statement-breakpoint
+ALTER TABLE "recipe_ingredient_node" ADD CONSTRAINT "recipe_ingredient_scale_weight_valid" CHECK ("recipe_ingredient_node"."scale_weight" IN (0, 0.5, 0.8, 1) AND ("recipe_ingredient_node"."type" = 'ingredient' OR "recipe_ingredient_node"."scale_weight" = 1));

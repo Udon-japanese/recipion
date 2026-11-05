@@ -386,4 +386,62 @@ describe("グループと推定された行を、材料にする", () => {
 
 		expect(markGroupAsIngredient(state, state.nodes[0].id)).toBe(state);
 	});
+
+	describe("材料の増減のしかた（scaleWeight）", () => {
+		function weightOf(state: IngredientSyncState, name: string) {
+			const node = state.nodes.find((item) => item.name === name);
+
+			return node?.type === "ingredient" ? node.scaleWeight : "missing";
+		}
+
+		function withWeight(
+			state: IngredientSyncState,
+			name: string,
+			weight: number,
+		): IngredientSyncState {
+			return {
+				...state,
+				nodes: state.nodes.map((node) =>
+					node.type === "ingredient" && node.name === name
+						? { ...node, scaleWeight: weight }
+						: node,
+				),
+			};
+		}
+
+		it("行が同じなら、本文を解析し直しても、そのまま残す", () => {
+			const state = withWeight(
+				initialState("醤油 大さじ1\n卵 1個"),
+				"醤油",
+				0.8,
+			);
+			const next = reconcileRecipeIngredients(
+				state,
+				parseRecipeIngredients("醤油 大さじ1\n卵 1個\n塩 少々"),
+			);
+
+			expect(weightOf(next, "醤油")).toBe(0.8);
+			expect(weightOf(next, "塩")).toBeUndefined();
+		});
+
+		it("分量を書き換えて、別の材料として作り直されても、同じ名前なら引き継ぐ", () => {
+			const state = withWeight(initialState("醤油 大さじ1\n卵 1個"), "醤油", 0);
+			const next = reconcileRecipeIngredients(
+				state,
+				parseRecipeIngredients("醤油 大さじ2\n卵 1個"),
+			);
+
+			expect(weightOf(next, "醤油")).toBe(0);
+		});
+
+		it("名前を変えた材料には、引き継がない", () => {
+			const state = withWeight(initialState("醤油 大さじ1"), "醤油", 0.5);
+			const next = reconcileRecipeIngredients(
+				state,
+				parseRecipeIngredients("薄口醤油 大さじ1"),
+			);
+
+			expect(weightOf(next, "薄口醤油")).toBeUndefined();
+		});
+	});
 });

@@ -145,8 +145,10 @@ function useRecipeViewSupport(
 	const { n: wanted } = Route.useSearch();
 	const navigate = useNavigate({ from: Route.fullPath });
 	// 見る人が選んだ量の割合（材料の表示・買い物メモ・つくった・リンク先に掛ける）。
-	const ratio = ratioForYield(recipe.yieldText, wanted);
-	const yieldControl = (
+	// 「この分量で作る」レシピは、量を変えない（?n= は無視して、量の操作も出さない）。
+	const isScalable = recipe.scalable !== false;
+	const ratio = isScalable ? ratioForYield(recipe.yieldText, wanted) : 1;
+	const yieldControl = isScalable ? (
 		<RecipeYieldStepper
 			yieldText={recipe.yieldText}
 			wanted={ratio === 1 ? undefined : wanted}
@@ -158,7 +160,7 @@ function useRecipeViewSupport(
 				})
 			}
 		/>
-	);
+	) : undefined;
 	// 自分がつくった回数と最後の日。「つくった！」と「元に戻す」で、サーバーが返した値に置き換える。
 	const [cookStats, setCookStats] = useState(preloadedCookStats);
 

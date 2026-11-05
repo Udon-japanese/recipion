@@ -71,6 +71,23 @@ describe("scaleIngredientAmountText", () => {
 			expected: "2丁（元：1丁(300g)）",
 		},
 		{
+			title: "増減のしかた（やや控えめ）を掛ける：2倍で1.8倍",
+			item: {
+				quantity: 10,
+				unitLabel: "g",
+				amountText: "10g",
+				scaleWeight: 0.8,
+			},
+			ratio: 2,
+			expected: "18g",
+		},
+		{
+			title: "固定の材料は、量を変えても原文のまま",
+			item: { quantity: 1, unitLabel: "個", amountText: "1個", scaleWeight: 0 },
+			ratio: 3,
+			expected: "1個",
+		},
+		{
 			title: "分量のない材料は、なし",
 			item: { quantity: null, unitLabel: null, amountText: null },
 			ratio: 2,

@@ -1,6 +1,7 @@
 import type { RecipeShoppingNeed } from "./plan-shopping-from-recipe";
 import { type RecipeLinkView, splitTextByLinks } from "./recipe-links";
 import { normalizeYieldUnit, parseRecipeYield } from "./recipe-yield";
+import { weightedRatio } from "./scale-weight";
 
 // 材料の名前の [[ラベル]] を、買い物メモの材料に直す。
 // - 名前が [[ラベル]] だけで、リンク先が見つかる：他のレシピで作るもの（linkedRecipe）。そのレシピの材料を、展開して使う。
@@ -82,6 +83,24 @@ export function linkedRecipeRatio(
 	}
 
 	return 1;
+}
+
+// リンク先のレシピを、何回分作るか。このレシピの割合（量を変えたとき）× リンクの行の割合。
+// - リンクの行の増減のしかた（やや控えめなど）は、このレシピの割合に掛ける。
+// - リンク先が「この分量で作る」（scalable が false）なら、いつも1回分。
+export function linkedRecipeBatchRatio(
+	need: Pick<RecipeShoppingNeed, "quantity" | "unitLabel" | "scaleWeight">,
+	target: { yieldText: string; scalable?: boolean },
+	parentRatio: number,
+): number {
+	if (target.scalable === false) {
+		return 1;
+	}
+
+	return (
+		weightedRatio(parentRatio, need.scaleWeight) *
+		linkedRecipeRatio(need, target.yieldText)
+	);
 }
 
 // 名前が [[ラベル]] だけの材料のうち、リンク先が見つからない（削除された・見られない）もののラベル。

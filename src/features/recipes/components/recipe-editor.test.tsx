@@ -83,6 +83,47 @@ describe("RecipeEditor", () => {
 		);
 	});
 
+	it("材料の増減のしかたと「この分量で作る」を選んで保存すると、その設定で送る。本文の行を書き換えても、同じ名前の材料の設定は残る", async () => {
+		const user = userEvent.setup();
+		const onSave = vi.fn(async (_document: RecipeEditorDocument) => ({
+			publicId: "recipe-1",
+		}));
+
+		render(<RecipeEditor onSave={onSave} />);
+
+		await enterTitle(user, "照り焼き");
+		await writeBody(user, "＜材料＞\n鶏もも肉 1枚\n醤油 大さじ1");
+		await user.click(screen.getByRole("button", { name: "醤油のその他" }));
+		await user.click(
+			screen.getByRole("menuitem", { name: /量を変えたときの増減/u }),
+		);
+		await user.click(screen.getByRole("menuitemradio", { name: "やや控えめ" }));
+
+		expect(screen.getByText("やや控えめ")).toBeInTheDocument();
+
+		// 本文の最後の「大さじ1」を「大さじ2」に書き換える（行が変わり、別の材料として作り直される）。
+		await user.click(screen.getByRole("textbox", { name: "レシピの本文" }));
+		await user.keyboard("{Backspace}2");
+		expect(
+			screen.getByRole("button", { name: "醤油の分量を編集" }).textContent,
+		).toBe("大さじ2");
+		await user.click(screen.getByRole("checkbox", { name: "この分量で作る" }));
+		await user.click(screen.getByRole("button", { name: "レシピを保存" }));
+		await screen.findByText("保存しました", { selector: "output" });
+
+		const saved = onSave.mock.calls[0]?.[0];
+
+		expect(saved?.scalable).toBe(false);
+		expect(
+			saved?.ingredients.map((node) =>
+				node.type === "ingredient" ? [node.name, node.scaleWeight] : null,
+			),
+		).toEqual([
+			["鶏もも肉", undefined],
+			["醤油", 0.8],
+		]);
+	});
+
 	describe("公開して保存するときの確認", () => {
 		function chooseVisibility(value: string) {
 			fireEvent.change(screen.getByRole("combobox", { name: "公開範囲" }), {

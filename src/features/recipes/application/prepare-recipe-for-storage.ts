@@ -8,6 +8,7 @@ import {
 	extractLinkLabels,
 	type RecipeLinkReference,
 } from "../domain/recipe-links";
+import { defaultScaleWeight } from "../domain/scale-weight";
 import { validateRecipeEditorDocument } from "../domain/validate-recipe-editor-document";
 
 export type StoredRecipeIngredientNode = {
@@ -22,6 +23,8 @@ export type StoredRecipeIngredientNode = {
 	amountText: string | null;
 	quantity: number | null;
 	unitLabel: string | null;
+	// 量を変えたときの増減のしかた（グループは 1）。
+	scaleWeight: number;
 };
 
 export type PreparedRecipeForStorage = {
@@ -31,6 +34,7 @@ export type PreparedRecipeForStorage = {
 	sourceUrl: string | null;
 	visibility: RecipeVisibility;
 	stocksWhenMade: boolean;
+	scalable: boolean;
 	cover: DishPlacement[] | null;
 	ingredients: StoredRecipeIngredientNode[];
 	preparations: {
@@ -93,6 +97,7 @@ function flattenIngredients(
 				amountText: null,
 				quantity: null,
 				unitLabel: null,
+				scaleWeight: defaultScaleWeight,
 			});
 
 			flattenIngredients(node.children, node.id, result);
@@ -111,6 +116,7 @@ function flattenIngredients(
 			amountText: node.amountText,
 			quantity: node.quantity,
 			unitLabel: node.unitLabel,
+			scaleWeight: node.scaleWeight ?? defaultScaleWeight,
 		});
 	}
 }
@@ -131,6 +137,7 @@ export function prepareRecipeForStorage(
 		sourceUrl: document.sourceUrl,
 		visibility: document.visibility ?? "private",
 		stocksWhenMade: document.stocksWhenMade ?? false,
+		scalable: document.scalable ?? true,
 		cover: document.cover ?? null,
 		ingredients,
 		preparations: document.preparations.map((preparation, sortOrder) => ({

@@ -13,6 +13,8 @@ import { defaultRecipeYieldText } from "./recipe-yield";
 
 export type RecipeEditorIngredientItem = ParsedRecipeIngredientItem & {
 	id: string;
+	// 量を変えたときの増減のしかた（scale-weight.ts。省略は通常＝1）。
+	scaleWeight?: number;
 };
 
 export type RecipeEditorIngredientGroup = Omit<
@@ -54,6 +56,8 @@ export type RecipeEditorDocument = {
 	visibility?: RecipeVisibility;
 	// 「作った」で、できあがりを在庫に入れる（作り置き）。省略は false。
 	stocksWhenMade?: boolean;
+	// 量を変えられるか（false は「この分量で作る」。他のレシピからリンクされても、いつも1回分）。省略は true。
+	scalable?: boolean;
 	// 料理の絵。省略か null は、レシピ名から選ぶプリセット。
 	cover?: DishPlacement[] | null;
 };
@@ -69,6 +73,7 @@ export type CreateRecipeEditorDocumentInput = {
 	links?: RecipeLinkReference[];
 	visibility?: RecipeVisibility;
 	stocksWhenMade?: boolean;
+	scalable?: boolean;
 	cover?: DishPlacement[] | null;
 };
 
@@ -124,6 +129,7 @@ export function createRecipeEditorDocument(
 		links: input.links ? [...input.links] : [],
 		visibility: input.visibility ?? "private",
 		stocksWhenMade: input.stocksWhenMade ?? false,
+		scalable: input.scalable ?? true,
 		cover: input.cover ?? null,
 	};
 }

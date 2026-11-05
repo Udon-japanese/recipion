@@ -64,6 +64,13 @@
       "when": 1793879590191,
       "tag": "0008_recipe_yield_text",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793881532877,
+      "tag": "0009_ingredient_scale_weight",
+      "breakpoints": true
     }
   ]
 }

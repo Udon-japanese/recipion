@@ -1,6 +1,6 @@
 import {
 	findMissingIngredientLinks,
-	linkedRecipeRatio,
+	linkedRecipeBatchRatio,
 	resolveIngredientLinks,
 } from "../domain/link-ingredient-needs";
 import type { MadeRecipeUse } from "../domain/made-recipe-stock";
@@ -134,7 +134,7 @@ export async function loadLinkedShoppingSections(
 				entries.set(target.publicId, entry);
 			}
 
-			const wanted = scale * linkedRecipeRatio(need, entry.recipe.yieldText);
+			const wanted = linkedRecipeBatchRatio(need, entry.recipe, scale);
 
 			// 在庫のできあがりを先に使い、足りない分だけ、材料を展開する。
 			const available = remainingMade.get(target.publicId) ?? 0;

@@ -3,6 +3,7 @@ import {
 	describeScaledAmount,
 	describeScaledAmountRange,
 } from "./scale-amount";
+import { weightedRatio } from "./scale-weight";
 
 function round(value: number): number {
 	return Number(value.toFixed(6));
@@ -12,8 +13,11 @@ function round(value: number): number {
 // 数量のない材料（適量など）は、そのまま。
 export function scaleRecipeNeed(
 	need: RecipeShoppingNeed,
-	ratio: number,
+	baseRatio: number,
 ): RecipeShoppingNeed {
+	// 材料ごとの増減のしかた（やや控えめ・固定など）を掛けた割合。
+	const ratio = weightedRatio(baseRatio, need.scaleWeight);
+
 	if (ratio === 1) {
 		return need;
 	}

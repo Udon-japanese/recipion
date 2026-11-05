@@ -321,6 +321,25 @@ export const linkedName = style({
 // 手直しの印がない行でも、右端の位置がそろうよう、ボタンの幅だけ空ける。
 export const rowActionSpace = style({ width: 36 });
 
+// 材料の行の、分量の列（分量の欄と、その下の増減のしかたの印）。
+export const amountCell = style({
+	display: "grid",
+	minWidth: 0,
+});
+
+// 量を変えたときの増減のしかた（通常でないとき）。分量の下に、小さく右寄せで。
+// 分量の欄（高さ44px）の下の余白に少し重ねて、行を高くしすぎない（押すのは、分量の欄のまま）。
+export const weightNote = style({
+	justifySelf: "end",
+	marginTop: -10,
+	padding: "0 12px",
+	pointerEvents: "none",
+	color: "var(--color-text-muted)",
+	fontSize: "var(--font-size-xs)",
+	lineHeight: "var(--line-height-tight)",
+	whiteSpace: "nowrap",
+});
+
 export const groupItem = style({
 	listStyle: "none",
 	selectors: {

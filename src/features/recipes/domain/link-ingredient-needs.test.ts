@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	findMissingIngredientLinks,
+	linkedRecipeBatchRatio,
 	linkedRecipeRatio,
 	resolveIngredientLinks,
 } from "./link-ingredient-needs";
@@ -105,5 +106,35 @@ describe("linkedRecipeRatio", () => {
 		["数量なし（1回分）", { quantity: null, unitLabel: null }, "4人分", 1],
 	] as const)("%s", (_, need, targetYield, expected) => {
 		expect(linkedRecipeRatio(need, targetYield)).toBeCloseTo(expected);
+	});
+});
+
+describe("linkedRecipeBatchRatio", () => {
+	it.each([
+		{
+			title: "このレシピの割合 × リンクの行の割合",
+			need: { quantity: 0.5, unitLabel: "量" },
+			target: { yieldText: "4人分" },
+			parentRatio: 2,
+			expected: 1,
+		},
+		{
+			title: "リンクの行の増減のしかたは、このレシピの割合に掛ける",
+			need: { quantity: 1, unitLabel: "量", scaleWeight: 0.5 },
+			target: { yieldText: "4人分" },
+			parentRatio: 2,
+			expected: 1.5,
+		},
+		{
+			title: "リンク先が「この分量で作る」なら、いつも1回分",
+			need: { quantity: 0.5, unitLabel: "量" },
+			target: { yieldText: "4人分", scalable: false },
+			parentRatio: 3,
+			expected: 1,
+		},
+	])("$title", ({ need, target, parentRatio, expected }) => {
+		expect(linkedRecipeBatchRatio(need, target, parentRatio)).toBeCloseTo(
+			expected,
+		);
 	});
 });

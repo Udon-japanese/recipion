@@ -15,6 +15,9 @@ type RecipeSettingsCardProps = {
 	hasSourceUrl: boolean;
 	stocksWhenMade: boolean;
 	onStocksWhenMadeChange: (value: boolean) => void;
+	// 量を変えられるか（チェックの「この分量で作る」は、その反対）。
+	scalable: boolean;
+	onScalableChange: (value: boolean) => void;
 };
 
 const visibilityHints: Record<RecipeVisibility, string> = {
@@ -33,7 +36,7 @@ function isRecipeVisibility(value: string): value is RecipeVisibility {
 	return visibilityOrder.some((visibility) => visibility === value);
 }
 
-// レシピの設定（公開範囲・作り置き）。設定が増えても、行が1つずつ増えるだけにする。
+// レシピの設定（公開範囲・作り置き・この分量で作る）。設定が増えても、行が1つずつ増えるだけにする。
 // 公開を選んだら、注意書きを出す（保存するときの確認でも、もう一度出す。recipe-editor.tsx）。
 export function RecipeSettingsCard({
 	visibility,
@@ -41,10 +44,13 @@ export function RecipeSettingsCard({
 	hasSourceUrl,
 	stocksWhenMade,
 	onStocksWhenMadeChange,
+	scalable,
+	onScalableChange,
 }: RecipeSettingsCardProps) {
 	const headingId = useId();
 	const visibilityId = useId();
 	const stocksId = useId();
+	const fixedId = useId();
 
 	return (
 		<section className={styles.container} aria-labelledby={headingId}>
@@ -96,6 +102,22 @@ export function RecipeSettingsCard({
 							label="作り置き"
 							checked={stocksWhenMade}
 							onChange={(event) => onStocksWhenMadeChange(event.target.checked)}
+						/>
+					</li>
+					<li className={styles.row}>
+						<div className={styles.text}>
+							<label className={styles.label} htmlFor={fixedId} aria-hidden>
+								この分量で作る
+							</label>
+							<span className={styles.hint}>
+								見る人が量を変えられないようにする（他のレシピから使うときも、いつも1回分）
+							</span>
+						</div>
+						<Checkbox
+							id={fixedId}
+							label="この分量で作る"
+							checked={!scalable}
+							onChange={(event) => onScalableChange(!event.target.checked)}
 						/>
 					</li>
 				</ul>

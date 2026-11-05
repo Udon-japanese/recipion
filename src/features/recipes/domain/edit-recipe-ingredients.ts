@@ -24,6 +24,9 @@ export function updateIngredientItem(
 		const name = changes.name ?? node.name;
 		const amountText = changes.amountText ?? node.amountText ?? "";
 		const hasAmount = amountText.trim().length > 0;
+		// 増減のしかたは、名前・分量を直しても残す。
+		const weight =
+			node.scaleWeight === undefined ? {} : { scaleWeight: node.scaleWeight };
 
 		const updated: RecipeEditorIngredientItem = hasAmount
 			? {
@@ -35,6 +38,7 @@ export function updateIngredientItem(
 					amountText,
 					quantity: changes.amountText === undefined ? node.quantity : null,
 					unitLabel: changes.amountText === undefined ? node.unitLabel : null,
+					...weight,
 				}
 			: {
 					type: "ingredient",
@@ -45,9 +49,32 @@ export function updateIngredientItem(
 					amountText: null,
 					quantity: null,
 					unitLabel: null,
+					...weight,
 				};
 
 		return updated;
+	});
+}
+
+// 量を変えたときの増減のしかたを変える（通常は、持たない）。本文の行は変えないので、手直しには数えない。
+export function setIngredientScaleWeight(
+	nodes: readonly RecipeEditorIngredientNode[],
+	id: string,
+	weight: number,
+): RecipeEditorIngredientNode[] {
+	return nodes.map((node) => {
+		if (node.type === "group") {
+			return {
+				...node,
+				children: setIngredientScaleWeight(node.children, id, weight),
+			};
+		}
+
+		if (node.id !== id) return node;
+
+		const { scaleWeight: _previous, ...rest } = node;
+
+		return weight === 1 ? rest : { ...rest, scaleWeight: weight };
 	});
 }
 

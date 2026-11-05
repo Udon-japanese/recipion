@@ -15,13 +15,35 @@ import { useCloseOnBack } from "../sheet/use-close-on-back";
 import type { MenuItemTone } from "./menu.css";
 import * as styles from "./menu.css";
 
-export type MenuItem = {
+// 選ぶと実行する項目。checked があれば、選択肢の1つ（チェックの印を出す。下の階層の選択肢で使う）。
+export type MenuActionItem = {
 	label: string;
 	icon?: IconName;
 	tone?: MenuItemTone;
 	disabled?: boolean;
+	checked?: boolean;
 	onSelect: () => void;
 };
+
+// 選ぶと、同じ枠の中身が、下の階層（見出し・戻る・選択肢）に替わる項目。detail は、いまの値（右に薄く出す）。
+export type MenuSubmenuItem = {
+	label: string;
+	icon?: IconName;
+	detail?: string;
+	submenu: {
+		title: string;
+		items: readonly MenuActionItem[];
+	};
+};
+
+export type MenuItem = MenuActionItem | MenuSubmenuItem;
+
+function isSubmenuItem(item: MenuItem): item is MenuSubmenuItem {
+	return "submenu" in item;
+}
+
+// 矢印で動ける項目（選べないものは除く）。
+const focusableItemSelector = '[role^="menuitem"]:not([aria-disabled])';
 
 type MenuProps = {
 	// 開くボタンの読み上げる名前（例：「トマトのその他」）。
@@ -82,6 +104,12 @@ export function Menu({
 		left: number;
 		top: number;
 	} | null>(null);
+	// 開いている下の階層（items の中の位置）。null は、いちばん上の階層。
+	const [submenuIndex, setSubmenuIndex] = useState<number | null>(null);
+	const openedSubmenu =
+		submenuIndex === null ? null : (items[submenuIndex] ?? null);
+	const submenu =
+		openedSubmenu && isSubmenuItem(openedSubmenu) ? openedSubmenu : null;
 	// 開くボタンの位置（メニューの大きさが分かったあとに、置き直すため）。
 	const anchorRef = useRef<{
 		right: number;
@@ -114,11 +142,13 @@ export function Menu({
 			placement,
 		);
 
+		setSubmenuIndex(null);
 		setPosition(placed);
 	}
 
 	function close(returnFocus: boolean) {
 		setPosition(null);
+		setSubmenuIndex(null);
 
 		if (returnFocus) {
 			triggerRef.current?.focus();
@@ -127,9 +157,13 @@ export function Menu({
 
 	const isOpen = position !== null;
 
-	useCloseOnBack(isOpen, () => setPosition(null));
+	useCloseOnBack(isOpen, () => {
+		setPosition(null);
+		setSubmenuIndex(null);
+	});
 
 	// 内容の幅に合わせて広がるので、実際の大きさが分かったら、右端をボタンにそろえて置き直す。
+	// biome-ignore lint/correctness/useExhaustiveDependencies: 階層を替えると（submenuIndex）大きさが変わるので、置き直す。
 	useLayoutEffect(() => {
 		const popup = popupRef.current;
 		const anchor = anchorRef.current;
@@ -152,16 +186,27 @@ export function Menu({
 				? current
 				: placed,
 		);
-	}, [isOpen, placement]);
+	}, [isOpen, placement, submenuIndex]);
 
+	// 開いたとき・階層を替えたとき、その階層の最初の選べる項目（下の階層は、選んでいる選択肢）へ。
+	// biome-ignore lint/correctness/useExhaustiveDependencies: 階層を替えたとき（submenuIndex）にも、フォーカスを移す。
 	useEffect(() => {
 		if (!isOpen) {
 			return;
 		}
 
-		popupRef.current
-			?.querySelector<HTMLElement>('[role="menuitem"]:not([aria-disabled])')
-			?.focus();
+		const popup = popupRef.current;
+
+		(
+			popup?.querySelector<HTMLElement>('[aria-checked="true"]') ??
+			popup?.querySelector<HTMLElement>(focusableItemSelector)
+		)?.focus();
+	}, [isOpen, submenuIndex]);
+
+	useEffect(() => {
+		if (!isOpen) {
+			return;
+		}
 
 		function handlePointerDown(event: PointerEvent) {
 			const target = event.target as Node;
@@ -171,11 +216,13 @@ export function Menu({
 				!triggerRef.current?.contains(target)
 			) {
 				setPosition(null);
+				setSubmenuIndex(null);
 			}
 		}
 
 		function handleScroll() {
 			setPosition(null);
+			setSubmenuIndex(null);
 		}
 
 		document.addEventListener("pointerdown", handlePointerDown, true);
@@ -190,6 +237,15 @@ export function Menu({
 	}, [isOpen]);
 
 	function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+		// 下の階層では、Esc と ← で、上の階層へ戻る。
+		if (submenu && (event.key === "Escape" || event.key === "ArrowLeft")) {
+			event.preventDefault();
+			event.stopPropagation();
+			setSubmenuIndex(null);
+
+			return;
+		}
+
 		if (event.key === "Escape") {
 			event.preventDefault();
 			event.stopPropagation();
@@ -205,9 +261,8 @@ export function Menu({
 		}
 
 		const enabled = Array.from(
-			popupRef.current?.querySelectorAll<HTMLElement>(
-				'[role="menuitem"]:not([aria-disabled])',
-			) ?? [],
+			popupRef.current?.querySelectorAll<HTMLElement>(focusableItemSelector) ??
+				[],
 		);
 		const index = enabled.indexOf(document.activeElement as HTMLElement);
 
@@ -258,30 +313,115 @@ export function Menu({
 							style={{ left: position.left, top: position.top }}
 							onKeyDown={handleKeyDown}
 						>
-							{items.map((entry) => (
-								<button
-									className={styles.item({ tone: entry.tone })}
-									type="button"
-									role="menuitem"
-									key={entry.label}
-									aria-disabled={entry.disabled || undefined}
-									onClick={() => {
-										if (entry.disabled) {
-											return;
-										}
-
-										close(true);
-										entry.onSelect();
-									}}
-								>
-									{entry.icon ? <Icon name={entry.icon} size={20} /> : null}
-									{entry.label}
-								</button>
-							))}
+							{submenu ? (
+								<>
+									<div className={styles.submenuHeader}>
+										<IconButton
+											icon="chevron-left"
+											label="戻る"
+											tone="plain"
+											onClick={() => setSubmenuIndex(null)}
+										/>
+										<span className={styles.submenuTitle}>
+											{submenu.submenu.title}
+										</span>
+									</div>
+									{submenu.submenu.items.map((entry) => (
+										<ActionItemButton
+											key={entry.label}
+											entry={entry}
+											onDone={() => close(true)}
+										/>
+									))}
+								</>
+							) : (
+								items.map((entry, index) =>
+									isSubmenuItem(entry) ? (
+										<button
+											className={styles.item({})}
+											type="button"
+											role="menuitem"
+											aria-haspopup="menu"
+											key={entry.label}
+											onClick={() => setSubmenuIndex(index)}
+											onKeyDown={(event) => {
+												if (event.key === "ArrowRight") {
+													event.preventDefault();
+													setSubmenuIndex(index);
+												}
+											}}
+										>
+											{entry.icon ? <Icon name={entry.icon} size={20} /> : null}
+											<span className={styles.itemLabel}>{entry.label}</span>
+											{entry.detail ? (
+												<span className={styles.itemDetail}>
+													{entry.detail}
+												</span>
+											) : null}
+											<Icon name="chevron-right" size={20} />
+										</button>
+									) : (
+										<ActionItemButton
+											key={entry.label}
+											entry={entry}
+											onDone={() => close(true)}
+										/>
+									),
+								)
+							)}
 						</div>,
 						document.body,
 					)
 				: null}
 		</>
+	);
+}
+
+// 選ぶと実行する項目（選択肢なら、チェックの印つき）。
+function ActionItemButton({
+	entry,
+	onDone,
+}: {
+	entry: MenuActionItem;
+	onDone: () => void;
+}) {
+	const handleClick = () => {
+		if (entry.disabled) {
+			return;
+		}
+
+		onDone();
+		entry.onSelect();
+	};
+
+	if (entry.checked !== undefined) {
+		return (
+			<button
+				className={styles.item({ tone: entry.tone })}
+				type="button"
+				role="menuitemradio"
+				aria-checked={entry.checked}
+				aria-disabled={entry.disabled || undefined}
+				onClick={handleClick}
+			>
+				<span className={styles.checkSlot}>
+					{entry.checked ? <Icon name="check" size={20} /> : null}
+				</span>
+				{entry.label}
+			</button>
+		);
+	}
+
+	return (
+		<button
+			className={styles.item({ tone: entry.tone })}
+			type="button"
+			role="menuitem"
+			aria-disabled={entry.disabled || undefined}
+			onClick={handleClick}
+		>
+			{entry.icon ? <Icon name={entry.icon} size={20} /> : null}
+			{entry.label}
+		</button>
 	);
 }

@@ -9,11 +9,15 @@ import { Toggle } from "#/components/toggle/toggle";
 import { DishCoverView } from "#/features/dish-art/components/dish-cover-view";
 import type { RecipeDetail } from "../application/recipe-repository";
 import { findIngredientLinkTarget } from "../domain/ingredient-link-target";
-import { linkedRecipeRatio } from "../domain/link-ingredient-needs";
+import {
+	linkedRecipeBatchRatio,
+	linkedRecipeRatio,
+} from "../domain/link-ingredient-needs";
 import type { RecipeEditorIngredientNode } from "../domain/recipe-editor-document";
 import { type RecipeLinkView, stripLinkBrackets } from "../domain/recipe-links";
 import { scaleRecipeYieldText } from "../domain/recipe-yield";
 import { scaleIngredientAmountText } from "../domain/scale-amount";
+import { scaleWeightLabel, weightedRatio } from "../domain/scale-weight";
 import { RecipeText } from "./recipe-text";
 import * as styles from "./recipe-view.css";
 
@@ -93,6 +97,26 @@ function toIngredientBlocks(
 	return blocks;
 }
 
+// 割合を掛けた分量。量を変えているときだけ、通常でない増減のしかた（やや控えめ・固定など）を、小さく添える。
+function ScaledAmount({
+	node,
+	ratio,
+}: {
+	node: IngredientLeafNode;
+	ratio: number;
+}) {
+	const weightLabel = ratio === 1 ? null : scaleWeightLabel(node.scaleWeight);
+
+	return (
+		<span className={styles.amount}>
+			{scaleIngredientAmountText(node, ratio)}
+			{weightLabel ? (
+				<span className={styles.weightLabel}>{weightLabel}</span>
+			) : null}
+		</span>
+	);
+}
+
 // リンクの材料の行。名前の行を押すと、リンク先の材料を、その下に開閉する。右の矢印で、リンク先のプレビューを開く。
 // 上の段のリンクは、リンク先の色の箱に入れる。箱の中の、さらに深いリンクは、箱を重ねず、字下げだけで表す。
 function LinkedIngredient({
@@ -107,7 +131,13 @@ function LinkedIngredient({
 }) {
 	const [isOpen, setIsOpen] = useState(tree.depth <= initiallyOpenDepth);
 	// リンク先の分量に掛ける割合：このレシピの割合 × リンクの行の割合（半分・2人分など）。
-	const childRatio = tree.ratio * linkedRecipeRatio(node, recipe.yieldText);
+	// リンク先が「この分量で作る」なら、いつも1回分。
+	const childRatio = linkedRecipeBatchRatio(node, recipe, tree.ratio);
+	const isFixedBatch =
+		recipe.scalable === false &&
+		weightedRatio(tree.ratio, node.scaleWeight) *
+			linkedRecipeRatio(node, recipe.yieldText) !==
+			1;
 	const content = (
 		<>
 			<div className={styles.linkedHeader}>
@@ -121,9 +151,7 @@ function LinkedIngredient({
 					<span className={styles.linkedName}>
 						<RecipeText text={node.name} linkViews={linkViews} />
 					</span>
-					<span className={styles.amount}>
-						{scaleIngredientAmountText(node, tree.ratio)}
-					</span>
+					<ScaledAmount node={node} ratio={tree.ratio} />
 					<span className={styles.chevron} data-open={isOpen}>
 						<Icon name="chevron-down" size={20} />
 					</span>
@@ -146,6 +174,11 @@ function LinkedIngredient({
 			</div>
 			{isOpen ? (
 				<div className={styles.linkedChildren} data-indent={tree.nested}>
+					{isFixedBatch ? (
+						<p className={styles.fixedBatchNote}>
+							このレシピは、量を変えずに作ります（1回分）
+						</p>
+					) : null}
 					<IngredientList
 						nodes={recipe.ingredients}
 						linkViews={recipe.linkViews}
@@ -322,9 +355,7 @@ function IngredientItem({
 							<span className={styles.linkedNote}>（上で表示済み）</span>
 						) : null}
 					</span>
-					<span className={styles.amount}>
-						{scaleIngredientAmountText(node, tree.ratio)}
-					</span>
+					<ScaledAmount node={node} ratio={tree.ratio} />
 				</div>
 			)}
 		</li>
