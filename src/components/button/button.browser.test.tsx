@@ -112,3 +112,43 @@ it("失敗のときは、赤い印の形になる", async () => {
 		.poll(() => button().dataset.phase, { timeout: 3000 })
 		.toBe("error-expanded");
 });
+
+// シートのスクロール領域（overflow）の左端のボタンでも、理由の吹き出しが切り取られない。
+it("端のボタンの理由は、切り取る枠の内側に出る", async () => {
+	const reasonText = "通信できないため、いまは変更できません。";
+
+	await render(
+		<div id="frame" style={{ width: 320, overflow: "auto", paddingTop: 80 }}>
+			<div style={{ display: "flex", gap: 8 }}>
+				<Button fullWidth disabled disabledReason={reasonText}>
+					使った
+				</Button>
+				<Button fullWidth>買い足した</Button>
+			</div>
+		</div>,
+	);
+
+	button().click();
+
+	const findReason = () =>
+		Array.from(document.querySelectorAll("span")).find(
+			(element) => element.textContent === reasonText,
+		);
+
+	await expect.poll(findReason).toBeTruthy();
+
+	const reason = findReason();
+	const frame = document.getElementById("frame");
+
+	if (!reason || !frame) {
+		throw new Error("吹き出しか枠がありません");
+	}
+
+	// 出てくる動き（300ms ほど）が終わってから測る。
+	await expect
+		.poll(() => reason.getBoundingClientRect().left, { timeout: 2000 })
+		.toBeGreaterThanOrEqual(frame.getBoundingClientRect().left + 8 - 0.5);
+	expect(reason.getBoundingClientRect().right).toBeLessThanOrEqual(
+		frame.getBoundingClientRect().right,
+	);
+});

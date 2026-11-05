@@ -10,6 +10,7 @@ import {
 import { Mascot } from "../mascot/mascot";
 import type { ButtonSize, ButtonVariant } from "./button.css";
 import * as styles from "./button.css";
+import { findReasonBounds, getReasonShift } from "./reason-shift";
 import { type ButtonStatus, useButtonPhase } from "./use-button-phase";
 
 export type { ButtonSize, ButtonVariant } from "./button.css";
@@ -62,6 +63,7 @@ export function Button({
 	const phase = useButtonPhase(status);
 	const buttonRef = useRef<HTMLButtonElement>(null);
 	const textRef = useRef<HTMLSpanElement>(null);
+	const reasonRef = useRef<HTMLSpanElement>(null);
 	// 前の描画の status（変わった瞬間を知るため）。
 	// 表示されたときから、すでに完了・失敗だったものは、変わった瞬間ではないので、測らない（形を変えない）。
 	const lastStatusRef = useRef<ButtonStatus>(
@@ -99,6 +101,20 @@ export function Button({
 		);
 		return () => window.clearTimeout(timer);
 	}, [isReasonShown, explainsDisabled]);
+
+	// 理由を出したら、描く前に、切り取られない位置へずらす（端のボタンで、シートや画面の外にはみ出さないように）。
+	// 出すたびに作り直すので、測るときは、まだずらしていない位置。
+	useLayoutEffect(() => {
+		const bubble = reasonRef.current;
+		if (!isReasonShown || !bubble) {
+			return;
+		}
+		const shift = getReasonShift(
+			bubble.getBoundingClientRect(),
+			findReasonBounds(bubble),
+		);
+		bubble.style.setProperty("--reason-shift", `${shift}px`);
+	}, [isReasonShown]);
 
 	// 変形の開始前に、もとの大きさを測る。
 	// 状態（status）が変わった直後の描画では、まだ待機の形（横の余白がある）のまま。
@@ -229,7 +245,7 @@ export function Button({
 			</button>
 
 			{isReasonShown && disabledReason ? (
-				<span className={styles.reason} aria-hidden="true">
+				<span className={styles.reason} aria-hidden="true" ref={reasonRef}>
 					{disabledReason}
 				</span>
 			) : null}

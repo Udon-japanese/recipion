@@ -332,11 +332,18 @@ export const leadingIcon = style({
 });
 
 const reasonIn = keyframes({
-	from: { opacity: 0, transform: "translate(-50%, 4px)" },
-	to: { opacity: 1, transform: "translate(-50%, 0)" },
+	from: {
+		opacity: 0,
+		transform: "translate(calc(-50% + var(--reason-shift, 0px)), 4px)",
+	},
+	to: {
+		opacity: 1,
+		transform: "translate(calc(-50% + var(--reason-shift, 0px)), 0)",
+	},
 });
 
 // 無効のボタンを押したときだけ出る、短い理由。
+// 横の位置は、ボタンの真ん中。切り取られるときは、button.tsx が --reason-shift でずらす（reason-shift.ts）。
 export const reason = style({
 	position: "absolute",
 	left: "50%",
