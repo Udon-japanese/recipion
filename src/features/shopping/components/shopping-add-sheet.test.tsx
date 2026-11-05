@@ -104,4 +104,44 @@ describe("ShoppingAddSheet", () => {
 
 		expect(onClose).toHaveBeenCalledTimes(1);
 	});
+
+	it("追加できたら「追加しました」、できなければ失敗を、ボタンで伝える", async () => {
+		const user = userEvent.setup();
+		const { onAdd } = setup();
+
+		await user.type(screen.getByLabelText("買うもの"), "牛乳{Enter}");
+		expect(
+			await screen.findByText("追加しました", { selector: "output" }),
+		).toBeInTheDocument();
+
+		onAdd.mockResolvedValueOnce(false);
+		await user.type(screen.getByLabelText("買うもの"), "卵{Enter}");
+		expect(
+			await screen.findByText("失敗しました", { selector: "output" }),
+		).toBeInTheDocument();
+		// 入力は残る（直してやり直せる）。
+		expect(screen.getByLabelText("買うもの")).toHaveValue("卵");
+	});
+
+	it("追加の処理中に、もう一度押しても、追加は1回だけ", async () => {
+		const user = userEvent.setup();
+		const { onAdd } = setup();
+		let finish: (value: boolean) => void = () => {};
+
+		onAdd.mockImplementationOnce(
+			() =>
+				new Promise<boolean>((resolve) => {
+					finish = resolve;
+				}),
+		);
+
+		await user.type(screen.getByLabelText("買うもの"), "牛乳");
+		await user.click(screen.getByRole("button", { name: /^追加/u }));
+		await user.click(screen.getByRole("button", { name: /^追加/u }));
+		await user.keyboard("{Enter}");
+		finish(true);
+
+		expect(await screen.findByText(/牛乳 1/)).toBeInTheDocument();
+		expect(onAdd).toHaveBeenCalledTimes(1);
+	});
 });

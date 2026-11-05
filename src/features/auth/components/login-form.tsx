@@ -1,6 +1,7 @@
-import { type SubmitEvent, useEffect, useRef, useState } from "react";
+import { type SubmitEvent, useEffect, useState } from "react";
 import * as v from "valibot";
 import { Button } from "#/components/button/button";
+import { useButtonAction } from "#/components/button/use-button-action";
 import { Field, TextInput } from "#/components/field/field";
 import { Icon } from "#/components/icon/icon";
 import { Note } from "#/components/note/note";
@@ -48,15 +49,16 @@ export function LoginForm({ onLoggedIn, refetchSession }: LoginFormProps) {
 	const [captchaLoadFailed, setCaptchaLoadFailed] = useState(false);
 	const [captchaAttempt, setCaptchaAttempt] = useState(0);
 	const [cooldown, setCooldown] = useState(0);
-	const [isSubmitting, setIsSubmitting] = useState(false);
+	// コードの送信と確認の状態。成功すると、次の段階・画面へ移るので、見せるのは処理中と失敗だけ。
+	// どちらも、処理中の二度目の実行は止まる（6 桁が揃ったときの自動の確認と、ボタンが重なっても、1 回だけ）。
+	const sendAction = useButtonAction();
+	const verifyAction = useButtonAction();
+	const isSubmitting = sendAction.isPending || verifyAction.isPending;
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [notice, setNotice] = useState<string | null>(null);
 	// 再送：メールアドレスの段階に戻り、ボット判定が通ったら、そのまま送る。
 	// （ボット判定は、コードを送るときだけ要る。コードの段階では、回数の制限があるので、出さない）
 	const [isResending, setIsResending] = useState(false);
-
-	// 自動送信（6 桁が揃ったとき）と、ボタンの二重の送信を防ぐ。
-	const isVerifyingRef = useRef(false);
 
 	useEffect(() => {
 		if (cooldown <= 0) return;
@@ -92,70 +94,68 @@ export function LoginForm({ onLoggedIn, refetchSession }: LoginFormProps) {
 			return;
 		}
 
-		setIsSubmitting(true);
+		await sendAction.run(async () => {
+			try {
+				const result = await authClient.emailOtp.sendVerificationOtp(
+					{ email: parsedEmail.output, type: "sign-in" },
+					{ headers: { "x-captcha-response": captchaToken } },
+				);
 
-		try {
-			const result = await authClient.emailOtp.sendVerificationOtp(
-				{ email: parsedEmail.output, type: "sign-in" },
-				{ headers: { "x-captcha-response": captchaToken } },
-			);
+				if (result.error) {
+					setErrorMessage(getAuthErrorMessage(result.error));
 
-			if (result.error) {
-				setErrorMessage(getAuthErrorMessage(result.error));
+					return false;
+				}
 
-				return;
+				setEmail(parsedEmail.output);
+				setStep("code");
+				setDigits(createEmptyDigits(OTP_LENGTH));
+				setCooldown(OTP_RESEND_COOLDOWN_SECONDS);
+				setOtpFocusKey((current) => current + 1);
+				setNotice(
+					`${parsedEmail.output} に${OTP_LENGTH}桁のコードを送りました（${Math.floor(OTP_EXPIRES_IN_SECONDS / 60)}分間有効）。届かないときは、迷惑メールのフォルダも確認してください。`,
+				);
+			} catch {
+				setErrorMessage(getAuthErrorMessage(null));
+
+				return false;
+			} finally {
+				// Turnstile のトークンは、1 回しか使えない。送信のたびに作り直す。
+				setCaptchaToken(null);
+				setCaptchaResetKey((current) => current + 1);
 			}
-
-			setEmail(parsedEmail.output);
-			setStep("code");
-			setDigits(createEmptyDigits(OTP_LENGTH));
-			setCooldown(OTP_RESEND_COOLDOWN_SECONDS);
-			setOtpFocusKey((current) => current + 1);
-			setNotice(
-				`${parsedEmail.output} に${OTP_LENGTH}桁のコードを送りました（${Math.floor(OTP_EXPIRES_IN_SECONDS / 60)}分間有効）。届かないときは、迷惑メールのフォルダも確認してください。`,
-			);
-		} catch {
-			setErrorMessage(getAuthErrorMessage(null));
-		} finally {
-			setIsSubmitting(false);
-			// Turnstile のトークンは、1 回しか使えない。送信のたびに作り直す。
-			setCaptchaToken(null);
-			setCaptchaResetKey((current) => current + 1);
-		}
+		});
 	}
 
 	async function verifyCode(code: string) {
-		if (isVerifyingRef.current) return;
+		await verifyAction.run(async () => {
+			setErrorMessage(null);
 
-		isVerifyingRef.current = true;
-		setErrorMessage(null);
-		setIsSubmitting(true);
+			try {
+				const result = await authClient.signIn.emailOtp({ email, otp: code });
 
-		try {
-			const result = await authClient.signIn.emailOtp({ email, otp: code });
+				if (result.error) {
+					setErrorMessage(getAuthErrorMessage(result.error));
+					setDigits(createEmptyDigits(OTP_LENGTH));
+					setOtpFocusKey((current) => current + 1);
 
-			if (result.error) {
-				setErrorMessage(getAuthErrorMessage(result.error));
-				setDigits(createEmptyDigits(OTP_LENGTH));
-				setOtpFocusKey((current) => current + 1);
+					return false;
+				}
 
-				return;
+				// セッションを取り直すあいだも、コードの入力の画面のまま待つ（メールの入力に戻すと、ちらつく）。
+				await refetchSession();
+
+				// 画面が移動しないで、フォームが残る使い方のときだけ、初期の状態に戻す。
+				if (onLoggedIn) {
+					onLoggedIn();
+					resetToEmailStep();
+				}
+			} catch {
+				setErrorMessage(getAuthErrorMessage(null));
+
+				return false;
 			}
-
-			// セッションを取り直すあいだも、コードの入力の画面のまま待つ（メールの入力に戻すと、ちらつく）。
-			await refetchSession();
-
-			// 画面が移動しないで、フォームが残る使い方のときだけ、初期の状態に戻す。
-			if (onLoggedIn) {
-				onLoggedIn();
-				resetToEmailStep();
-			}
-		} catch {
-			setErrorMessage(getAuthErrorMessage(null));
-		} finally {
-			isVerifyingRef.current = false;
-			setIsSubmitting(false);
-		}
+		});
 	}
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: sendCode は、描画ごとに作り直す関数。トークンが届いたときだけ動かす。
@@ -236,8 +236,10 @@ export function LoginForm({ onLoggedIn, refetchSession }: LoginFormProps) {
 						type="submit"
 						size="lg"
 						fullWidth
-						status={isSubmitting || isResending ? "pending" : "idle"}
+						status={isResending ? "pending" : sendAction.status}
 						pendingLabel="送信中"
+						successLabel="送りました"
+						errorLabel="送れませんでした"
 						disabled={
 							email.trim() === "" ||
 							turnstileSiteKey === "" ||
@@ -283,8 +285,10 @@ export function LoginForm({ onLoggedIn, refetchSession }: LoginFormProps) {
 						type="submit"
 						size="lg"
 						fullWidth
-						status={isSubmitting ? "pending" : "idle"}
+						status={verifyAction.status}
 						pendingLabel="確認中"
+						successLabel="ログインしました"
+						errorLabel="ログインできませんでした"
 						disabled={!isComplete(digits)}
 					>
 						ログインする

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useButtonAction } from "#/components/button/use-button-action";
 import { Chip } from "#/components/chip/chip";
 import { CornerSheet } from "#/components/corner-sheet/corner-sheet";
 import { Field, TextInput } from "#/components/field/field";
@@ -145,7 +146,9 @@ export function ShoppingBranchConditionEditor({
 	const [part, setPart] = useState<ConditionPart | null>(
 		mode === "create" ? "name" : null,
 	);
-	const [isSaving, setIsSaving] = useState(false);
+	// 保存の状態。保存できたら閉じるので、見せるのは処理中と失敗だけ（失敗すると、開いたまま残る）。
+	const saveAction = useButtonAction();
+	const isSaving = saveAction.isPending;
 	// 材料の換算の入力（「変える」を押すまでは null）。
 	const [conversionEdit, setConversionEdit] = useState<ConversionEdit | null>(
 		null,
@@ -195,10 +198,8 @@ export function ShoppingBranchConditionEditor({
 			}
 		}
 
-		setIsSaving(true);
-
-		try {
-			await onSave(
+		await saveAction.run(() =>
+			onSave(
 				editedConversion
 					? { ...draft, presetConversion: editedConversion }
 					: draft,
@@ -207,10 +208,8 @@ export function ShoppingBranchConditionEditor({
 						isTracked &&
 						(editedConversion !== null || draft.presetConversion !== null),
 				},
-			);
-		} finally {
-			setIsSaving(false);
-		}
+			),
+		);
 	}
 
 	return (
@@ -230,7 +229,8 @@ export function ShoppingBranchConditionEditor({
 				label: isCreate ? "作る" : "保存",
 				icon: "check",
 				disabled: !isValid,
-				pending: isSaving,
+				status: saveAction.status,
+				errorLabel: "保存できませんでした",
 				onClick: () => void handleSave(),
 			}}
 		>

@@ -44,7 +44,7 @@ export function ConfirmDialog({
 				label: confirmLabel,
 				icon: danger ? "trash" : "check",
 				danger,
-				pending,
+				status: pending ? "pending" : "idle",
 				onClick: onConfirm,
 			}}
 		>

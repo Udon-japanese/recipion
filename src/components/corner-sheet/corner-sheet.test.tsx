@@ -1,6 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { BUTTON_TIMINGS } from "../button/use-button-phase";
 import { CornerSheet } from "./corner-sheet";
 
 function setup(onDismiss?: () => void) {
@@ -21,6 +22,10 @@ function setup(onDismiss?: () => void) {
 
 	return { onUndo, onClose };
 }
+
+afterEach(() => {
+	vi.useRealTimers();
+});
 
 describe("CornerSheet", () => {
 	it("左を省略すると、「元に戻す」は出ない", () => {
@@ -114,5 +119,73 @@ describe("CornerSheet", () => {
 
 		expect(onUndo).toHaveBeenCalledTimes(1);
 		expect(onClose).toHaveBeenCalledTimes(1);
+	});
+
+	it("カードの下のボタンは、状態を受け取り、処理中は押せず、失敗を伝える", async () => {
+		const user = userEvent.setup();
+		const onSave = vi.fn();
+		const sheet = (status: "idle" | "pending" | "error") => (
+			<CornerSheet
+				open
+				title="直す"
+				actions="inline"
+				right={{
+					label: "保存",
+					icon: "check",
+					status,
+					errorLabel: "保存できませんでした",
+					onClick: onSave,
+				}}
+			>
+				<p>本文</p>
+			</CornerSheet>
+		);
+		const { rerender } = render(sheet("idle"));
+
+		rerender(sheet("pending"));
+		const button = screen.getByRole("button", { name: /保存/u });
+		expect(button).toHaveAttribute("aria-busy", "true");
+		await user.click(button);
+		expect(onSave).not.toHaveBeenCalled();
+
+		rerender(sheet("error"));
+		expect(
+			await screen.findByText("保存できませんでした", { selector: "output" }),
+		).toBeInTheDocument();
+	});
+
+	it("スマホで右が結果を見せている間だけ、左はアイコンだけに縮み（押せるまま）、終われば戻る", () => {
+		vi.useFakeTimers();
+		const onDone = vi.fn();
+		const sheet = (status: "idle" | "success") => (
+			<CornerSheet
+				open
+				title="買うものを入れる"
+				actions="inline"
+				left={{ label: "閉じる", icon: "close", onClick: onDone }}
+				right={{ label: "追加", icon: "plus", status, onClick: vi.fn() }}
+			>
+				<p>本文</p>
+			</CornerSheet>
+		);
+		const { rerender } = render(sheet("idle"));
+		const done = () => screen.getByRole("button", { name: "閉じる" });
+
+		expect(done()).toHaveTextContent("閉じる");
+
+		rerender(sheet("success"));
+		act(() => {
+			vi.advanceTimersByTime(0);
+		});
+		expect(done()).not.toHaveTextContent("閉じる");
+		done().click();
+		expect(onDone).toHaveBeenCalledTimes(1);
+
+		act(() => {
+			vi.advanceTimersByTime(
+				BUTTON_TIMINGS.expandDelayMs + BUTTON_TIMINGS.successHoldMs,
+			);
+		});
+		expect(done()).toHaveTextContent("閉じる");
 	});
 });

@@ -522,4 +522,31 @@ describe("InventoryRegistrationPanel", () => {
 		).toBeVisible();
 		expect(await findAddedList()).toHaveTextContent("卵");
 	});
+
+	it("追加できたら「追加しました」、できなければ失敗を、ボタンで伝える", async () => {
+		const user = userEvent.setup();
+		const registerInventoryItem = vi
+			.fn()
+			.mockResolvedValueOnce({})
+			.mockRejectedValueOnce(new Error("network"));
+
+		render(
+			<Harness
+				registerInventoryItem={registerInventoryItem}
+				onRegistered={vi.fn()}
+			/>,
+		);
+
+		await user.type(screen.getByLabelText("食材名"), "塩");
+		await user.click(screen.getByRole("button", { name: /^追加/u }));
+		expect(
+			await screen.findByText("追加しました", { selector: "output" }),
+		).toBeInTheDocument();
+
+		await user.type(screen.getByLabelText("食材名"), "砂糖");
+		await user.click(screen.getByRole("button", { name: /^追加/u }));
+		expect(
+			await screen.findByText("失敗しました", { selector: "output" }),
+		).toBeInTheDocument();
+	});
 });

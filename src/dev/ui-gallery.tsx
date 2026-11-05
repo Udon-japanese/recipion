@@ -909,7 +909,7 @@ function SheetGallery() {
 				left={{
 					label: "元に戻す",
 					icon: "undo",
-					pending: cornerPending,
+					status: cornerPending ? "pending" : "idle",
 					onClick: () => {
 						setCornerPending(true);
 						void wait(3000).then(() => {

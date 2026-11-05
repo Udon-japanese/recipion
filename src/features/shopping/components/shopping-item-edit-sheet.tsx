@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useButtonAction } from "#/components/button/use-button-action";
 import { CornerSheet } from "#/components/corner-sheet/corner-sheet";
 import { Icon } from "#/components/icon/icon";
 import { formatQuantity } from "#/features/quantity/domain/format-quantity";
@@ -82,7 +83,9 @@ export function ShoppingItemEditSheet({
 		null,
 	);
 	const [conversionError, setConversionError] = useState<string>();
-	const [isSaving, setIsSaving] = useState(false);
+	// 保存の状態。保存できたら閉じるので、見せるのは処理中と失敗だけ（失敗すると、開いたまま残る）。
+	const saveAction = useButtonAction();
+	const isSaving = saveAction.isPending;
 	const [isNameMissing, setIsNameMissing] = useState(false);
 	// 換算を自分で決めた（換算の入力を直した、または「よく使う数量」のチップで選んだ）。
 	const isConversionEdited =
@@ -119,10 +122,8 @@ export function ShoppingItemEditSheet({
 			}
 		}
 
-		setIsSaving(true);
-
-		try {
-			await onSave(
+		await saveAction.run(() =>
+			onSave(
 				item,
 				{
 					name: draft.name,
@@ -138,10 +139,8 @@ export function ShoppingItemEditSheet({
 					storeId: draft.storeId,
 				},
 				{ isConversionEdited: isTracked && isConversionEdited },
-			);
-		} finally {
-			setIsSaving(false);
-		}
+			),
+		);
 	}
 
 	return (
@@ -161,7 +160,8 @@ export function ShoppingItemEditSheet({
 			right={{
 				label: "保存",
 				icon: "check",
-				pending: isSaving,
+				status: saveAction.status,
+				errorLabel: "保存できませんでした",
 				onClick: () => void handleSave(),
 			}}
 		>

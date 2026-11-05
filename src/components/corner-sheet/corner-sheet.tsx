@@ -1,6 +1,7 @@
 import { type ReactNode, useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "../button/button";
+import { type ButtonStatus, useButtonPhase } from "../button/use-button-phase";
 import { Icon } from "../icon/icon";
 import type { IconName } from "../icon/icon-definitions";
 import { Mascot } from "../mascot/mascot";
@@ -16,8 +17,12 @@ type CornerAction = {
 	icon: IconName;
 	onClick: () => void;
 	disabled?: boolean;
-	// 処理中（押せない。マスコットが跳ねる。読み上げには、処理中と伝える）。
-	pending?: boolean;
+	// 操作の状態。処理中は押せない（マスコットが跳ねる。読み上げには、処理中と伝える）。
+	// 完了・失敗の形は、カードの下のボタン（PC と、入力欄のあるシート）だけ。角のボタンは、処理中だけを見せる。
+	status?: ButtonStatus;
+	// 完了・失敗のときに、ボタンが広がって見せる文言。
+	successLabel?: string;
+	errorLabel?: string;
 	// 取り消せない操作（削除など）は、赤にする（右のボタンだけ）。
 	danger?: boolean;
 };
@@ -47,28 +52,30 @@ function Corner({
 	action: CornerAction;
 	side: "left" | "right";
 }) {
+	const pending = action.status === "pending";
+
 	return (
 		<button
 			type="button"
 			className={`${styles.corner} ${side === "left" ? styles.left : action.danger ? styles.rightDanger : styles.right}`}
-			disabled={action.disabled || action.pending}
-			aria-busy={action.pending || undefined}
+			disabled={action.disabled || pending}
+			aria-busy={pending || undefined}
 			aria-label={action.label}
 			onClick={action.onClick}
 		>
 			<span
-				className={`${styles.label} ${side === "left" ? styles.labelLeft : styles.labelRight} ${action.pending ? styles.labelPending : ""}`}
+				className={`${styles.label} ${side === "left" ? styles.labelLeft : styles.labelRight} ${pending ? styles.labelPending : ""}`}
 			>
 				<span
-					className={`${styles.mark} ${action.pending ? styles.markPending : ""} ${action.pending && side === "right" ? styles.markOnPrimary : ""}`}
+					className={`${styles.mark} ${pending ? styles.markPending : ""} ${pending && side === "right" ? styles.markOnPrimary : ""}`}
 				>
-					{action.pending ? (
+					{pending ? (
 						<Mascot size={22} motion="loop" roam={0.55} />
 					) : (
 						<Icon name={action.icon} size={24} />
 					)}
 				</span>
-				{action.pending ? null : action.label}
+				{pending ? null : action.label}
 			</span>
 		</button>
 	);
@@ -97,6 +104,11 @@ export function CornerSheet({
 	const cardRef = useRef<HTMLDivElement>(null);
 	const onDismissRef = useRef(onDismiss);
 	onDismissRef.current = onDismiss;
+	// 右のボタンが結果（追加しました・失敗しました）を見せている間（ボタンと同じ時間）。
+	// スマホでは、2つが半分ずつなので、そのあいだ左をアイコンだけに縮めて、右が広がる場所を空ける（左は押せるまま）。
+	const rightPhase = useButtonPhase(right.status ?? "idle");
+	const isLeftCompact =
+		!isDesktop && rightPhase !== "idle" && rightPhase !== "loading";
 
 	useBodyScrollLock(open);
 	useModalFocus(open, cardRef, portalRef);
@@ -173,14 +185,17 @@ export function CornerSheet({
 								<Button
 									variant="secondary"
 									size="lg"
-									fullWidth={!isDesktop}
+									fullWidth={!isDesktop && !isLeftCompact}
+									aria-label={isLeftCompact ? left.label : undefined}
 									leadingIcon={<Icon name={left.icon} size={20} />}
-									status={left.pending ? "pending" : "idle"}
+									status={left.status}
 									pendingLabel={left.label}
+									successLabel={left.successLabel}
+									errorLabel={left.errorLabel}
 									disabled={left.disabled}
 									onClick={left.onClick}
 								>
-									{left.label}
+									{isLeftCompact ? null : left.label}
 								</Button>
 							) : null}
 							<Button
@@ -188,8 +203,10 @@ export function CornerSheet({
 								size="lg"
 								fullWidth={!isDesktop}
 								leadingIcon={<Icon name={right.icon} size={20} />}
-								status={right.pending ? "pending" : "idle"}
+								status={right.status}
 								pendingLabel={right.label}
+								successLabel={right.successLabel}
+								errorLabel={right.errorLabel}
 								disabled={right.disabled}
 								onClick={right.onClick}
 								data-autofocus

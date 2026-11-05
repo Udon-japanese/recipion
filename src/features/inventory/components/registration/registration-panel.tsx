@@ -231,7 +231,9 @@ export function InventoryRegistrationPanel({
 			right={{
 				label: "追加",
 				icon: "plus",
-				pending: registration.isSubmitting,
+				// 追加しても閉じない（続けて登録する）ので、完了も見せる。
+				status: registration.submitAction.status,
+				successLabel: "追加しました",
 				onClick: registration.submitCurrent,
 			}}
 		>
