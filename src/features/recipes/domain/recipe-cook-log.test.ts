@@ -15,7 +15,7 @@ function entry(id: string, cookedAt: string): RecipeCookEntry {
 		recipeName: id,
 		publicId: id,
 		cover: null,
-		servings: 2,
+		yieldText: "2人分",
 		author: null,
 	};
 }

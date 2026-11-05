@@ -9,7 +9,7 @@ afterEach(cleanup);
 const recipe: RecipeDetail = {
 	publicId: "abc123",
 	name: "つくね",
-	servings: 2,
+	yieldText: "2人分",
 	note: "人数を変えるときはたれを調整する",
 	sourceUrl: "https://example.com/recipe/1",
 	links: [],
@@ -320,7 +320,7 @@ describe("RecipeView", () => {
 
 			await user.click(screen.getByRole("button", { name: "Aのレシピを見る" }));
 
-			expect(onOpenLink).toHaveBeenCalledWith("a", expect.anything());
+			expect(onOpenLink).toHaveBeenCalledWith("a", expect.anything(), 1);
 		});
 	});
 });
@@ -448,5 +448,67 @@ describe("RecipeView：材料のチェックリスト", () => {
 		expect(
 			screen.getByRole("checkbox", { name: "みりんをチェック" }),
 		).toBeChecked();
+	});
+
+	describe("人数を変えて見る（ratio）", () => {
+		function amountItem(
+			id: string,
+			name: string,
+			amountText: string,
+			quantity: number,
+			unitLabel: string,
+		) {
+			return {
+				type: "ingredient" as const,
+				status: "parsed" as const,
+				id,
+				name,
+				rawText: `${name} ${amountText}`,
+				amountText,
+				quantity,
+				unitLabel,
+			};
+		}
+
+		it("材料の分量と、見出しのできあがりの量に、割合を掛ける（範囲は、下限と上限に）", () => {
+			render(<RecipeView recipe={recipe} ratio={2} />);
+
+			expect(screen.getByText("4人分")).toBeInTheDocument();
+			expect(screen.getByText("大さじ3")).toBeInTheDocument();
+			expect(screen.getByText("120~140g")).toBeInTheDocument();
+		});
+
+		it("その場で開くリンク先の分量は、このレシピの割合 × リンクの行の割合", () => {
+			const dough: RecipeDetail = {
+				...recipe,
+				publicId: "dough",
+				name: "生地",
+				yieldText: "2人分",
+				note: "",
+				sourceUrl: null,
+				preparations: [],
+				instructions: [],
+				ingredients: [amountItem("d1", "薄力粉", "100g", 100, "g")],
+			};
+			const root: RecipeDetail = {
+				...recipe,
+				ingredients: [amountItem("r1", "[[生地]]", "1/2量", 0.5, "量")],
+				linkViews: [
+					{ label: "生地", target: { publicId: "dough", name: "生地" } },
+				],
+			};
+
+			const { unmount } = render(
+				<RecipeView recipe={root} linkedRecipes={{ dough }} />,
+			);
+
+			expect(screen.getByText("50g")).toBeInTheDocument();
+			unmount();
+
+			render(<RecipeView recipe={root} linkedRecipes={{ dough }} ratio={2} />);
+
+			expect(screen.getByText("100g")).toBeInTheDocument();
+			expect(screen.getByText("1量")).toBeInTheDocument();
+		});
 	});
 });

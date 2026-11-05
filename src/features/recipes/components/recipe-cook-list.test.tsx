@@ -28,7 +28,7 @@ function entry(
 		recipeName: `レシピ${id}`,
 		publicId: `pub-${id}`,
 		cover: null,
-		servings: 2,
+		yieldText: "2人分",
 		author: null,
 		...overrides,
 	};
@@ -52,7 +52,6 @@ describe("RecipeCookList", () => {
 						}),
 						entry("2", "2026-11-05T01:00:00.000Z", {
 							publicId: null,
-							servings: null,
 						}),
 						entry("3", "2026-11-03T10:00:00.000Z"),
 					],

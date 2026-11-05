@@ -7,6 +7,7 @@ import type {
 } from "./recipe-editor-document";
 import { findRecipeLimitViolation } from "./recipe-limits";
 import { isValidLinkLabel, maxLinksPerRecipe } from "./recipe-links";
+import { maxRecipeYieldLength } from "./recipe-yield";
 
 const requiredText = v.pipe(v.string(), v.trim(), v.minLength(1));
 const idSchema = requiredText;
@@ -47,7 +48,12 @@ const ingredientSchema: v.GenericSchema<RecipeEditorIngredientNode> = v.lazy(
 );
 const documentSchema = v.object({
 	name: requiredText,
-	servings: v.pipe(v.number(), v.finite(), v.gtValue(0)),
+	yieldText: v.pipe(
+		v.string(),
+		v.trim(),
+		v.minLength(1, "できあがりの量を入れてください"),
+		v.maxLength(maxRecipeYieldLength),
+	),
 	ingredients: v.pipe(v.array(ingredientSchema), v.maxLength(500)),
 	preparations: v.pipe(
 		v.array(v.object({ id: idSchema, text: requiredText })),

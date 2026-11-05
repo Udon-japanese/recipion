@@ -12,8 +12,8 @@ export type RecipeCookEntry = {
 	// いま開けるレシピの公開 ID（開けなければ null。一覧で、リンクにしない）。
 	publicId: string | null;
 	cover: DishPlacement[] | null;
-	// いま開けるレシピの、何人分（開けなければ null）。
-	servings: number | null;
+	// つくった量（「2人分」）。
+	yieldText: string;
 	// いま開ける、他の人のレシピの作者（自分のレシピと、開けないレシピは null）。
 	author: { name: string; handle: string; avatar: Avatar } | null;
 };

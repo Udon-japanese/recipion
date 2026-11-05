@@ -92,7 +92,7 @@ describe("BackupSettingsSection", () => {
 		).toBeInTheDocument();
 		expect(JSON.parse(contents)).toMatchObject({
 			format: "recipion-backup",
-			version: 1,
+			version: 2,
 			recipes: [{ publicId: "nikujaga" }],
 			inventory: [{ name: "卵" }],
 		});

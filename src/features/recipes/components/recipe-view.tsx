@@ -9,12 +9,20 @@ import { Toggle } from "#/components/toggle/toggle";
 import { DishCoverView } from "#/features/dish-art/components/dish-cover-view";
 import type { RecipeDetail } from "../application/recipe-repository";
 import { findIngredientLinkTarget } from "../domain/ingredient-link-target";
+import { linkedRecipeRatio } from "../domain/link-ingredient-needs";
 import type { RecipeEditorIngredientNode } from "../domain/recipe-editor-document";
 import { type RecipeLinkView, stripLinkBrackets } from "../domain/recipe-links";
+import { scaleRecipeYieldText } from "../domain/recipe-yield";
+import { scaleIngredientAmountText } from "../domain/scale-amount";
 import { RecipeText } from "./recipe-text";
 import * as styles from "./recipe-view.css";
 
-type OpenLink = (publicId: string, trigger: HTMLElement) => void;
+// ratio：リンク先の何回分を見せるか（材料のリンクの矢印から開くとき。本文のリンクは 1）。
+type OpenLink = (
+	publicId: string,
+	trigger: HTMLElement,
+	ratio?: number,
+) => void;
 
 // リンクのレシピを、材料の下に、その場で開く（2段目まで最初から開き、3段目からは、押して開く）。
 const initiallyOpenDepth = 2;
@@ -37,6 +45,8 @@ type IngredientTreeProps = {
 	onOpenLink?: OpenLink;
 	// 何段目のリンク先か（このレシピ自身は 0）。
 	depth: number;
+	// 分量に掛ける割合（人数を変えたとき・リンク先の何回分か）。
+	ratio: number;
 	// 表示している途中のレシピ（輪になっていないかを調べる）。
 	ancestors: readonly string[];
 	// リンク先の箱の中か。
@@ -96,6 +106,8 @@ function LinkedIngredient({
 	linkViews: readonly RecipeLinkView[];
 }) {
 	const [isOpen, setIsOpen] = useState(tree.depth <= initiallyOpenDepth);
+	// リンク先の分量に掛ける割合：このレシピの割合 × リンクの行の割合（半分・2人分など）。
+	const childRatio = tree.ratio * linkedRecipeRatio(node, recipe.yieldText);
 	const content = (
 		<>
 			<div className={styles.linkedHeader}>
@@ -109,7 +121,9 @@ function LinkedIngredient({
 					<span className={styles.linkedName}>
 						<RecipeText text={node.name} linkViews={linkViews} />
 					</span>
-					<span className={styles.amount}>{node.amountText}</span>
+					<span className={styles.amount}>
+						{scaleIngredientAmountText(node, tree.ratio)}
+					</span>
 					<span className={styles.chevron} data-open={isOpen}>
 						<Icon name="chevron-down" size={20} />
 					</span>
@@ -121,7 +135,11 @@ function LinkedIngredient({
 						tone="plain"
 						aria-haspopup="dialog"
 						onClick={(event) =>
-							tree.onOpenLink?.(recipe.publicId, event.currentTarget)
+							tree.onOpenLink?.(
+								recipe.publicId,
+								event.currentTarget,
+								childRatio,
+							)
 						}
 					/>
 				) : null}
@@ -132,6 +150,7 @@ function LinkedIngredient({
 						nodes={recipe.ingredients}
 						linkViews={recipe.linkViews}
 						{...tree}
+						ratio={childRatio}
 						nested
 						ancestors={[...tree.ancestors, recipe.publicId]}
 					/>
@@ -303,7 +322,9 @@ function IngredientItem({
 							<span className={styles.linkedNote}>（上で表示済み）</span>
 						) : null}
 					</span>
-					<span className={styles.amount}>{node.amountText}</span>
+					<span className={styles.amount}>
+						{scaleIngredientAmountText(node, tree.ratio)}
+					</span>
 				</div>
 			)}
 		</li>
@@ -313,13 +334,16 @@ function IngredientItem({
 function RecipeSection({
 	title,
 	titleNote,
+	titleControl,
 	action,
 	footer,
 	children,
 }: {
 	title: string;
-	// 見出しのすぐ横に、小さく添える文字（材料の人数など）。
+	// 見出しのすぐ横に、小さく添える文字（材料の、できあがりの量など）。
 	titleNote?: string;
+	// 見出しのすぐ横に置く操作（材料の量を変える）。あれば、titleNote の代わり。
+	titleControl?: ReactNode;
 	// 見出しの右に置くもの。
 	action?: ReactNode;
 	// カードの一番下に、線で区切って置くもの。
@@ -332,9 +356,10 @@ function RecipeSection({
 				<div className={styles.sectionHeader}>
 					<div className={styles.sectionTitleGroup}>
 						<h3 className={styles.sectionTitle}>{title}</h3>
-						{titleNote ? (
-							<span className={styles.sectionTitleNote}>{titleNote}</span>
-						) : null}
+						{titleControl ??
+							(titleNote ? (
+								<span className={styles.sectionTitleNote}>{titleNote}</span>
+							) : null)}
 					</div>
 					{action}
 				</div>
@@ -370,6 +395,10 @@ export type RecipeViewProps = {
 	compact?: boolean;
 	// 材料を、調理中のチェックリストで見られるようにする（レシピの詳細の画面）。初めは、ふつうの表示。
 	checklist?: boolean;
+	// 分量に掛ける割合（人数を変えたとき・プレビューでリンク先の何回分を見せるとき）。省略は 1。
+	ratio?: number;
+	// 材料の見出しの横に、量の文字の代わりに置くもの（量を変える操作）。
+	yieldControl?: ReactNode;
 };
 
 type RecipeTab = "prepare" | "cook";
@@ -393,6 +422,8 @@ export function RecipeView({
 	madeAction,
 	compact = false,
 	checklist: canUseChecklist = false,
+	ratio = 1,
+	yieldControl,
 }: RecipeViewProps) {
 	const [tab, setTab] = useState<RecipeTab>("prepare");
 	const [isChecklist, setIsChecklist] = useState(false);
@@ -478,7 +509,8 @@ export function RecipeView({
 							{hasIngredients ? (
 								<RecipeSection
 									title="材料"
-									titleNote={`${recipe.servings}人分`}
+									titleNote={scaleRecipeYieldText(recipe.yieldText, ratio)}
+									titleControl={yieldControl}
 									action={ingredientsAction}
 									footer={hasInstructions ? undefined : madeAction}
 								>
@@ -501,6 +533,7 @@ export function RecipeView({
 										onOpenLink={onOpenLink}
 										linkedRecipes={linkedRecipes}
 										depth={0}
+										ratio={ratio}
 										ancestors={[recipe.publicId]}
 										checklist={checklist}
 									/>

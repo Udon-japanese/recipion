@@ -20,8 +20,8 @@ type RecipeSummaryRowProps = {
 	thumbnailSeed: string;
 	cover: DishPlacement[] | null;
 	name: string;
-	// 何人分（分からなければ出さない）。
-	servings: number | null;
+	// できあがりの量（「2人分」「12個」。空なら出さない）。
+	yieldText: string | null;
 	// 他の人のレシピの作者（自分のレシピでは、なし）。
 	author?: { name: string; handle: string; avatar: Avatar } | null;
 	// 人数のあとに並べる、ほかの印（公開範囲など）。
@@ -34,7 +34,7 @@ export function RecipeSummaryRow({
 	thumbnailSeed,
 	cover,
 	name,
-	servings,
+	yieldText,
 	author,
 	extra,
 }: RecipeSummaryRowProps) {
@@ -55,7 +55,7 @@ export function RecipeSummaryRow({
 				<ListRowName>{name}</ListRowName>
 			)}
 			<ListRowMeta>
-				{servings === null ? null : <Tag>{servings}人分</Tag>}
+				{yieldText ? <Tag>{yieldText}</Tag> : null}
 				{extra}
 				{author ? (
 					<span className={styles.author}>

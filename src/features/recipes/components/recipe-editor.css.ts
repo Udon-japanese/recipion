@@ -95,7 +95,8 @@ export const metaRow = style({
 	gap: 12,
 });
 
-export const metaField = style({ width: 140 });
+// できあがりの量（「18cmのパウンド型1台」も入る幅）。
+export const metaField = style({ width: 240, maxWidth: "100%" });
 
 export const metaFieldWide = style({ flex: 1, minWidth: 220 });
 
@@ -538,3 +539,15 @@ export const previewSectionTitle = style({
 	fontSize: "var(--font-size-md)",
 	fontWeight: "var(--font-weight-bold)",
 });
+
+// できあがりの量：欄の幅いっぱいに広げる（文字が長くても入るように）。
+export const yieldStepper = style([
+	stepper,
+	{ display: "flex", width: "100%" },
+]);
+
+// できあがりの量の文字の欄（−／＋ の間）。
+export const yieldInput = style([
+	stepperInput,
+	{ flex: 1, minWidth: 0, width: "auto" },
+]);

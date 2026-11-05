@@ -42,6 +42,7 @@ import {
 } from "../domain/plan-shopping-from-recipe";
 import type { RecipeEditorIngredientNode } from "../domain/recipe-editor-document";
 import type { RecipeLinkView } from "../domain/recipe-links";
+import { scaleRecipeNeed } from "../domain/scale-recipe-need";
 import {
 	type SkippedReason,
 	summarizeConsumptionRows,
@@ -65,6 +66,8 @@ type RecipeConsumeSectionProps = {
 	undo: (
 		target: RecipeConsumptionUndoTarget,
 	) => Promise<UndoRecipeConsumptionResult>;
+	// 人数を変えたときの割合（材料・リンク先・できあがりに掛ける。省略は 1）。変えたら、作り直す（key）。
+	ratio?: number;
 	// 「つくった！」の記録（つくった一覧と、回数・最後の日）。sourceId は、在庫の操作と同じ印。
 	cookLog?: {
 		record: (sourceId: string) => Promise<void>;
@@ -75,9 +78,11 @@ type RecipeConsumeSectionProps = {
 	madeRecipe?: {
 		name: string;
 		defaultChecked: boolean;
+		// quantity：在庫に入れる回分（人数を変えたときは、その割合）。
 		produce: (input: {
 			sourceId: string;
 			transactionId: string;
+			quantity: number;
 		}) => Promise<void>;
 	};
 };
@@ -165,6 +170,7 @@ export function RecipeConsumeSection({
 	loadInventoryItems,
 	consume,
 	undo,
+	ratio = 1,
 	cookLog,
 	madeRecipe,
 }: RecipeConsumeSectionProps) {
@@ -204,7 +210,9 @@ export function RecipeConsumeSection({
 		madeUses: MadeRecipeUse[];
 		linkProblem: string | null;
 	}> {
-		const own = resolvedNeeds.filter((need) => !need.linkedRecipe);
+		const own = resolvedNeeds
+			.filter((need) => !need.linkedRecipe)
+			.map((need) => scaleRecipeNeed(need, ratio));
 
 		if (!loadLinkedRecipe || !resolvedNeeds.some((need) => need.linkedRecipe)) {
 			return {
@@ -221,6 +229,7 @@ export function RecipeConsumeSection({
 			resolvedNeeds,
 			loadLinkedRecipe,
 			useMadeStock ? collectMadeRecipeStock(stockItems) : new Map(),
+			ratio,
 		);
 
 		// 同じ食材の行は、1行にまとめる（引き算が1回になる）。
@@ -248,7 +257,7 @@ export function RecipeConsumeSection({
 		}
 
 		try {
-			await madeRecipe.produce({ sourceId, transactionId });
+			await madeRecipe.produce({ sourceId, transactionId, quantity: ratio });
 
 			return true;
 		} catch {
@@ -591,7 +600,7 @@ export function RecipeConsumeSection({
 								{outcome.production && madeRecipe ? (
 									<p className={styles.status}>
 										{outcome.production.isDone
-											? `${madeRecipe.name}：1回分を、在庫に入れました`
+											? `${madeRecipe.name}：${formatStockAmount(ratio, "count")}回分を、在庫に入れました`
 											: `${madeRecipe.name}：在庫に入れられませんでした`}
 									</p>
 								) : null}

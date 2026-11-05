@@ -108,7 +108,7 @@ export function PublicRecipeList({
 								thumbnailSeed={recipe.publicId}
 								cover={recipe.cover}
 								name={recipe.name}
-								servings={recipe.servings}
+								yieldText={recipe.yieldText}
 								author={{
 									name: recipe.authorName,
 									handle: recipe.authorHandle,

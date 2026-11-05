@@ -2,6 +2,7 @@ import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { IconButton } from "#/components/icon-button/icon-button";
 import { Note } from "#/components/note/note";
 import type { RecipeDetail } from "../application/recipe-repository";
+import { parseRecipeYield } from "../domain/recipe-yield";
 import { RecipeAuthorByline } from "./recipe-author-byline";
 import { RecipeDialog } from "./recipe-dialog";
 import * as styles from "./recipe-link-preview.css";
@@ -18,10 +19,12 @@ type LoadState =
 
 type RecipeLinkPreviewProps = {
 	initialPublicId: string;
+	// 最初のレシピの、何回分を見せるか（材料のリンクの矢印から開いたとき。省略は 1）。
+	initialRatio?: number;
 	// リンク先のレシピを取ってくる（見つからなければ null）。
 	loadRecipe: (publicId: string) => Promise<RecipeDetail | null>;
 	// 「レシピを開く」のリンク（画面の移動の方法は、呼び出し側が決める）。
-	renderOpenLink: (publicId: string) => ReactNode;
+	renderOpenLink: (publicId: string, wanted?: number) => ReactNode;
 	// 材料のリンク先を、まとめて取ってくる（材料の下に、その場で開く）。
 	loadLinkedRecipes?: LoadLinkedRecipes;
 	// 前もって取ってあるレシピ（あれば、読み込みを待たずに出す）。
@@ -29,16 +32,29 @@ type RecipeLinkPreviewProps = {
 	onClose: () => void;
 };
 
+// 開いた先で見せる、できあがりの数（増減できないレシピは、なし＝元の量で開く）。
+function wantedYieldQuantity(yieldText: string, ratio: number) {
+	const recipeYield = parseRecipeYield(yieldText);
+
+	return recipeYield
+		? Number((recipeYield.quantity * ratio).toFixed(3))
+		: undefined;
+}
+
 // リンクを押したときの、読み取り専用のプレビュー。中のリンクも押せる（枠の中身が、そのレシピに替わる。「戻る」で戻る）。
 export function RecipeLinkPreview({
 	initialPublicId,
+	initialRatio = 1,
 	loadRecipe,
 	renderOpenLink,
 	loadLinkedRecipes,
 	preloadedRecipes,
 	onClose,
 }: RecipeLinkPreviewProps) {
-	const [stack, setStack] = useState<string[]>([initialPublicId]);
+	// 開いたレシピの道すじ（それぞれ、何回分を見せるか）。
+	const [stack, setStack] = useState<{ publicId: string; ratio: number }[]>([
+		{ publicId: initialPublicId, ratio: initialRatio },
+	]);
 	const [states, setStates] = useState<Record<string, LoadState>>(() =>
 		Object.fromEntries(
 			Object.entries(preloadedRecipes ?? {}).map(
@@ -49,7 +65,11 @@ export function RecipeLinkPreview({
 			),
 		),
 	);
-	const current = stack.at(-1) ?? initialPublicId;
+	const currentEntry = stack.at(-1) ?? {
+		publicId: initialPublicId,
+		ratio: initialRatio,
+	};
+	const current = currentEntry.publicId;
 	const state: LoadState = states[current] ?? { status: "loading" };
 
 	const load = useCallback(
@@ -115,7 +135,12 @@ export function RecipeLinkPreview({
 				}
 			}}
 		>
-			{renderOpenLink(current)}
+			{renderOpenLink(
+				current,
+				state.status === "ready" && currentEntry.ratio !== 1
+					? wantedYieldQuantity(state.recipe.yieldText, currentEntry.ratio)
+					: undefined,
+			)}
 		</div>
 	);
 	const body = (
@@ -136,6 +161,7 @@ export function RecipeLinkPreview({
 					loadLinkedRecipes={loadLinkedRecipes}
 					preloadedLinkedRecipes={preloadedRecipes}
 					recipe={state.recipe}
+					ratio={currentEntry.ratio}
 					hideTitle
 					compact
 					badges={
@@ -146,8 +172,8 @@ export function RecipeLinkPreview({
 							/>
 						) : undefined
 					}
-					onOpenLink={(publicId) =>
-						setStack((currentStack) => [...currentStack, publicId])
+					onOpenLink={(publicId, _trigger, ratio = 1) =>
+						setStack((currentStack) => [...currentStack, { publicId, ratio }])
 					}
 				/>
 			) : null}

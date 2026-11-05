@@ -28,10 +28,12 @@ type RecipeShoppingSectionProps = {
 	shoppingRepository?: ShoppingRepository;
 	// 「ある」を押したとき、その食材を、在庫に「ある」で登録する（塩・醤油など）。
 	registerAvailable?: (ingredientName: string) => Promise<void>;
+	// 人数を変えたときの割合（省略は 1）。変えたら、作り直す（key）。
+	ratio?: number;
 };
 
 // レシピの参照画面で、材料を、在庫と比べて、足りないものを、買い物メモに入れる（材料の見出しの右に置く）。
-// 人数による量の調整はしない（レシピの量のまま）。
+// 人数を変えているときは、その割合で数える。
 export function RecipeShoppingSection({
 	ingredients,
 	linkViews,
@@ -40,6 +42,7 @@ export function RecipeShoppingSection({
 	loadInventoryItems,
 	shoppingRepository = dexieShoppingRepository,
 	registerAvailable,
+	ratio,
 }: RecipeShoppingSectionProps) {
 	const [isOpen, setIsOpen] = useState(false);
 	const plan = useRecipeShoppingPlan({
@@ -49,6 +52,7 @@ export function RecipeShoppingSection({
 		ownerScope,
 		loadInventoryItems,
 		shoppingRepository,
+		ratio,
 	});
 
 	if (plan.needsCount === 0) {

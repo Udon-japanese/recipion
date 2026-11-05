@@ -17,7 +17,7 @@ describe("createRecipeEditorDocument", () => {
 		const document = createRecipeEditorDocument(
 			{
 				name: " ハンバーグ ",
-				servings: 2,
+				yieldText: "2人分",
 				ingredientText: `
 					肉だね
 					豚ひき肉 200g
@@ -41,7 +41,7 @@ describe("createRecipeEditorDocument", () => {
 
 		expect(document).toEqual({
 			name: "ハンバーグ",
-			servings: 2,
+			yieldText: "2人分",
 			ingredients: [
 				expect.objectContaining({
 					id: "id-1",
@@ -112,7 +112,7 @@ describe("createRecipeEditorDocument", () => {
 		expect(createRecipeEditorDocument({}, createSequentialIdFactory())).toEqual(
 			{
 				name: "",
-				servings: 2,
+				yieldText: "2人分",
 				ingredients: [],
 				preparations: [],
 				instructions: [],

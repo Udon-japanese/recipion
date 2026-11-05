@@ -21,6 +21,11 @@ export const moderationTargets = {
 		label: "タイトル",
 		onFlag: "allow",
 	},
+	"recipe-yield": {
+		description: "レシピのできあがりの量（「4人分」「18cmの型1台」など）",
+		label: "できあがりの量",
+		onFlag: "allow",
+	},
 	"recipe-ingredient": {
 		description: "レシピの材料の名前・分量",
 		label: "材料",

@@ -19,11 +19,6 @@ function formatPositiveStorageNumber(
 	return formatted;
 }
 
-export function formatRecipeServings(value: number): string {
-	// recipe.servings: numeric(10, 3)
-	return formatPositiveStorageNumber(value, 3, 10_000_000, "基準人数");
-}
-
 export function formatRecipeIngredientQuantity(value: number): string {
 	// recipe_ingredient_node.quantity: numeric(18, 6)
 	// 浮動小数点数からの変換精度も考慮し、列の上限より小さく制限する。

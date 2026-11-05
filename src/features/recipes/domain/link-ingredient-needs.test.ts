@@ -77,15 +77,33 @@ describe("findMissingIngredientLinks", () => {
 });
 
 describe("linkedRecipeRatio", () => {
-	it("量・倍・単位なしは、その数。人分は、人数÷リンク先の人数。それ以外は1回分", () => {
-		expect(linkedRecipeRatio({ quantity: 0.5, unitLabel: "量" }, 4)).toBe(0.5);
-		expect(linkedRecipeRatio({ quantity: 2, unitLabel: "倍" }, 4)).toBe(2);
-		expect(
-			linkedRecipeRatio({ quantity: 1 / 3, unitLabel: null }, 4),
-		).toBeCloseTo(1 / 3);
-		expect(linkedRecipeRatio({ quantity: 2, unitLabel: "人分" }, 4)).toBe(0.5);
-		expect(linkedRecipeRatio({ quantity: 50, unitLabel: "g" }, 4)).toBe(1);
-		expect(linkedRecipeRatio({ quantity: null, unitLabel: null }, 4)).toBe(1);
-		expect(linkedRecipeRatio({ quantity: 2, unitLabel: "人分" }, 0)).toBe(1);
+	it.each([
+		["量", { quantity: 0.5, unitLabel: "量" }, "4人分", 0.5],
+		["倍", { quantity: 2, unitLabel: "倍" }, "4人分", 2],
+		["単位なしの分数", { quantity: 1 / 3, unitLabel: null }, "4人分", 1 / 3],
+		["人分÷リンク先の人数", { quantity: 2, unitLabel: "人分" }, "4人分", 0.5],
+		["個÷リンク先の個数", { quantity: 6, unitLabel: "個" }, "12個", 0.5],
+		[
+			"最後の「分」は比べない",
+			{ quantity: 3, unitLabel: "個" },
+			"12個分",
+			0.25,
+		],
+		["単位が違う", { quantity: 2, unitLabel: "人分" }, "12個", 1],
+		[
+			"リンク先が増減できない",
+			{ quantity: 2, unitLabel: "人分" },
+			"作りやすい分量",
+			1,
+		],
+		[
+			"g（リンク先の重さは分からない）",
+			{ quantity: 50, unitLabel: "g" },
+			"4人分",
+			1,
+		],
+		["数量なし（1回分）", { quantity: null, unitLabel: null }, "4人分", 1],
+	] as const)("%s", (_, need, targetYield, expected) => {
+		expect(linkedRecipeRatio(need, targetYield)).toBeCloseTo(expected);
 	});
 });

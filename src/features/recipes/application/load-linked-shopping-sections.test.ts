@@ -23,7 +23,7 @@ function recipe(
 ): RecipeDetail {
 	return {
 		name,
-		servings: 2,
+		yieldText: "2人分",
 		ingredients: names.map((n, index) => item(`${name}-${index}`, n)),
 		linkViews,
 	} as unknown as RecipeDetail;
@@ -119,7 +119,7 @@ describe("loadLinkedShoppingSections", () => {
 		const recipes: Record<string, RecipeDetail> = {
 			a: {
 				name: "A",
-				servings: 4,
+				yieldText: "4人分",
 				ingredients: [
 					measured("a-0", "醤油", 100, "ml"),
 					{
@@ -134,7 +134,7 @@ describe("loadLinkedShoppingSections", () => {
 			} as unknown as RecipeDetail,
 			b: {
 				name: "B",
-				servings: 2,
+				yieldText: "2人分",
 				ingredients: [measured("b-0", "酢", 40, "ml")],
 				linkViews: [],
 			} as unknown as RecipeDetail,
@@ -160,7 +160,7 @@ describe("loadLinkedShoppingSections", () => {
 	it("同じレシピに2回リンクしたときは、割合を足して、1つのまとまりにする", async () => {
 		const a = {
 			name: "A",
-			servings: 2,
+			yieldText: "2人分",
 			ingredients: [
 				{
 					...item("a-0", "醤油"),
@@ -198,7 +198,7 @@ describe("loadLinkedShoppingSections", () => {
 		});
 		const dressing = {
 			name: "和風ドレッシング",
-			servings: 2,
+			yieldText: "2人分",
 			ingredients: [measured("d-0", "醤油", 100)],
 			linkViews: [],
 		} as unknown as RecipeDetail;
@@ -257,6 +257,38 @@ describe("loadLinkedShoppingSections", () => {
 
 			expect(madeUses[0]?.quantity).toBe(0.5);
 			expect(sections[0]?.needs[0]?.quantity).toBe(50);
+		});
+	});
+
+	it("元のレシピの割合（人数の変更）を、分量のないリンクの行にも掛ける", async () => {
+		const sauce = {
+			name: "たれ",
+			yieldText: "2人分",
+			ingredients: [
+				{
+					type: "ingredient",
+					id: "s1",
+					status: "parsed",
+					rawText: "醤油 大さじ2",
+					name: "醤油",
+					amountText: "大さじ2",
+					quantity: 2,
+					unitLabel: "大さじ",
+				},
+			],
+			linkViews: [],
+		} as unknown as RecipeDetail;
+
+		const { sections } = await loadLinkedShoppingSections(
+			[linkNeed("sauce", "たれ")],
+			async () => sauce,
+			new Map(),
+			0.5,
+		);
+
+		expect(sections[0]?.needs[0]).toMatchObject({
+			quantity: 1,
+			amountText: "大さじ1",
 		});
 	});
 });

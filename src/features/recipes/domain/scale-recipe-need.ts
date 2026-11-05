@@ -1,11 +1,14 @@
-import { describeAmount, describeAmountRange } from "./merge-recipe-needs";
 import type { RecipeShoppingNeed } from "./plan-shopping-from-recipe";
+import {
+	describeScaledAmount,
+	describeScaledAmountRange,
+} from "./scale-amount";
 
 function round(value: number): number {
 	return Number(value.toFixed(6));
 }
 
-// 材料の分量を、割合（リンク先の何回分を使うか）で掛ける。範囲（60~70g）は、下限と上限を掛ける。
+// 材料の分量を、割合（人数の変更・リンク先の何回分を使うか）で掛ける。数量は丸めず、表記（amountText）だけを丸める。範囲（60~70g）は、下限と上限を掛ける。
 // 数量のない材料（適量など）は、そのまま。
 export function scaleRecipeNeed(
 	need: RecipeShoppingNeed,
@@ -28,7 +31,7 @@ export function scaleRecipeNeed(
 		return {
 			...need,
 			range,
-			amountText: describeAmountRange(range, need.unitLabel),
+			amountText: describeScaledAmountRange(range, need.unitLabel),
 		};
 	}
 
@@ -37,6 +40,6 @@ export function scaleRecipeNeed(
 	return {
 		...need,
 		quantity,
-		amountText: describeAmount(quantity, need.unitLabel),
+		amountText: describeScaledAmount(quantity, need.unitLabel),
 	};
 }

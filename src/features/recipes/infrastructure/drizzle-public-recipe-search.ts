@@ -61,7 +61,7 @@ export async function searchPublicRecipes(
 		.select({
 			publicId: recipe.publicId,
 			name: recipe.name,
-			servings: recipe.servings,
+			yieldText: recipe.yieldText,
 			cover: recipe.cover,
 			createdAtText: sql<string>`${recipe.createdAt}::text`,
 			createdAt: recipe.createdAt,
@@ -98,7 +98,7 @@ export async function searchPublicRecipes(
 		recipes: pageRows.map((row) => ({
 			publicId: row.publicId,
 			name: row.name,
-			servings: Number(row.servings),
+			yieldText: row.yieldText,
 			cover: parseDishCover(row.cover),
 			createdAt: row.createdAt.toISOString(),
 			authorName: row.authorName,

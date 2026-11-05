@@ -14,9 +14,11 @@ const stockMadeRecipeInputSchema = v.object({
 	transactionId: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(100)),
 	// 「作った」の操作の印（元に戻すで、引いた分といっしょに戻す）。
 	sourceId: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(200)),
+	// 入れる回分（人数を変えて作ったときは、その割合。0.5回分など）。
+	quantity: v.pipe(v.number(), v.finite(), v.gtValue(0), v.maxValue(100)),
 });
 
-// 「作った」で、できあがり（作り置き）を、1回分、在庫に入れる（入れるかどうかは、押すときに本人が決める）。自分のレシピだけ。
+// 「作った」で、できあがり（作り置き）を、quantity 回分、在庫に入れる（入れるかどうかは、押すときに本人が決める）。自分のレシピだけ。
 export const stockMadeRecipeServerFn = createServerFn({
 	method: "POST",
 })
@@ -33,7 +35,7 @@ export const stockMadeRecipeServerFn = createServerFn({
 			...(await repository.applyAdjustment({
 				transactionId: data.transactionId,
 				inventoryItemId,
-				inputQuantity: 1,
+				inputQuantity: data.quantity,
 				inputUnitCode: "count",
 				stockQuantityPerInputUnit: 1,
 				operation: "increase",

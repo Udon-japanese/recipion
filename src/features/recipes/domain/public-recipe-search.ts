@@ -5,7 +5,7 @@ import type { DishPlacement } from "#/features/dish-art/domain/dish-cover";
 export type PublicRecipeSummary = {
 	publicId: string;
 	name: string;
-	servings: number;
+	yieldText: string;
 	// 料理の絵（なければ、れしぽよの絵）。
 	cover: DishPlacement[] | null;
 	// 登録した日時（ISO 8601）。

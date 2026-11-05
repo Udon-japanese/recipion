@@ -28,10 +28,8 @@ export const recipe = pgTable(
 		// URL など外部に出す ID。内部の参照には id（UUID）を使う。
 		publicId: text("public_id").notNull(),
 		name: text("name").notNull(),
-		servings: numeric("servings", {
-			precision: 10,
-			scale: 3,
-		}).notNull(),
+		// できあがりの量（「4人分」「12個」「18cmの型1台」「作りやすい分量」）。最後の数を、人数の増減の基準にする（recipe-yield.ts）。
+		yieldText: text("yield_text").notNull(),
 		note: text("note").default("").notNull(),
 		// 引用元の URL（任意）。
 		sourceUrl: text("source_url"),
@@ -84,7 +82,10 @@ export const recipe = pgTable(
 			.on(table.createdAt.desc(), table.publicId.desc())
 			.where(sql`${table.visibility} = 'public'`),
 		check("recipe_name_nonempty", sql`length(trim(${table.name})) > 0`),
-		check("recipe_servings_positive", sql`${table.servings} > 0`),
+		check(
+			"recipe_yield_text_valid",
+			sql`char_length(trim(${table.yieldText})) BETWEEN 1 AND 30`,
+		),
 	],
 );
 
@@ -317,6 +318,8 @@ export const recipeCookLog = pgTable(
 			onDelete: "set null",
 		}),
 		recipeName: text("recipe_name").notNull(),
+		// つくった量（「2人分」。人数を変えて作ったときは、その量）。
+		yieldText: text("yield_text").notNull(),
 		sourceId: text("source_id").notNull(),
 		cookedAt: timestamp("cooked_at", { withTimezone: true })
 			.defaultNow()

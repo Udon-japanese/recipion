@@ -63,6 +63,8 @@ export async function loadLinkedShoppingSections(
 	needs: readonly RecipeShoppingNeed[],
 	loadRecipe: (publicId: string) => Promise<RecipeDetail | null>,
 	madeStock: ReadonlyMap<string, number> = new Map(),
+	// 元のレシピの人数を変えたときの割合（リンク先にも掛ける）。needs は、割合を掛ける前のもの。
+	ratio = 1,
 ): Promise<LinkedShoppingSections> {
 	const remainingMade = new Map(madeStock);
 	const madeUses = new Map<string, MadeRecipeUse>();
@@ -132,7 +134,7 @@ export async function loadLinkedShoppingSections(
 				entries.set(target.publicId, entry);
 			}
 
-			const wanted = scale * linkedRecipeRatio(need, entry.recipe.servings);
+			const wanted = scale * linkedRecipeRatio(need, entry.recipe.yieldText);
 
 			// 在庫のできあがりを先に使い、足りない分だけ、材料を展開する。
 			const available = remainingMade.get(target.publicId) ?? 0;
@@ -169,7 +171,7 @@ export async function loadLinkedShoppingSections(
 	await expand(
 		needs.filter((need) => need.linkedRecipe),
 		1,
-		1,
+		ratio,
 		new Set(),
 	);
 
