@@ -4,6 +4,13 @@ export const container = style({
 	display: "grid",
 	gap: 16,
 	minWidth: 0,
+	"@media": {
+		// スマホ：一番下まで送ったとき、最後の行の操作が、右下の＋（在庫に追加）に重ならないよう、
+		// その高さ（56）と間（16）の分を空ける（買い物メモと同じ考え方。PC は＋を出さないので空けない）。
+		"(max-width: 767px)": {
+			paddingBottom: 56 + 16,
+		},
+	},
 });
 
 export const header = style({
