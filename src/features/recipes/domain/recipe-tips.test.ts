@@ -9,12 +9,15 @@ describe("recipe-tips", () => {
 	it("使える機能の案内だけを返す", () => {
 		expect(
 			buildRecipeTips({ canLinkOwn: false, canLinkOthers: false }),
-		).toEqual(["材料名・食材名は、入力すると補完が出ます"]);
+		).toEqual([
+			"材料名・食材名は、入力すると補完が出ます",
+			"材料の「☆ソース」のような行の下はグループになり、--- の行でグループを終えられます",
+		]);
 		expect(
 			buildRecipeTips({ canLinkOwn: true, canLinkOthers: false }),
-		).toHaveLength(2);
+		).toHaveLength(3);
 		expect(
-			buildRecipeTips({ canLinkOwn: true, canLinkOthers: true })[1],
+			buildRecipeTips({ canLinkOwn: true, canLinkOthers: true })[2],
 		).toContain("[[@");
 	});
 

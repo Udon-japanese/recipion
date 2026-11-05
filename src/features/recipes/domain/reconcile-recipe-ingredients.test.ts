@@ -212,6 +212,56 @@ describe("reconcileRecipeIngredients", () => {
 		expect(rewritten.dismissed).toEqual([]);
 	});
 
+	// 同じ文字の行が、別のグループに1つずつ。プレビューで消したほうだけが消え、もう一方は残る。
+	describe("同じ文字の行が複数あるとき、消したほうの行だけを出さない", () => {
+		const text = "☆A\n塩 少々\n卵 1個\n☆B\n塩 少々\n牛乳 100ml";
+
+		it.each([
+			{
+				removedFrom: "☆A",
+				expected: [
+					["☆A", ["卵"]],
+					["☆B", ["塩", "牛乳"]],
+				],
+			},
+			{
+				removedFrom: "☆B",
+				expected: [
+					["☆A", ["塩", "卵"]],
+					["☆B", ["牛乳"]],
+				],
+			},
+		])("$removedFrom の塩を消したとき", ({ removedFrom, expected }) => {
+			const first = initialState(text);
+			const withDismissed: IngredientSyncState = {
+				...first,
+				nodes: first.nodes.map((node) =>
+					node.type === "group" && node.name === removedFrom
+						? {
+								...node,
+								children: node.children.filter((child) => child.name !== "塩"),
+							}
+						: node,
+				),
+				dismissed: ["塩 少々"],
+			};
+
+			// 本文のどこかを書き換えたとき（解析し直し）。
+			const result = reconcileRecipeIngredients(
+				withDismissed,
+				parseRecipeIngredients(`${text}\n`),
+			);
+
+			expect(
+				result.nodes.map((node) =>
+					node.type === "group"
+						? [node.name, node.children.map((child) => child.name)]
+						: node.name,
+				),
+			).toEqual(expected);
+		});
+	});
+
 	it("消したグループの材料は、グループ外に出る", () => {
 		const text = "☆ソース\nケチャップ 大さじ2";
 		const first = initialState(text);
@@ -226,6 +276,22 @@ describe("reconcileRecipeIngredients", () => {
 });
 
 describe("createIngredientSyncState", () => {
+	it("グループの後ろのグループ外の材料は、編集を開き直しても、グループ外のまま（最後のグループに入らない）", () => {
+		const document = createRecipeEditorDocument({
+			ingredientText: "☆ソース\nケチャップ 大さじ2\n---\n卵 1個",
+		});
+		const state = createIngredientSyncState(document.ingredients);
+		const text = formatIngredientText(document.ingredients);
+
+		expect(document.ingredients.map((node) => node.type)).toEqual([
+			"group",
+			"ingredient",
+		]);
+		expect(
+			reconcileRecipeIngredients(state, parseRecipeIngredients(text)).nodes,
+		).toEqual(document.ingredients);
+	});
+
 	it("保存済みの材料を、同じ文章に書き戻すと、ID も内容も変わらない", () => {
 		const document = createRecipeEditorDocument({
 			ingredientText: "卵 1個\n☆ソース\nケチャップ 大さじ2",

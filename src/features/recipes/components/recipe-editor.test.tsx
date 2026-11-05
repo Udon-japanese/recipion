@@ -79,6 +79,7 @@ describe("RecipeEditor", () => {
 
 		expect(onSave).toHaveBeenCalledWith(
 			expect.objectContaining({ stocksWhenMade: true }),
+			{ overwrite: false },
 		);
 	});
 
@@ -136,6 +137,7 @@ describe("RecipeEditor", () => {
 			expect(onSave).toHaveBeenCalledTimes(1);
 			expect(onSave).toHaveBeenCalledWith(
 				expect.objectContaining({ visibility: "public" }),
+				{ overwrite: false },
 			);
 		});
 
@@ -268,6 +270,7 @@ describe("RecipeEditor", () => {
 					}),
 				],
 			}),
+			{ overwrite: false },
 		);
 	});
 
@@ -298,6 +301,7 @@ describe("RecipeEditor", () => {
 
 		expect(onSave).toHaveBeenCalledWith(
 			expect.objectContaining({ ingredients: [] }),
+			{ overwrite: false },
 		);
 	});
 
@@ -337,6 +341,7 @@ describe("RecipeEditor", () => {
 					}),
 				],
 			}),
+			{ overwrite: false },
 		);
 	});
 
@@ -388,6 +393,7 @@ describe("RecipeEditor", () => {
 					}),
 				],
 			}),
+			{ overwrite: false },
 		);
 	});
 
@@ -459,6 +465,7 @@ describe("RecipeEditor", () => {
 					}),
 				],
 			}),
+			{ overwrite: false },
 		);
 	});
 
@@ -492,6 +499,7 @@ describe("RecipeEditor", () => {
 
 		expect(onSave).toHaveBeenCalledWith(
 			expect.objectContaining({ ingredients: [] }),
+			{ overwrite: false },
 		);
 	});
 
@@ -540,6 +548,7 @@ describe("RecipeEditor", () => {
 					expect.objectContaining({ type: "ingredient", name: "塩" }),
 				],
 			}),
+			{ overwrite: false },
 		);
 	});
 
@@ -666,7 +675,74 @@ describe("RecipeEditor", () => {
 		// 引用元URLは任意なので、未入力でも保存できる
 		expect(onSave).toHaveBeenCalledWith(
 			expect.objectContaining({ sourceUrl: null }),
+			{ overwrite: false },
 		);
+	});
+
+	describe("ほかの画面で、先に保存されていたとき", () => {
+		function setupConflict() {
+			const onSave = vi.fn(
+				async (
+					_document: RecipeEditorDocument,
+					options: { overwrite: boolean },
+				) => {
+					if (!options.overwrite) {
+						throw new Error("ほかの画面で、このレシピが保存されています");
+					}
+
+					return { publicId: "abc123" };
+				},
+			);
+			const onSaved = vi.fn();
+
+			render(<RecipeEditor onSave={onSave} onSaved={onSaved} />);
+
+			return { onSave, onSaved };
+		}
+
+		it("黙って上書きせず、確認を出す。やめると、保存せず、入力はそのまま残る", async () => {
+			const user = userEvent.setup();
+			const { onSave, onSaved } = setupConflict();
+
+			await enterTitle(user, "つくね");
+			await writeBody(user, "＜材料＞\n鶏ひき肉 200g");
+			await user.click(screen.getByRole("button", { name: "レシピを保存" }));
+
+			const dialog = await screen.findByRole("alertdialog", {
+				name: "ほかの画面で、このレシピが保存されています",
+			});
+
+			await user.click(within(dialog).getByRole("button", { name: "やめる" }));
+
+			expect(onSave).toHaveBeenCalledTimes(1);
+			expect(onSaved).not.toHaveBeenCalled();
+			expect(screen.getByRole("textbox", { name: "レシピの本文" })).toHaveValue(
+				"＜材料＞\n鶏ひき肉 200g",
+			);
+		});
+
+		it("「上書きして保存」を選ぶと、上書きで保存する", async () => {
+			const user = userEvent.setup();
+			const { onSave, onSaved } = setupConflict();
+
+			await enterTitle(user, "つくね");
+			await user.click(screen.getByRole("button", { name: "レシピを保存" }));
+			await user.click(
+				within(
+					await screen.findByRole("alertdialog", {
+						name: "ほかの画面で、このレシピが保存されています",
+					}),
+				).getByRole("button", { name: "上書きして保存" }),
+			);
+
+			await screen.findByText("保存しました", { selector: "output" });
+
+			expect(onSave).toHaveBeenLastCalledWith(
+				expect.objectContaining({ name: "つくね" }),
+				{ overwrite: true },
+			);
+			expect(onSaved).toHaveBeenCalledWith({ publicId: "abc123" });
+		});
 	});
 
 	it("引用元URLを入力して保存できる", async () => {
@@ -689,6 +765,7 @@ describe("RecipeEditor", () => {
 
 		expect(onSave).toHaveBeenCalledWith(
 			expect.objectContaining({ sourceUrl: "https://example.com/recipe/1" }),
+			{ overwrite: false },
 		);
 	});
 
@@ -1030,6 +1107,7 @@ describe("RecipeEditor", () => {
 					}),
 				],
 			}),
+			{ overwrite: false },
 		);
 	});
 

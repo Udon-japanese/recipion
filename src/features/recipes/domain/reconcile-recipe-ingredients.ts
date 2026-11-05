@@ -150,24 +150,6 @@ export function reconcileRecipeIngredients(
 		return true;
 	}
 
-	const visibleParsedNodes = parsedNodes.flatMap<ParsedRecipeIngredientNode>(
-		(node) => {
-			if (node.type === "ingredient") {
-				return takeDismissed(node.rawText) ? [] : [node];
-			}
-
-			const children = node.children.filter(
-				(child) => !takeDismissed(child.rawText),
-			);
-
-			if (takeDismissed(node.rawText)) {
-				return children;
-			}
-
-			return children.length > 0 ? [{ ...node, children }] : [];
-		},
-	);
-
 	const previousEntries = flatten(previous.nodes, null, []);
 	const entryById = new Map(
 		previousEntries.map((entry) => [entry.node.id, entry]),
@@ -187,6 +169,69 @@ export function reconcileRecipeIngredients(
 		}
 	}
 
+	// 前の材料の親（グループ）の元の行。グループ外は null。
+	function parentSourceOf(entry: PreviousEntry): string | null | undefined {
+		return entry.parentId === null
+			? null
+			: previous.sources.get(entry.parentId);
+	}
+
+	// 解析した材料の行ごとに、対応する前の材料（なければ undefined）。
+	const matchedEntries = new Map<ParsedRecipeIngredientNode, PreviousEntry>();
+
+	// 材料の行を、前の材料と対応づける。消した行の記録より先に、同じグループ（元の行が同じ見出し）にあった前の材料と対応させる。
+	// 同じ文字の行が複数あっても、残っている前の材料と対応しない行だけが「消した行」になる（別のグループの同じ行を、消さない）。
+	// 返り値は、出すかどうか。
+	function matchItem(
+		parsed: ParsedRecipeIngredientNode,
+		parentSource: string | null,
+	): boolean {
+		const queue = availableItems.get(parsed.rawText) ?? [];
+		const sameParent = queue.findIndex(
+			(entry) => parentSourceOf(entry) === parentSource,
+		);
+
+		if (sameParent >= 0) {
+			const [entry] = queue.splice(sameParent, 1);
+
+			if (entry) {
+				matchedEntries.set(parsed, entry);
+			}
+
+			return true;
+		}
+
+		if (takeDismissed(parsed.rawText)) {
+			return false;
+		}
+
+		const entry = queue.shift();
+
+		if (entry) {
+			matchedEntries.set(parsed, entry);
+		}
+
+		return true;
+	}
+
+	const visibleParsedNodes = parsedNodes.flatMap<ParsedRecipeIngredientNode>(
+		(node) => {
+			if (node.type === "ingredient") {
+				return matchItem(node, null) ? [node] : [];
+			}
+
+			const children = node.children.filter((child) =>
+				matchItem(child, node.rawText),
+			);
+
+			if (takeDismissed(node.rawText)) {
+				return children;
+			}
+
+			return children.length > 0 ? [{ ...node, children }] : [];
+		},
+	);
+
 	const sources = new Map<string, string>();
 	const edited = new Set<string>();
 	const usedGroupIds = new Set<string>();
@@ -196,7 +241,7 @@ export function reconcileRecipeIngredients(
 	function buildItem(
 		parsed: Extract<ParsedRecipeIngredientNode, { type: "ingredient" }>,
 	): RecipeEditorIngredientItem {
-		const entry = availableItems.get(parsed.rawText)?.shift();
+		const entry = matchedEntries.get(parsed);
 
 		if (entry?.node.type !== "ingredient") {
 			const id = createId();

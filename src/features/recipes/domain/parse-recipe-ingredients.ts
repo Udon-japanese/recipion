@@ -90,6 +90,14 @@ function resolveLines(lines: readonly string[]): ParsedRecipeIngredientItem[] {
 	return items;
 }
 
+// グループの終わりの行（「---」。ハイフン・長音・ダッシュなどを3つ以上）。これより後ろの材料は、グループに入れない。
+// 1つの「-」は、箇条書きの印として外すので、使わない。
+const groupEndPattern = /^[-‐−ー―─]{3,}$/u;
+
+export function isIngredientGroupEndLine(line: string): boolean {
+	return groupEndPattern.test(line.normalize("NFKC").trim());
+}
+
 // 「A」「B」「★」のように、ラベルだけの行。行ごとに繰り返されるため、同じ名前なら同じグループにまとめる。
 const groupLabelPattern = /^(?:[A-H1-9]|[☆★◎○●◆◇■□▲△])$/iu;
 
@@ -299,9 +307,19 @@ export function parseRecipeIngredients(
 		.split(/\r?\n/u)
 		.map((line) => line.trim())
 		.filter((line) => line.length > 0);
+	const plainLines = new Set(options.plainLines ?? []);
+	// グループの終わりの行で区切り、区切りごとに読む（グループは、区切りをまたがない）。
+	const chunks: string[][] = [[]];
 
-	return groupResolvedNodes(
-		groupPrefixedItems(resolveLines(lines)),
-		new Set(options.plainLines ?? []),
+	for (const line of lines) {
+		if (isIngredientGroupEndLine(line)) {
+			chunks.push([]);
+		} else {
+			chunks.at(-1)?.push(line);
+		}
+	}
+
+	return chunks.flatMap((chunk) =>
+		groupResolvedNodes(groupPrefixedItems(resolveLines(chunk)), plainLines),
 	);
 }

@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import * as v from "valibot";
 import { UserFacingError } from "#/errors/user-facing-error";
 import { prepareRecipeForStorage } from "#/features/recipes/application/prepare-recipe-for-storage";
+import { RECIPE_CHANGED_ELSEWHERE_MESSAGE } from "#/features/recipes/domain/recipe-revision";
 import { validateRecipeEditorDocument } from "#/features/recipes/domain/validate-recipe-editor-document";
 import { createDrizzleRecipeRepository } from "#/features/recipes/infrastructure/drizzle-recipe-repository";
 import { guardRecipePublication } from "#/features/recipes/server/guard-recipe-publication";
@@ -11,16 +12,22 @@ import { requireSession } from "#/integrations/better-auth/require-session";
 const updateRecipeInputSchema = v.object({
 	publicId: v.pipe(v.string(), v.maxLength(100)),
 	document: v.unknown(),
+	// 編集を開いたときの版。null は、ほかの画面で保存されていても、上書きする（本人が選んだとき）。
+	expectedRevision: v.nullable(v.pipe(v.string(), v.maxLength(40))),
 });
 
 export const updateRecipeServerFn = createServerFn({
 	method: "POST",
 })
 	.validator((input) => {
-		const { publicId, document } = v.parse(updateRecipeInputSchema, input);
+		const { publicId, document, expectedRevision } = v.parse(
+			updateRecipeInputSchema,
+			input,
+		);
 
 		return {
 			publicId,
+			expectedRevision,
 			recipe: prepareRecipeForStorage(validateRecipeEditorDocument(document)),
 		};
 	})
@@ -35,17 +42,22 @@ export const updateRecipeServerFn = createServerFn({
 			data.recipe.visibility,
 			data.publicId,
 		);
-		const updated = await repository.update(data.publicId, {
-			...data.recipe,
-			passphraseCipher,
-		});
+		const updated = await repository.update(
+			data.publicId,
+			{ ...data.recipe, passphraseCipher },
+			data.expectedRevision,
+		);
 
 		// 存在しない場合と、他のユーザーのレシピの場合は、どちらも同じ扱いにする。
 		if (!updated) {
 			throw new UserFacingError("レシピが見つかりません");
 		}
 
+		if (updated.status === "conflict") {
+			throw new UserFacingError(RECIPE_CHANGED_ELSEWHERE_MESSAGE);
+		}
+
 		await publication.recordFlag(updated.publicId);
 
-		return updated;
+		return { publicId: updated.publicId, revision: updated.revision };
 	});

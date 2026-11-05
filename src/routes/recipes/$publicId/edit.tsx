@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useRef } from "react";
 import { ButtonLink } from "#/components/button/button-link";
 import { pageTitle } from "#/config/app";
 import { RecipeEditor } from "#/features/recipes/components/recipe-editor";
@@ -55,7 +56,7 @@ export const Route = createFileRoute("/recipes/$publicId/edit")({
 	ssr: false,
 	// リンクできるレシピと、保存済みの本文のリンク先も、前もって取る（保存前の確認のプレビューで、すぐに出す）。
 	loader: async ({ params }) => {
-		const recipe = await loadRecipe(params.publicId);
+		const { recipe, revision } = await loadRecipe(params.publicId);
 		const linkTargetIds = collectRecipeLinkTargetIds(recipe).slice(
 			0,
 			maxPreloadedLinkTargets,
@@ -67,7 +68,7 @@ export const Route = createFileRoute("/recipes/$publicId/edit")({
 				: {},
 		]);
 
-		return { recipe, linkTargets, linkedRecipes };
+		return { recipe, revision, linkTargets, linkedRecipes };
 	},
 	head: ({ loaderData }) => ({
 		meta: [
@@ -93,8 +94,11 @@ function RecipeNotFound() {
 }
 
 function EditRecipePage() {
-	const { recipe, linkTargets, linkedRecipes } = Route.useLoaderData();
+	const { recipe, revision, linkTargets, linkedRecipes } =
+		Route.useLoaderData();
 	const navigate = useNavigate();
+	// 保存のたびに、新しい版に進める（保存に失敗して、この画面に残ったときも、次の保存で確かめられるように）。
+	const revisionRef = useRef(revision);
 
 	return (
 		<RecipeEditor
@@ -115,11 +119,19 @@ function EditRecipePage() {
 			missingLinkLabels={recipe.linkViews.flatMap((view) =>
 				view.target ? [] : [view.label],
 			)}
-			onSave={(document) =>
-				updateRecipeServerFn({
-					data: { publicId: recipe.publicId, document },
-				})
-			}
+			onSave={async (document, { overwrite }) => {
+				const saved = await updateRecipeServerFn({
+					data: {
+						publicId: recipe.publicId,
+						document,
+						expectedRevision: overwrite ? null : revisionRef.current,
+					},
+				});
+
+				revisionRef.current = saved.revision;
+
+				return saved;
+			}}
 			onSaved={() =>
 				void navigate({
 					to: "/recipes/$publicId",

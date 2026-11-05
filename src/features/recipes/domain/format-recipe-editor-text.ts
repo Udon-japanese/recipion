@@ -38,10 +38,14 @@ type FormattableIngredientNode =
 			children: readonly FormattableIngredientNode[];
 	  };
 
+// グループの終わりの行（グループの直後に、グループ外の材料が続くときに書く）。
+export const ingredientGroupEndLine = "---";
+
 export function formatIngredientText(
 	nodes: readonly FormattableIngredientNode[],
 ): string {
 	const lines: string[] = [];
+	let isInGroup = false;
 
 	for (const node of nodes) {
 		if (node.type === "group") {
@@ -49,7 +53,14 @@ export function formatIngredientText(
 			lines.push(
 				...node.children.map((child) => formatIngredientNodeLine(child)),
 			);
+			isInGroup = true;
 		} else {
+			// 書かないと、読み戻したときに、前のグループに入ってしまう。
+			if (isInGroup) {
+				lines.push(ingredientGroupEndLine);
+				isInGroup = false;
+			}
+
 			lines.push(formatIngredientLine(node));
 		}
 	}

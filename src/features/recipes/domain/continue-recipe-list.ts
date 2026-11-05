@@ -1,3 +1,5 @@
+import { isIngredientGroupEndLine } from "./parse-recipe-ingredients";
+
 // 番号（1. 1) 1、）か、中黒などの印で始まる行で Enter を押したとき、次の行にも印を付ける。
 const numberedPattern = /^(\s*)([0-9０-９]+)([.．)）、])(\s*)(.*)$/u;
 const bulletedPattern = /^(\s*)([・●◦•\-*])(\s*)(.*)$/u;
@@ -25,6 +27,11 @@ export function continueRecipeList(
 	let marker: string;
 	let nextMarker: string;
 	let content: string;
+
+	// 材料のグループの終わりの行（---）は、箇条書きではない。
+	if (isIngredientGroupEndLine(line)) {
+		return null;
+	}
 
 	const numbered = line.match(numberedPattern);
 	const bulleted = numbered ? null : line.match(bulletedPattern);
