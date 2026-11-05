@@ -1,4 +1,5 @@
 import {
+	Fragment,
 	type KeyboardEvent,
 	type PointerEvent,
 	type ReactNode,
@@ -11,6 +12,8 @@ import { TextInput } from "#/components/field/field";
 import { IconButton } from "#/components/icon-button/icon-button";
 import { SegmentedControl } from "#/components/segmented-control/segmented-control";
 import { useMediaQuery } from "#/components/use-media-query";
+import { ShortcutKeys } from "#/features/shortcuts/components/shortcut-keys";
+import type { ShortcutKey } from "#/features/shortcuts/domain/format-shortcut";
 import { type DishPlacement, dishCoverLimits } from "../domain/dish-cover";
 import { dishArtViewSize, findDishPart } from "../domain/dish-part";
 import {
@@ -27,10 +30,12 @@ import {
 import { type DishPreset, dishPresets } from "../domain/dish-preset";
 import {
 	addDishPart,
+	cycleDishPartSelection,
 	duplicateDishPart,
 	findDishPartAt,
 	flipDishPart,
 	moveDishPart,
+	moveDishPartToEdge,
 	nudgeDishPart,
 	removeDishPart,
 	reorderDishPart,
@@ -43,6 +48,37 @@ import {
 } from "../domain/edit-dish-art";
 import { DishArt, DishArtLayers, DishPartPreview } from "./dish-art";
 import * as styles from "./dish-art-editor.css";
+
+// 絵にフォーカスがあるときのキー操作の一覧（handleKeyDown と、戻す・進むのショートカット）。
+// 1行に、同じ種類の操作のキーを並べる（例：N と Shift+N）。表記は、OS ごとに ShortcutKeys が変える。
+const keyHelpItems: readonly {
+	keys: readonly (readonly ShortcutKey[])[];
+	action: string;
+}[] = [
+	{ keys: [["N"], ["shift", "N"]], action: "次・前の部品を選ぶ" },
+	{ keys: [["esc"]], action: "選ぶのをやめる" },
+	{ keys: [["up-down"], ["left-right"]], action: "動かす" },
+	{ keys: [["+"], ["-"]], action: "大きく・小さく" },
+	{ keys: [["R"], ["shift", "R"]], action: "90度回す（右・左）" },
+	{ keys: [["H"]], action: "左右を反転" },
+	{ keys: [["]"], ["["]], action: "1つ手前・1つ奥へ" },
+	{
+		keys: [
+			["shift", "]"],
+			["shift", "["],
+		],
+		action: "いちばん手前・いちばん奥へ",
+	},
+	{ keys: [["mod", "D"]], action: "複製" },
+	{ keys: [["delete"]], action: "消す" },
+	{
+		keys: [
+			["mod", "Z"],
+			["mod", "shift", "Z"],
+		],
+		action: "戻す・やり直す",
+	},
+];
 
 // 「セット」に並べる組み合わせ。background は、見本の地の色（アバターの背景など）。
 export type DishEditorPreset = DishPreset & { background?: string };
@@ -504,8 +540,37 @@ export function DishArtEditor({
 		}
 	}
 
+	// 絵にフォーカスがあるときのキー操作（入力欄やボタンでは効かない。一覧は、絵の下の「キー操作」）。
 	function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-		if (selected < 0 || event.metaKey || event.ctrlKey) return;
+		if (event.nativeEvent.isComposing) return;
+
+		// Cmd/Ctrl+D：複製（ブラウザのブックマークの追加は止める）。ほかの Cmd/Ctrl の組み合わせは、戻す・進む（document で受ける）など。
+		if (event.metaKey || event.ctrlKey) {
+			if (event.key.toLowerCase() === "d" && !event.shiftKey && !event.altKey) {
+				event.preventDefault();
+				duplicateSelected();
+			}
+
+			return;
+		}
+
+		if (event.altKey) return;
+
+		// N：次の部品を選ぶ。Shift+N：前の部品を選ぶ（選んでいなくても使える）。
+		if (event.key === "n" || event.key === "N") {
+			event.preventDefault();
+			setSelected(
+				cycleDishPartSelection(
+					placements.length,
+					selected,
+					event.shiftKey ? -1 : 1,
+				),
+			);
+
+			return;
+		}
+
+		if (selected < 0) return;
 
 		const arrows: Record<string, [-1 | 0 | 1, -1 | 0 | 1]> = {
 			ArrowLeft: [-1, 0],
@@ -518,18 +583,67 @@ export function DishArtEditor({
 		if (arrow) {
 			event.preventDefault();
 			commit(nudgeDishPart(placements, selected, arrow[0], arrow[1]));
+		} else if (event.key === "Escape") {
+			// 選択を外すだけ。外側（モーダル・シート）は閉じない。
+			event.preventDefault();
+			event.stopPropagation();
+			setSelected(-1);
 		} else if (event.key === "Delete" || event.key === "Backspace") {
 			event.preventDefault();
 			commit(removeDishPart(placements, selected));
 			setSelected(-1);
-		} else if (event.key === "+" || event.key === "=") {
+		} else if (event.key === "+" || (event.key === "=" && !event.shiftKey)) {
+			// 「=」は、US 配列の「+」のキー（Shift なし）。JIS 配列では Shift+「-」も「=」になるので、Shift つきは大きくしない。
 			commit(scaleDishPart(placements, selected, 1));
 		} else if (event.key === "-") {
 			commit(scaleDishPart(placements, selected, -1));
+		} else if (event.key === "]") {
+			event.preventDefault();
+			reorder(1);
+		} else if (event.key === "[") {
+			event.preventDefault();
+			reorder(-1);
+		} else if (event.key === "}") {
+			event.preventDefault();
+			moveToEdge("front");
+		} else if (event.key === "{") {
+			event.preventDefault();
+			moveToEdge("back");
+		} else if (event.key === "r" || event.key === "R") {
+			event.preventDefault();
+			commit(turnDishPart(placements, selected, event.shiftKey ? -90 : 90));
+		} else if (event.key === "h" || event.key === "H") {
+			event.preventDefault();
+			commit(flipDishPart(placements, selected));
 		}
 	}
 
+	function duplicateSelected() {
+		if (!placements[selected] || placements.length >= maxParts) return;
+
+		const next = duplicateDishPart(placements, selected, maxParts);
+
+		commit(next);
+		setSelected(next.length - 1);
+	}
+
+	// いちばん手前・奥へ（もう端にあるときは、戻す用の記録を積まない）。
+	function moveToEdge(edge: "front" | "back") {
+		const atEdge =
+			edge === "front" ? selected >= placements.length - 1 : selected <= 0;
+
+		if (atEdge) return;
+
+		const result = moveDishPartToEdge(placements, selected, edge);
+
+		commit(result.placements);
+		setSelected(result.selected);
+	}
+
 	function reorder(direction: 1 | -1) {
+		// もう端にあるときは、戻す用の記録を積まない（キーで押し続けたとき）。
+		if (!placements[selected + direction]) return;
+
 		const result = reorderDishPart(placements, selected, direction);
 
 		commit(result.placements);
@@ -770,7 +884,7 @@ export function DishArtEditor({
 				<div
 					className={styles.canvasFrame}
 					role="application"
-					aria-label={`${label}部品を触って動かせます。矢印キーで動かし、プラスとマイナスで大きさを変え、Delete で消します。`}
+					aria-label={`${label}部品を触って動かせます。N で部品を選び、矢印キーで動かし、プラスとマイナスで大きさを変え、Delete で消します。ほかのキーは、絵の下の「キー操作」にあります。`}
 					// biome-ignore lint/a11y/noNoninteractiveTabindex: 矢印キーで部品を動かす編集面なので、キーボードの対象にする
 					tabIndex={0}
 					onKeyDown={handleKeyDown}
@@ -804,6 +918,28 @@ export function DishArtEditor({
 					</svg>
 				</div>
 
+				{isCoarsePointer ? null : (
+					// キー操作の一覧（マウスの端末だけ。指の端末は、キーボードを使わないので出さない）。
+					<details className={styles.keyHelp}>
+						<summary className={styles.keyHelpSummary}>キー操作</summary>
+						<dl className={styles.keyList}>
+							{keyHelpItems.map(({ keys, action }) => (
+								<div className={styles.keyRow} key={action}>
+									<dt className={styles.keyName}>
+										{keys.map((combo, index) => (
+											<Fragment key={combo.join("+")}>
+												{index > 0 ? " / " : null}
+												<ShortcutKeys keys={combo} />
+											</Fragment>
+										))}
+									</dt>
+									<dd className={styles.keyAction}>{action}</dd>
+								</div>
+							))}
+						</dl>
+					</details>
+				)}
+
 				<div className={styles.group}>
 					<h3 className={styles.groupTitle}>
 						{selectedPart ? `${selectedPart.label}を調整` : "選んだ部品を調整"}
@@ -831,12 +967,7 @@ export function DishArtEditor({
 							tone="accent"
 							label="複製"
 							disabled={!selectedPlacement}
-							onClick={() => {
-								const next = duplicateDishPart(placements, selected, maxParts);
-
-								commit(next);
-								setSelected(next.length - 1);
-							}}
+							onClick={duplicateSelected}
 						/>
 						<IconButton
 							size="std"

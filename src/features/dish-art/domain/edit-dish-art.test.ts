@@ -4,9 +4,11 @@ import { dishParts } from "./dish-part";
 import { dishPartCategories, inventoryOnlyPartIds } from "./dish-part-category";
 import {
 	addDishPart,
+	cycleDishPartSelection,
 	duplicateDishPart,
 	findDishPartAt,
 	moveDishPart,
+	moveDishPartToEdge,
 	reorderDishPart,
 	rotateDishPart,
 	scaleDishPart,
@@ -151,5 +153,105 @@ describe("turnDishPart / snapRotation", () => {
 		expect(snapRotation(87)).toBe(90);
 		expect(snapRotation(-93)).toBe(-90);
 		expect(snapRotation(40)).toBe(40);
+	});
+});
+
+describe("moveDishPartToEdge", () => {
+	const natto: DishPlacement = { partId: "natto", x: 30, y: 30, scale: 0.5 };
+
+	it.each([
+		{
+			title: "間 → 手前",
+			index: 1,
+			edge: "front" as const,
+			order: [rice, natto, tofu],
+			selected: 2,
+		},
+		{
+			title: "間 → 奥",
+			index: 1,
+			edge: "back" as const,
+			order: [tofu, rice, natto],
+			selected: 0,
+		},
+		{
+			title: "奥 → 手前",
+			index: 0,
+			edge: "front" as const,
+			order: [tofu, natto, rice],
+			selected: 2,
+		},
+		{
+			title: "すでに手前",
+			index: 2,
+			edge: "front" as const,
+			order: [rice, tofu, natto],
+			selected: 2,
+		},
+	])("$title", ({ index, edge, order, selected }) => {
+		expect(moveDishPartToEdge([rice, tofu, natto], index, edge)).toEqual({
+			placements: order,
+			selected,
+		});
+	});
+
+	it("1つだけ・番号が範囲の外なら、並びは変えない", () => {
+		expect(moveDishPartToEdge([rice], 0, "back")).toEqual({
+			placements: [rice],
+			selected: 0,
+		});
+		expect(moveDishPartToEdge([rice], 3, "front")).toEqual({
+			placements: [rice],
+			selected: 3,
+		});
+	});
+});
+
+describe("cycleDishPartSelection", () => {
+	it.each([
+		{
+			title: "未選択で次 → いちばん奥",
+			count: 3,
+			selected: -1,
+			direction: 1 as const,
+			expected: 0,
+		},
+		{
+			title: "未選択で前 → いちばん手前",
+			count: 3,
+			selected: -1,
+			direction: -1 as const,
+			expected: 2,
+		},
+		{
+			title: "次へ",
+			count: 3,
+			selected: 0,
+			direction: 1 as const,
+			expected: 1,
+		},
+		{
+			title: "手前の端の次 → 奥へ戻る",
+			count: 3,
+			selected: 2,
+			direction: 1 as const,
+			expected: 0,
+		},
+		{
+			title: "奥の端の前 → 手前へ戻る",
+			count: 3,
+			selected: 0,
+			direction: -1 as const,
+			expected: 2,
+		},
+		{
+			title: "部品がない",
+			count: 0,
+			selected: -1,
+			direction: 1 as const,
+			expected: -1,
+		},
+	])("$title", ({ count, selected, direction, expected }) => {
+		expect(cycleDishPartSelection(count, selected, direction)).toBe(expected);
 	});
 });

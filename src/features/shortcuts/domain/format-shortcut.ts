@@ -17,6 +17,8 @@ export type NamedShortcutKey =
 	| "tab"
 	| "enter"
 	| "esc"
+	// 消すキー。Mac のキーボードの「delete」は、Windows の BackSpace の位置（どちらも、アプリでは消すキーとして扱う）。
+	| "delete"
 	| "up"
 	| "down"
 	| "left"
@@ -38,6 +40,7 @@ const appleLabels: Record<string, KeyLabels> = {
 	tab: { name: "Tab", symbol: "⇥" }, // ⇥
 	enter: { name: "Return", symbol: "↩" }, // ↩
 	esc: { name: "Esc", symbol: "⎋" }, // ⎋
+	delete: { name: "Delete", symbol: "⌫" }, // ⌫
 };
 
 const otherLabels: Record<string, string> = {
@@ -48,6 +51,7 @@ const otherLabels: Record<string, string> = {
 	tab: "Tab",
 	enter: "Enter",
 	esc: "Esc",
+	delete: "Delete",
 };
 
 // 矢印は、どの OS でも同じ（↑ ↑、↓ ↓、← ←、→ →）。

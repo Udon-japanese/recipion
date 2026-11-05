@@ -216,6 +216,43 @@ export function reorderDishPart(
 	return { placements: result, selected: next };
 }
 
+// 重なり順を、いちばん手前（front）か、いちばん奥（back）へ動かす。動かしたあとの番号は `selected` で返す。
+export function moveDishPartToEdge(
+	placements: readonly DishPlacement[],
+	index: number,
+	edge: "front" | "back",
+): { placements: DishPlacement[]; selected: number } {
+	const target = placements[index];
+
+	if (!target) {
+		return { placements: [...placements], selected: index };
+	}
+
+	const rest = placements.filter((_, current) => current !== index);
+
+	return edge === "front"
+		? { placements: [...rest, target], selected: rest.length }
+		: { placements: [target, ...rest], selected: 0 };
+}
+
+// キーで部品を選ぶ順（奥から手前へ。端まで行ったら反対の端へ戻る）。
+// 選んでいないときは、次（1）ならいちばん奥、前（-1）ならいちばん手前。部品がなければ -1。
+export function cycleDishPartSelection(
+	count: number,
+	selected: number,
+	direction: 1 | -1,
+): number {
+	if (count <= 0) {
+		return -1;
+	}
+
+	if (selected < 0 || selected >= count) {
+		return direction === 1 ? 0 : count - 1;
+	}
+
+	return (selected + direction + count) % count;
+}
+
 // 触れた点にいちばん手前で重なっている部品の番号（なければ -1）。
 // 部品の範囲が分かるときは、その範囲で。分からないときは、等倍で約 60 を目安にした円で近似する。
 export function findDishPartAt(

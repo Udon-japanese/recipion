@@ -286,3 +286,37 @@ export const sheetFooter = style({
 	gap: 12,
 	width: "100%",
 });
+
+// キー操作の一覧（たたんでおき、開くと表）。
+export const keyHelp = style({
+	width: "min(100%, 340px)",
+	fontSize: "var(--font-size-sm)",
+	color: "var(--color-text)",
+	"@media": { [wide]: { width: "min(100%, 520px)" } },
+});
+
+export const keyHelpSummary = style({
+	cursor: "pointer",
+	color: "var(--color-text-muted)",
+	fontWeight: "var(--font-weight-bold)",
+});
+
+export const keyList = style({
+	display: "grid",
+	gap: 6,
+	margin: "10px 0 0",
+});
+
+export const keyRow = style({
+	display: "grid",
+	gridTemplateColumns: "minmax(0, 11em) minmax(0, 1fr)",
+	gap: 12,
+});
+
+export const keyName = style({
+	fontWeight: "var(--font-weight-bold)",
+});
+
+export const keyAction = style({
+	margin: 0,
+});
