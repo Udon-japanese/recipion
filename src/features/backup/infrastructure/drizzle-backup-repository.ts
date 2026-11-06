@@ -16,6 +16,7 @@ import {
 	parseRecipeVisibility,
 } from "#/features/recipes/domain/recipe-link-permission";
 import type { RecipeLinkReference } from "#/features/recipes/domain/recipe-links";
+import { parseRecipeSnapshot } from "#/features/recipes/domain/recipe-snapshot";
 import {
 	createDrizzleRecipeRepository,
 	loadRecipeDetail,
@@ -28,7 +29,11 @@ import {
 	type InventoryReplacePlan,
 	planInventoryReplace,
 } from "../application/plan-inventory-replace";
-import type { BackupInventoryItem, BackupRecipe } from "../domain/backup-file";
+import type {
+	BackupInventoryItem,
+	BackupRecipe,
+	BackupRecipeParent,
+} from "../domain/backup-file";
 import type { PublicIdOwner } from "../domain/plan-recipe-import";
 
 // 1回に書き込む行の数（SQL のパラメーターの上限に、かからないように）。
@@ -63,16 +68,42 @@ export function createDrizzleBackupRepository(db: DB, userId: string) {
 				.orderBy(asc(recipe.createdAt), asc(recipe.id))
 				.offset(offset)
 				.limit(limit);
+			// 継承したレシピの、親の公開 ID（親がもうなければ、なし）。
+			const parentIds = rows.flatMap((row) =>
+				row.parentRecipeId === null ? [] : [row.parentRecipeId],
+			);
+			const parents =
+				parentIds.length === 0
+					? []
+					: await db
+							.select({ id: recipe.id, publicId: recipe.publicId })
+							.from(recipe)
+							.where(inArray(recipe.id, parentIds));
+			const parentPublicIdById = new Map(
+				parents.map((parent) => [parent.id, parent.publicId]),
+			);
 
 			return Promise.all(
-				rows.map(async (row) => {
+				rows.map(async (row): Promise<BackupRecipe> => {
 					const { publicId, author, linkViews, ...content } =
 						await loadRecipeDetail(db, row, userId);
+					const snapshot = parseRecipeSnapshot(row.parentSnapshot);
 
 					return {
 						publicId,
 						createdAt: row.createdAt.toISOString(),
 						content,
+						...(snapshot
+							? {
+									parent: {
+										publicId:
+											row.parentRecipeId === null
+												? null
+												: (parentPublicIdById.get(row.parentRecipeId) ?? null),
+										snapshot,
+									},
+								}
+							: {}),
 					};
 				}),
 			);
@@ -158,6 +189,55 @@ export function createDrizzleBackupRepository(db: DB, userId: string) {
 
 		// 自分のレシピのリンクを、付けられるものだけで置き換える（見つからない・リンクできない相手は、捨てる）。
 		// 本文の [[ラベル]] は残るので、捨てたリンクは「見つからないレシピ」と表示される。
+		// 読み込んだレシピに、もとにしたレシピを付け直す（自分のレシピだけ）。
+		// 親に付けられるのは、自分のレシピか、全体公開のレシピ（「もとにして作る」と同じ）。付けられなければ、
+		// 親なし・写しありにする（「（見つからないレシピ）をもとに」と表示される）。付けたら true。
+		async attachRecipeParent(
+			publicId: string,
+			parent: BackupRecipeParent,
+		): Promise<boolean> {
+			const [owned] = await db
+				.select({ id: recipe.id })
+				.from(recipe)
+				.where(and(eq(recipe.publicId, publicId), eq(recipe.userId, userId)));
+
+			if (!owned) {
+				return false;
+			}
+
+			const [found] =
+				parent.publicId === null
+					? []
+					: await db
+							.select({
+								id: recipe.id,
+								userId: recipe.userId,
+								visibility: recipe.visibility,
+							})
+							.from(recipe)
+							.where(eq(recipe.publicId, parent.publicId))
+							.limit(1);
+			const parentRecipeId =
+				found &&
+				found.id !== owned.id &&
+				(found.userId === userId ||
+					parseRecipeVisibility(found.visibility) === "public")
+					? found.id
+					: null;
+
+			await db
+				.update(recipe)
+				.set({
+					parentRecipeId,
+					parentSnapshot: parent.snapshot,
+					// 中身は変えないので、更新日時（画面の「更新」と、同時編集の版）は、そのまま。
+					updatedAt: sql`${recipe.updatedAt}`,
+				})
+				.where(eq(recipe.id, owned.id));
+
+			return parentRecipeId !== null;
+		},
+
 		async replaceRecipeLinks(
 			publicId: string,
 			links: readonly RecipeLinkReference[],

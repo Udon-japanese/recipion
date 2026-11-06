@@ -6,6 +6,7 @@ import {
 	type BackupFile,
 	type BackupInventoryItem,
 	type BackupRecipe,
+	type BackupRecipeParent,
 	backupLimits,
 	createBackupFile,
 } from "../domain/backup-file";
@@ -53,8 +54,13 @@ export type BackupImportDependencies = {
 		publicIds: string[],
 	) => Promise<{ ownedPublicIds: string[]; recipeCount: number }>;
 	importRecipes: (recipes: BackupRecipe[]) => Promise<ImportedRecipe[]>;
+	// リンクと、もとにしたレシピを付ける。
 	importLinks: (
-		recipes: { publicId: string; links: RecipeLinkReference[] }[],
+		recipes: {
+			publicId: string;
+			links: RecipeLinkReference[];
+			parent?: BackupRecipeParent;
+		}[],
 	) => Promise<{ dropped: number }>;
 	replaceInventory: (
 		items: BackupInventoryItem[],
@@ -156,7 +162,7 @@ function chunk<T>(rows: readonly T[], size: number): T[][] {
 	return chunks;
 }
 
-// 読み込む：レシピ（登録した順に、分けて送る）→ リンク → 在庫の置き換え → 材料の辞書の足し合わせ。
+// 読み込む：レシピ（登録した順に、分けて送る）→ リンクと、もとにしたレシピ → 在庫の置き換え → 材料の辞書の足し合わせ。
 // 辞書は、在庫のあとに入れる（在庫に入れた材料には、「管理しない」を付けないため）。
 // レシピは、もう持っているものを飛ばすので、途中で失敗しても、同じファイルで、やり直せる。
 export async function runBackupImport(
@@ -215,8 +221,23 @@ export async function runBackupImport(
 			prepareRecipeForStorage(recipe.content).links,
 			publicIdByFilePublicId,
 		);
+		// もとにしたレシピ：同じファイルから読み込んだ親なら、読み込んだあとの公開 ID に付け替える。
+		const parent = recipe.parent
+			? {
+					publicId:
+						recipe.parent.publicId === null
+							? null
+							: (publicIdByFilePublicId.get(recipe.parent.publicId) ??
+								recipe.parent.publicId),
+					snapshot: recipe.parent.snapshot,
+				}
+			: undefined;
 
-		return links.length === 0 ? [] : [{ publicId, links }];
+		if (links.length === 0 && !parent) {
+			return [];
+		}
+
+		return [{ publicId, links, ...(parent ? { parent } : {}) }];
 	});
 	let droppedLinks = 0;
 
