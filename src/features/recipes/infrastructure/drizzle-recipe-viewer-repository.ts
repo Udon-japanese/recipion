@@ -11,6 +11,13 @@ import {
 } from "../domain/passphrase";
 import type { RecipeDates } from "../domain/recipe-cook-log";
 import { parseRecipeVisibility } from "../domain/recipe-link-permission";
+import {
+	createRecipeSnapshot,
+	findChangedSnapshotSections,
+	parseRecipeSnapshot,
+	type RecipeSnapshot,
+	type RecipeSnapshotSection,
+} from "../domain/recipe-snapshot";
 import { loadRecipeDetail } from "./drizzle-recipe-repository";
 import { decryptPassphrase } from "./passphrase-cipher";
 import { recipe, recipeUnlock, recipeUnlockAttempt } from "./recipe.sql";
@@ -25,7 +32,70 @@ export type ViewableRecipe = {
 	dates: RecipeDates;
 	// 作者の、公開される名前とアバター（メールアドレス・ユーザーの id は含めない）。
 	author: { name: string; handle: string; avatar: Avatar };
+	// もとにしたレシピ（継承していなければ null）。
+	parent: RecipeParentInfo | null;
 };
+
+// もとにしたレシピの、見る人にとっての様子。
+export type RecipeParentInfo =
+	| {
+			status: "visible";
+			publicId: string;
+			name: string;
+			// 親の作者（見る人自身のレシピなら null）。
+			authorName: string | null;
+			// 写したあとに親で変わった部分（子の持ち主にだけ。ほかの人には空）。
+			changedSections: RecipeSnapshotSection[];
+	  }
+	// 見つからない（見る人が見られない・もうない）。どちらかは、区別しない（親の様子を、推測させない）。
+	| { status: "missing" };
+
+// 継承の情報。子の持ち主には、写しと今の親を比べた、変わった部分も返す。
+async function loadParentInfo(
+	db: DB,
+	viewerUserId: string,
+	child: typeof recipe.$inferSelect,
+): Promise<RecipeParentInfo | null> {
+	const snapshot = parseRecipeSnapshot(child.parentSnapshot);
+
+	if (!snapshot) {
+		return null;
+	}
+
+	if (child.parentRecipeId === null) {
+		return { status: "missing" };
+	}
+
+	const [parent] = await db
+		.select({ recipe, authorName: user.name })
+		.from(recipe)
+		.innerJoin(user, eq(user.id, recipe.userId))
+		.where(eq(recipe.id, child.parentRecipeId))
+		.limit(1);
+
+	if (!parent || !(await canViewRecipe(db, viewerUserId, parent.recipe))) {
+		return { status: "missing" };
+	}
+
+	const changedSections =
+		child.userId === viewerUserId
+			? findChangedSnapshotSections(
+					snapshot,
+					createRecipeSnapshot(
+						await loadRecipeDetail(db, parent.recipe, viewerUserId),
+					),
+				)
+			: [];
+
+	return {
+		status: "visible",
+		publicId: parent.recipe.publicId,
+		name: parent.recipe.name,
+		authorName:
+			parent.recipe.userId === viewerUserId ? null : parent.authorName,
+		changedSections,
+	};
+}
 
 // 見る人（viewerUserId）が、そのレシピを見てよいか。自分のレシピ、全体公開、パスフレーズで開けた限定公開。
 export async function canViewRecipe(
@@ -86,7 +156,10 @@ export async function findViewableRecipe(
 		return null;
 	}
 
-	const detail = await loadRecipeDetail(db, row.recipe, viewerUserId);
+	const [detail, parent] = await Promise.all([
+		loadRecipeDetail(db, row.recipe, viewerUserId),
+		loadParentInfo(db, viewerUserId, row.recipe),
+	]);
 
 	return {
 		recipe: isOwn
@@ -106,6 +179,7 @@ export async function findViewableRecipe(
 			handle: row.authorHandle,
 			avatar: resolveUserAvatar(row.recipe.userId, row.authorAvatar),
 		},
+		parent,
 	};
 }
 
@@ -203,4 +277,86 @@ export async function countRecentUnlockFailures(
 		);
 
 	return row?.total ?? 0;
+}
+
+// 「このレシピをもとに作る」の親：見てよく、自分のレシピか全体公開のレシピ（限定公開の他の人のレシピは、子を公開すると中身が出てしまうので、できない）。
+// できなければ null（存在しない・見てはいけないも、同じ）。
+export async function findForkableParent(
+	db: DB,
+	viewerUserId: string,
+	publicId: string,
+): Promise<{ id: string; detail: RecipeDetail } | null> {
+	const [found] = await db
+		.select()
+		.from(recipe)
+		.where(eq(recipe.publicId, publicId))
+		.limit(1);
+
+	if (
+		!found ||
+		!(
+			found.userId === viewerUserId ||
+			parseRecipeVisibility(found.visibility) === "public"
+		)
+	) {
+		return null;
+	}
+
+	return {
+		id: found.id,
+		detail: await loadRecipeDetail(db, found, viewerUserId),
+	};
+}
+
+export type ParentMergeSource = {
+	parentPublicId: string;
+	parentName: string;
+	// 親の作者（自分のレシピなら null）。
+	parentAuthorName: string | null;
+	// 写したとき（前に取り込んだとき）の親と、今の親。
+	base: RecipeSnapshot;
+	current: RecipeSnapshot;
+};
+
+// 自分の子のレシピ（childPublicId）の、親の変更を取り込むための材料。継承していない・親を見られない・消えたときは null。
+export async function loadParentMergeSource(
+	db: DB,
+	userId: string,
+	childPublicId: string,
+): Promise<ParentMergeSource | null> {
+	const [child] = await db
+		.select({
+			parentRecipeId: recipe.parentRecipeId,
+			parentSnapshot: recipe.parentSnapshot,
+		})
+		.from(recipe)
+		.where(and(eq(recipe.publicId, childPublicId), eq(recipe.userId, userId)))
+		.limit(1);
+	const base = parseRecipeSnapshot(child?.parentSnapshot);
+
+	if (!child?.parentRecipeId || !base) {
+		return null;
+	}
+
+	const [parent] = await db
+		.select({ recipe, authorName: user.name })
+		.from(recipe)
+		.innerJoin(user, eq(user.id, recipe.userId))
+		.where(eq(recipe.id, child.parentRecipeId))
+		.limit(1);
+
+	if (!parent || !(await canViewRecipe(db, userId, parent.recipe))) {
+		return null;
+	}
+
+	return {
+		parentPublicId: parent.recipe.publicId,
+		parentName: parent.recipe.name,
+		parentAuthorName:
+			parent.recipe.userId === userId ? null : parent.authorName,
+		base,
+		current: createRecipeSnapshot(
+			await loadRecipeDetail(db, parent.recipe, userId),
+		),
+	};
 }

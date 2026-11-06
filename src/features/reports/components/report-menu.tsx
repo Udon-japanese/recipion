@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Modal } from "#/components/dialog/modal";
-import { Menu } from "#/components/menu/menu";
+import { Menu, type MenuItem } from "#/components/menu/menu";
 import type { CreateReportResult } from "../application/report-repository";
 import type { ReportReason } from "../domain/report";
 import type {
@@ -19,12 +19,18 @@ type ReportMenuProps = {
 		reason: UserNameReportReason;
 		detail: string;
 	}) => Promise<CreateUserNameReportResult>;
+	// 通報の前に並べる、ほかの操作（「このレシピをもとに作る」など）。
+	extraItems?: readonly MenuItem[];
 };
 
 type Opened = "recipe" | "user" | null;
 
 // 他の人のレシピの「その他」。通報を選ぶと、ダイアログでフォームを開く。
-export function ReportMenu({ onReportRecipe, onReportUser }: ReportMenuProps) {
+export function ReportMenu({
+	onReportRecipe,
+	onReportUser,
+	extraItems = [],
+}: ReportMenuProps) {
 	const [opened, setOpened] = useState<Opened>(null);
 	const close = () => setOpened(null);
 
@@ -34,6 +40,7 @@ export function ReportMenu({ onReportRecipe, onReportUser }: ReportMenuProps) {
 				label="その他"
 				icon="more-horizontal"
 				items={[
+					...extraItems,
 					{
 						label: "このレシピを通報",
 						icon: "alert-triangle",

@@ -37,7 +37,7 @@ export function describeLinkedSectionProblems(
 			? `${result.failedNames.join("、")}の材料を読み込めませんでした`
 			: null,
 		result.missingNames.length > 0
-			? `${[...new Set(result.missingNames)].join("、")}は見つからない（削除された・見られなくなった）ため、材料に入れていません`
+			? `${[...new Set(result.missingNames)].join("、")}は見つからないため、材料に入れていません`
 			: null,
 	].filter((message) => message !== null);
 

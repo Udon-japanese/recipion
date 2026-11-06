@@ -13,6 +13,7 @@ import {
 	createRecipeEditorDocument,
 	type RecipeEditorDocument,
 } from "../domain/recipe-editor-document";
+import { recipeEditorTemplateItem } from "../infrastructure/recipe-editor-preferences";
 import { RecipeEditor } from "./recipe-editor";
 
 vi.mock("@tanstack/react-router", () => ({
@@ -61,6 +62,42 @@ async function writeBody(user: User, body: string) {
 }
 
 describe("RecipeEditor", () => {
+	it("もとにして作るときは、親の中身で、新規登録として始まる（雛形の切り替えは出さず、中身を消さない）", async () => {
+		const user = userEvent.setup();
+		const onSave = vi.fn(async (_document: RecipeEditorDocument) => ({
+			publicId: "recipe-2",
+		}));
+
+		// 「雛形なし」の設定でも、写した中身を消さない。
+		recipeEditorTemplateItem.write(false);
+		render(
+			<RecipeEditor
+				onSave={onSave}
+				initialDocument={createRecipeEditorDocument({
+					name: "ケークサレ",
+					ingredientText: "薄力粉 100g\n卵 2個",
+				})}
+				forkedFrom={{ name: "ケークサレ", authorName: "たろう" }}
+			/>,
+		);
+
+		expect(screen.getByText("レシピを登録")).toBeInTheDocument();
+		expect(
+			screen.queryByRole("checkbox", {
+				name: "新規登録で見出しを最初から入れる",
+			}),
+		).toBeNull();
+		expect(
+			screen.getByRole("button", { name: "薄力粉の分量を編集" }).textContent,
+		).toBe("100g");
+
+		await user.click(screen.getByRole("button", { name: "レシピを保存" }));
+		await screen.findByText("保存しました", { selector: "output" });
+
+		expect(onSave.mock.calls[0]?.[0].name).toBe("ケークサレ");
+		localStorage.clear();
+	});
+
 	it("作り置きのチェックを入れて保存すると、作り置きとして送る", async () => {
 		const user = userEvent.setup();
 		const onSave = vi.fn(async (_document: RecipeEditorDocument) => ({

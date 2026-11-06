@@ -39,6 +39,11 @@ import * as styles from "#/features/recipes/components/recipe-detail-page.css";
 import { RecipeHistoryLine } from "#/features/recipes/components/recipe-history-line";
 import { RecipeKeepAwake } from "#/features/recipes/components/recipe-keep-awake";
 import { RecipeOwnerActions } from "#/features/recipes/components/recipe-owner-actions";
+import {
+	RecipeParentChangeNotice,
+	RecipeParentLine,
+	type RecipeParentView,
+} from "#/features/recipes/components/recipe-parent-line";
 import { RecipePassphraseSection } from "#/features/recipes/components/recipe-passphrase-section";
 import { RecipeRouteError } from "#/features/recipes/components/recipe-route-error";
 import { RecipeShoppingSection } from "#/features/recipes/components/recipe-shopping-section";
@@ -137,6 +142,8 @@ type RecipePreload = {
 	cookStats: RecipeCookStats | null;
 	// うちの人数（設定。なければ null）。
 	householdSize: number | null;
+	// もとにしたレシピ（継承していなければ null）。
+	parent: RecipeParentView | null;
 };
 
 // 「買い物メモへ」「つくった」で、リンク先の材料を使うとき。画面を開いたあとに、リンク先が消された・見られなくなった
@@ -410,11 +417,20 @@ function OwnRecipePage({
 							{recipeVisibilityLabels[recipe.visibility ?? "private"]}
 						</Tag>
 						<RecipeHistoryLine dates={preload.dates} cookStats={cookStats} />
+						{preload.parent ? (
+							<RecipeParentLine parent={preload.parent} />
+						) : null}
 					</>
 				}
 				actions={
 					<RecipeOwnerActions
 						publicId={recipe.publicId}
+						onFork={() =>
+							void navigate({
+								to: "/recipes/new",
+								search: { from: recipe.publicId },
+							})
+						}
 						onDelete={async () => {
 							await deleteRecipeServerFn({
 								data: { publicId: recipe.publicId },
@@ -424,11 +440,31 @@ function OwnRecipePage({
 					/>
 				}
 				headerExtra={
-					recipe.visibility === "unlisted" ? (
-						<RecipePassphraseSection
-							loadPassphrase={loadPassphrase}
-							regeneratePassphrase={regeneratePassphrase}
-						/>
+					preload.parent || recipe.visibility === "unlisted" ? (
+						<div className={styles.headerStack}>
+							{preload.parent ? (
+								<RecipeParentChangeNotice
+									parent={preload.parent}
+									action={
+										<ButtonLink
+											to="/recipes/$publicId/edit"
+											params={{ publicId: recipe.publicId }}
+											search={{ merge: true }}
+											variant="secondary"
+											size="sm"
+										>
+											違いを見る
+										</ButtonLink>
+									}
+								/>
+							) : null}
+							{recipe.visibility === "unlisted" ? (
+								<RecipePassphraseSection
+									loadPassphrase={loadPassphrase}
+									regeneratePassphrase={regeneratePassphrase}
+								/>
+							) : null}
+						</div>
 					) : null
 				}
 				instructionsAction={<RecipeKeepAwake />}
@@ -486,6 +522,7 @@ function SharedRecipePage({
 	author: { name: string; handle: string; avatar: Avatar };
 	preload: RecipePreload;
 }) {
+	const navigate = useNavigate();
 	const {
 		ownerScope,
 		dictionary,
@@ -518,10 +555,29 @@ function SharedRecipePage({
 							avatar={author.avatar}
 						/>
 						<RecipeHistoryLine dates={preload.dates} cookStats={cookStats} />
+						{preload.parent ? (
+							<RecipeParentLine parent={preload.parent} />
+						) : null}
 					</>
 				}
 				actions={
 					<ReportMenu
+						extraItems={
+							// 他の人のレシピは、全体公開だけ、もとにして作れる。
+							recipe.visibility === "public"
+								? [
+										{
+											label: "このレシピをもとに作る",
+											icon: "plus-stack",
+											onSelect: () =>
+												void navigate({
+													to: "/recipes/new",
+													search: { from: recipe.publicId },
+												}),
+										},
+									]
+								: []
+						}
 						onReportRecipe={(input) =>
 							createReportServerFn({
 								data: { recipePublicId: recipe.publicId, ...input },

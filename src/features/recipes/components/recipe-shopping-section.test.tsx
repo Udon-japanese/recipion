@@ -395,9 +395,7 @@ describe("RecipeShoppingSection", () => {
 			panel.queryByLabelText("消えたレシピを買い物メモに入れる"),
 		).not.toBeInTheDocument();
 		expect(
-			panel.getByText(
-				"消えたレシピは見つからない（削除された・見られなくなった）ため、材料に入れていません。",
-			),
+			panel.getByText("消えたレシピは見つからないため、材料に入れていません。"),
 		).toBeInTheDocument();
 		// リンク先の材料は、在庫と比べて、足りないものにチェックが入る
 		await waitFor(() =>

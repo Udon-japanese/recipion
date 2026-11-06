@@ -8,3 +8,9 @@ export const page = style({
 	marginInline: "auto",
 	paddingBlock: 24,
 });
+
+// 見出しの下の全幅の欄に、縦に並べるもの（もとのレシピが変わった知らせ・限定公開のパスフレーズ）。
+export const headerStack = style({
+	display: "grid",
+	gap: 12,
+});

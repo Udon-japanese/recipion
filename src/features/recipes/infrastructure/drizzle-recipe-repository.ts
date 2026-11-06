@@ -1,4 +1,13 @@
-import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
+import {
+	and,
+	asc,
+	count,
+	desc,
+	eq,
+	inArray,
+	isNotNull,
+	sql,
+} from "drizzle-orm";
 import { nanoid } from "nanoid";
 import * as v from "valibot";
 import type { DB } from "#/db/client";
@@ -358,6 +367,8 @@ export function createDrizzleRecipeRepository(
 						cover: command.cover,
 						unlistedPassphrase: command.passphraseCipher ?? null,
 						publishedAt: command.visibility === "private" ? null : new Date(),
+						parentRecipeId: command.parent?.recipeId ?? null,
+						parentSnapshot: command.parent?.snapshot ?? null,
 					})
 					.returning({ id: recipe.id, publicId: recipe.publicId });
 
@@ -422,6 +433,9 @@ export function createDrizzleRecipeRepository(
 						...(command.passphraseCipher === undefined
 							? {}
 							: { unlistedPassphrase: command.passphraseCipher }),
+						...(command.parentSnapshot === undefined
+							? {}
+							: { parentSnapshot: command.parentSnapshot }),
 					})
 					.where(eq(recipe.id, existing.id))
 					.returning({ updatedAt: recipe.updatedAt });
@@ -524,6 +538,26 @@ export function createDrizzleRecipeRepository(
 				recipe: await loadRecipeDetail(db, found, userId),
 				revision: toRecipeRevision(found.updatedAt),
 			};
+		},
+
+		async replaceParentSnapshot(publicId, snapshot) {
+			const updated = await db
+				.update(recipe)
+				.set({
+					parentSnapshot: snapshot,
+					// 中身は変えないので、更新日時（画面の「更新」と、同時編集の版）は、そのまま。
+					updatedAt: sql`${recipe.updatedAt}`,
+				})
+				.where(
+					and(
+						eq(recipe.publicId, publicId),
+						eq(recipe.userId, userId),
+						isNotNull(recipe.parentSnapshot),
+					),
+				)
+				.returning({ id: recipe.id });
+
+			return updated.length > 0;
 		},
 
 		async list() {

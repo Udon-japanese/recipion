@@ -108,6 +108,9 @@ type RecipeEditorProps = {
 	onSaved?: (recipe: SavedRecipe) => void;
 	// 保存済みのレシピを編集するときの初期値。なければ、新規登録。
 	initialDocument?: RecipeEditorDocument;
+	// 「このレシピをもとに作る」：initialDocument は親の中身の写しで、新規登録として保存する
+	// （もとにしたレシピの知らせは、画面の側で、見出しの上に出す）。
+	forkedFrom?: { name: string; authorName: string | null };
 	// 保存済みのレシピの識別子（絵を付けていないときの、れしぽよの絵を、一覧・詳細と同じにする）。
 	publicId?: string;
 	// リンクできるレシピ（自分のレシピ。編集中のレシピ自身は、除く）を取ってくる。渡すと、リンクの入力（補完・ボタン）が使える。
@@ -187,6 +190,7 @@ export function RecipeEditor({
 	onSave,
 	onSaved,
 	initialDocument,
+	forkedFrom,
 	publicId,
 	loadLinkTargets,
 	initialLinkTargets,
@@ -199,7 +203,9 @@ export function RecipeEditor({
 	loadUserRecipes,
 }: RecipeEditorProps) {
 	const templateCheckboxId = useId();
-	const isEditing = initialDocument !== undefined;
+	// 中身が入った状態で始めるか（編集・もとにして作る）。保存済みのレシピの編集かは、isEditing。
+	const hasInitialContent = initialDocument !== undefined;
+	const isEditing = hasInitialContent && forkedFrom === undefined;
 	const [initialState] = useState(() => createInitialState(initialDocument));
 	const [title, setTitle] = useState(initialDocument?.name ?? "");
 	const [isTitleEditing, setIsTitleEditing] = useState(false);
@@ -207,7 +213,7 @@ export function RecipeEditor({
 		initialDocument?.yieldText ?? defaultRecipeYieldText,
 	);
 	// 見出しの「材料（2人分）」から、できあがりの量を入れるのは、その欄を自分で触るまで。
-	const [isYieldTouched, setIsYieldTouched] = useState(isEditing);
+	const [isYieldTouched, setIsYieldTouched] = useState(hasInitialContent);
 	const [sourceUrl, setSourceUrl] = useState(initialDocument?.sourceUrl ?? "");
 	const [visibility, setVisibility] = useState<RecipeVisibility>(
 		initialDocument?.visibility ?? "private",
@@ -411,7 +417,7 @@ export function RecipeEditor({
 
 	// 端末に保存した「雛形なし」の設定を、表示のあとに反映する（localStorage は、サーバーでは読めない）。
 	const applySavedTemplatePreference = useEffectEvent(() => {
-		if (!isEditing && !readTemplatePreference()) {
+		if (!hasInitialContent && !readTemplatePreference()) {
 			handleTemplateToggle(false);
 		}
 	});
@@ -648,7 +654,6 @@ export function RecipeEditor({
 			<h1 className={styles.eyebrow}>
 				{isEditing ? "レシピを編集" : "レシピを登録"}
 			</h1>
-
 			<form
 				className={styles.form}
 				onSubmit={(event) => void handleSubmit(event)}
@@ -787,7 +792,7 @@ export function RecipeEditor({
 							}
 						/>
 
-						{isEditing ? null : (
+						{hasInitialContent ? null : (
 							<div className={styles.checkRow}>
 								<Checkbox
 									id={templateCheckboxId}
