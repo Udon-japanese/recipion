@@ -16,16 +16,28 @@ describe("parseRecipeYield", () => {
 		],
 		["１．５人分", { prefix: "", quantity: 1.5, suffix: "人分" }],
 		["1/2本分", { prefix: "", quantity: 0.5, suffix: "本分" }],
-	])("%s は、最後の数を基準に読む", (text, expected) => {
+		["15cm×2台", { prefix: "15cm×", quantity: 2, suffix: "台" }],
+		["1台（直径18cm）", { prefix: "", quantity: 1, suffix: "台(直径18cm)" }],
+	])("%s は、最後の数（寸法を除く）を基準に読む", (text, expected) => {
 		expect(parseRecipeYield(text)).toEqual(expected);
 	});
 
-	it.each(["作りやすい分量", "2〜3人分", "2~3人分", "2から3人分", "0人分", ""])(
-		"%s は、増減しない（null）",
-		(text) => {
-			expect(parseRecipeYield(text)).toBeNull();
-		},
-	);
+	it.each([
+		"作りやすい分量",
+		"2〜3人分",
+		"2~3人分",
+		"2から3人分",
+		"0人分",
+		"",
+		"25×6×5cmパウンドケーキ型",
+		"25x6x5cmのパウンド型",
+		"18cmのタルト型",
+		"18センチの丸型",
+		"5号のケーキ型",
+		"20×20cmの角型",
+	])("%s は、増減しない（null）", (text) => {
+		expect(parseRecipeYield(text)).toBeNull();
+	});
 });
 
 describe("stepRecipeYield", () => {
@@ -54,6 +66,7 @@ describe("scaleRecipeYieldText", () => {
 		["18cmの型1台", 0.5, "18cmの型1/2台"],
 		["作りやすい分量", 2, "作りやすい分量の2倍"],
 		["作りやすい分量", 0.5, "作りやすい分量の1/2倍"],
+		["25×6×5cmパウンドケーキ型", 2, "25×6×5cmパウンドケーキ型の2倍"],
 	])("%s の %d 倍は %s", (text, ratio, expected) => {
 		expect(scaleRecipeYieldText(text, ratio)).toBe(expected);
 	});
