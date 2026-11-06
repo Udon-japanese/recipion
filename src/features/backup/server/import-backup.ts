@@ -13,6 +13,7 @@ import {
 	backupInventorySchema,
 	backupLimits,
 	backupPublicIdSchema,
+	backupRecipeParentSchema,
 	parseBackupRecipe,
 } from "../domain/backup-file";
 import {
@@ -166,7 +167,7 @@ export const importBackupRecipesServerFn = createServerFn({ method: "POST" })
 		return results;
 	});
 
-// 読み込んだレシピに、リンクを付ける（付けられない相手は捨てて、その数を返す）。
+// 読み込んだレシピに、リンクと、もとにしたレシピを付ける（付けられないリンクの相手は捨てて、その数を返す）。
 export const importBackupRecipeLinksServerFn = createServerFn({
 	method: "POST",
 })
@@ -186,6 +187,8 @@ export const importBackupRecipeLinksServerFn = createServerFn({
 								),
 								v.maxLength(maxLinksPerRecipe),
 							),
+							// もとにしたレシピ（公開 ID は、読み込んだあとのもの）。
+							parent: v.optional(backupRecipeParentSchema),
 						}),
 					),
 					v.minLength(1),
@@ -207,6 +210,10 @@ export const importBackupRecipeLinksServerFn = createServerFn({
 			);
 
 			dropped += result?.dropped ?? item.links.length;
+
+			if (item.parent) {
+				await repository.attachRecipeParent(item.publicId, item.parent);
+			}
 		}
 
 		return { dropped };

@@ -5,6 +5,10 @@ import { inventoryTrackingModeSchema } from "#/features/inventory/domain/invento
 import { inventoryUnitCodeSchema } from "#/features/inventory/domain/inventory-unit";
 import type { RecipeEditorDocument } from "#/features/recipes/domain/recipe-editor-document";
 import { recipeLimits } from "#/features/recipes/domain/recipe-limits";
+import {
+	type RecipeSnapshot,
+	recipeSnapshotSchema,
+} from "#/features/recipes/domain/recipe-snapshot";
 import { validateRecipeEditorDocument } from "#/features/recipes/domain/validate-recipe-editor-document";
 
 // 在庫とレシピを書き出したファイル（バックアップ）の形。読めるのは、いまの版だけ（古い版の読み替えはしない）。
@@ -113,7 +117,20 @@ export type BackupRecipe = {
 	// 登録した日時（ISO 8601）。読み込むときは、この順に入れる（日時そのものは、読み込んだ時刻になる）。
 	createdAt: string;
 	content: RecipeEditorDocument;
+	// もとにしたレシピ（継承したレシピだけ）。publicId は、見つからない（もうない）親なら null。
+	// 読み込むと、もとにしたレシピの表示を付け直す（消せない表示を、書き出しと読み込みで消さないため）。
+	parent?: BackupRecipeParent;
 };
+
+export type BackupRecipeParent = {
+	publicId: string | null;
+	snapshot: RecipeSnapshot;
+};
+
+export const backupRecipeParentSchema = v.object({
+	publicId: v.nullable(backupPublicIdSchema),
+	snapshot: recipeSnapshotSchema,
+});
 
 export type BackupFile = {
 	format: typeof backupFormat;
@@ -129,6 +146,7 @@ const backupRecipeEnvelopeSchema = v.object({
 	publicId: backupPublicIdSchema,
 	createdAt: v.pipe(v.string(), v.isoTimestamp()),
 	content: v.unknown(),
+	parent: v.optional(backupRecipeParentSchema),
 });
 
 const backupEnvelopeSchema = v.object({
@@ -156,6 +174,7 @@ export function parseBackupRecipe(input: unknown): BackupRecipe {
 			publicId: envelope.output.publicId,
 			createdAt: envelope.output.createdAt,
 			content: validateRecipeEditorDocument(envelope.output.content),
+			...(envelope.output.parent ? { parent: envelope.output.parent } : {}),
 		};
 	} catch (error) {
 		const name = readRecipeName(envelope.output.content);

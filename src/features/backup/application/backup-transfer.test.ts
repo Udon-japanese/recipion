@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { prepareRecipeForStorage } from "#/features/recipes/application/prepare-recipe-for-storage";
 import type { RecipeEditorDocument } from "#/features/recipes/domain/recipe-editor-document";
+import { createRecipeSnapshot } from "#/features/recipes/domain/recipe-snapshot";
 import {
 	buildBackupInventoryItem,
 	buildBackupRecipe,
@@ -8,6 +9,7 @@ import {
 import {
 	type BackupFile,
 	type BackupInventoryItem,
+	type BackupRecipeParent,
 	parseBackupFile,
 } from "../domain/backup-file";
 import {
@@ -28,6 +30,7 @@ type StoredRecipe = {
 	ownerUserId: string;
 	createdAt: string;
 	content: RecipeEditorDocument;
+	parent?: BackupRecipeParent;
 };
 
 // サーバーの代わり（レシピは公開 ID ごと、在庫は人ごと）。公開 ID の決め方・リンクの扱いは、本物と同じ関数を使う。
@@ -54,6 +57,7 @@ function createFakeServer() {
 						publicId,
 						createdAt: recipe.createdAt,
 						content: recipe.content,
+						...(recipe.parent ? { parent: recipe.parent } : {}),
 					})),
 					nextOffset: offset + 2 < own.length ? offset + 2 : null,
 				};
@@ -178,6 +182,25 @@ function createFakeServer() {
 
 					dropped += item.links.length - kept.length;
 					stored.content = { ...stored.content, links: kept };
+
+					// もとにしたレシピ：自分のレシピか全体公開のレシピなら付け、付けられなければ、親なし・写しあり（本物と同じ）。
+					if (item.parent) {
+						const parent =
+							item.parent.publicId === null
+								? undefined
+								: recipes.get(item.parent.publicId);
+
+						stored.parent = {
+							publicId:
+								parent &&
+								item.parent.publicId !== item.publicId &&
+								(parent.ownerUserId === userId ||
+									parent.content.visibility === "public")
+									? item.parent.publicId
+									: null,
+							snapshot: item.parent.snapshot,
+						};
+					}
 				}
 
 				return { dropped };
@@ -345,6 +368,56 @@ describe("書き出し・読み込み", () => {
 		expect(server.inventories.get("other")?.[1]?.sourceRecipePublicId).toBe(
 			ownMisoSoup?.[0],
 		);
+	});
+
+	it("もとにしたレシピを書き出し・読み込みで残す（同じファイルの親は、付け替えたあとの ID に付け、見つからない親は、親なし・写しありにする）", async () => {
+		const server = createFakeServer();
+		const snapshot = createRecipeSnapshot(dashi.content);
+		const file: BackupFile = {
+			...createFile(),
+			recipes: [
+				dashi,
+				{
+					...misoSoup,
+					parent: { publicId: dashi.publicId, snapshot },
+				},
+				{
+					...nikujaga,
+					parent: { publicId: "gone-recipe", snapshot },
+				},
+			],
+		};
+
+		// 書き出した人の別のアカウントに入れる（公開 ID が重なるので、新しい ID で作る）。
+		await runBackupImport(
+			file,
+			{ recipes: true, inventory: false, dictionary: false },
+			server.forUser("original").importDependencies,
+		);
+		const other = server.forUser("other");
+
+		await runBackupImport(
+			file,
+			{ recipes: true, inventory: false, dictionary: false },
+			other.importDependencies,
+		);
+
+		const exported = parseBackupFile(
+			JSON.stringify(await collectBackup(other.exportDependencies, now)),
+		);
+		const byName = new Map(
+			exported.recipes.map((recipe) => [recipe.content.name, recipe]),
+		);
+
+		expect(byName.get("みそ汁")?.parent).toEqual({
+			publicId: byName.get("だし")?.publicId,
+			snapshot,
+		});
+		expect(byName.get("肉じゃが")?.parent).toEqual({
+			publicId: null,
+			snapshot,
+		});
+		expect(byName.get("だし")?.parent).toBeUndefined();
 	});
 
 	it("リンクを付ける前に止まっても、読み込み直すと、前に作ったレシピにもリンクが付く", async () => {
