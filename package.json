@@ -72,8 +72,8 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vanilla-extract/vite-plugin": "^5.2.6",
-    "@vitejs/plugin-react": "^6.1.2",
-    "@vitest/browser-playwright": "^5.0.5",
+    "@vitejs/plugin-react": "^6.2.1",
+    "@vitest/browser-playwright": "^5.1.0",
     "chrome-launcher": "^1.2.2",
     "dotenv": "^18.0.9",
     "fake-indexeddb": "^6.2.7",
@@ -83,8 +83,8 @@
     "tsx": "^4.23.15",
     "typescript": "^6.0.2",
     "vite": "^8.3.5",
-    "vitest": "^5.0.5",
+    "vitest": "^5.1.0",
     "vitest-browser-react": "^2.3.0",
-    "wrangler": "^4.156.1"
+    "wrangler": "^4.156.2"
   }
 }
