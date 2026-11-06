@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+	type AnyPgColumn,
 	boolean,
 	check,
 	foreignKey,
@@ -17,6 +18,7 @@ import {
 
 import type { DishPlacement } from "#/features/dish-art/domain/dish-cover";
 import { user } from "#/integrations/better-auth/auth.sql";
+import type { RecipeSnapshot } from "../domain/recipe-snapshot";
 
 export const recipe = pgTable(
 	"recipe",
@@ -43,6 +45,13 @@ export const recipe = pgTable(
 		scalable: boolean("scalable").default(true).notNull(),
 		// 料理の絵（部品の置き方）。null は、レシピ名から選ぶプリセットを見せる。
 		cover: jsonb("cover").$type<DishPlacement[]>(),
+		// もとにしたレシピ（「このレシピをもとに作る」で作ったとき）。親が消えたら null（写しは残すので、継承したことは分かる）。
+		parentRecipeId: uuid("parent_recipe_id").references(
+			(): AnyPgColumn => recipe.id,
+			{ onDelete: "set null" },
+		),
+		// 写したとき（取り込んだとき）の親の中身（部分ごとのエディタの文章。recipe-snapshot.ts）。継承していなければ null。
+		parentSnapshot: jsonb("parent_snapshot").$type<RecipeSnapshot>(),
 		// 公開した日時（非公開から、限定公開・全体公開にしたとき）。非公開のあいだは null。限定公開と全体公開の切り替えでは変えない。
 		publishedAt: timestamp("published_at", { withTimezone: true }),
 		createdAt: timestamp("created_at", { withTimezone: true })
@@ -71,6 +80,10 @@ export const recipe = pgTable(
 			sql`${table.visibility} = 'private' OR ${table.sourceUrl} IS NULL`,
 		),
 		check(
+			"recipe_parent_has_snapshot",
+			sql`${table.parentRecipeId} IS NULL OR ${table.parentSnapshot} IS NOT NULL`,
+		),
+		check(
 			"recipe_published_at_matches_visibility",
 			sql`(${table.visibility} = 'private') = (${table.publishedAt} IS NULL)`,
 		),
@@ -79,6 +92,8 @@ export const recipe = pgTable(
 			sql`(${table.visibility} = 'unlisted') = (${table.unlistedPassphrase} IS NOT NULL)`,
 		),
 		index("recipe_user_id_idx").on(table.userId),
+		// 親を消したときに、子の parent_recipe_id を null にするため。
+		index("recipe_parent_recipe_id_idx").on(table.parentRecipeId),
 		// みんなのレシピ（全体公開）を、新しい順に探す。
 		index("recipe_public_created_idx")
 			.on(table.createdAt.desc(), table.publicId.desc())

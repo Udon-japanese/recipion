@@ -2,11 +2,14 @@ import type { DishPlacement } from "#/features/dish-art/domain/dish-cover";
 import type { RecipeEditorDocument } from "../domain/recipe-editor-document";
 import type { RecipeVisibility } from "../domain/recipe-link-permission";
 import type { RecipeLinkView } from "../domain/recipe-links";
+import type { RecipeSnapshot } from "../domain/recipe-snapshot";
 import type { PreparedRecipeForStorage } from "./prepare-recipe-for-storage";
 
 // passphraseCipher: 限定公開のパスフレーズ（暗号化したもの）。undefined は、いまのまま。null は、なし（限定公開でなくなる）。
 export type CreateRecipeCommand = PreparedRecipeForStorage & {
 	passphraseCipher?: string | null;
+	// もとにしたレシピ（「このレシピをもとに作る」）と、そのときの親の中身。
+	parent?: { recipeId: string; snapshot: RecipeSnapshot };
 };
 
 export type CreatedRecipe = {
@@ -35,6 +38,8 @@ export type RecipeDetail = RecipeEditorDocument & {
 
 export type UpdateRecipeCommand = PreparedRecipeForStorage & {
 	passphraseCipher?: string | null;
+	// 親の変更を取り込んで保存するとき、写しを、この（取り込んだ）親の中身にする。undefined は、いまのまま。
+	parentSnapshot?: RecipeSnapshot;
 };
 
 export type RecipeRepository = {
@@ -59,4 +64,9 @@ export type RecipeRepository = {
 		publicId: string,
 	): Promise<{ recipe: RecipeDetail; revision: string } | null>;
 	list(): Promise<RecipeSummary[]>;
+	// 親の変更を取り込まないとき、写しだけを、今の親の中身にする（中身・更新日時・版は変えない）。継承していなければ false。
+	replaceParentSnapshot(
+		publicId: string,
+		snapshot: RecipeSnapshot,
+	): Promise<boolean>;
 };

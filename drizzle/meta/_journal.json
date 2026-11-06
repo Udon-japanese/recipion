@@ -85,6 +85,13 @@
       "when": 1793893894514,
       "tag": "0011_ingredient_unmanaged_made_from_recipe",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793927506174,
+      "tag": "0012_recipe_parent",
+      "breakpoints": true
     }
   ]
 }

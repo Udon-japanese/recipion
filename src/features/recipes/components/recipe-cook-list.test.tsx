@@ -71,7 +71,7 @@ describe("RecipeCookList", () => {
 		expect(today).toHaveTextContent("れしぴょなー（@user-abc）");
 		expect(within(today).getByText("レシピ2")).toBeInTheDocument();
 		expect(
-			within(today).getByText("削除された（または見られなくなった）レシピ"),
+			within(today).getByText("（見つからないレシピ）"),
 		).toBeInTheDocument();
 		expect(within(today).queryByRole("link", { name: "レシピ2" })).toBeNull();
 		expect(

@@ -7,12 +7,15 @@ import * as styles from "./recipe-owner-actions.css";
 type RecipeOwnerActionsProps = {
 	publicId: string;
 	onDelete: () => Promise<void>;
+	// 「このレシピをもとに作る」（新規登録のエディタを、このレシピの中身で開く）。
+	onFork?: () => void;
 };
 
 // 自分のレシピの、編集と「その他」（削除。確認のダイアログが出る）。
 export function RecipeOwnerActions({
 	publicId,
 	onDelete,
+	onFork,
 }: RecipeOwnerActionsProps) {
 	const [isDeleting, setIsDeleting] = useState(false);
 
@@ -30,6 +33,15 @@ export function RecipeOwnerActions({
 				label="その他"
 				icon="more-horizontal"
 				items={[
+					...(onFork
+						? [
+								{
+									label: "このレシピをもとに作る",
+									icon: "plus-stack" as const,
+									onSelect: onFork,
+								},
+							]
+						: []),
 					{
 						label: "削除",
 						icon: "trash",

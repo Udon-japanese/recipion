@@ -93,7 +93,7 @@ export function RecipeCookList({ initialPage, loadMore }: RecipeCookListProps) {
 										author={entry.author}
 										extra={
 											entry.publicId ? null : (
-												<span>削除された（または見られなくなった）レシピ</span>
+												<span>（見つからないレシピ）</span>
 											)
 										}
 									/>
