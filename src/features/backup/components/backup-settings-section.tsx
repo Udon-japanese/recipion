@@ -75,6 +75,14 @@ function describeResult(result: BackupImportResult): string {
 		);
 	}
 
+	if (result.dictionary) {
+		const { created, aliases, skipped } = result.dictionary;
+
+		parts.push(
+			`材料を${formatCount(created)}件、呼び名を${formatCount(aliases)}件足しました${skipped > 0 ? `（${formatCount(skipped)}件は、ほかの材料と重なるなどのため、入れませんでした）` : ""}。`,
+		);
+	}
+
 	return parts.length === 0 ? "入れるものはありませんでした。" : parts.join("");
 }
 
@@ -101,6 +109,7 @@ export function BackupSettingsSection({
 	const [preview, setPreview] = useState<BackupImportPreview | null>(null);
 	const [includeRecipes, setIncludeRecipes] = useState(true);
 	const [includeInventory, setIncludeInventory] = useState(true);
+	const [includeDictionary, setIncludeDictionary] = useState(true);
 	const [progress, setProgress] = useState<BackupImportProgress | null>(null);
 	const [result, setResult] = useState<BackupImportResult | null>(null);
 
@@ -150,6 +159,7 @@ export function BackupSettingsSection({
 					nextPreview.inventoryItemCount > 0 &&
 						nextPreview.inventoryProblem === null,
 				);
+				setIncludeDictionary(nextPreview.dictionaryCount > 0);
 			} catch (error) {
 				setImportError(describeError(error));
 
@@ -170,7 +180,11 @@ export function BackupSettingsSection({
 			setResult(
 				await runBackupImport(
 					preview.file,
-					{ recipes: includeRecipes, inventory: includeInventory },
+					{
+						recipes: includeRecipes,
+						inventory: includeInventory,
+						dictionary: includeDictionary,
+					},
 					importDependencies,
 					setProgress,
 				),
@@ -186,7 +200,7 @@ export function BackupSettingsSection({
 	}
 
 	const isImporting = progress !== null;
-	const canImport = includeRecipes || includeInventory;
+	const canImport = includeRecipes || includeInventory || includeDictionary;
 
 	return (
 		<section className={settingsStyles.section} aria-labelledby="settings-data">
@@ -358,6 +372,22 @@ export function BackupSettingsSection({
 						{preview.inventoryProblem ? (
 							<Note tone="warn">{preview.inventoryProblem}</Note>
 						) : null}
+						<div className={styles.option}>
+							<Checkbox
+								label="材料を足す"
+								checked={includeDictionary}
+								disabled={preview.dictionaryCount === 0 || isImporting}
+								onChange={(event) =>
+									setIncludeDictionary(event.currentTarget.checked)
+								}
+							/>
+							<span className={styles.optionText}>
+								材料：{formatCount(preview.dictionaryCount)}件
+								{preview.dictionaryCount > 0
+									? "。今の材料に足します（消したり、置き換えたりはしません）。"
+									: ""}
+							</span>
+						</div>
 						{progress && progress.total > 0 ? (
 							<Note tone="info" spinning>
 								読み込んでいます（{progress.done}/{progress.total}）

@@ -92,3 +92,21 @@ export const alias = style({
 	background: "var(--color-surface-muted)",
 	fontSize: "var(--font-size-sm)",
 });
+
+export const unmanaged = style({
+	display: "grid",
+	gap: 6,
+});
+
+export const unmanagedRow = style({
+	display: "flex",
+	alignItems: "center",
+	justifyContent: "space-between",
+	gap: 12,
+});
+
+export const unmanagedNote = style({
+	display: "block",
+	color: "var(--color-text-muted)",
+	fontSize: "var(--font-size-sm)",
+});

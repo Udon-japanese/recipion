@@ -1,5 +1,6 @@
 import {
 	type IngredientDictionary,
+	isUnmanagedIngredient,
 	toCanonicalIngredientName,
 } from "#/features/ingredients/domain/ingredient-dictionary";
 import {
@@ -63,6 +64,8 @@ export type DuplicateMode = "max" | "sum" | "skip";
 export type RecipeShoppingStock =
 	// 在庫の情報がない（ログインしていない）。必要なものとして扱う。
 	| { kind: "unknown" }
+	// 「管理しない」材料（水など）。在庫もメモも見ず、入れない。
+	| { kind: "unmanaged" }
 	| {
 			kind: "judged";
 			judgment: IngredientStockJudgment;
@@ -72,6 +75,9 @@ export type RecipeShoppingStock =
 			// 足りているとは判定しない（初期でチェックする）。知らせるだけ。量を満たさないものは入れない。
 			askStandIns?: RecipeShoppingStandIn[];
 	  };
+
+// 在庫を見て判定した（または、在庫の情報がない）状態。「管理しない」材料は、判定しない。
+type JudgedOrUnknownStock = Exclude<RecipeShoppingStock, { kind: "unmanaged" }>;
 
 // 知らせる代わりの食材と、その在庫の量。
 export type RecipeShoppingStandIn = {
@@ -91,7 +97,12 @@ export type RecipeShoppingRow = {
 	// add: 新しい項目を作る / update: メモの項目の数量を変える / keep: メモのまま（変更なし）。
 	plan: "add" | "update" | "keep";
 	// keep の理由。
-	keepReason: "already-enough" | "skip-mode" | "incomparable-unit" | null;
+	keepReason:
+		| "already-enough"
+		| "skip-mode"
+		| "incomparable-unit"
+		| "unmanaged"
+		| null;
 	// update / add のあとの数量。
 	nextQuantity: number;
 	defaultChecked: boolean;
@@ -227,7 +238,7 @@ function judgeWithStandIns(
 	stockItem: RecipeShoppingStockItem | undefined,
 	stockItems: readonly RecipeShoppingStockItem[],
 	mode: StandInMode,
-): RecipeShoppingStock {
+): JudgedOrUnknownStock {
 	const judgment = judgeIngredientStock(
 		need,
 		stockItem ? toIngredientStock(stockItem) : null,
@@ -278,7 +289,23 @@ function judgeWithStandIns(
 export function planShoppingFromRecipe(
 	input: PlanShoppingFromRecipeInput,
 ): RecipeShoppingRow[] {
-	return input.needs.map((need) => {
+	return input.needs.map((need): RecipeShoppingRow => {
+		// 「管理しない」材料は、候補にしない（行は残し、理由を見せる）。
+		if (isUnmanagedIngredient(need.name, input.dictionary)) {
+			const amount = toMemoAmount(need);
+
+			return {
+				need,
+				stock: { kind: "unmanaged" },
+				amount,
+				existing: null,
+				plan: "keep",
+				keepReason: "unmanaged",
+				nextQuantity: amount.quantity,
+				defaultChecked: false,
+			};
+		}
+
 		// 照合・換算・代わりの食材は、辞書の代表の名前で見る（行に出す名前は、元のまま）。
 		const matchName = toCanonicalIngredientName(need.name, input.dictionary);
 		const stockItem = input.stockItems
@@ -291,7 +318,7 @@ export function planShoppingFromRecipe(
 			unitLabel: need.unitLabel,
 		};
 
-		const stock: RecipeShoppingStock =
+		const stock: JudgedOrUnknownStock =
 			input.stockItems === null
 				? { kind: "unknown" }
 				: judgeWithStandIns(

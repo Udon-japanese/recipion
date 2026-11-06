@@ -28,6 +28,10 @@ export const ingredient = pgTable(
 		// ユーザーが決めた、この食材の期限の種類と、初期の保存方法（空は、カタログの初期値に従う）。
 		defaultExpiryKind: text("default_expiry_kind"),
 		defaultStorage: text("default_storage"),
+		// 「管理しない」材料（水など）。レシピ→買い物メモの候補にせず、「つくった」で引かない。在庫に登録すると外れる。
+		unmanaged: boolean("unmanaged").default(false).notNull(),
+		// 「つくった」で在庫に入れた、できあがり（作り置き）の食材。材料の辞書には出さない（在庫を消しても残るため、食材に持つ）。
+		madeFromRecipe: boolean("made_from_recipe").default(false).notNull(),
 		createdAt: timestamp("created_at", {
 			withTimezone: true,
 		})

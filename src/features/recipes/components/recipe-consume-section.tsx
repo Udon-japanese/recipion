@@ -128,6 +128,7 @@ const skippedLabels: Record<SkippedReason, string> = {
 	unmeasurable:
 		"量が決まっていない（または換算できない）ため、減らしていません",
 	"presence-only": "「ある」で管理しているため、減らしていません",
+	unmanaged: "管理しない材料のため、減らしていません",
 };
 
 // 引いた行を、材料（左）と数量（右）、補足（あれば）に分ける。

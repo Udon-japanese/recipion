@@ -5,6 +5,7 @@ import { TextInput } from "#/components/field/field";
 import { IconButton } from "#/components/icon-button/icon-button";
 import { Note } from "#/components/note/note";
 import { Tag } from "#/components/tag/tag";
+import { Toggle } from "#/components/toggle/toggle";
 import { describeError } from "#/errors/user-facing-error";
 import * as settingsStyles from "#/features/settings/components/settings-page.css";
 import type { IngredientDictionaryCommand } from "../application/manage-ingredient-dictionary";
@@ -263,6 +264,7 @@ function IngredientRow({
 			<div className={styles.rowHead}>
 				<span className={styles.name}>{entry.name}</span>
 				{entry.hasInventory ? <Tag>在庫あり</Tag> : null}
+				{entry.unmanaged ? <Tag>管理しない</Tag> : null}
 				<span className={styles.aliases}>
 					{userAliases.length > 0 ? userAliases.join("・") : null}
 				</span>
@@ -298,6 +300,8 @@ function IngredientRow({
 							run({ kind: "rename", ingredientId: entry.id, name })
 						}
 					/>
+
+					<UnmanagedSetting entry={entry} run={run} />
 
 					<div className={styles.aliasBlock}>
 						<p className={styles.aliasTitle}>呼び名</p>
@@ -371,5 +375,51 @@ function IngredientRow({
 				</div>
 			) : null}
 		</li>
+	);
+}
+
+// 「管理しない」の切り替え。在庫のある材料は、在庫で数えているので、切り替えられない。
+function UnmanagedSetting({
+	entry,
+	run,
+}: {
+	entry: IngredientDictionaryEntry;
+	run: Run;
+}) {
+	const [isSaving, setIsSaving] = useState(false);
+	const [message, setMessage] = useState<string | null>(null);
+
+	async function change(unmanaged: boolean) {
+		setIsSaving(true);
+		setMessage(
+			await run({ kind: "set-unmanaged", ingredientId: entry.id, unmanaged }),
+		);
+		setIsSaving(false);
+	}
+
+	return (
+		<div className={styles.unmanaged}>
+			<div className={styles.unmanagedRow}>
+				<span>
+					<span className={styles.aliasTitle}>管理しない</span>
+					<span className={styles.unmanagedNote}>
+						{entry.hasInventory
+							? "在庫にあるため、切り替えられません"
+							: "レシピから買い物メモに入れる候補にせず、「つくった」で引きません"}
+					</span>
+				</span>
+				<Toggle
+					label={`${entry.name}を管理しない`}
+					checked={entry.unmanaged}
+					disabled={entry.hasInventory || isSaving}
+					onChange={(checked) => void change(checked)}
+				/>
+			</div>
+			{message ? (
+				<p className={styles.message} role="alert">
+					{message}
+				</p>
+			) : null}
+		</div>
 	);
 }

@@ -21,6 +21,9 @@ function createDependencies() {
 			nextOffset: null,
 		})),
 		loadInventory: vi.fn(async () => [buildBackupInventoryItem()]),
+		loadDictionary: vi.fn(async () => [
+			{ name: "マイだし", aliases: ["うちのだし"], unmanaged: false },
+		]),
 	};
 	const importDependencies = {
 		inspect: vi.fn(async () => ({
@@ -39,6 +42,11 @@ function createDependencies() {
 		importLinks: vi.fn(async () => ({ dropped: 0 })),
 		replaceInventory: vi.fn(async () => ({ items: 1, lots: 1 })),
 		countPendingPurchases: vi.fn(async () => 0),
+		mergeDictionary: vi.fn(async () => ({
+			created: 1,
+			aliases: 1,
+			skipped: 0,
+		})),
 	} satisfies BackupImportDependencies;
 
 	return { exportDependencies, importDependencies };
@@ -92,9 +100,10 @@ describe("BackupSettingsSection", () => {
 		).toBeInTheDocument();
 		expect(JSON.parse(contents)).toMatchObject({
 			format: "recipion-backup",
-			version: 2,
+			version: 3,
 			recipes: [{ publicId: "nikujaga" }],
 			inventory: [{ name: "卵" }],
+			dictionary: [{ name: "マイだし", aliases: ["うちのだし"] }],
 		});
 	});
 

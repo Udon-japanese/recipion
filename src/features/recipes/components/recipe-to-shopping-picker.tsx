@@ -34,6 +34,8 @@ type RecipeToShoppingPickerProps = {
 	loadRecipe: (publicId: string) => Promise<RecipeDetail | null>;
 	loadInventoryItems: () => Promise<InventoryListItem[]>;
 	registerAvailable?: (ingredientName: string) => Promise<void>;
+	// 材料を「管理しない材料」にする（水など）。ゲストは省略。
+	markUnmanaged?: (ingredientName: string) => Promise<void>;
 	// うちの人数（設定）を読む。「人分」のレシピは、その人数の量で入れる。なければ、レシピの量のまま。
 	loadHouseholdSize?: () => Promise<number | null>;
 	// ユーザーの食材辞書（照合に使う）。ゲストは省略。
@@ -52,6 +54,7 @@ export function RecipeToShoppingPicker({
 	loadRecipe,
 	loadInventoryItems,
 	registerAvailable,
+	markUnmanaged,
 	loadHouseholdSize,
 	dictionary,
 }: RecipeToShoppingPickerProps) {
@@ -177,6 +180,7 @@ export function RecipeToShoppingPicker({
 				plan={plan}
 				ownerScope={ownerScope}
 				registerAvailable={registerAvailable}
+				markUnmanaged={markUnmanaged}
 				amountNote={describeShoppingAmount(
 					selected.yieldText,
 					ratio,

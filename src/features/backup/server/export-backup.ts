@@ -1,8 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
 import * as v from "valibot";
+import { listUserAliases } from "#/features/ingredients/domain/ingredient-dictionary";
+import { createDrizzleIngredientDictionaryRepository } from "#/features/ingredients/infrastructure/drizzle-ingredient-dictionary-repository";
 import { createDrizzleInventoryRepository } from "#/features/inventory/infrastructure/drizzle-inventory-repository";
 import { requireSession } from "#/integrations/better-auth/require-session";
-import type { BackupInventoryItem } from "../domain/backup-file";
+import type {
+	BackupDictionaryEntry,
+	BackupInventoryItem,
+} from "../domain/backup-file";
 import { createDrizzleBackupRepository } from "../infrastructure/drizzle-backup-repository";
 
 // 1回に読むレシピの数（Workers の CPU 時間に収めるため、ページに分ける）。
@@ -54,5 +59,22 @@ export const exportBackupInventoryServerFn = createServerFn({
 			expiryKind: lot.expiryKind,
 			expirySource: lot.expirySource,
 		})),
+	}));
+});
+
+// 自分の材料の辞書を書き出す。呼び名は、自分で足したものだけ（カタログの別名は、名前から作り直せる）。
+export const exportBackupDictionaryServerFn = createServerFn({
+	method: "GET",
+}).handler(async (): Promise<BackupDictionaryEntry[]> => {
+	const { db, userId } = await requireSession();
+	const entries = await createDrizzleIngredientDictionaryRepository(
+		db,
+		userId,
+	).list();
+
+	return entries.map((entry) => ({
+		name: entry.name,
+		aliases: listUserAliases(entry),
+		unmanaged: entry.unmanaged,
 	}));
 });

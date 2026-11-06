@@ -2,7 +2,6 @@ import { useId, useMemo } from "react";
 import { SelectBox, TextInput } from "#/components/field/field";
 import { Icon } from "#/components/icon/icon";
 import { DishArt } from "#/features/dish-art/components/dish-art";
-import { resolveIngredientArt } from "../../domain/ingredient-art";
 import {
 	type InventoryFridgeZone,
 	type InventoryTile,
@@ -181,10 +180,7 @@ export function InventoryListView({
 										onClick={() => onOpen(tile)}
 									>
 										<span aria-hidden>
-											<DishArt
-												placements={resolveIngredientArt(tile.ingredientName)}
-												size={44}
-											/>
+											<DishArt placements={tile.art} size={44} />
 										</span>
 										<span className={styles.useSoonName} aria-hidden>
 											{tile.name}

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { describeError } from "#/errors/user-facing-error";
 import type { IngredientDictionary } from "#/features/ingredients/domain/ingredient-dictionary";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import type { InventoryListItem } from "#/features/inventory/application/inventory-query-repository";
@@ -65,6 +66,9 @@ type UseRecipeShoppingPlanOptions = {
 	dictionary?: IngredientDictionary;
 };
 
+// 材料の行のボタン：「ある」で在庫に登録する／「管理しない」にする。
+type RowActionKind = "register" | "unmanage";
+
 // レシピの材料を、在庫と比べて、足りないものを、買い物メモに入れる計画（状態と操作）。
 // ratio：人数を変えたときの割合（材料と、リンク先の材料に掛ける。省略は 1＝レシピの量のまま）。
 // 割合が変わったら、呼び出し側で作り直す（key）。読み込んだリンク先の材料は、そのときの割合で計算してある。
@@ -99,10 +103,10 @@ export function useRecipeShoppingPlan({
 	// 入れ終えた件数。チェックを変えるまで、ボタンを「入れました」のままにする
 	// （入れた行は「メモにあり」に変わり、選んでいなかった行の件数に変わって見えるため）。
 	const [appliedCount, setAppliedCount] = useState<number | null>(null);
-	// 「ある」で在庫に登録している食材の名前（押した行のボタンだけを、読み込み中にする）。
-	const [registeringNames, setRegisteringNames] = useState<ReadonlySet<string>>(
-		() => new Set(),
-	);
+	// 行のボタンで処理している食材の名前と、押したボタン（押したボタンだけを、読み込み中にする）。
+	const [rowActions, setRowActions] = useState<
+		ReadonlyMap<string, RowActionKind>
+	>(() => new Map());
 	const [linkedSections, setLinkedSections] =
 		useState<LinkedShoppingSections>(noLinkedSections);
 
@@ -389,21 +393,53 @@ export function useRecipeShoppingPlan({
 		register: ((ingredientName: string) => Promise<void>) | undefined,
 		ingredientName: string,
 	) {
-		if (!register) {
+		await runRowAction(
+			"register",
+			register,
+			ingredientName,
+			"在庫に登録できませんでした。通信を確認してください",
+			() => load({ quiet: true }),
+		);
+	}
+
+	// 「管理しない」にする。辞書は、呼ぶ側（画面）が読み直し、その辞書で、行が「管理しない材料」に変わる。
+	async function markUnmanagedFor(
+		mark: ((ingredientName: string) => Promise<void>) | undefined,
+		ingredientName: string,
+	) {
+		await runRowAction(
+			"unmanage",
+			mark,
+			ingredientName,
+			"管理しない材料にできませんでした",
+			async () => {},
+		);
+	}
+
+	// 材料の行のボタンの処理（処理中の印・失敗の文）。処理中は、メモへの追加も待つ（hasRegistering）。
+	async function runRowAction(
+		kind: RowActionKind,
+		action: ((ingredientName: string) => Promise<void>) | undefined,
+		ingredientName: string,
+		fallbackMessage: string,
+		after: () => Promise<void>,
+	) {
+		// 同じ行で、もう一方のボタンを処理しているあいだは、受け付けない。
+		if (!action || rowActions.has(ingredientName)) {
 			return;
 		}
 
 		setErrorMessage(null);
-		setRegisteringNames((current) => new Set(current).add(ingredientName));
+		setRowActions((current) => new Map(current).set(ingredientName, kind));
 
 		try {
-			await register(ingredientName);
-			await load({ quiet: true });
-		} catch {
-			setErrorMessage("在庫に登録できませんでした。通信を確認してください");
+			await action(ingredientName);
+			await after();
+		} catch (error) {
+			setErrorMessage(describeError(error, fallbackMessage));
 		} finally {
-			setRegisteringNames((current) => {
-				const next = new Set(current);
+			setRowActions((current) => {
+				const next = new Map(current);
 				next.delete(ingredientName);
 
 				return next;
@@ -425,13 +461,20 @@ export function useRecipeShoppingPlan({
 		setDuplicateMode: changeDuplicateMode,
 		isLoading,
 		isApplying,
+		// 「ある」で在庫に登録している。
 		isRegistering: (ingredientName: string) =>
-			registeringNames.has(ingredientName),
-		hasRegistering: registeringNames.size > 0,
+			rowActions.get(ingredientName) === "register",
+		// 「管理しない」にしている。
+		isMarkingUnmanaged: (ingredientName: string) =>
+			rowActions.get(ingredientName) === "unmanage",
+		// その行のどちらかのボタンを処理している（もう一方のボタンは押せない）。
+		isRowBusy: (ingredientName: string) => rowActions.has(ingredientName),
+		hasRegistering: rowActions.size > 0,
 		errorMessage,
 		resultMessage,
 		start,
 		apply,
 		registerAvailableFor,
+		markUnmanagedFor,
 	};
 }

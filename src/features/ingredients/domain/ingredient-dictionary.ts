@@ -17,14 +17,18 @@ export type IngredientDictionaryEntry = {
 	name: string;
 	// 呼び名（代表の名前は含めない）。カタログの食材は、カタログの別名も入っている（在庫の登録で入る）。
 	aliases: readonly string[];
-	// 在庫に登録されているか（あると、消せない）。
+	// 在庫に登録されているか（あると、消せない・管理しないにできない）。
 	hasInventory: boolean;
+	// 「管理しない」材料（水など）。レシピ→買い物メモの候補にせず、「つくった」で引かない。
+	unmanaged: boolean;
 };
 
 export type IngredientDictionary = {
 	readonly entries: readonly IngredientDictionaryEntry[];
 	// 名前（呼び名を含む）から、辞書の代表の名前を引く。辞書にない名前は undefined。
 	findCanonicalName(name: string): string | undefined;
+	// 名前（呼び名を含む）が「管理しない」材料か。
+	isUnmanaged(name: string): boolean;
 };
 
 function normalizeOrNull(name: string): string | null {
@@ -39,24 +43,31 @@ function normalizeOrNull(name: string): string | null {
 export function createIngredientDictionary(
 	entries: readonly IngredientDictionaryEntry[],
 ): IngredientDictionary {
-	const canonicalByKey = new Map<string, string>();
+	const entryByKey = new Map<string, IngredientDictionaryEntry>();
 
 	for (const entry of entries) {
 		for (const name of [entry.name, ...entry.aliases]) {
 			const key = normalizeOrNull(name);
 
-			if (key !== null && !canonicalByKey.has(key)) {
-				canonicalByKey.set(key, entry.name);
+			if (key !== null && !entryByKey.has(key)) {
+				entryByKey.set(key, entry);
 			}
 		}
 	}
 
+	const find = (name: string) => {
+		const key = normalizeOrNull(name);
+
+		return key === null ? undefined : entryByKey.get(key);
+	};
+
 	return {
 		entries,
 		findCanonicalName(name) {
-			const key = normalizeOrNull(name);
-
-			return key === null ? undefined : canonicalByKey.get(key);
+			return find(name)?.name;
+		},
+		isUnmanaged(name) {
+			return find(name)?.unmanaged === true;
 		},
 	};
 }
@@ -67,6 +78,14 @@ export function toCanonicalIngredientName(
 	dictionary: IngredientDictionary | undefined,
 ): string {
 	return dictionary?.findCanonicalName(name) ?? name;
+}
+
+// 「管理しない」材料か（辞書がなければ、どれも管理する）。
+export function isUnmanagedIngredient(
+	name: string,
+	dictionary: IngredientDictionary | undefined,
+): boolean {
+	return dictionary?.isUnmanaged(name) ?? false;
 }
 
 // 食材が自分で足した呼び名（カタログの別名を除く）。設定に出し、消せるのは、これだけ。

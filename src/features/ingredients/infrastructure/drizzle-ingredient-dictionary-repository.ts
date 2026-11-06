@@ -39,7 +39,12 @@ export function createDrizzleIngredientDictionaryRepository(
 		async list() {
 			const [ingredients, aliases, items] = await Promise.all([
 				db
-					.select({ id: ingredient.id, name: ingredient.name })
+					.select({
+						id: ingredient.id,
+						name: ingredient.name,
+						unmanaged: ingredient.unmanaged,
+						madeFromRecipe: ingredient.madeFromRecipe,
+					})
 					.from(ingredient)
 					.where(
 						and(eq(ingredient.userId, userId), isNull(ingredient.archivedAt)),
@@ -55,37 +60,33 @@ export function createDrizzleIngredientDictionaryRepository(
 					.where(eq(ingredientAlias.userId, userId))
 					.orderBy(asc(ingredientAlias.createdAt)),
 				db
-					.select({
-						ingredientId: inventoryItem.ingredientId,
-						sourceRecipeId: inventoryItem.sourceRecipeId,
-					})
+					.select({ ingredientId: inventoryItem.ingredientId })
 					.from(inventoryItem)
 					.where(eq(inventoryItem.userId, userId)),
 			]);
 
-			const madeRecipeIngredientIds = new Set(
-				items
-					.filter((item) => item.sourceRecipeId !== null)
-					.map((item) => item.ingredientId),
-			);
 			const stockedIngredientIds = new Set(
 				items.map((item) => item.ingredientId),
 			);
 
-			return ingredients
-				.filter((row) => !madeRecipeIngredientIds.has(row.id))
-				.map(
-					(row): IngredientDictionaryEntry => ({
-						id: row.id,
-						name: row.name,
-						aliases: aliases
-							.filter(
-								(alias) => alias.ingredientId === row.id && !alias.isPrimary,
-							)
-							.map((alias) => alias.name),
-						hasInventory: stockedIngredientIds.has(row.id),
-					}),
-				);
+			return (
+				ingredients
+					// 作り置き由来の食材（料理の名前）は、材料ではないので出さない。
+					.filter((row) => !row.madeFromRecipe)
+					.map(
+						(row): IngredientDictionaryEntry => ({
+							id: row.id,
+							name: row.name,
+							aliases: aliases
+								.filter(
+									(alias) => alias.ingredientId === row.id && !alias.isPrimary,
+								)
+								.map((alias) => alias.name),
+							hasInventory: stockedIngredientIds.has(row.id),
+							unmanaged: row.unmanaged,
+						}),
+					)
+			);
 		},
 
 		async create(name) {
@@ -104,7 +105,7 @@ export function createDrizzleIngredientDictionaryRepository(
 			});
 
 			try {
-				await db.transaction(async (transaction) => {
+				return await db.transaction(async (transaction) => {
 					const [created] = await transaction
 						.insert(ingredient)
 						.values({
@@ -128,6 +129,8 @@ export function createDrizzleIngredientDictionaryRepository(
 							isPrimary: alias.isPrimary,
 						})),
 					);
+
+					return created.id;
 				});
 			} catch (error) {
 				rethrowUniqueViolation(error);
@@ -209,6 +212,15 @@ export function createDrizzleIngredientDictionaryRepository(
 						eq(ingredientAlias.normalizedName, normalizeIngredientName(alias)),
 						eq(ingredientAlias.isPrimary, false),
 					),
+				);
+		},
+
+		async setUnmanaged(ingredientId, unmanaged) {
+			await db
+				.update(ingredient)
+				.set({ unmanaged })
+				.where(
+					and(eq(ingredient.id, ingredientId), eq(ingredient.userId, userId)),
 				);
 		},
 

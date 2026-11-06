@@ -33,11 +33,21 @@ export const ingredientDictionaryCommandSchema = v.variant("kind", [
 		alias: nameSchema,
 	}),
 	v.object({ kind: v.literal("remove"), ingredientId: idSchema }),
+	v.object({
+		kind: v.literal("set-unmanaged"),
+		ingredientId: idSchema,
+		unmanaged: v.boolean(),
+	}),
+	// 名前で「管理しない」にする（レシピの材料の行から。辞書になければ、食材を作ってから付ける）。
+	v.object({ kind: v.literal("mark-unmanaged-by-name"), name: nameSchema }),
 ]);
 
 export type IngredientDictionaryCommand = v.InferOutput<
 	typeof ingredientDictionaryCommandSchema
 >;
+
+const unmanagedWithInventoryMessage =
+	"在庫にあるため、管理しない材料にできません。先に在庫から消してください";
 
 function findTarget(
 	entries: readonly IngredientDictionaryEntry[],
@@ -116,6 +126,45 @@ export async function manageIngredientDictionary(
 			}
 
 			await repository.removeAlias(target.id, command.alias);
+
+			return;
+		}
+		case "set-unmanaged": {
+			const target = findTarget(entries, command.ingredientId);
+
+			if (command.unmanaged && target.hasInventory) {
+				throw new UserFacingError(unmanagedWithInventoryMessage);
+			}
+
+			await repository.setUnmanaged(target.id, command.unmanaged);
+
+			return;
+		}
+		case "mark-unmanaged-by-name": {
+			const canonicalName = dictionary.findCanonicalName(command.name);
+			const existing = entries.find((entry) => entry.name === canonicalName);
+
+			if (existing) {
+				if (existing.hasInventory) {
+					throw new UserFacingError(unmanagedWithInventoryMessage);
+				}
+
+				await repository.setUnmanaged(existing.id, true);
+
+				return;
+			}
+
+			if (entries.length >= ingredientDictionaryLimits.maxIngredients) {
+				throw new UserFacingError(
+					`材料は${ingredientDictionaryLimits.maxIngredients}個までです`,
+				);
+			}
+
+			rejectProblem(findIngredientNameProblem(dictionary, command.name));
+			await repository.setUnmanaged(
+				await repository.create(command.name),
+				true,
+			);
 
 			return;
 		}

@@ -2,6 +2,7 @@ import { prepareRecipeForStorage } from "#/features/recipes/application/prepare-
 import { recipeLimits } from "#/features/recipes/domain/recipe-limits";
 import type { RecipeLinkReference } from "#/features/recipes/domain/recipe-links";
 import {
+	type BackupDictionaryEntry,
 	type BackupFile,
 	type BackupInventoryItem,
 	type BackupRecipe,
@@ -15,6 +16,7 @@ export type BackupExportDependencies = {
 		offset: number,
 	) => Promise<{ recipes: BackupRecipe[]; nextOffset: number | null }>;
 	loadInventory: () => Promise<BackupInventoryItem[]>;
+	loadDictionary: () => Promise<BackupDictionaryEntry[]>;
 };
 
 // 書き出す：レシピは、ページに分けて読み、1つのファイルにまとめる。
@@ -33,8 +35,9 @@ export async function collectBackup(
 	}
 
 	const inventory = await dependencies.loadInventory();
+	const dictionary = await dependencies.loadDictionary();
 
-	return createBackupFile(recipes, inventory, now);
+	return createBackupFile(recipes, inventory, now, dictionary);
 }
 
 export type ImportedRecipe = {
@@ -58,6 +61,16 @@ export type BackupImportDependencies = {
 	) => Promise<{ items: number; lots: number }>;
 	// この端末の、まだ送れていない購入（在庫に入る前のもの）の数。
 	countPendingPurchases: () => Promise<number>;
+	// 材料の辞書を、今の辞書に足し合わせる。
+	mergeDictionary: (
+		entries: BackupDictionaryEntry[],
+	) => Promise<BackupDictionaryMergeResult>;
+};
+
+export type BackupDictionaryMergeResult = {
+	created: number;
+	aliases: number;
+	skipped: number;
 };
 
 export type BackupImportPreview = {
@@ -69,6 +82,7 @@ export type BackupImportPreview = {
 	inventoryItemCount: number;
 	// 在庫を置き換えられない理由（未送信の購入がある）。
 	inventoryProblem: string | null;
+	dictionaryCount: number;
 };
 
 // 読み込む前に、何が入るかを調べる（まだ何も書き込まない）。
@@ -108,12 +122,14 @@ export async function previewBackupImport(
 			pendingPurchases > 0
 				? "この端末に、まだ在庫へ送れていない購入があります。通信できるところで在庫の画面を開いて、送り終えてからお試しください。"
 				: null,
+		dictionaryCount: file.dictionary.length,
 	};
 }
 
 export type BackupImportOptions = {
 	recipes: boolean;
 	inventory: boolean;
+	dictionary: boolean;
 };
 
 export type BackupImportProgress = {
@@ -127,6 +143,7 @@ export type BackupImportResult = {
 	// 付けられなかったリンク（相手が見つからない・リンクできない）。
 	droppedLinks: number;
 	inventory: { items: number; lots: number } | null;
+	dictionary: BackupDictionaryMergeResult | null;
 };
 
 function chunk<T>(rows: readonly T[], size: number): T[][] {
@@ -139,7 +156,8 @@ function chunk<T>(rows: readonly T[], size: number): T[][] {
 	return chunks;
 }
 
-// 読み込む：レシピ（登録した順に、分けて送る）→ リンク → 在庫の置き換え。
+// 読み込む：レシピ（登録した順に、分けて送る）→ リンク → 在庫の置き換え → 材料の辞書の足し合わせ。
+// 辞書は、在庫のあとに入れる（在庫に入れた材料には、「管理しない」を付けないため）。
 // レシピは、もう持っているものを飛ばすので、途中で失敗しても、同じファイルで、やり直せる。
 export async function runBackupImport(
 	file: BackupFile,
@@ -153,9 +171,13 @@ export async function runBackupImport(
 			)
 		: [];
 	const recipeBatches = chunk(recipes, backupLimits.recipeImportBatchSize);
+	const dictionaryBatches = options.dictionary
+		? chunk(file.dictionary, backupLimits.dictionaryImportBatchSize)
+		: [];
 	const total =
 		recipeBatches.length +
-		(options.inventory && file.inventory.length > 0 ? 1 : 0);
+		(options.inventory && file.inventory.length > 0 ? 1 : 0) +
+		dictionaryBatches.length;
 	let done = 0;
 	const imported: ImportedRecipe[] = [];
 
@@ -222,10 +244,29 @@ export async function runBackupImport(
 		onProgress({ done, total });
 	}
 
+	const merged: BackupDictionaryMergeResult = {
+		created: 0,
+		aliases: 0,
+		skipped: 0,
+	};
+
+	for (const batch of dictionaryBatches) {
+		const result = await dependencies.mergeDictionary(batch);
+
+		merged.created += result.created;
+		merged.aliases += result.aliases;
+		merged.skipped += result.skipped;
+		done += 1;
+		onProgress({ done, total });
+	}
+
+	const dictionary = dictionaryBatches.length > 0 ? merged : null;
+
 	return {
 		createdRecipes: createdFilePublicIds.size,
 		skippedRecipes: imported.length - createdFilePublicIds.size,
 		droppedLinks,
 		inventory,
+		dictionary,
 	};
 }

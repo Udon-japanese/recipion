@@ -1,7 +1,11 @@
 import type { RecipeConsumptionRow } from "./plan-recipe-consumption";
 
 // 引かなかった理由（同じ理由の材料は、1か所にまとめて見せる）。
-export type SkippedReason = "no-stock" | "unmeasurable" | "presence-only";
+export type SkippedReason =
+	| "no-stock"
+	| "unmeasurable"
+	| "presence-only"
+	| "unmanaged";
 
 export type SkippedGroup = {
 	reason: SkippedReason;
@@ -23,6 +27,7 @@ const skippedOrder: readonly SkippedReason[] = [
 	"no-stock",
 	"unmeasurable",
 	"presence-only",
+	"unmanaged",
 ];
 
 // 引いた結果の行を、見せ方ごとに分ける。入力の順序は、各グループの中で保つ。

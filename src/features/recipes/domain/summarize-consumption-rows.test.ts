@@ -29,6 +29,24 @@ function row(
 	};
 }
 
+describe("summarizeConsumptionRows（管理しない材料）", () => {
+	it("管理しない材料は、引かなかった材料の最後に、まとめて出す", () => {
+		const summary = summarizeConsumptionRows(
+			[
+				row("水", "unmanaged"),
+				row("塩", "presence-only"),
+				row("お湯", "unmanaged"),
+			],
+			new Set(),
+		);
+
+		expect(summary.skipped).toEqual([
+			{ reason: "presence-only", names: ["塩"] },
+			{ reason: "unmanaged", names: ["水", "お湯"] },
+		]);
+	});
+});
+
 describe("summarizeConsumptionRows", () => {
 	it("引いたものは、順序を保って、そのまま並べる（全部でも、ある分だけでも）", () => {
 		const summary = summarizeConsumptionRows(

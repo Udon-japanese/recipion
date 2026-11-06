@@ -30,6 +30,8 @@ type RecipeShoppingSectionProps = {
 	shoppingRepository?: ShoppingRepository;
 	// 「ある」を押したとき、その食材を、在庫に「ある」で登録する（塩・醤油など）。
 	registerAvailable?: (ingredientName: string) => Promise<void>;
+	// 材料を「管理しない材料」にする（水など）。ゲストは省略。
+	markUnmanaged?: (ingredientName: string) => Promise<void>;
 	// 人数を変えたときの割合（省略は 1）。変えたら、作り直す（key）。
 	ratio?: number;
 	// レシピのできあがりの量（割合が1でないとき、入れる量を知らせる）。
@@ -48,6 +50,7 @@ export function RecipeShoppingSection({
 	loadInventoryItems,
 	shoppingRepository = dexieShoppingRepository,
 	registerAvailable,
+	markUnmanaged,
 	ratio = 1,
 	yieldText,
 	dictionary,
@@ -99,6 +102,7 @@ export function RecipeShoppingSection({
 						plan={plan}
 						ownerScope={ownerScope}
 						registerAvailable={registerAvailable}
+						markUnmanaged={markUnmanaged}
 						resultLink={<Link to="/shopping">買い物メモを開く</Link>}
 						amountNote={
 							yieldText === undefined

@@ -9,6 +9,7 @@ function tile(overrides: Partial<InventoryTile> = {}): InventoryTile {
 		zone: "fridge",
 		name: "鶏むね肉",
 		ingredientName: "鶏むね肉",
+		art: [],
 		lotCount: 1,
 		quantity: 300,
 		trackingMode: "estimated",

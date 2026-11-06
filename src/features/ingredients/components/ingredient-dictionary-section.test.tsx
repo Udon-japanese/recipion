@@ -21,6 +21,8 @@ function createStore(initial: IngredientDictionaryEntry[]) {
 		list: async () => entries,
 		create: async (name) => {
 			entries = [...entries, buildDictionaryEntry({ id: `new-${name}`, name })];
+
+			return `new-${name}`;
 		},
 		rename: async (id, name) => {
 			entries = entries.map((entry) =>
@@ -46,6 +48,11 @@ function createStore(initial: IngredientDictionaryEntry[]) {
 		},
 		remove: async (id) => {
 			entries = entries.filter((entry) => entry.id !== id);
+		},
+		setUnmanaged: async (id, unmanaged) => {
+			entries = entries.map((entry) =>
+				entry.id === id ? { ...entry, unmanaged } : entry,
+			);
 		},
 	};
 	const runCommand = vi.fn((command: IngredientDictionaryCommand) =>
@@ -162,5 +169,40 @@ describe("IngredientDictionarySection", () => {
 		expect(await screen.findByRole("alert")).toHaveTextContent(
 			"材料は500個までです",
 		);
+	});
+});
+
+describe("IngredientDictionarySection（管理しない）", () => {
+	it("在庫のない材料は「管理しない」を切り替えられ、一覧に札が出る。在庫のある材料は切り替えられない", async () => {
+		const user = userEvent.setup();
+
+		createStore([dashi, egg]);
+
+		await user.click(
+			await screen.findByRole("button", { name: "マイだしを直す" }),
+		);
+		await user.click(
+			screen.getByRole("switch", { name: "マイだしを管理しない" }),
+		);
+
+		// 行の頭（名前と「直す」の並び）に、札が出る。
+		const rowHead = screen.getByRole("button", {
+			name: "マイだしを直す",
+		}).parentElement;
+
+		if (!rowHead) throw new Error("行が見つかりません");
+
+		expect(await within(rowHead).findByText("管理しない")).toBeInTheDocument();
+		expect(
+			screen.getByRole("switch", { name: "マイだしを管理しない" }),
+		).toBeChecked();
+
+		await user.click(screen.getByRole("button", { name: "卵を直す" }));
+		expect(
+			screen.getByRole("switch", { name: "卵を管理しない" }),
+		).toBeDisabled();
+		expect(
+			screen.getByText("在庫にあるため、切り替えられません"),
+		).toBeInTheDocument();
 	});
 });

@@ -78,6 +78,13 @@
       "when": 1793891500860,
       "tag": "0010_user_household_size",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793893894514,
+      "tag": "0011_ingredient_unmanaged_made_from_recipe",
+      "breakpoints": true
     }
   ]
 }

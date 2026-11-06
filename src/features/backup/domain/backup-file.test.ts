@@ -30,6 +30,7 @@ describe("parseBackupFile", () => {
 			],
 			[buildBackupInventoryItem()],
 			now,
+			[{ name: "マイだし", aliases: ["うちのだし"], unmanaged: true }],
 		);
 
 		expect(parseBackupFile(serialize(file))).toEqual(file);
@@ -44,8 +45,8 @@ describe("parseBackupFile", () => {
 		],
 		[
 			"違う版",
-			serialize({ ...createBackupFile([], [], now), version: 3 }),
-			"この版のファイルは読めません（版 3）",
+			serialize({ ...createBackupFile([], [], now), version: 2 }),
+			"この版のファイルは読めません（版 2）",
 		],
 		[
 			"在庫の日付が存在しない",
@@ -77,6 +78,14 @@ describe("parseBackupFile", () => {
 				createBackupFile([buildBackupRecipe(), buildBackupRecipe()], [], now),
 			),
 			"レシピの ID が重複しています",
+		],
+		[
+			"材料の形が正しくない",
+			serialize({
+				...createBackupFile([], [], now),
+				dictionary: [{ name: "", aliases: [], unmanaged: false }],
+			}),
+			"ファイルの材料の形が正しくありません",
 		],
 		[
 			"レシピが上限を超える（どのレシピかを示す）",
