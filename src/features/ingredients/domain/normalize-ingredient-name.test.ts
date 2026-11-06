@@ -8,7 +8,7 @@ describe("normalizeIngredientName", () => {
 
 	it("連続する空白を一つにまとめる", () => {
 		expect(normalizeIngredientName("ホットケーキ   ミックス")).toBe(
-			"ホットケーキ ミックス",
+			"ほっとけーき みっくす",
 		);
 	});
 
@@ -22,8 +22,18 @@ describe("normalizeIngredientName", () => {
 
 	it("全角スペースも通常の空白として扱う", () => {
 		expect(normalizeIngredientName("ホットケーキ　ミックス")).toBe(
-			"ホットケーキ ミックス",
+			"ほっとけーき みっくす",
 		);
+	});
+
+	it.each([
+		["ベーコン", "べーこん"],
+		["べーコン", "べーこん"],
+		["ｶﾞｽﾊﾟﾁｮ", "がすぱちょ"],
+		["ヴィネガー", "ゔぃねがー"],
+		["ケチャップ", "けちゃっぷ"],
+	])("ひらがなとカタカナの違いをそろえる（%s → %s）", (name, expected) => {
+		expect(normalizeIngredientName(name)).toBe(expected);
 	});
 
 	it("空白だけの名前を拒否する", () => {

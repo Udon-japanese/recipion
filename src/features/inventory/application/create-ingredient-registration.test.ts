@@ -25,11 +25,6 @@ describe("createIngredientRegistration", () => {
 					isPrimary: false,
 				},
 				{
-					name: "タマゴ",
-					normalizedName: "タマゴ",
-					isPrimary: false,
-				},
-				{
 					name: "玉子",
 					normalizedName: "玉子",
 					isPrimary: false,
@@ -39,7 +34,7 @@ describe("createIngredientRegistration", () => {
 		});
 	});
 
-	it("正規化後に同じ別名を重複登録しない", () => {
+	it("正規化後に同じ別名を重複登録しない（ひらがなとカタカナだけが違う別名は、1つにまとめる）", () => {
 		const registration = createIngredientRegistration({
 			ingredientName: "MILK",
 			stockUnitCode: "count",
@@ -50,13 +45,7 @@ describe("createIngredientRegistration", () => {
 			(alias) => alias.normalizedName,
 		);
 
-		expect(normalizedNames).toEqual([
-			"牛乳",
-			"ぎゅうにゅう",
-			"ギュウニュウ",
-			"ミルク",
-			"milk",
-		]);
+		expect(normalizedNames).toEqual(["牛乳", "ぎゅうにゅう", "みるく", "milk"]);
 		expect(registration.defaultTrackingMode).toBe("estimated");
 	});
 
@@ -74,7 +63,7 @@ describe("createIngredientRegistration", () => {
 			aliases: [
 				{
 					name: "ミニ トマト",
-					normalizedName: "ミニ トマト",
+					normalizedName: "みに とまと",
 					isPrimary: true,
 				},
 			],
@@ -131,7 +120,7 @@ describe("createIngredientRegistration", () => {
 		expect(registration.stockUnitLabel).toBe("玉");
 		expect(registration.defaultTrackingMode).toBe("exact");
 		expect(registration.aliases.map((alias) => alias.name)).toEqual(
-			expect.arrayContaining(["にんにく", "ニンニク", "大蒜"]),
+			expect.arrayContaining(["にんにく", "大蒜"]),
 		);
 	});
 });
