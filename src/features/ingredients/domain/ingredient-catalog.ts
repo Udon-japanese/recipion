@@ -1,7 +1,10 @@
 import type { InventoryTrackingMode } from "#/features/inventory/domain/inventory-tracking-mode";
 import type { ShoppingCategoryId } from "#/features/shopping/domain/shopping-category";
 import { ingredientCatalogEntries } from "./ingredient-catalog-data/index";
-import { normalizeIngredientName } from "./normalize-ingredient-name";
+import {
+	foldKatakanaToHiragana,
+	normalizeIngredientName,
+} from "./normalize-ingredient-name";
 
 export type IngredientStockUnitCode = "count" | "g" | "ml";
 
@@ -197,13 +200,9 @@ export function getFixedShapeStandInCatalogEntryIds(
 
 // 検索用に、ひらがな・カタカナの違い、全角半角、大文字小文字、空白を吸収する。
 function foldForSearch(text: string): string {
-	return text
-		.normalize("NFKC")
-		.toLocaleLowerCase("ja-JP")
-		.replace(/\s+/gu, "")
-		.replace(/[\u30a1-\u30f6]/gu, (character) =>
-			String.fromCharCode(character.charCodeAt(0) - 0x60),
-		);
+	return foldKatakanaToHiragana(
+		text.normalize("NFKC").toLocaleLowerCase("ja-JP").replace(/\s+/gu, ""),
+	);
 }
 
 export function foldIngredientSearchText(text: string): string {

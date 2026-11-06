@@ -36,6 +36,8 @@ describe("findSimilarIngredients", () => {
 	it.each([
 		{ title: "カタログにある名前（別名・読み・全角半角も）", name: "ｷｬﾍﾞﾂ" },
 		{ title: "自分の辞書にある名前（呼び名）", name: "うちのだし" },
+		{ title: "ひらがなとカタカナだけが違う（カタログ）", name: "べーコン" },
+		{ title: "ひらがなとカタカナだけが違う（自分の材料）", name: "まいだし" },
 		{ title: "空", name: "  " },
 		{ title: "1文字は「含む」にしない", name: "鶏" },
 	])("出さない：$title", ({ name }) => {
