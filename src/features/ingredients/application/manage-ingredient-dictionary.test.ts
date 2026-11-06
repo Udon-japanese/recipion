@@ -18,11 +18,12 @@ const dashi = buildDictionaryEntry({
 function createRepository(): IngredientDictionaryRepository {
 	return {
 		list: vi.fn(async () => [egg, dashi]),
-		create: vi.fn(async () => {}),
+		create: vi.fn(async () => "00000000-0000-4000-8000-000000000099"),
 		rename: vi.fn(async () => {}),
 		addAlias: vi.fn(async () => {}),
 		removeAlias: vi.fn(async () => {}),
 		remove: vi.fn(async () => {}),
+		setUnmanaged: vi.fn(async () => {}),
 	};
 }
 
@@ -85,5 +86,57 @@ describe("manageIngredientDictionary（サーバーでの確かめ）", () => {
 
 		expect(repository.removeAlias).toHaveBeenCalledWith(id, "タマ");
 		expect(repository.addAlias).toHaveBeenCalledWith(dashi.id, "うちのだし");
+	});
+});
+
+describe("manageIngredientDictionary（管理しない）", () => {
+	it("在庫のある材料は、管理しない材料にできない（ID でも、名前でも）", async () => {
+		const repository = createRepository();
+
+		await expect(
+			manageIngredientDictionary(
+				{ kind: "set-unmanaged", ingredientId: id, unmanaged: true },
+				repository,
+			),
+		).rejects.toThrow(/管理しない材料にできません/u);
+		await expect(
+			manageIngredientDictionary(
+				{ kind: "mark-unmanaged-by-name", name: "タマ" },
+				repository,
+			),
+		).rejects.toThrow(/管理しない材料にできません/u);
+		expect(repository.setUnmanaged).not.toHaveBeenCalled();
+	});
+
+	it("名前で付けると、辞書にある材料に付け、なければ作ってから付ける", async () => {
+		const repository = createRepository();
+
+		await manageIngredientDictionary(
+			{ kind: "mark-unmanaged-by-name", name: "マイだし" },
+			repository,
+		);
+		await manageIngredientDictionary(
+			{ kind: "mark-unmanaged-by-name", name: "水" },
+			repository,
+		);
+
+		expect(repository.create).toHaveBeenCalledWith("水");
+		expect(repository.setUnmanaged).toHaveBeenNthCalledWith(1, dashi.id, true);
+		expect(repository.setUnmanaged).toHaveBeenNthCalledWith(
+			2,
+			"00000000-0000-4000-8000-000000000099",
+			true,
+		);
+	});
+
+	it("外すのは、在庫があってもよい", async () => {
+		const repository = createRepository();
+
+		await manageIngredientDictionary(
+			{ kind: "set-unmanaged", ingredientId: id, unmanaged: false },
+			repository,
+		);
+
+		expect(repository.setUnmanaged).toHaveBeenCalledWith(id, false);
 	});
 });

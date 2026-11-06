@@ -260,3 +260,20 @@ describe("planRecipeConsumption（自分の食材辞書）", () => {
 		});
 	});
 });
+
+describe("planRecipeConsumption（管理しない材料）", () => {
+	it("管理しない材料は、在庫にあっても引かない", () => {
+		const [row] = planRecipeConsumption(
+			[need("水", 200, "ml")],
+			[stock("水", 1000, "ml", "ml")],
+			"auto",
+			buildDictionary([{ name: "水", unmanaged: true }]),
+		);
+
+		expect(row).toMatchObject({
+			status: "unmanaged",
+			deduct: null,
+			target: null,
+		});
+	});
+});

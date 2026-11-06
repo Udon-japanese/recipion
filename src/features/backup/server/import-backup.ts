@@ -1,5 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import * as v from "valibot";
+import { mergeIngredientDictionary } from "#/features/ingredients/application/merge-ingredient-dictionary";
+import { createDrizzleIngredientDictionaryRepository } from "#/features/ingredients/infrastructure/drizzle-ingredient-dictionary-repository";
 import { prepareRecipeForStorage } from "#/features/recipes/application/prepare-recipe-for-storage";
 import {
 	isValidLinkLabel,
@@ -7,6 +9,7 @@ import {
 } from "#/features/recipes/domain/recipe-links";
 import { requireSession } from "#/integrations/better-auth/require-session";
 import {
+	backupDictionarySchema,
 	backupInventorySchema,
 	backupLimits,
 	backupPublicIdSchema,
@@ -221,5 +224,29 @@ export const replaceBackupInventoryServerFn = createServerFn({
 
 		return createDrizzleBackupRepository(db, userId).replaceInventory(
 			data.items,
+		);
+	});
+
+// ファイルの材料の辞書を、今の辞書に足し合わせる（分けて送る）。
+export const mergeBackupDictionaryServerFn = createServerFn({
+	method: "POST",
+})
+	.validator((input) =>
+		v.parse(
+			v.object({
+				entries: v.pipe(
+					backupDictionarySchema,
+					v.maxLength(backupLimits.dictionaryImportBatchSize),
+				),
+			}),
+			input,
+		),
+	)
+	.handler(async ({ data }) => {
+		const { db, userId } = await requireSession();
+
+		return mergeIngredientDictionary(
+			data.entries,
+			createDrizzleIngredientDictionaryRepository(db, userId),
 		);
 	});

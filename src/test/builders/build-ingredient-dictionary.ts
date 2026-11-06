@@ -12,6 +12,7 @@ export function buildDictionaryEntry(
 		id: `id-${overrides.name}`,
 		aliases: [],
 		hasInventory: false,
+		unmanaged: false,
 		...overrides,
 	};
 }

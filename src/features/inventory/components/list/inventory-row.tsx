@@ -4,7 +4,6 @@ import {
 	describeInventoryTile,
 	tileQuantityParts,
 } from "../../domain/describe-inventory-tile";
-import { resolveIngredientArt } from "../../domain/ingredient-art";
 import {
 	type InventoryTile,
 	inventoryZoneLabels,
@@ -48,10 +47,7 @@ export function InventoryRow({
 			onClick={() => onOpen(tile)}
 		>
 			<span className={styles.art} aria-hidden>
-				<DishArt
-					placements={resolveIngredientArt(tile.ingredientName)}
-					size={48}
-				/>
+				<DishArt placements={tile.art} size={48} />
 			</span>
 			<span className={styles.text} aria-hidden>
 				<span className={styles.name}>{tile.name}</span>

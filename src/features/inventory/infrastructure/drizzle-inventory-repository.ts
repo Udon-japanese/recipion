@@ -1,8 +1,11 @@
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import * as v from "valibot";
-
 import type { DB } from "#/db/client";
 import { UserFacingError } from "#/errors/user-facing-error";
+import {
+	type DishPlacement,
+	parseDishCover,
+} from "#/features/dish-art/domain/dish-cover";
 import { convertToStockQuantity } from "#/features/ingredients/domain/convert-to-stock-quantity";
 import { findIngredientCatalogEntry } from "#/features/ingredients/domain/ingredient-catalog";
 import {
@@ -163,6 +166,15 @@ function toStockedLots(lots: readonly InventoryLot[]): InventoryLot[] {
 	return sortLotsForConsumption(lots.filter((lot) => lot.quantity > 0));
 }
 
+// 作り置きの元のレシピの絵（形を確かめ、付けていなければ入れない）。
+function withSourceRecipeCover(value: unknown): {
+	sourceRecipeCover?: DishPlacement[];
+} {
+	const cover = parseDishCover(value);
+
+	return cover && cover.length > 0 ? { sourceRecipeCover: cover } : {};
+}
+
 export function createDrizzleInventoryRepository(
 	db: DB,
 	userId: string,
@@ -193,6 +205,7 @@ export function createDrizzleInventoryRepository(
 					trackingMode: inventoryItem.trackingMode,
 					updatedAt: inventoryItem.updatedAt,
 					sourceRecipePublicId: recipe.publicId,
+					sourceRecipeCover: recipe.cover,
 				})
 				.from(inventoryItem)
 				.innerJoin(
@@ -262,6 +275,7 @@ export function createDrizzleInventoryRepository(
 					...(row.sourceRecipePublicId === null
 						? {}
 						: { sourceRecipePublicId: row.sourceRecipePublicId }),
+					...withSourceRecipeCover(row.sourceRecipeCover),
 					defaultExpiryKind: parseOptionalValue<InventoryExpiryKind>(
 						row.defaultExpiryKind,
 						["use-by", "best-before", "none"],
@@ -353,10 +367,12 @@ export function createDrizzleInventoryRepository(
 						.limit(1);
 
 					if (storedIngredient) {
+						// 在庫に入れる＝数えると決めたので、「管理しない」も外す。
 						await transaction
 							.update(ingredient)
 							.set({
 								archivedAt: null,
+								unmanaged: false,
 							})
 							.where(
 								and(
@@ -526,6 +542,7 @@ export function createDrizzleInventoryRepository(
 							stockUnitCode: "count",
 							stockUnitLabel: madeRecipeUnitLabel,
 							defaultStorage: "fridge",
+							madeFromRecipe: true,
 						})
 						.returning({ id: ingredient.id });
 

@@ -1,3 +1,4 @@
+import type { DishPlacement } from "#/features/dish-art/domain/dish-cover";
 import type { InventoryTrackingMode } from "../domain/apply-inventory-adjustment";
 import type {
 	InventoryExpiryKind,
@@ -25,6 +26,8 @@ export type InventoryListItem = {
 	defaultStorage: InventoryStorage | null;
 	// 「作った」で入れた、できあがり（作り置き）の元のレシピ。ふつうの食材は、なし。名前での突き合わせの対象にしない。
 	sourceRecipePublicId?: string;
+	// 作り置きの元のレシピに付けた絵（付けていなければ、なし）。在庫の絵に使う。
+	sourceRecipeCover?: DishPlacement[];
 	updatedAt: string;
 };
 

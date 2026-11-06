@@ -1,8 +1,11 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
+import type { IngredientDictionary } from "#/features/ingredients/domain/ingredient-dictionary";
 import type { InventoryListItem } from "#/features/inventory/application/inventory-query-repository";
 import { createShoppingItem } from "#/features/shopping/domain/shopping-item";
+import { buildDictionary } from "#/test/builders/build-ingredient-dictionary";
 import { buildInventoryListItem } from "#/test/builders/build-inventory-list-item";
 import { createFakeShoppingRepository } from "#/test/fakes/fake-shopping-repository";
 import type { RecipeDetail } from "../application/recipe-repository";
@@ -709,5 +712,91 @@ describe("RecipeShoppingSection", () => {
 			quantity: 20,
 			unitLabel: "g",
 		});
+	});
+});
+
+// 「管理しない」を押すと、画面が辞書を読み直す（ここでは、渡す辞書を差し替える）。
+function UnmanagedHarness({
+	markUnmanaged,
+}: {
+	markUnmanaged: (name: string) => Promise<void>;
+}) {
+	const [dictionary, setDictionary] = useState<
+		IngredientDictionary | undefined
+	>(undefined);
+
+	return (
+		<RecipeShoppingSection
+			ingredients={[ingredient("w", "水", 200, "ml", "200ml")]}
+			ownerScope="user:user-id"
+			loadInventoryItems={async () => []}
+			shoppingRepository={createFakeShoppingRepository()}
+			dictionary={dictionary}
+			markUnmanaged={async (name) => {
+				await markUnmanaged(name);
+				setDictionary(buildDictionary([{ name: "水", unmanaged: true }]));
+			}}
+		/>
+	);
+}
+
+describe("RecipeShoppingSection（管理しない材料）", () => {
+	it("在庫にない材料は「管理しない」にでき、そのあとは「管理しない材料」で、入れない", async () => {
+		const user = userEvent.setup();
+		const markUnmanaged = vi.fn(async () => {});
+
+		render(<UnmanagedHarness markUnmanaged={markUnmanaged} />);
+
+		const panel = within(await openPanel(user));
+
+		expect(await panel.findByText("在庫なし")).toBeInTheDocument();
+		await user.click(
+			panel.getByRole("button", { name: "水を管理しない材料にする" }),
+		);
+
+		expect(markUnmanaged).toHaveBeenCalledWith("水");
+		expect(await panel.findByText("管理しない材料")).toBeInTheDocument();
+		expect(panel.getByLabelText("水を買い物メモに入れる")).not.toBeChecked();
+		expect(panel.getByLabelText("水を買い物メモに入れる")).toBeDisabled();
+	});
+
+	it("「管理しない」を押すと、そのボタンだけが読み込み中になり、「ある」は押せない", async () => {
+		const user = userEvent.setup();
+		let finish: () => void = () => {};
+
+		render(
+			<RecipeShoppingSection
+				ingredients={[ingredient("w", "水", 200, "ml", "200ml")]}
+				ownerScope="user:user-id"
+				loadInventoryItems={async () => []}
+				shoppingRepository={createFakeShoppingRepository()}
+				registerAvailable={async () => {}}
+				markUnmanaged={() =>
+					new Promise<void>((resolve) => {
+						finish = resolve;
+					})
+				}
+			/>,
+		);
+
+		const panel = within(await openPanel(user));
+
+		await panel.findByText("在庫なし");
+		await user.click(
+			panel.getByRole("button", { name: "水を管理しない材料にする" }),
+		);
+
+		const register = panel.getByRole("button", {
+			name: "水を在庫に「ある」で登録する",
+		});
+
+		expect(
+			panel.getByRole("button", { name: "水を管理しない材料にする" }),
+		).toHaveAttribute("aria-busy", "true");
+		expect(register).not.toHaveAttribute("aria-busy");
+		expect(register).toBeDisabled();
+
+		finish();
+		await waitFor(() => expect(register).toBeEnabled());
 	});
 });

@@ -100,6 +100,9 @@ export const existing = style({
 });
 
 export const rowAction = style({
+	display: "flex",
+	flexWrap: "wrap",
+	gap: 8,
 	marginTop: 6,
 });
 

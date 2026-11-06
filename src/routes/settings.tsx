@@ -9,6 +9,7 @@ import type {
 } from "#/features/backup/application/backup-transfer";
 import { BackupSettingsSection } from "#/features/backup/components/backup-settings-section";
 import {
+	exportBackupDictionaryServerFn,
 	exportBackupInventoryServerFn,
 	exportBackupRecipesServerFn,
 } from "#/features/backup/server/export-backup";
@@ -16,6 +17,7 @@ import {
 	importBackupRecipeLinksServerFn,
 	importBackupRecipesServerFn,
 	inspectBackupServerFn,
+	mergeBackupDictionaryServerFn,
 	replaceBackupInventoryServerFn,
 } from "#/features/backup/server/import-backup";
 import { IngredientDictionarySection } from "#/features/ingredients/components/ingredient-dictionary-section";
@@ -62,6 +64,7 @@ function saveHouseholdSize(householdSize: number | null) {
 const exportDependencies: BackupExportDependencies = {
 	loadRecipePage: (offset) => exportBackupRecipesServerFn({ data: { offset } }),
 	loadInventory: () => exportBackupInventoryServerFn(),
+	loadDictionary: () => exportBackupDictionaryServerFn(),
 };
 
 function createImportDependencies(userId: string): BackupImportDependencies {
@@ -73,6 +76,8 @@ function createImportDependencies(userId: string): BackupImportDependencies {
 			importBackupRecipeLinksServerFn({ data: { recipes } }),
 		replaceInventory: (items) =>
 			replaceBackupInventoryServerFn({ data: { items } }),
+		mergeDictionary: (entries) =>
+			mergeBackupDictionaryServerFn({ data: { entries } }),
 		countPendingPurchases: async () =>
 			(
 				await createDexieInventoryPurchaseOutboxRepository().list(

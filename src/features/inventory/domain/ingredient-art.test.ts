@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { findDishPart } from "#/features/dish-art/domain/dish-part";
+import { pickDishPlaceholder } from "#/features/dish-art/domain/dish-placeholder";
 import { ingredientCatalogEntries } from "#/features/ingredients/domain/ingredient-catalog";
 import {
 	ingredientArtCatalogIds,
 	ingredientArtPartIds,
 	resolveIngredientArt,
+	resolveInventoryItemArt,
 } from "./ingredient-art";
 
 describe("ingredient-art", () => {
@@ -49,5 +51,33 @@ describe("ingredient-art", () => {
 		const tints = resolveIngredientArt("醤油").map((p) => p.tint);
 
 		expect(tints[0]).toMatch(/^#[0-9a-f]{6}$/i);
+	});
+});
+
+describe("resolveInventoryItemArt", () => {
+	const cover = [{ partId: "curry", x: 50, y: 50 }];
+
+	it.each([
+		{
+			title: "作り置き（レシピに絵あり）→ レシピの絵",
+			item: {
+				name: "カレー",
+				sourceRecipePublicId: "curry-id",
+				sourceRecipeCover: cover,
+			},
+			expected: cover,
+		},
+		{
+			title: "作り置き（レシピに絵なし）→ レシピと同じ、れしぽよの絵",
+			item: { name: "カレー", sourceRecipePublicId: "curry-id" },
+			expected: pickDishPlaceholder("curry-id"),
+		},
+		{
+			title: "ふつうの食材 → 名前から決めた絵",
+			item: { name: "卵" },
+			expected: resolveIngredientArt("卵"),
+		},
+	])("$title", ({ item, expected }) => {
+		expect(resolveInventoryItemArt(item)).toEqual(expected);
 	});
 });

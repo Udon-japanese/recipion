@@ -189,10 +189,15 @@ export function ItemPanel({
 	}
 
 	// 「使った」「買い足した」：押したボタンにだけ、処理中・完了を出す。
+	// どちらかの処理中は、もう一方も受け付けない（ボタンは押せなくしてあるが、ここでも弾く）。
 	function runAdjust(
 		operation: "decrease" | "increase",
 		action: () => Promise<boolean>,
 	) {
+		if (decrease.isPending || increase.isPending) {
+			return;
+		}
+
 		if (readOnly) {
 			panel.setErrorMessage(offlineMessage);
 
@@ -734,6 +739,9 @@ function AdjustForm({
 }) {
 	const form = panel.adjustForm;
 	const canSpecifyLots = item.lots.length > 1;
+	// もう一方のボタンの処理中は、押せない（理由の吹き出しも出さない）。
+	const isDecreasing = decreaseStatus === "pending";
+	const isIncreasing = increaseStatus === "pending";
 	const isLotSpecified = canSpecifyLots && form.isLotSpecified;
 
 	return (
@@ -786,9 +794,13 @@ function AdjustForm({
 					variant="secondary"
 					fullWidth
 					status={decreaseStatus}
-					disabled={readOnly || item.quantity === 0}
+					disabled={readOnly || item.quantity === 0 || isIncreasing}
 					disabledReason={
-						readOnly ? offlineMessage : "在庫が 0 のため、減らせません。"
+						isIncreasing
+							? undefined
+							: readOnly
+								? offlineMessage
+								: "在庫が 0 のため、減らせません。"
 					}
 					onClick={() => onRun("decrease")}
 				>
@@ -798,8 +810,8 @@ function AdjustForm({
 					<Button
 						fullWidth
 						status={increaseStatus}
-						disabled={readOnly}
-						disabledReason={offlineMessage}
+						disabled={readOnly || isDecreasing}
+						disabledReason={isDecreasing ? undefined : offlineMessage}
 						onClick={() => onRun("increase")}
 					>
 						買い足した

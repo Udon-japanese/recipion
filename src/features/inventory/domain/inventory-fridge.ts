@@ -1,5 +1,7 @@
+import type { DishPlacement } from "#/features/dish-art/domain/dish-cover";
 import { findIngredientCatalogEntry } from "#/features/ingredients/domain/ingredient-catalog";
 import type { InventoryListItem } from "../application/inventory-query-repository";
+import { resolveInventoryItemArt } from "./ingredient-art";
 import {
 	daysBetween,
 	type InventoryExpiryKind,
@@ -56,8 +58,10 @@ export type InventoryTile = {
 	inventoryItemId: string;
 	zone: InventoryZoneId;
 	name: string;
-	// 食材の名前（絵を引くのに使う。name は、ユーザーが付けた呼び名のことがある）。
+	// 食材の名前（name は、ユーザーが付けた呼び名のことがある）。
 	ingredientName: string;
+	// 絵（作り置きは、元のレシピの絵）。
+	art: readonly DishPlacement[];
 	// このゾーンにある（数量が 0 より多い）ロットの数。
 	lotCount: number;
 	// このゾーンのロットの数量の合計。
@@ -310,6 +314,7 @@ export function buildInventoryFridge(
 				zone,
 				name,
 				ingredientName: item.name,
+				art: resolveInventoryItemArt(item),
 				lotCount: lots.length,
 				quantity,
 				trackingMode: item.trackingMode,

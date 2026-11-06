@@ -6,7 +6,7 @@ import {
 	findIngredientCatalogEntry,
 	getDefaultStockUnitLabel,
 } from "#/features/ingredients/domain/ingredient-catalog";
-import { useIngredientDictionary } from "#/features/ingredients/hooks/use-ingredient-dictionary";
+import { useIngredientDictionaryWithMarking } from "#/features/ingredients/hooks/use-ingredient-dictionary";
 import { userIdOfOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import { loadInventoryItemsWithCache } from "#/features/inventory/application/load-inventory-items-with-cache";
 import { PurchaseOutboxSync } from "#/features/inventory/components/purchase-outbox-sync";
@@ -37,7 +37,8 @@ function ShoppingPage() {
 	const ownerScope = useOwnerScope();
 	const isLoggedIn = ownerScope !== null && ownerScope !== "guest";
 	// 自分の食材辞書（レシピから入れるときの照合と、名前の補完に使う）。ゲストは undefined。
-	const dictionary = useIngredientDictionary(ownerScope);
+	const { dictionary, markUnmanaged } =
+		useIngredientDictionaryWithMarking(ownerScope);
 
 	// 自分のレシピの一覧（「レシピから入れる」で選ぶ）。
 	const listRecipes = useCallback(async () => {
@@ -121,6 +122,7 @@ function ShoppingPage() {
 									loadInventoryItems={loadInventoryItems}
 									registerAvailable={registerAvailable}
 									loadHouseholdSize={loadHouseholdSize}
+									markUnmanaged={markUnmanaged}
 									dictionary={dictionary}
 								/>
 							)

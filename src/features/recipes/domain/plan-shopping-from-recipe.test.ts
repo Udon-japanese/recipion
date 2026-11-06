@@ -538,3 +538,25 @@ describe("planShoppingFromRecipe（自分の食材辞書）", () => {
 		expect(row?.existing?.id).toBe("m1");
 	});
 });
+
+describe("planShoppingFromRecipe（管理しない材料）", () => {
+	it("管理しない材料は、在庫もメモも見ず、入れない（チェックせず、変えない）", () => {
+		const [row] = plan({
+			needs: [need("お湯", 200, "ml")],
+			stockItems: [],
+			memoItems: [{ id: "m1", name: "水", quantity: 1, unitLabel: null }],
+			dictionary: buildDictionary([
+				{ name: "水", aliases: ["お湯"], unmanaged: true },
+			]),
+		});
+
+		expect(row).toMatchObject({
+			need: { name: "お湯" },
+			stock: { kind: "unmanaged" },
+			plan: "keep",
+			keepReason: "unmanaged",
+			existing: null,
+			defaultChecked: false,
+		});
+	});
+});

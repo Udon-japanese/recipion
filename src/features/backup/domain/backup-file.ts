@@ -11,7 +11,8 @@ import { validateRecipeEditorDocument } from "#/features/recipes/domain/validate
 export const backupFormat = "recipion-backup";
 // 2：レシピの人数（servings）を、できあがりの量の文字（yieldText）にした。
 // 材料の増減のしかた（scaleWeight）と、この分量で作る（scalable）は、省略できる（通常・量を変えられる）ので、版2のまま。
-export const backupVersion = 2;
+// 3：自分の材料の辞書（名前・自分で足した呼び名・管理しない）を足した。
+export const backupVersion = 3;
 
 // ファイルの上限。レシピは1人の上限まで、在庫は、ふつうの家庭の量を大きく超える数。
 export const backupLimits = {
@@ -25,6 +26,10 @@ export const backupLimits = {
 	// 1回に送る数（Workers の CPU 時間に収めるため、分けて送る）。
 	recipeImportBatchSize: 10,
 	recipeLinkImportBatchSize: 20,
+	// 材料の辞書（ingredientDictionaryLimits と同じ上限）。
+	maxDictionaryEntries: 500,
+	maxDictionaryAliases: 20,
+	dictionaryImportBatchSize: 50,
 } as const;
 
 const requiredText = v.pipe(v.string(), v.trim(), v.minLength(1));
@@ -84,6 +89,25 @@ export const backupInventorySchema = v.pipe(
 	),
 );
 
+// 自分の材料（辞書）の1件。呼び名は、自分で足したものだけ（カタログの別名は、名前から作り直せる）。
+export const backupDictionaryEntrySchema = v.object({
+	name: v.pipe(requiredText, v.maxLength(100)),
+	aliases: v.pipe(
+		v.array(v.pipe(requiredText, v.maxLength(100))),
+		v.maxLength(backupLimits.maxDictionaryAliases),
+	),
+	unmanaged: v.boolean(),
+});
+
+export type BackupDictionaryEntry = v.InferOutput<
+	typeof backupDictionaryEntrySchema
+>;
+
+export const backupDictionarySchema = v.pipe(
+	v.array(backupDictionaryEntrySchema),
+	v.maxLength(backupLimits.maxDictionaryEntries),
+);
+
 export type BackupRecipe = {
 	publicId: string;
 	// 登録した日時（ISO 8601）。読み込むときは、この順に入れる（日時そのものは、読み込んだ時刻になる）。
@@ -97,6 +121,7 @@ export type BackupFile = {
 	exportedAt: string;
 	recipes: BackupRecipe[];
 	inventory: BackupInventoryItem[];
+	dictionary: BackupDictionaryEntry[];
 };
 
 // レシピの中身は、ここでは形だけを見て、保存と同じ検証（validateRecipeEditorDocument）に任せる。
@@ -115,6 +140,7 @@ const backupEnvelopeSchema = v.object({
 		v.maxLength(backupLimits.maxRecipes),
 	),
 	inventory: v.array(v.unknown()),
+	dictionary: v.array(v.unknown()),
 });
 
 // レシピ1件を、保存と同じ規則で確かめる。どのレシピかが分かる文にする。
@@ -206,12 +232,22 @@ export function parseBackupFile(text: string): BackupFile {
 		throw new UserFacingError("ファイルの在庫の形が正しくありません");
 	}
 
+	const dictionary = v.safeParse(
+		backupDictionarySchema,
+		parsed.output.dictionary,
+	);
+
+	if (!dictionary.success) {
+		throw new UserFacingError("ファイルの材料の形が正しくありません");
+	}
+
 	return {
 		format: backupFormat,
 		version: backupVersion,
 		exportedAt: parsed.output.exportedAt,
 		recipes,
 		inventory: inventory.output,
+		dictionary: dictionary.output,
 	};
 }
 
@@ -219,6 +255,7 @@ export function createBackupFile(
 	recipes: BackupRecipe[],
 	inventory: BackupInventoryItem[],
 	now = new Date(),
+	dictionary: BackupDictionaryEntry[] = [],
 ): BackupFile {
 	return {
 		format: backupFormat,
@@ -226,6 +263,7 @@ export function createBackupFile(
 		exportedAt: now.toISOString(),
 		recipes,
 		inventory,
+		dictionary,
 	};
 }
 

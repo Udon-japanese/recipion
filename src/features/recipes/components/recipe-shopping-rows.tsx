@@ -61,6 +61,10 @@ function describeStockBase(row: RecipeShoppingRow): {
 		return { text: "在庫の情報なし", isShort: true };
 	}
 
+	if (row.stock.kind === "unmanaged") {
+		return { text: "管理しない材料", isShort: false };
+	}
+
 	const { judgment } = row.stock;
 
 	if (row.stock.standInName) {
@@ -122,6 +126,8 @@ type RecipeShoppingRowsProps = {
 	ownerScope: string | null;
 	// 「ある」を押したとき、その食材を、在庫に「ある」で登録する（塩・醤油など）。
 	registerAvailable?: (ingredientName: string) => Promise<void>;
+	// 「管理しない」を押したとき、その材料を「管理しない材料」にする（水など）。
+	markUnmanaged?: (ingredientName: string) => Promise<void>;
 	// 買い物メモの画面の中では、「買い物メモを開く」のリンクを出さない。
 	resultLink?: React.ReactNode;
 	// レシピの量と違う量で入れるときの知らせ（「4人分の量で入れます（レシピは2人分）」）。
@@ -133,6 +139,7 @@ export function RecipeShoppingRows({
 	plan,
 	ownerScope,
 	registerAvailable,
+	markUnmanaged,
 	resultLink,
 	amountNote,
 }: RecipeShoppingRowsProps) {
@@ -195,11 +202,13 @@ export function RecipeShoppingRows({
 				{rows.map((row, index) => {
 					const stock = describeStock(row);
 					const existingText = describeExisting(row);
-					const canRegister =
-						registerAvailable !== undefined &&
+					// 在庫がない材料だけ、「ある」で登録するか、「管理しない」にするかを選べる。
+					const hasNoStock =
 						row.stock.kind === "judged" &&
 						row.stock.judgment.status === "short" &&
 						!row.stock.judgment.hasStock;
+					const canRegister = registerAvailable !== undefined && hasNoStock;
+					const canMarkUnmanaged = markUnmanaged !== undefined && hasNoStock;
 
 					return (
 						<Fragment key={row.need.id}>
@@ -267,25 +276,52 @@ export function RecipeShoppingRows({
 										</span>
 									) : null}
 
-									{canRegister ? (
+									{canRegister || canMarkUnmanaged ? (
 										<div className={styles.rowAction}>
-											<Button
-												variant="secondary"
-												size="sm"
-												status={
-													plan.isRegistering(row.need.name) ? "pending" : "idle"
-												}
-												pendingLabel="登録中"
-												aria-label={`${row.need.name}を在庫に「ある」で登録する`}
-												onClick={() =>
-													void plan.registerAvailableFor(
-														registerAvailable,
-														row.need.name,
-													)
-												}
-											>
-												ある（在庫に登録）
-											</Button>
+											{canRegister ? (
+												<Button
+													variant="secondary"
+													size="sm"
+													status={
+														plan.isRegistering(row.need.name)
+															? "pending"
+															: "idle"
+													}
+													pendingLabel="登録中"
+													disabled={plan.isMarkingUnmanaged(row.need.name)}
+													aria-label={`${row.need.name}を在庫に「ある」で登録する`}
+													onClick={() =>
+														void plan.registerAvailableFor(
+															registerAvailable,
+															row.need.name,
+														)
+													}
+												>
+													ある（在庫に登録）
+												</Button>
+											) : null}
+											{canMarkUnmanaged ? (
+												<Button
+													variant="ghost"
+													size="sm"
+													status={
+														plan.isMarkingUnmanaged(row.need.name)
+															? "pending"
+															: "idle"
+													}
+													pendingLabel="変更中"
+													disabled={plan.isRegistering(row.need.name)}
+													aria-label={`${row.need.name}を管理しない材料にする`}
+													onClick={() =>
+														void plan.markUnmanagedFor(
+															markUnmanaged,
+															row.need.name,
+														)
+													}
+												>
+													管理しない
+												</Button>
+											) : null}
 										</div>
 									) : null}
 								</div>

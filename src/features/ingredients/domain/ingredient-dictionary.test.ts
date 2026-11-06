@@ -7,6 +7,7 @@ import {
 	findAliasProblem,
 	findIngredientNameProblem,
 	ingredientDictionaryLimits,
+	isUnmanagedIngredient,
 	listUserAliases,
 	toCanonicalIngredientName,
 } from "./ingredient-dictionary";
@@ -107,5 +108,20 @@ describe("findIngredientNameProblem / findAliasProblem", () => {
 		expect(
 			findAliasProblem(buildDictionary([full]), full, "新しい呼び名")?.kind,
 		).toBe("too-many");
+	});
+});
+
+describe("isUnmanaged", () => {
+	it("管理しない材料は、名前でも呼び名でも当たり、ほかの材料・辞書なしは当たらない", () => {
+		const water = buildDictionary([
+			{ name: "水", aliases: ["お水"], unmanaged: true },
+			{ name: "マイだし" },
+		]);
+
+		expect(water.isUnmanaged("水")).toBe(true);
+		expect(water.isUnmanaged("お水")).toBe(true);
+		expect(water.isUnmanaged("マイだし")).toBe(false);
+		expect(water.isUnmanaged("牛乳")).toBe(false);
+		expect(isUnmanagedIngredient("水", undefined)).toBe(false);
 	});
 });

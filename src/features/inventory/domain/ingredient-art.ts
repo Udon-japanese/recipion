@@ -1,4 +1,5 @@
 import type { DishPlacement } from "#/features/dish-art/domain/dish-cover";
+import { pickDishPlaceholder } from "#/features/dish-art/domain/dish-placeholder";
 import { findIngredientCatalogEntry } from "#/features/ingredients/domain/ingredient-catalog";
 import type { ShoppingCategoryId } from "#/features/shopping/domain/shopping-category";
 
@@ -341,6 +342,22 @@ export const ingredientArtPartIds: readonly string[] = [
 		),
 	]),
 ];
+
+// 在庫の食材の絵。作り置き（できあがり）は、元のレシピの絵（付けていなければ、レシピと同じ、れしぽよの絵）。
+// ふつうの食材は、名前から決める（resolveIngredientArt）。
+export function resolveInventoryItemArt(item: {
+	name: string;
+	sourceRecipePublicId?: string;
+	sourceRecipeCover?: readonly DishPlacement[];
+}): readonly DishPlacement[] {
+	if (item.sourceRecipePublicId !== undefined) {
+		return item.sourceRecipeCover && item.sourceRecipeCover.length > 0
+			? item.sourceRecipeCover
+			: pickDishPlaceholder(item.sourceRecipePublicId);
+	}
+
+	return resolveIngredientArt(item.name);
+}
 
 // 食材の名前から、在庫の絵（料理の絵の部品の置き方）を決める。
 // 1. 名前からカタログの食材を引き、表にあれば、その部品を1つ大きく置く。

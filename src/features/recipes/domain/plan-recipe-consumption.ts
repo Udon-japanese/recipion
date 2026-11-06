@@ -2,6 +2,7 @@ import { convertToStockQuantity } from "#/features/ingredients/domain/convert-to
 import { findIngredientCatalogEntry } from "#/features/ingredients/domain/ingredient-catalog";
 import {
 	type IngredientDictionary,
+	isUnmanagedIngredient,
 	toCanonicalIngredientName,
 } from "#/features/ingredients/domain/ingredient-dictionary";
 import { findInventoryItemByName } from "#/features/inventory/domain/build-expiry-prefill";
@@ -28,6 +29,8 @@ export type RecipeConsumptionStatus =
 	| "presence-only"
 	// 在庫に登録がない、または在庫が0。
 	| "no-stock"
+	// 「管理しない」材料（水など）。在庫を減らさない。
+	| "unmanaged"
 	// 代わりの食材（冷凍野菜など）で足りるが、使うかどうかを本人が選ぶ。選ぶまで、引かない。
 	| "choose";
 
@@ -150,6 +153,11 @@ export function planRecipeConsumption(
 			alternatives: [],
 			...fields,
 		});
+
+		// 「管理しない」材料は、在庫にあっても引かない。
+		if (isUnmanagedIngredient(need.name, dictionary)) {
+			return row("unmanaged");
+		}
 
 		// 有無だけで管理している食材は、量にかかわらず、減らさない。
 		if (ownStock?.trackingMode === "presence") {

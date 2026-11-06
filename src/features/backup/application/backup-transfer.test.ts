@@ -59,6 +59,7 @@ function createFakeServer() {
 				};
 			},
 			loadInventory: async () => inventories.get(userId) ?? [],
+			loadDictionary: async () => [],
 		};
 		const importDependencies: BackupImportDependencies = {
 			async inspect(publicIds) {
@@ -190,6 +191,7 @@ function createFakeServer() {
 				};
 			},
 			countPendingPurchases: async () => 0,
+			mergeDictionary: async () => ({ created: 0, aliases: 0, skipped: 0 }),
 		};
 
 		return { exportDependencies, importDependencies };
@@ -236,9 +238,10 @@ function createFile(): BackupFile {
 	return parseBackupFile(
 		JSON.stringify({
 			format: "recipion-backup",
-			version: 2,
+			version: 3,
 			exportedAt: now.toISOString(),
 			recipes: [nikujaga, misoSoup, dashi],
+			dictionary: [],
 			inventory: [
 				buildBackupInventoryItem(),
 				buildBackupInventoryItem({
@@ -259,7 +262,7 @@ describe("書き出し・読み込み", () => {
 
 		const result = await runBackupImport(
 			file,
-			{ recipes: true, inventory: true },
+			{ recipes: true, inventory: true, dictionary: false },
 			user.importDependencies,
 		);
 		const exported = parseBackupFile(
@@ -271,6 +274,7 @@ describe("書き出し・読み込み", () => {
 			skippedRecipes: 0,
 			droppedLinks: 0,
 			inventory: { items: 2, lots: 2 },
+			dictionary: null,
 		});
 		expect(withoutIds(exported)).toEqual(
 			withoutIds({
@@ -291,12 +295,12 @@ describe("書き出し・読み込み", () => {
 
 		await runBackupImport(
 			file,
-			{ recipes: true, inventory: true },
+			{ recipes: true, inventory: true, dictionary: false },
 			user.importDependencies,
 		);
 		const second = await runBackupImport(
 			file,
-			{ recipes: true, inventory: true },
+			{ recipes: true, inventory: true, dictionary: false },
 			user.importDependencies,
 		);
 
@@ -315,14 +319,14 @@ describe("書き出し・読み込み", () => {
 		// 書き出した人（まだ退会していない）の別のアカウントに入れる。
 		await runBackupImport(
 			file,
-			{ recipes: true, inventory: false },
+			{ recipes: true, inventory: false, dictionary: false },
 			server.forUser("original").importDependencies,
 		);
 		const other = server.forUser("other");
 
 		await runBackupImport(
 			file,
-			{ recipes: true, inventory: true },
+			{ recipes: true, inventory: true, dictionary: false },
 			other.importDependencies,
 		);
 
@@ -351,7 +355,7 @@ describe("書き出し・読み込み", () => {
 		await expect(
 			runBackupImport(
 				file,
-				{ recipes: true, inventory: false },
+				{ recipes: true, inventory: false, dictionary: false },
 				{
 					...server.forUser("user").importDependencies,
 					importLinks: async () => {
@@ -364,7 +368,7 @@ describe("書き出し・読み込み", () => {
 
 		await runBackupImport(
 			file,
-			{ recipes: true, inventory: false },
+			{ recipes: true, inventory: false, dictionary: false },
 			server.forUser("user").importDependencies,
 		);
 
@@ -380,7 +384,7 @@ describe("書き出し・読み込み", () => {
 
 		await runBackupImport(
 			file,
-			{ recipes: true, inventory: false },
+			{ recipes: true, inventory: false, dictionary: false },
 			user.importDependencies,
 		);
 
@@ -396,7 +400,7 @@ describe("書き出し・読み込み", () => {
 
 		await runBackupImport(
 			file,
-			{ recipes: true, inventory: false },
+			{ recipes: true, inventory: false, dictionary: false },
 			user.importDependencies,
 		);
 
@@ -409,7 +413,7 @@ describe("書き出し・読み込み", () => {
 
 		await runBackupImport(
 			file,
-			{ recipes: true, inventory: false },
+			{ recipes: true, inventory: false, dictionary: false },
 			server.forUser("original").importDependencies,
 		);
 
@@ -417,12 +421,12 @@ describe("書き出し・読み込み", () => {
 
 		await runBackupImport(
 			file,
-			{ recipes: true, inventory: false },
+			{ recipes: true, inventory: false, dictionary: false },
 			other.importDependencies,
 		);
 		const second = await runBackupImport(
 			file,
-			{ recipes: true, inventory: false },
+			{ recipes: true, inventory: false, dictionary: false },
 			other.importDependencies,
 		);
 
@@ -449,17 +453,18 @@ describe("書き出し・読み込み", () => {
 		const file = parseBackupFile(
 			JSON.stringify({
 				format: "recipion-backup",
-				version: 2,
+				version: 3,
 				exportedAt: now.toISOString(),
 				recipes,
 				inventory: [],
+				dictionary: [],
 			}),
 		);
 
 		await expect(
 			runBackupImport(
 				file,
-				{ recipes: true, inventory: false },
+				{ recipes: true, inventory: false, dictionary: false },
 				server.forUser("user", { failOnBatch: 2 }).importDependencies,
 			),
 		).rejects.toThrow("通信に失敗しました");
@@ -467,7 +472,7 @@ describe("書き出し・読み込み", () => {
 
 		const retried = await runBackupImport(
 			file,
-			{ recipes: true, inventory: false },
+			{ recipes: true, inventory: false, dictionary: false },
 			server.forUser("user").importDependencies,
 		);
 
@@ -492,5 +497,47 @@ describe("書き出し・読み込み", () => {
 		expect(
 			await previewBackupImport(file, user.importDependencies),
 		).toMatchObject({ recipeProblem: null, inventoryProblem: null });
+	});
+});
+
+describe("書き出し・読み込み（材料の辞書）", () => {
+	it("書き出しに辞書を入れ、読み込みでは、在庫のあとに、分けて足し合わせ、件数を合計する", async () => {
+		const calls: string[] = [];
+		const dictionary = Array.from({ length: 60 }, (_, index) => ({
+			name: `材料${index}`,
+			aliases: [],
+			unmanaged: false,
+		}));
+		const exported = await collectBackup({
+			loadRecipePage: async () => ({ recipes: [], nextOffset: null }),
+			loadInventory: async () => [],
+			loadDictionary: async () => dictionary,
+		});
+
+		expect(exported.dictionary).toEqual(dictionary);
+
+		const result = await runBackupImport(
+			{ ...exported, inventory: [buildBackupInventoryItem()] },
+			{ recipes: false, inventory: true, dictionary: true },
+			{
+				inspect: async () => ({ ownedPublicIds: [], recipeCount: 0 }),
+				importRecipes: async () => [],
+				importLinks: async () => ({ dropped: 0 }),
+				replaceInventory: async () => {
+					calls.push("inventory");
+
+					return { items: 1, lots: 1 };
+				},
+				countPendingPurchases: async () => 0,
+				mergeDictionary: async (entries) => {
+					calls.push(`dictionary:${entries.length}`);
+
+					return { created: entries.length, aliases: 0, skipped: 1 };
+				},
+			},
+		);
+
+		expect(calls).toEqual(["inventory", "dictionary:50", "dictionary:10"]);
+		expect(result.dictionary).toEqual({ created: 60, aliases: 0, skipped: 2 });
 	});
 });

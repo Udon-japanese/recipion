@@ -1,5 +1,4 @@
 import { DishArtLayers } from "#/features/dish-art/components/dish-art";
-import { resolveIngredientArt } from "../../domain/ingredient-art";
 import type { InventoryTile } from "../../domain/inventory-fridge";
 
 type Props = { x: number; y: number; size: number };
@@ -20,7 +19,7 @@ export function TileArtAt({
 			viewBox="0 0 100 100"
 			aria-hidden="true"
 		>
-			<DishArtLayers placements={resolveIngredientArt(tile.ingredientName)} />
+			<DishArtLayers placements={tile.art} />
 		</svg>
 	);
 }

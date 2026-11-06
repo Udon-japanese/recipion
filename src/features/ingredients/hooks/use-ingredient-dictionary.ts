@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import { userIdOfOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import { loadIngredientDictionaryWithCache } from "../application/load-ingredient-dictionary-with-cache";
@@ -8,7 +8,10 @@ import {
 	type IngredientDictionaryEntry,
 } from "../domain/ingredient-dictionary";
 import { createDexieIngredientDictionaryCache } from "../infrastructure/dexie-ingredient-dictionary-cache";
-import { listIngredientDictionaryServerFn } from "../server/ingredient-dictionary";
+import {
+	listIngredientDictionaryServerFn,
+	manageIngredientDictionaryServerFn,
+} from "../server/ingredient-dictionary";
 
 type LoadEntries = (
 	ownerScope: `user:${string}`,
@@ -71,4 +74,38 @@ export function useIngredientDictionary(
 		() => (entries ? createIngredientDictionary(entries) : undefined),
 		[entries],
 	);
+}
+
+// 辞書と、材料を「管理しない」にする操作（レシピ詳細・買い物メモの「レシピから入れる」で使う）。
+// 送ったあと、辞書を読み直す（その辞書で、行が「管理しない材料」に変わる）。ゲストは、どちらも undefined。
+export function useIngredientDictionaryWithMarking(
+	ownerScope: InventoryPurchaseOwnerScope | null,
+): {
+	dictionary: IngredientDictionary | undefined;
+	markUnmanaged: ((ingredientName: string) => Promise<void>) | undefined;
+} {
+	const [reloadKey, setReloadKey] = useState(0);
+	const dictionary = useIngredientDictionary(ownerScope, { reloadKey });
+	const markUnmanaged = useCallback(
+		async (ingredientName: string) => {
+			if (!ownerScope || ownerScope === "guest") {
+				throw new Error("ログインしていません");
+			}
+
+			await manageIngredientDictionaryServerFn({
+				data: {
+					expectedUserId: userIdOfOwnerScope(ownerScope),
+					command: { kind: "mark-unmanaged-by-name", name: ingredientName },
+				},
+			});
+			setReloadKey((current) => current + 1);
+		},
+		[ownerScope],
+	);
+
+	return {
+		dictionary,
+		markUnmanaged:
+			ownerScope && ownerScope !== "guest" ? markUnmanaged : undefined,
+	};
 }

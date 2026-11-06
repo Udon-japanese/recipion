@@ -9,6 +9,7 @@ import {
 	chooseExpiryKind,
 	chooseExpiryStorage,
 } from "#/test/expiry-fields-helpers";
+import type { InventoryAdjustmentRepositoryResult } from "../application/inventory-adjustment-repository";
 import type { InventoryListItem } from "../application/inventory-query-repository";
 import {
 	addDays,
@@ -593,6 +594,43 @@ describe("InventoryList", () => {
 
 		expect(await within(dialog).findByText("8個")).toBeInTheDocument();
 		expect(amount).toHaveValue("1");
+	});
+
+	it("「買い足した」の処理中は、「使った」を押せず、押しても送らない（逆も同じ）", async () => {
+		const user = userEvent.setup();
+		let finish: (value: InventoryAdjustmentRepositoryResult) => void = () => {};
+		const adjustInventoryItem = vi.fn(
+			() =>
+				new Promise<InventoryAdjustmentRepositoryResult>((resolve) => {
+					finish = resolve;
+				}),
+		);
+
+		renderList(
+			[stocked({ inventoryItemId: "1fc94e80-a9cf-4458-b0e6-3d72550cce06" })],
+			{ adjustInventoryItem },
+		);
+
+		const dialog = await openPanel(user, "卵");
+
+		await user.click(
+			within(dialog).getByRole("button", { name: "買い足した" }),
+		);
+
+		const used = within(dialog).getByRole("button", { name: "使った" });
+
+		expect(used).toBeDisabled();
+		// 押せない状態を、イベントで直接押しても、送らない。
+		used.click();
+		expect(adjustInventoryItem).toHaveBeenCalledTimes(1);
+
+		finish({
+			status: "applied",
+			transactionId: "71af9bc7-03ed-4df4-a783-a45e743a81f7",
+			quantity: 7,
+			lots: [],
+		});
+		await waitFor(() => expect(used).toBeEnabled());
 	});
 
 	it("「今ある分」で、いまの量を欄に入れ、「使った」で全部減らす。g の食材の欄は、はじめは空", async () => {
