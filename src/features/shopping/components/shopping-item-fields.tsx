@@ -1,6 +1,7 @@
 import { Field, SelectBox } from "#/components/field/field";
 import { input as fieldInput } from "#/components/field/field.css";
 import { IngredientNameInput } from "#/features/ingredients/components/ingredient-name-input";
+import { IngredientSuggestionHint } from "#/features/ingredients/components/ingredient-suggestion-hint";
 import type { IngredientCatalogEntry } from "#/features/ingredients/domain/ingredient-catalog";
 import { QuantityInput } from "#/features/quantity/components/quantity-input";
 import { shoppingCategories } from "../domain/shopping-category";
@@ -36,19 +37,22 @@ export function ShoppingNameField({
 	placeholder,
 }: NameFieldProps) {
 	return (
-		<Field label={label} hideLabel={hideLabel}>
-			{(control) => (
-				<IngredientNameInput
-					className={fieldInput}
-					id={control.id}
-					name={name}
-					value={value}
-					onChange={onChange}
-					placeholder={placeholder}
-					describeEntry={describeCatalogEntry}
-				/>
-			)}
-		</Field>
+		<>
+			<Field label={label} hideLabel={hideLabel}>
+				{(control) => (
+					<IngredientNameInput
+						className={fieldInput}
+						id={control.id}
+						name={name}
+						value={value}
+						onChange={onChange}
+						placeholder={placeholder}
+						describeEntry={describeCatalogEntry}
+					/>
+				)}
+			</Field>
+			<IngredientSuggestionHint name={value} onReplace={onChange} />
+		</>
 	);
 }
 

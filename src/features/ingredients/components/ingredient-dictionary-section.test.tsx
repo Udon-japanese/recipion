@@ -49,6 +49,7 @@ function createStore(initial: IngredientDictionaryEntry[]) {
 		remove: async (id) => {
 			entries = entries.filter((entry) => entry.id !== id);
 		},
+		absorb: async () => {},
 		setUnmanaged: async (id, unmanaged) => {
 			entries = entries.map((entry) =>
 				entry.id === id ? { ...entry, unmanaged } : entry,

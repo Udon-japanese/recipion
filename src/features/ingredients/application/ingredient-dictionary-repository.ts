@@ -11,6 +11,8 @@ export interface IngredientDictionaryRepository {
 	removeAlias(ingredientId: string, alias: string): Promise<void>;
 	// 在庫のある食材は消せない（呼ぶ側で確かめる）。
 	remove(ingredientId: string): Promise<void>;
+	// 元の材料の名前と呼び名を、すべて相手の呼び名に移し、元の材料を消す（在庫のない材料だけ。呼ぶ側で確かめる）。
+	absorb(sourceId: string, targetId: string): Promise<void>;
 	// 「管理しない」の印を付ける・外す（在庫のある食材には付けない。呼ぶ側で確かめる）。
 	setUnmanaged(ingredientId: string, unmanaged: boolean): Promise<void>;
 }

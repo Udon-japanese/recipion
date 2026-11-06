@@ -6,6 +6,7 @@ import { input as fieldInput } from "#/components/field/field.css";
 import { Icon } from "#/components/icon/icon";
 import { SegmentedControl } from "#/components/segmented-control/segmented-control";
 import { IngredientNameInput } from "#/features/ingredients/components/ingredient-name-input";
+import { IngredientSuggestionHint } from "#/features/ingredients/components/ingredient-suggestion-hint";
 import { QuantityInput } from "#/features/quantity/components/quantity-input";
 import { formatQuantity } from "#/features/quantity/domain/format-quantity";
 import { ExpiryFields } from "../expiry-fields";
@@ -65,6 +66,10 @@ function RegistrationForm({
 					/>
 				)}
 			</Field>
+			<IngredientSuggestionHint
+				name={ingredientName}
+				onReplace={registration.changeName}
+			/>
 
 			{isPresence ? null : (
 				<Field label="数量">

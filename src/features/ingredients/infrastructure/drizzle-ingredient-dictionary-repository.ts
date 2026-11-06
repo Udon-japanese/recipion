@@ -215,6 +215,31 @@ export function createDrizzleIngredientDictionaryRepository(
 				);
 		},
 
+		async absorb(sourceId, targetId) {
+			try {
+				await db.transaction(async (transaction) => {
+					// 元の材料の名前（代表の呼び名）も、相手の呼び名にする。
+					await transaction
+						.update(ingredientAlias)
+						.set({ ingredientId: targetId, isPrimary: false })
+						.where(
+							and(
+								eq(ingredientAlias.userId, userId),
+								eq(ingredientAlias.ingredientId, sourceId),
+							),
+						);
+					// 在庫（inventory_item）が残っていれば、外部キー（restrict）で消えず、全体が戻る。
+					await transaction
+						.delete(ingredient)
+						.where(
+							and(eq(ingredient.id, sourceId), eq(ingredient.userId, userId)),
+						);
+				});
+			} catch (error) {
+				rethrowUniqueViolation(error);
+			}
+		},
+
 		async setUnmanaged(ingredientId, unmanaged) {
 			await db
 				.update(ingredient)

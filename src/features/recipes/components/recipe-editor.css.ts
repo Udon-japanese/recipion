@@ -313,6 +313,14 @@ export const ingredientRow = style({
 	padding: "4px 6px 4px 8px",
 });
 
+// 材料の行の下の「もしかして」。材料名の文字の左にそろえ、下の行との間を空ける（空のときは、高さを取らない）。
+export const ingredientHint = style({
+	padding: "0 6px 10px 20px",
+	selectors: {
+		"&:empty": { display: "none" },
+	},
+});
+
 export const linkedName = style({
 	padding: "0 12px",
 	fontWeight: "var(--font-weight-bold)",

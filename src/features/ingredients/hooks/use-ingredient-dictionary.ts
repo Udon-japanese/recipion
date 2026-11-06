@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import { userIdOfOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import { loadIngredientDictionaryWithCache } from "../application/load-ingredient-dictionary-with-cache";
+import type { IngredientDictionaryCommand } from "../application/manage-ingredient-dictionary";
 import {
 	createIngredientDictionary,
 	type IngredientDictionary,
@@ -76,36 +77,47 @@ export function useIngredientDictionary(
 	);
 }
 
-// 辞書と、材料を「管理しない」にする操作（レシピ詳細・買い物メモの「レシピから入れる」で使う）。
-// 送ったあと、辞書を読み直す（その辞書で、行が「管理しない材料」に変わる）。ゲストは、どちらも undefined。
-export function useIngredientDictionaryWithMarking(
+// 辞書と、辞書を書き換える操作（材料を「管理しない」にする・「もしかして」の統合）。
+// 送ったあと、辞書を読み直す（その辞書で、行の表示が変わる）。ゲストは、操作が undefined。
+export function useIngredientDictionaryWithActions(
 	ownerScope: InventoryPurchaseOwnerScope | null,
 ): {
 	dictionary: IngredientDictionary | undefined;
 	markUnmanaged: ((ingredientName: string) => Promise<void>) | undefined;
+	mergeNames:
+		| ((sourceName: string, targetName: string) => Promise<void>)
+		| undefined;
 } {
 	const [reloadKey, setReloadKey] = useState(0);
 	const dictionary = useIngredientDictionary(ownerScope, { reloadKey });
-	const markUnmanaged = useCallback(
-		async (ingredientName: string) => {
+	const send = useCallback(
+		async (command: IngredientDictionaryCommand) => {
 			if (!ownerScope || ownerScope === "guest") {
 				throw new Error("ログインしていません");
 			}
 
 			await manageIngredientDictionaryServerFn({
-				data: {
-					expectedUserId: userIdOfOwnerScope(ownerScope),
-					command: { kind: "mark-unmanaged-by-name", name: ingredientName },
-				},
+				data: { expectedUserId: userIdOfOwnerScope(ownerScope), command },
 			});
 			setReloadKey((current) => current + 1);
 		},
 		[ownerScope],
 	);
+	const markUnmanaged = useCallback(
+		(ingredientName: string) =>
+			send({ kind: "mark-unmanaged-by-name", name: ingredientName }),
+		[send],
+	);
+	const mergeNames = useCallback(
+		(sourceName: string, targetName: string) =>
+			send({ kind: "merge-names", sourceName, targetName }),
+		[send],
+	);
+	const isLoggedIn = ownerScope !== null && ownerScope !== "guest";
 
 	return {
 		dictionary,
-		markUnmanaged:
-			ownerScope && ownerScope !== "guest" ? markUnmanaged : undefined,
+		markUnmanaged: isLoggedIn ? markUnmanaged : undefined,
+		mergeNames: isLoggedIn ? mergeNames : undefined,
 	};
 }

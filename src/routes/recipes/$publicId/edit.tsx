@@ -2,8 +2,8 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useRef } from "react";
 import { ButtonLink } from "#/components/button/button-link";
 import { pageTitle } from "#/config/app";
-import { IngredientDictionaryProvider } from "#/features/ingredients/components/ingredient-dictionary-context";
-import { useIngredientDictionary } from "#/features/ingredients/hooks/use-ingredient-dictionary";
+import { IngredientDictionaryScope } from "#/features/ingredients/components/ingredient-dictionary-context";
+import { useIngredientDictionaryWithActions } from "#/features/ingredients/hooks/use-ingredient-dictionary";
 import { useOwnerScope } from "#/features/inventory/hooks/use-owner-scope";
 import { RecipeEditor } from "#/features/recipes/components/recipe-editor";
 import { RecipeRouteError } from "#/features/recipes/components/recipe-route-error";
@@ -101,12 +101,14 @@ function EditRecipePage() {
 		Route.useLoaderData();
 	const navigate = useNavigate();
 	// 自分の食材辞書（本文の材料の補完に、自分の材料も出す）。
-	const dictionary = useIngredientDictionary(useOwnerScope());
+	const { dictionary, mergeNames } = useIngredientDictionaryWithActions(
+		useOwnerScope(),
+	);
 	// 保存のたびに、新しい版に進める（保存に失敗して、この画面に残ったときも、次の保存で確かめられるように）。
 	const revisionRef = useRef(revision);
 
 	return (
-		<IngredientDictionaryProvider value={dictionary}>
+		<IngredientDictionaryScope dictionary={dictionary} mergeNames={mergeNames}>
 			<RecipeEditor
 				initialDocument={recipe}
 				publicId={recipe.publicId}
@@ -145,6 +147,6 @@ function EditRecipePage() {
 					})
 				}
 			/>
-		</IngredientDictionaryProvider>
+		</IngredientDictionaryScope>
 	);
 }

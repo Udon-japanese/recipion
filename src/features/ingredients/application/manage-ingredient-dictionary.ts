@@ -1,5 +1,6 @@
 import * as v from "valibot";
 import { UserFacingError } from "#/errors/user-facing-error";
+import { findIngredientCatalogEntry } from "../domain/ingredient-catalog";
 import {
 	createIngredientDictionary,
 	describeIngredientNameProblem,
@@ -37,6 +38,12 @@ export const ingredientDictionaryCommandSchema = v.variant("kind", [
 		kind: v.literal("set-unmanaged"),
 		ingredientId: idSchema,
 		unmanaged: v.boolean(),
+	}),
+	// 「もしかして」の統合：sourceName（入力した名前）を、targetName（今ある材料）の呼び名にする。
+	v.object({
+		kind: v.literal("merge-names"),
+		sourceName: nameSchema,
+		targetName: nameSchema,
 	}),
 	// 名前で「管理しない」にする（レシピの材料の行から。辞書になければ、食材を作ってから付ける）。
 	v.object({ kind: v.literal("mark-unmanaged-by-name"), name: nameSchema }),
@@ -168,6 +175,16 @@ export async function manageIngredientDictionary(
 
 			return;
 		}
+		case "merge-names": {
+			await mergeNames(
+				command.sourceName,
+				command.targetName,
+				entries,
+				repository,
+			);
+
+			return;
+		}
 		case "remove": {
 			const target = findTarget(entries, command.ingredientId);
 
@@ -182,4 +199,88 @@ export async function manageIngredientDictionary(
 			return;
 		}
 	}
+}
+
+// 「もしかして」の統合。本文やメモの文字は変えず、名前を辞書の呼び名にするだけ。
+// - 相手が辞書になく、カタログの食材なら、食材を作ってから足す。
+// - 入力した名前が、もう別の材料なら、在庫のない方を、在庫のある方へまとめる（両方に在庫があれば、まとめない）。
+async function mergeNames(
+	sourceName: string,
+	targetName: string,
+	currentEntries: IngredientDictionaryEntry[],
+	repository: IngredientDictionaryRepository,
+): Promise<void> {
+	let entries = currentEntries;
+	let dictionary = createIngredientDictionary(entries);
+	const targetCanonical = dictionary.findCanonicalName(targetName);
+	let target = entries.find((entry) => entry.name === targetCanonical);
+
+	if (!target) {
+		const catalogEntry = findIngredientCatalogEntry(targetName);
+
+		if (!catalogEntry) {
+			throw new UserFacingError(
+				"材料が見つかりません。画面を読み込み直してください",
+			);
+		}
+
+		if (entries.length >= ingredientDictionaryLimits.maxIngredients) {
+			throw new UserFacingError(
+				`材料は${ingredientDictionaryLimits.maxIngredients}個までです`,
+			);
+		}
+
+		const createdId = await repository.create(catalogEntry.name);
+
+		entries = await repository.list();
+		dictionary = createIngredientDictionary(entries);
+		target = entries.find((entry) => entry.id === createdId);
+
+		if (!target) {
+			throw new UserFacingError("材料を作成できませんでした");
+		}
+	}
+
+	const sourceCanonical = dictionary.findCanonicalName(sourceName);
+	const source = entries.find((entry) => entry.name === sourceCanonical);
+
+	if (source?.id === target.id) {
+		return;
+	}
+
+	if (!source) {
+		rejectProblem(findAliasProblem(dictionary, target, sourceName));
+		await repository.addAlias(target.id, sourceName);
+
+		return;
+	}
+
+	if (source.hasInventory) {
+		throw new UserFacingError(
+			target.hasInventory
+				? "どちらにも在庫があるため、まとめられません"
+				: `「${source.name}」に在庫があるため、まとめられません。「${target.name}」を「${source.name}」の呼び名にしてください`,
+		);
+	}
+
+	// 移す名前（元の名前と、その呼び名）が、相手の呼び名として使えるか。元の材料を除いた辞書で確かめる。
+	const withoutSource = createIngredientDictionary(
+		entries.filter((entry) => entry.id !== source.id),
+	);
+	const movedNames = [source.name, ...listUserAliases(source)];
+
+	if (
+		listUserAliases(target).length + movedNames.length >
+		ingredientDictionaryLimits.maxUserAliases
+	) {
+		throw new UserFacingError(
+			`呼び名は、1つの材料に${ingredientDictionaryLimits.maxUserAliases}個までです`,
+		);
+	}
+
+	for (const name of movedNames) {
+		rejectProblem(findIngredientNameProblem(withoutSource, name, target));
+	}
+
+	await repository.absorb(source.id, target.id);
 }

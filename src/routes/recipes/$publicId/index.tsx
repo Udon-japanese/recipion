@@ -13,7 +13,7 @@ import {
 	findIngredientCatalogEntry,
 	getDefaultStockUnitLabel,
 } from "#/features/ingredients/domain/ingredient-catalog";
-import { useIngredientDictionaryWithMarking } from "#/features/ingredients/hooks/use-ingredient-dictionary";
+import { useIngredientDictionaryWithActions } from "#/features/ingredients/hooks/use-ingredient-dictionary";
 import { userIdOfOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import { loadInventoryItemsWithCache } from "#/features/inventory/application/load-inventory-items-with-cache";
 import { useOwnerScope } from "#/features/inventory/hooks/use-owner-scope";
@@ -158,7 +158,7 @@ function useRecipeViewSupport(
 	const ownerScope = useOwnerScope();
 	// 自分の食材辞書（買い物メモ・つくったの照合に使う）。ゲストは undefined。
 	const { dictionary, markUnmanaged } =
-		useIngredientDictionaryWithMarking(ownerScope);
+		useIngredientDictionaryWithActions(ownerScope);
 	const { n: urlWanted } = Route.useSearch();
 	const navigate = useNavigate({ from: Route.fullPath });
 	// 見せるできあがりの数：URL の ?n= → うちの人数（「人分」のレシピだけ）→ レシピの量。
