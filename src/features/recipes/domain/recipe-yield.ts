@@ -1,5 +1,5 @@
 // レシピのできあがりの量（「4人分」「12個」「18cmのパウンド型1台」「作りやすい分量」）。
-// 文章の最後の数を、増減の基準として読む（その前後の文字は、そのまま残す）。
+// 文章の最後の数（型の大きさなどの寸法は除く）を、増減の基準として読む（その前後の文字は、そのまま残す）。
 import { formatQuantity } from "#/features/quantity/domain/format-quantity";
 
 export type RecipeYield = {
@@ -13,8 +13,12 @@ export type RecipeYield = {
 export const maxRecipeYieldLength = 30;
 export const defaultRecipeYieldText = "2人分";
 
-// 最後の数（整数・小数・分数）。後ろに、もう数がない位置。
-const lastNumberPattern = /(\d+(?:\.\d+)?(?:\/\d+)?)(?=\D*$)/u;
+// 数（整数・小数・分数）。
+const numberPattern = /\d+(?:\.\d+)?(?:\/\d+)?/gu;
+// 寸法の数：後ろに長さ・型の大きさの単位が続く（「18cm」「5号」）か、「×」で次の数につながる（「25×6」の 25）。
+const dimensionAfterPattern = /^\s*(?:cm|mm|センチ|インチ|号|寸|[×xX*]\s*\d)/u;
+// 寸法の数：「×」で前の数につながる（「25×6」の 6）。「15cm×2台」の 2 は、前が数ではないので寸法にしない。
+const dimensionBeforePattern = /\d\s*[×xX*]\s*$/u;
 // 「2〜3人分」の「〜3」のような、範囲の後ろの数（増減しない）。
 const rangeBeforePattern = /\d\s*(?:[~〜～\-−ー－]|から)\s*$/u;
 
@@ -29,14 +33,21 @@ function parseNumber(text: string): number {
 // できあがりの量を読む。数がない・範囲・0 のときは null（増減しない）。
 export function parseRecipeYield(text: string): RecipeYield | null {
 	const normalized = text.normalize("NFKC").trim();
-	const match = normalized.match(lastNumberPattern);
+	const match = [...normalized.matchAll(numberPattern)]
+		.filter(
+			(candidate) =>
+				!dimensionAfterPattern.test(
+					normalized.slice(candidate.index + candidate[0].length),
+				) && !dimensionBeforePattern.test(normalized.slice(0, candidate.index)),
+		)
+		.at(-1);
 
-	if (!match || match.index === undefined) {
+	if (!match) {
 		return null;
 	}
 
 	const prefix = normalized.slice(0, match.index);
-	const quantity = parseNumber(match[1]);
+	const quantity = parseNumber(match[0]);
 
 	if (
 		rangeBeforePattern.test(prefix) ||
@@ -49,7 +60,7 @@ export function parseRecipeYield(text: string): RecipeYield | null {
 	return {
 		prefix,
 		quantity,
-		suffix: normalized.slice(match.index + match[1].length),
+		suffix: normalized.slice(match.index + match[0].length),
 	};
 }
 
