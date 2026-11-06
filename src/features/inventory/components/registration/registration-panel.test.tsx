@@ -549,4 +549,15 @@ describe("InventoryRegistrationPanel", () => {
 			await screen.findByText("失敗しました", { selector: "output" }),
 		).toBeInTheDocument();
 	});
+
+	it("知らない名前には「もしかして」を出し、［〇〇にする］で名前を置き換える", async () => {
+		const user = userEvent.setup();
+
+		render(<Harness registerInventoryItem={vi.fn()} onRegistered={vi.fn()} />);
+
+		await user.type(screen.getByLabelText("食材名"), "鶏むね");
+		await user.click(screen.getByRole("button", { name: "鶏むね肉にする" }));
+
+		expect(screen.getByLabelText("食材名")).toHaveValue("鶏むね肉");
+	});
 });

@@ -144,4 +144,15 @@ describe("ShoppingAddSheet", () => {
 		expect(await screen.findByText(/牛乳 1/)).toBeInTheDocument();
 		expect(onAdd).toHaveBeenCalledTimes(1);
 	});
+
+	it("知らない名前には「もしかして」を出し、［〇〇にする］で名前を置き換える", async () => {
+		const user = userEvent.setup();
+
+		setup();
+		await user.type(screen.getByLabelText("買うもの"), "鶏むね");
+		await user.click(screen.getByRole("button", { name: "鶏むね肉にする" }));
+
+		expect(screen.getByLabelText("買うもの")).toHaveValue("鶏むね肉");
+		expect(screen.queryByText(/もしかして/u)).toBeNull();
+	});
 });

@@ -10,6 +10,7 @@ import { Button } from "#/components/button/button";
 import { Icon } from "#/components/icon/icon";
 import { IconButton } from "#/components/icon-button/icon-button";
 import { Menu, type MenuItem } from "#/components/menu/menu";
+import { IngredientSuggestionHint } from "#/features/ingredients/components/ingredient-suggestion-hint";
 import type { RecipeEditorIngredientNode } from "../domain/recipe-editor-document";
 import { type RecipeLinkView, splitTextByLinks } from "../domain/recipe-links";
 import { scaleWeightLabel, scaleWeightOptions } from "../domain/scale-weight";
@@ -301,6 +302,12 @@ export function IngredientPreviewNode({
 					items={menuItems}
 				/>
 			</div>
+			{/* 知らない材料名には、似ている材料を出す（本文は書き換えず、辞書の呼び名にするだけ）。 */}
+			{isLink ? null : (
+				<div className={styles.ingredientHint}>
+					<IngredientSuggestionHint name={node.name} />
+				</div>
+			)}
 		</li>
 	);
 }

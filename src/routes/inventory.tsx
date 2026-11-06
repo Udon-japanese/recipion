@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useState } from "react";
 import { pageTitle } from "#/config/app";
-import { IngredientDictionaryProvider } from "#/features/ingredients/components/ingredient-dictionary-context";
-import { useIngredientDictionary } from "#/features/ingredients/hooks/use-ingredient-dictionary";
+import { IngredientDictionaryScope } from "#/features/ingredients/components/ingredient-dictionary-context";
+import { useIngredientDictionaryWithActions } from "#/features/ingredients/hooks/use-ingredient-dictionary";
 import { adjustInventoryWithCache } from "#/features/inventory/application/adjust-inventory-with-cache";
 import { changeInventoryTrackingModeWithCache } from "#/features/inventory/application/change-inventory-tracking-mode-with-cache";
 import type { InventoryAdjustmentCommand } from "#/features/inventory/application/inventory-adjustment-repository";
@@ -61,7 +61,8 @@ function InventoryPage() {
 	const ownerScope = useOwnerScope();
 	const [expiryEstimateLevel] = useExpiryEstimateLevel();
 	// 自分の食材辞書（期限の初期値の照合と、名前の補完に使う）。
-	const dictionary = useIngredientDictionary(ownerScope);
+	const { dictionary, mergeNames } =
+		useIngredientDictionaryWithActions(ownerScope);
 	const lookupIngredientDefaults = useIngredientExpiryDefaults(
 		ownerScope,
 		dictionary,
@@ -225,7 +226,7 @@ function InventoryPage() {
 	);
 
 	return (
-		<IngredientDictionaryProvider value={dictionary}>
+		<IngredientDictionaryScope dictionary={dictionary} mergeNames={mergeNames}>
 			<InventoryList
 				ownerScope={ownerScope}
 				loadInventoryItems={loadInventoryItems}
@@ -249,6 +250,6 @@ function InventoryPage() {
 					/>
 				}
 			/>
-		</IngredientDictionaryProvider>
+		</IngredientDictionaryScope>
 	);
 }

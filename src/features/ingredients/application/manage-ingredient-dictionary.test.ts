@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { buildDictionaryEntry } from "#/test/builders/build-ingredient-dictionary";
+import type { IngredientDictionaryEntry } from "../domain/ingredient-dictionary";
 import type { IngredientDictionaryRepository } from "./ingredient-dictionary-repository";
 import { manageIngredientDictionary } from "./manage-ingredient-dictionary";
 
@@ -24,6 +25,7 @@ function createRepository(): IngredientDictionaryRepository {
 		removeAlias: vi.fn(async () => {}),
 		remove: vi.fn(async () => {}),
 		setUnmanaged: vi.fn(async () => {}),
+		absorb: vi.fn(async () => {}),
 	};
 }
 
@@ -138,5 +140,97 @@ describe("manageIngredientDictionary（管理しない）", () => {
 		);
 
 		expect(repository.setUnmanaged).toHaveBeenCalledWith(id, false);
+	});
+});
+
+describe("manageIngredientDictionary（もしかして：統合）", () => {
+	const ownChicken = buildDictionaryEntry({
+		id: "00000000-0000-4000-8000-000000000003",
+		name: "とりむね",
+	});
+	const stockedChicken = buildDictionaryEntry({
+		id: "00000000-0000-4000-8000-000000000004",
+		name: "とりむね",
+		hasInventory: true,
+	});
+
+	function repositoryWith(entries: IngredientDictionaryEntry[]) {
+		const repository = createRepository();
+
+		repository.list = vi.fn(async () => entries);
+
+		return repository;
+	}
+
+	it("辞書にない名前は、相手の呼び名にする", async () => {
+		const repository = repositoryWith([egg, dashi]);
+
+		await manageIngredientDictionary(
+			{ kind: "merge-names", sourceName: "うちのだし", targetName: "マイだし" },
+			repository,
+		);
+
+		expect(repository.addAlias).toHaveBeenCalledWith(dashi.id, "うちのだし");
+	});
+
+	it("相手が辞書になく、カタログの食材なら、作ってから足す", async () => {
+		const repository = createRepository();
+		const created = buildDictionaryEntry({
+			id: "00000000-0000-4000-8000-000000000099",
+			name: "鶏むね肉",
+		});
+
+		repository.list = vi
+			.fn()
+			.mockResolvedValueOnce([egg, dashi])
+			.mockResolvedValue([egg, dashi, created]);
+
+		await manageIngredientDictionary(
+			{ kind: "merge-names", sourceName: "とりむね", targetName: "鶏むね肉" },
+			repository,
+		);
+
+		expect(repository.create).toHaveBeenCalledWith("鶏むね肉");
+		expect(repository.addAlias).toHaveBeenCalledWith(created.id, "とりむね");
+	});
+
+	it("入力した名前が在庫のない自分の材料なら、それを相手にまとめる", async () => {
+		const repository = repositoryWith([egg, dashi, ownChicken]);
+
+		await manageIngredientDictionary(
+			{ kind: "merge-names", sourceName: "とりむね", targetName: "マイだし" },
+			repository,
+		);
+
+		expect(repository.absorb).toHaveBeenCalledWith(ownChicken.id, dashi.id);
+	});
+
+	it.each([
+		{
+			title: "両方に在庫がある",
+			source: stockedChicken,
+			target: egg,
+			message: /どちらにも在庫/u,
+		},
+		{
+			title: "元にだけ在庫がある（逆向きでまとめるよう知らせる）",
+			source: stockedChicken,
+			target: dashi,
+			message: /「マイだし」を「とりむね」の呼び名に/u,
+		},
+	])("まとめない：$title", async ({ source, target, message }) => {
+		const repository = repositoryWith([source, target]);
+
+		await expect(
+			manageIngredientDictionary(
+				{
+					kind: "merge-names",
+					sourceName: source.name,
+					targetName: target.name,
+				},
+				repository,
+			),
+		).rejects.toThrow(message);
+		expect(repository.absorb).not.toHaveBeenCalled();
 	});
 });

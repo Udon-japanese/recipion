@@ -24,6 +24,7 @@ function createRepository(initial: IngredientDictionaryEntry[]) {
 		},
 		removeAlias: async () => {},
 		remove: async () => {},
+		absorb: async () => {},
 		setUnmanaged: async (id, unmanaged) => {
 			entries = entries.map((entry) =>
 				entry.id === id ? { ...entry, unmanaged } : entry,

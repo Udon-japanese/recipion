@@ -7,6 +7,8 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { IngredientDictionaryScope } from "#/features/ingredients/components/ingredient-dictionary-context";
+import { buildDictionary } from "#/test/builders/build-ingredient-dictionary";
 import {
 	createRecipeEditorDocument,
 	type RecipeEditorDocument,
@@ -1695,5 +1697,36 @@ describe("RecipeEditor", () => {
 				screen.queryByRole("button", { name: "現在の位置にレシピをリンク" }),
 			).toBeNull();
 		});
+	});
+});
+
+describe("RecipeEditor（もしかして）", () => {
+	it("知らない材料名の行に似ている材料を出し、統合しても本文の名前は変えない", async () => {
+		const user = userEvent.setup();
+		const mergeNames = vi.fn(async () => {});
+
+		render(
+			<IngredientDictionaryScope
+				dictionary={buildDictionary([])}
+				mergeNames={mergeNames}
+			>
+				<RecipeEditor onSave={vi.fn()} />
+			</IngredientDictionaryScope>,
+		);
+
+		await writeBody(user, "＜材料＞\n鶏むね 1枚\n醤油 大さじ1");
+
+		await user.click(
+			await screen.findByRole("button", {
+				name: "鶏むねを鶏むね肉と同じ材料にする",
+			}),
+		);
+
+		expect(mergeNames).toHaveBeenCalledWith("鶏むね", "鶏むね肉");
+		expect(screen.getByRole("textbox", { name: "レシピの本文" })).toHaveValue(
+			"＜材料＞\n鶏むね 1枚\n醤油 大さじ1",
+		);
+		// 知っている材料（醤油）には出さない。
+		expect(screen.getAllByText(/もしかして/u)).toHaveLength(1);
 	});
 });
