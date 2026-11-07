@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { LocalDatabase } from "#/local-db/database";
+import { asGuest } from "#/test/builders/as-guest";
 import {
 	createShoppingItem,
 	toggleShoppingItem,
@@ -53,7 +54,7 @@ describe("confirmCheckedShoppingItemsPurchase", () => {
 			branchSide: "then" as const,
 		};
 
-		await database.shoppingItems.put(branchItem);
+		await database.shoppingItems.put(asGuest(branchItem));
 
 		await expect(
 			confirmCheckedShoppingItemsPurchase("guest", database),
@@ -68,7 +69,7 @@ describe("confirmCheckedShoppingItemsPurchase", () => {
 		const database = createDatabase();
 		const checkedItem = createCheckedHotcakeMix();
 
-		await database.shoppingItems.add(checkedItem);
+		await database.shoppingItems.add(asGuest(checkedItem));
 
 		const result = await confirmCheckedShoppingItemsPurchase(
 			"guest",
@@ -121,7 +122,7 @@ describe("confirmCheckedShoppingItemsPurchase", () => {
 		);
 		const food = createCheckedHotcakeMix();
 
-		await database.shoppingItems.bulkAdd([household, food]);
+		await database.shoppingItems.bulkAdd([household, food].map(asGuest));
 
 		const result = await confirmCheckedShoppingItemsPurchase("guest", database);
 
@@ -143,7 +144,7 @@ describe("confirmCheckedShoppingItemsPurchase", () => {
 			createShoppingItem({ name: "アルミホイル", categoryId: "household" }),
 		);
 
-		await database.shoppingItems.add(household);
+		await database.shoppingItems.add(asGuest(household));
 
 		const result = await confirmCheckedShoppingItemsPurchase("guest", database);
 
@@ -159,7 +160,7 @@ describe("confirmCheckedShoppingItemsPurchase", () => {
 			}),
 		);
 
-		await database.shoppingItems.add(checkedItem);
+		await database.shoppingItems.add(asGuest(checkedItem));
 
 		const result = await confirmCheckedShoppingItemsPurchase("guest", database);
 
@@ -169,7 +170,7 @@ describe("confirmCheckedShoppingItemsPurchase", () => {
 		});
 
 		await expect(database.shoppingItems.get(checkedItem.id)).resolves.toEqual(
-			checkedItem,
+			asGuest(checkedItem),
 		);
 
 		await expect(database.inventoryPurchaseOutbox.count()).resolves.toBe(0);
@@ -182,7 +183,7 @@ describe("confirmCheckedShoppingItemsPurchase", () => {
 			inventoryConversion: null,
 		});
 
-		await database.shoppingItems.add(legacyItem);
+		await database.shoppingItems.add(asGuest(legacyItem));
 
 		const result = await confirmCheckedShoppingItemsPurchase("guest", database);
 
@@ -205,7 +206,7 @@ describe("confirmCheckedShoppingItemsPurchase", () => {
 			name: "卵",
 		});
 
-		await database.shoppingItems.add(pendingItem);
+		await database.shoppingItems.add(asGuest(pendingItem));
 
 		const result = await confirmCheckedShoppingItemsPurchase("guest", database);
 
@@ -214,5 +215,27 @@ describe("confirmCheckedShoppingItemsPurchase", () => {
 		});
 
 		await expect(database.inventoryPurchaseOutbox.count()).resolves.toBe(0);
+	});
+
+	it("ほかの持ち主のチェックした項目は、購入確定しない", async () => {
+		const database = createDatabase();
+		const guestItem = createCheckedHotcakeMix();
+		const someoneItem = createCheckedHotcakeMix();
+
+		await database.shoppingItems.bulkAdd([
+			asGuest(guestItem),
+			{ ...someoneItem, ownerScope: "user:someone" },
+		]);
+
+		const result = await confirmCheckedShoppingItemsPurchase("guest", database);
+
+		expect(result).toMatchObject({
+			status: "confirmed",
+			items: [{ id: guestItem.id, status: "purchased" }],
+		});
+		await expect(
+			database.shoppingItems.get(someoneItem.id),
+		).resolves.toMatchObject({ status: "checked", ownerScope: "user:someone" });
+		await expect(database.inventoryPurchaseOutbox.count()).resolves.toBe(1);
 	});
 });

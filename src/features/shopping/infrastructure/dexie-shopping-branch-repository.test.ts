@@ -5,8 +5,13 @@ import {
 	decideShoppingBranch,
 } from "../domain/shopping-branch";
 import { createShoppingItem } from "../domain/shopping-item";
-import { dexieShoppingBranchRepository } from "./dexie-shopping-branch-repository";
-import { dexieShoppingRepository } from "./dexie-shopping-repository";
+import { createDexieShoppingBranchRepository } from "./dexie-shopping-branch-repository";
+import { createDexieShoppingRepository } from "./dexie-shopping-repository";
+
+// このテストの持ち主（ゲスト）のメモの保存先。
+const dexieShoppingRepository = createDexieShoppingRepository("guest");
+const dexieShoppingBranchRepository =
+	createDexieShoppingBranchRepository("guest");
 
 async function seed() {
 	const branch = createShoppingBranch({ condition: "合い挽きがあれば" }, 0);

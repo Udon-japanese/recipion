@@ -8,6 +8,7 @@ import {
 	markShoppingItemAsPurchased,
 	type ShoppingItem,
 } from "../domain/shopping-item";
+import { toShoppingItem, withOwner } from "./owned-shopping-records";
 
 export type ConfirmCheckedShoppingItemsPurchaseResult =
 	| {
@@ -38,12 +39,15 @@ export async function confirmCheckedShoppingItemsPurchase(
 		database.shoppingItems,
 		database.inventoryPurchaseOutbox,
 		async () => {
-			const checkedItems = await database.shoppingItems
-				.where("status")
-				.equals("checked")
-				// 条件つきのメモの中の項目は、条件が決まる（通常の項目になる）までは、購入確定の対象にしない。
-				.filter((item) => !item.branchId)
-				.sortBy("sortOrder");
+			// その持ち主のメモの、チェックした項目だけ。
+			const checkedItems = (
+				await database.shoppingItems
+					.where("[ownerScope+status]")
+					.equals([ownerScope, "checked"])
+					// 条件つきのメモの中の項目は、条件が決まる（通常の項目になる）までは、購入確定の対象にしない。
+					.filter((item) => !item.branchId)
+					.sortBy("sortOrder")
+			).map(toShoppingItem);
 
 			if (checkedItems.length === 0) {
 				return {
@@ -103,7 +107,9 @@ export async function confirmCheckedShoppingItemsPurchase(
 			if (outboxEntries.length > 0) {
 				await database.inventoryPurchaseOutbox.bulkAdd(outboxEntries);
 			}
-			await database.shoppingItems.bulkPut(purchasedItems);
+			await database.shoppingItems.bulkPut(
+				purchasedItems.map((item) => withOwner(item, ownerScope)),
+			);
 
 			return {
 				status: "confirmed",

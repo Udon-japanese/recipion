@@ -8,9 +8,14 @@ import {
 	createShoppingItem,
 	toggleShoppingItem,
 } from "../domain/shopping-item";
-import { dexieShoppingBranchRepository } from "./dexie-shopping-branch-repository";
+import { createDexieShoppingBranchRepository } from "./dexie-shopping-branch-repository";
 import { confirmCheckedShoppingItemsPurchase } from "./dexie-shopping-purchase";
-import { dexieShoppingRepository } from "./dexie-shopping-repository";
+import { createDexieShoppingRepository } from "./dexie-shopping-repository";
+
+// このテストの持ち主（ゲスト）のメモの保存先。
+const dexieShoppingRepository = createDexieShoppingRepository("guest");
+const dexieShoppingBranchRepository =
+	createDexieShoppingBranchRepository("guest");
 
 // Dexie の購読（liveQuery）が、トランザクションの中の書き込みでも、再実行されることの確認。
 describe("買い物メモのライブデータ", () => {

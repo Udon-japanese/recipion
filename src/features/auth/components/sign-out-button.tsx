@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Button } from "#/components/button/button";
 import { useButtonAction } from "#/components/button/use-button-action";
 import { Note } from "#/components/note/note";
+import { signedInOwnerStorage } from "#/features/shopping/infrastructure/signed-in-owner-storage";
 import { authClient } from "#/integrations/better-auth/auth-client";
 import { getAuthErrorMessage } from "#/integrations/better-auth/auth-error-message";
 import { useAppSession } from "#/integrations/better-auth/use-app-session";
@@ -26,6 +27,8 @@ export function SignOutButton({ fullWidth = false }: { fullWidth?: boolean }) {
 				return false;
 			}
 
+			// この端末の「いまログインしている人」の記憶を消す（次の人に、買い物メモを見せない）。
+			signedInOwnerStorage.remove();
 			await refetch();
 			await navigate({ to: "/" });
 

@@ -10,7 +10,6 @@ import { useIngredientDictionaryWithActions } from "#/features/ingredients/hooks
 import { userIdOfOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import { loadInventoryItemsWithCache } from "#/features/inventory/application/load-inventory-items-with-cache";
 import { PurchaseOutboxSync } from "#/features/inventory/components/purchase-outbox-sync";
-import { useOwnerScope } from "#/features/inventory/hooks/use-owner-scope";
 import { createDexieInventoryCacheRepository } from "#/features/inventory/infrastructure/dexie-inventory-cache-repository";
 import { syncDexieInventoryPurchaseOutbox } from "#/features/inventory/infrastructure/sync-dexie-inventory-purchase-outbox";
 import { listInventoryItemsServerFn } from "#/features/inventory/server/list-inventory-items";
@@ -19,8 +18,10 @@ import { RecipeToShoppingPicker } from "#/features/recipes/components/recipe-to-
 import { getRecipeServerFn } from "#/features/recipes/server/get-recipe";
 import { getHouseholdSizeServerFn } from "#/features/recipes/server/household-size";
 import { listRecipesServerFn } from "#/features/recipes/server/list-recipes";
+import { GuestShoppingMemoAdoption } from "#/features/shopping/components/guest-shopping-memo-adoption";
 import type { RecipePickerContext } from "#/features/shopping/components/recipe-picker-slot";
 import { ShoppingList } from "#/features/shopping/components/shopping-list";
+import { useShoppingOwnerScope } from "#/features/shopping/hooks/use-shopping-owner-scope";
 
 export const Route = createFileRoute("/shopping")({
 	head: () => ({ meta: [{ title: pageTitle("買い物メモ") }] }),
@@ -34,7 +35,8 @@ function loadHouseholdSize() {
 }
 
 function ShoppingPage() {
-	const ownerScope = useOwnerScope();
+	// オフラインでログイン状態を確かめられないときも、この端末でログインしている人のメモを見せる。
+	const ownerScope = useShoppingOwnerScope();
 	const isLoggedIn = ownerScope !== null && ownerScope !== "guest";
 	// 自分の食材辞書（レシピから入れるときの照合と、名前の補完に使う）。ゲストは undefined。
 	const { dictionary, markUnmanaged, mergeNames } =
@@ -100,15 +102,24 @@ function ShoppingPage() {
 		[ownerScope],
 	);
 
+	// だれのメモかが決まるまでは、出さない（ゲストのメモを、一瞬でも見せない）。
+	if (ownerScope === null) {
+		return null;
+	}
+
 	return (
 		<IngredientDictionaryScope dictionary={dictionary} mergeNames={mergeNames}>
 			<ShoppingList
+				key={ownerScope}
 				ownerScope={ownerScope}
 				notices={
-					<PurchaseOutboxSync
-						ownerScope={ownerScope}
-						syncPurchases={syncDexieInventoryPurchaseOutbox}
-					/>
+					<>
+						<PurchaseOutboxSync
+							ownerScope={ownerScope}
+							syncPurchases={syncDexieInventoryPurchaseOutbox}
+						/>
+						<GuestShoppingMemoAdoption ownerScope={ownerScope} />
+					</>
 				}
 				syncPurchases={syncDexieInventoryPurchaseOutbox}
 				renderRecipePicker={

@@ -4,10 +4,15 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getLocalDatabase } from "../../../local-db/database";
 import { createShoppingBranch } from "../domain/shopping-branch";
 import { createShoppingItem } from "../domain/shopping-item";
-import { dexieShoppingBranchRepository } from "../infrastructure/dexie-shopping-branch-repository";
-import { dexieShoppingRepository } from "../infrastructure/dexie-shopping-repository";
+import { createDexieShoppingBranchRepository } from "../infrastructure/dexie-shopping-branch-repository";
+import { createDexieShoppingRepository } from "../infrastructure/dexie-shopping-repository";
 import type { RenderRecipePicker } from "./recipe-picker-slot";
 import { ShoppingList } from "./shopping-list";
+
+// このテストの持ち主（ゲスト）のメモの保存先。
+const dexieShoppingRepository = createDexieShoppingRepository("guest");
+const dexieShoppingBranchRepository =
+	createDexieShoppingBranchRepository("guest");
 
 beforeEach(async () => {
 	const database = getLocalDatabase();
@@ -15,7 +20,7 @@ beforeEach(async () => {
 	await database.shoppingItems.clear();
 	await database.shoppingBranches.clear();
 	await database.shoppingStores.clear();
-	await database.shoppingStoreDefaults.clear();
+	await database.scopedShoppingStoreDefaults.clear();
 });
 
 afterEach(() => {

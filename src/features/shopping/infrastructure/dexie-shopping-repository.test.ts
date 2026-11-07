@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { getLocalDatabase } from "../../../local-db/database";
 import { createShoppingItem, type ShoppingItem } from "../domain/shopping-item";
-import { dexieShoppingRepository } from "./dexie-shopping-repository";
+import { createDexieShoppingRepository } from "./dexie-shopping-repository";
+
+// このテストの持ち主（ゲスト）のメモの保存先。
+const dexieShoppingRepository = createDexieShoppingRepository("guest");
 
 describe("dexieShoppingRepository", () => {
 	beforeEach(async () => {
@@ -168,4 +171,23 @@ describe("dexieShoppingRepository", () => {
 			}
 		},
 	);
+
+	it("ほかの持ち主の項目は、一覧・ID のどちらでも見えず、消せない", async () => {
+		const someone = createDexieShoppingRepository("user:someone");
+		const guestItem = createShoppingItem({ name: "卵" });
+		const someoneItem = createShoppingItem({ name: "牛乳" });
+
+		await dexieShoppingRepository.save(guestItem);
+		await someone.save(someoneItem);
+
+		await expect(dexieShoppingRepository.list()).resolves.toEqual([guestItem]);
+		await expect(
+			dexieShoppingRepository.findById(someoneItem.id),
+		).resolves.toBeUndefined();
+
+		await dexieShoppingRepository.removeAll([someoneItem.id, guestItem.id]);
+
+		await expect(someone.list()).resolves.toEqual([someoneItem]);
+		await expect(dexieShoppingRepository.list()).resolves.toEqual([]);
+	});
 });

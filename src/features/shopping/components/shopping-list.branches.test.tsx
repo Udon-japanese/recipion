@@ -1,13 +1,19 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { asGuest } from "#/test/builders/as-guest";
 import { getLocalDatabase } from "../../../local-db/database";
 import { createShoppingBranch } from "../domain/shopping-branch";
 import { createShoppingItem } from "../domain/shopping-item";
 import { createShoppingStore } from "../domain/shopping-store";
-import { dexieShoppingBranchRepository } from "../infrastructure/dexie-shopping-branch-repository";
-import { dexieShoppingRepository } from "../infrastructure/dexie-shopping-repository";
+import { createDexieShoppingBranchRepository } from "../infrastructure/dexie-shopping-branch-repository";
+import { createDexieShoppingRepository } from "../infrastructure/dexie-shopping-repository";
 import { ShoppingList } from "./shopping-list";
+
+// このテストの持ち主（ゲスト）のメモの保存先。
+const dexieShoppingRepository = createDexieShoppingRepository("guest");
+const dexieShoppingBranchRepository =
+	createDexieShoppingBranchRepository("guest");
 
 beforeEach(async () => {
 	const database = getLocalDatabase();
@@ -15,7 +21,7 @@ beforeEach(async () => {
 	await database.shoppingItems.clear();
 	await database.shoppingBranches.clear();
 	await database.shoppingStores.clear();
-	await database.shoppingStoreDefaults.clear();
+	await database.scopedShoppingStoreDefaults.clear();
 });
 
 afterEach(() => {
@@ -380,7 +386,9 @@ describe("ShoppingList の条件つきのメモ", () => {
 		const storeA = createShoppingStore("スーパーA", 0);
 		const storeB = createShoppingStore("スーパーB", 1);
 
-		await getLocalDatabase().shoppingStores.bulkAdd([storeA, storeB]);
+		await getLocalDatabase().shoppingStores.bulkAdd(
+			[storeA, storeB].map(asGuest),
+		);
 		await seedBranch(storeB.id);
 		await dexieShoppingRepository.save(
 			createShoppingItem({ name: "牛乳", storeId: storeA.id }, new Date(), 5),

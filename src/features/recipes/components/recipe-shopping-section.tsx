@@ -1,12 +1,12 @@
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "#/components/button/button";
 import { Icon } from "#/components/icon/icon";
 import type { IngredientDictionary } from "#/features/ingredients/domain/ingredient-dictionary";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import type { InventoryListItem } from "#/features/inventory/application/inventory-query-repository";
 import type { ShoppingRepository } from "#/features/shopping/application/shopping-repository";
-import { dexieShoppingRepository } from "#/features/shopping/infrastructure/dexie-shopping-repository";
+import { createDexieShoppingRepository } from "#/features/shopping/infrastructure/dexie-shopping-repository";
 import type { RecipeDetail } from "../application/recipe-repository";
 import type { RecipeEditorIngredientNode } from "../domain/recipe-editor-document";
 import type { RecipeLinkView } from "../domain/recipe-links";
@@ -48,7 +48,7 @@ export function RecipeShoppingSection({
 	loadLinkedRecipe,
 	ownerScope,
 	loadInventoryItems,
-	shoppingRepository = dexieShoppingRepository,
+	shoppingRepository: injectedShoppingRepository,
 	registerAvailable,
 	markUnmanaged,
 	ratio = 1,
@@ -56,6 +56,13 @@ export function RecipeShoppingSection({
 	dictionary,
 }: RecipeShoppingSectionProps) {
 	const [isOpen, setIsOpen] = useState(false);
+	// その人の買い物メモに入れる（持ち主が決まるまでは、ゲストのメモ。入れる操作は、在庫を読めてから）。
+	const shoppingRepository = useMemo(
+		() =>
+			injectedShoppingRepository ??
+			createDexieShoppingRepository(ownerScope ?? "guest"),
+		[injectedShoppingRepository, ownerScope],
+	);
 	const plan = useRecipeShoppingPlan({
 		ingredients,
 		linkViews,

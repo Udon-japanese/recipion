@@ -1,5 +1,6 @@
 import Dexie from "dexie";
 import { afterEach, describe, expect, it } from "vitest";
+import { asGuest } from "#/test/builders/as-guest";
 import { createShoppingItem } from "../features/shopping/domain/shopping-item";
 import { LocalDatabase } from "./database";
 
@@ -31,17 +32,17 @@ describe("LocalDatabase", () => {
 			0,
 		);
 
-		await database.shoppingItems.bulkPut([first, second]);
+		await database.shoppingItems.bulkPut([first, second].map(asGuest));
 
 		await expect(
 			database.shoppingItems.orderBy("sortOrder").toArray(),
-		).resolves.toEqual([second, first]);
+		).resolves.toEqual([second, first].map(asGuest));
 		await expect(
 			database.shoppingItems.where("storeId").equals("store-1").toArray(),
-		).resolves.toEqual([first]);
+		).resolves.toEqual([asGuest(first)]);
 		await expect(
 			database.shoppingItems.where("branchId").equals("branch-1").toArray(),
-		).resolves.toEqual([first]);
+		).resolves.toEqual([asGuest(first)]);
 
 		database.close();
 	});

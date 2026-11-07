@@ -43,6 +43,7 @@ import {
 	settingsTabs,
 } from "#/features/settings/components/settings-page";
 import * as settingsStyles from "#/features/settings/components/settings-page.css";
+import { useShoppingOwnerScope } from "#/features/shopping/hooks/use-shopping-owner-scope";
 import { authClient } from "#/integrations/better-auth/auth-client";
 import { useAppSession } from "#/integrations/better-auth/use-app-session";
 
@@ -94,6 +95,8 @@ function createImportDependencies(userId: string): BackupImportDependencies {
 
 function SettingsRoute() {
 	const { data: session } = useAppSession();
+	// 書き出す・置き換える買い物メモの持ち主（買い物メモの画面と同じ決め方）。
+	const shoppingOwner = useShoppingOwnerScope();
 	const { tab } = Route.useSearch();
 	const navigate = useNavigate({ from: "/settings" });
 
@@ -153,10 +156,13 @@ function SettingsRoute() {
 			}
 			data={
 				<>
-					<ShoppingBackupSection
-						loadData={readShoppingData}
-						replaceData={replaceShoppingData}
-					/>
+					{shoppingOwner ? (
+						<ShoppingBackupSection
+							key={shoppingOwner}
+							loadData={() => readShoppingData(shoppingOwner)}
+							replaceData={(data) => replaceShoppingData(shoppingOwner, data)}
+						/>
+					) : null}
 					{session ? (
 						<BackupSettingsSection
 							exportDependencies={exportDependencies}

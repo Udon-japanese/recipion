@@ -2,8 +2,13 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { getLocalDatabase } from "../../../local-db/database";
 import { createShoppingItem } from "../domain/shopping-item";
 import { createShoppingStore } from "../domain/shopping-store";
-import { dexieShoppingRepository } from "./dexie-shopping-repository";
-import { dexieShoppingStoreRepository } from "./dexie-shopping-store-repository";
+import { createDexieShoppingRepository } from "./dexie-shopping-repository";
+import { createDexieShoppingStoreRepository } from "./dexie-shopping-store-repository";
+
+// このテストの持ち主（ゲスト）のメモの保存先。
+const dexieShoppingRepository = createDexieShoppingRepository("guest");
+const dexieShoppingStoreRepository =
+	createDexieShoppingStoreRepository("guest");
 
 describe("dexieShoppingStoreRepository", () => {
 	beforeEach(async () => {
@@ -11,7 +16,7 @@ describe("dexieShoppingStoreRepository", () => {
 
 		await database.shoppingItems.clear();
 		await database.shoppingStores.clear();
-		await database.shoppingStoreDefaults.clear();
+		await database.scopedShoppingStoreDefaults.clear();
 	});
 
 	it("店を保存して、並び順で取得できる", async () => {

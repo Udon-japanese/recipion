@@ -2,7 +2,11 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { getLocalDatabase } from "../../../local-db/database";
 import type { ShoppingConversionEntry } from "../domain/shopping-conversion-default";
 import { toConversionMemoryKey } from "../domain/shopping-conversion-default";
-import { dexieShoppingConversionDefaultRepository } from "./dexie-shopping-conversion-default-repository";
+import { createDexieShoppingConversionDefaultRepository } from "./dexie-shopping-conversion-default-repository";
+
+// このテストの持ち主（ゲスト）のメモの保存先。
+const dexieShoppingConversionDefaultRepository =
+	createDexieShoppingConversionDefaultRepository("guest");
 
 const milk: ShoppingConversionEntry = {
 	nameKey: "牛乳",
@@ -19,7 +23,7 @@ const milk: ShoppingConversionEntry = {
 
 describe("dexieShoppingConversionDefaultRepository", () => {
 	beforeEach(async () => {
-		await getLocalDatabase().shoppingConversionMemories.clear();
+		await getLocalDatabase().scopedShoppingConversionMemories.clear();
 	});
 
 	it("記憶を食材×単位で保存して取り出せる。同じ食材×単位は置き換え、違う単位は別に残る", async () => {
