@@ -5,6 +5,7 @@ import type {
 	RecipeEditorDocument,
 	RecipeEditorIngredientNode,
 } from "./recipe-editor-document";
+import { recipeTagLimits } from "./recipe-tags";
 import { maxRecipeYieldLength } from "./recipe-yield";
 
 export const recipeLimits = {
@@ -140,6 +141,24 @@ export function findRecipeLimitViolation(
 
 	if (length(document.note) > limits.noteMaxLength) {
 		return `メモは${format(limits.noteMaxLength)}文字までです。`;
+	}
+
+	if ((document.publicTags ?? []).length > recipeTagLimits.maxPublicTags) {
+		return `公開用のタグは${recipeTagLimits.maxPublicTags}つまでです。`;
+	}
+
+	const personalTags = document.personalTags ?? [];
+
+	if (personalTags.length > recipeTagLimits.maxPersonalTags) {
+		return `個人用のタグは${recipeTagLimits.maxPersonalTags}個までです。`;
+	}
+
+	if (
+		personalTags.some(
+			(tag) => length(tag) > recipeTagLimits.personalTagMaxLength,
+		)
+	) {
+		return `個人用のタグは1つ${recipeTagLimits.personalTagMaxLength}文字までです。`;
 	}
 
 	const total =

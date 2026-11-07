@@ -19,6 +19,7 @@ import {
 import type { DishPlacement } from "#/features/dish-art/domain/dish-cover";
 import { user } from "#/integrations/better-auth/auth.sql";
 import type { RecipeSnapshot } from "../domain/recipe-snapshot";
+import type { PublicRecipeTag } from "../domain/recipe-tags";
 
 export const recipe = pgTable(
 	"recipe",
@@ -52,6 +53,17 @@ export const recipe = pgTable(
 		),
 		// 写したとき（取り込んだとき）の親の中身（部分ごとのエディタの文章。recipe-snapshot.ts）。継承していなければ null。
 		parentSnapshot: jsonb("parent_snapshot").$type<RecipeSnapshot>(),
+		// 公開用のタグ（recipe-tags.ts の語のキー。語の一覧の順）。全員に見える。語の一覧はアプリで確かめる（語を足すたびに、マイグレーションを作らないため）。
+		publicTags: text("public_tags")
+			.array()
+			.$type<PublicRecipeTag[]>()
+			.notNull()
+			.default(sql`'{}'::text[]`),
+		// 個人用のタグ（自由入力）。本人にしか見えない：他の人に返す取得では、この列を選ばない。
+		personalTags: text("personal_tags")
+			.array()
+			.notNull()
+			.default(sql`'{}'::text[]`),
 		// 公開した日時（非公開から、限定公開・全体公開にしたとき）。非公開のあいだは null。限定公開と全体公開の切り替えでは変えない。
 		publishedAt: timestamp("published_at", { withTimezone: true }),
 		createdAt: timestamp("created_at", { withTimezone: true })
@@ -98,6 +110,19 @@ export const recipe = pgTable(
 		index("recipe_public_created_idx")
 			.on(table.createdAt.desc(), table.publicId.desc())
 			.where(sql`${table.visibility} = 'public'`),
+		// みんなのレシピを、公開用のタグで絞る（@>）。
+		index("recipe_public_tags_idx")
+			.using("gin", table.publicTags)
+			.where(sql`${table.visibility} = 'public'`),
+		// 個数の上限（recipe-tags.ts の recipeTagLimits と同じ値）。
+		check(
+			"recipe_public_tags_limit",
+			sql`cardinality(${table.publicTags}) <= 5`,
+		),
+		check(
+			"recipe_personal_tags_limit",
+			sql`cardinality(${table.personalTags}) <= 10`,
+		),
 		check("recipe_name_nonempty", sql`length(trim(${table.name})) > 0`),
 		check(
 			"recipe_yield_text_valid",

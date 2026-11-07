@@ -5,7 +5,10 @@ import { PublicRecipeList } from "#/features/recipes/components/public-recipe-li
 import { RecipeCookList } from "#/features/recipes/components/recipe-cook-list";
 import { RecipeList } from "#/features/recipes/components/recipe-list";
 import { RecipeRouteError } from "#/features/recipes/components/recipe-route-error";
-import { maxSearchQueryLength } from "#/features/recipes/domain/public-recipe-search";
+import {
+	maxSearchQueryLength,
+	parseSearchTags,
+} from "#/features/recipes/domain/public-recipe-search";
 import { listRecipesServerFn } from "#/features/recipes/server/list-recipes";
 import { listRecipeCooksServerFn } from "#/features/recipes/server/recipe-cook-log";
 import { searchPublicRecipesServerFn } from "#/features/recipes/server/search-public-recipes";
@@ -13,30 +16,51 @@ import { searchPublicRecipesServerFn } from "#/features/recipes/server/search-pu
 export const Route = createFileRoute("/recipes/")({
 	head: () => ({ meta: [{ title: pageTitle("レシピ") }] }),
 	// tab：自分のレシピ（mine）／みんなのレシピ（public）／つくったレシピ（made）。q：みんなのレシピの検索語。
+	// tags：みんなのレシピを絞る公開用のタグ（語の一覧にないものは、捨てる）。
 	validateSearch: v.object({
 		tab: v.optional(v.picklist(["mine", "public", "made"]), "mine"),
 		q: v.optional(v.pipe(v.string(), v.maxLength(maxSearchQueryLength)), ""),
+		tags: v.optional(
+			v.pipe(
+				v.array(v.string()),
+				v.maxLength(20),
+				v.transform((values) => parseSearchTags(values)),
+			),
+			[],
+		),
 	}),
-	loaderDeps: ({ search }) => ({ tab: search.tab, query: search.q }),
+	loaderDeps: ({ search }) => ({
+		tab: search.tab,
+		query: search.q,
+		tags: search.tags,
+	}),
 	loader: async ({ deps }) => {
 		const [recipes, publicPage, cookPage] = await Promise.all([
 			deps.tab === "mine" ? listRecipesServerFn() : Promise.resolve([]),
 			deps.tab === "public"
-				? searchPublicRecipesServerFn({ data: { query: deps.query } })
+				? searchPublicRecipesServerFn({
+						data: { query: deps.query, tags: deps.tags },
+					})
 				: Promise.resolve(null),
 			deps.tab === "made"
 				? listRecipeCooksServerFn({ data: {} })
 				: Promise.resolve(null),
 		]);
 
-		return { recipes, publicPage, cookPage, query: deps.query };
+		return {
+			recipes,
+			publicPage,
+			cookPage,
+			query: deps.query,
+			tags: deps.tags,
+		};
 	},
 	errorComponent: RecipeRouteError,
 	component: RecipesPage,
 });
 
 function RecipesPage() {
-	const { recipes, publicPage, cookPage, query } = Route.useLoaderData();
+	const { recipes, publicPage, cookPage, query, tags } = Route.useLoaderData();
 	const { tab } = Route.useSearch();
 	const navigate = useNavigate({ from: "/recipes/" });
 
@@ -45,19 +69,22 @@ function RecipesPage() {
 			recipes={recipes}
 			tab={tab}
 			onTabChange={(nextTab) =>
-				void navigate({ search: { tab: nextTab, q: "" } })
+				void navigate({ search: { tab: nextTab, q: "", tags: [] } })
 			}
 			publicPanel={
 				publicPage ? (
 					<PublicRecipeList
-						key={query}
+						key={`${query}|${tags.join(",")}`}
 						query={query}
+						tags={tags}
 						initialPage={publicPage}
-						onSearch={(nextQuery) =>
-							void navigate({ search: { tab: "public", q: nextQuery } })
+						onSearch={(nextQuery, nextTags) =>
+							void navigate({
+								search: { tab: "public", q: nextQuery, tags: nextTags },
+							})
 						}
 						loadMore={(cursor) =>
-							searchPublicRecipesServerFn({ data: { query, cursor } })
+							searchPublicRecipesServerFn({ data: { query, tags, cursor } })
 						}
 					/>
 				) : null

@@ -62,6 +62,7 @@ import {
 	stripLinkBrackets,
 } from "../domain/recipe-links";
 import { isRecipeChangedElsewhereError } from "../domain/recipe-revision";
+import type { PublicRecipeTag } from "../domain/recipe-tags";
 import {
 	defaultRecipeYieldText,
 	maxRecipeYieldLength,
@@ -130,6 +131,8 @@ type RecipeEditorProps = {
 	// 他の人のレシピへのリンク（[[@ユーザー/…）。ユーザーを探す／そのユーザーの全体公開レシピを取ってくる。
 	searchLinkableUsers?: (query: string) => Promise<LinkableUser[]>;
 	loadUserRecipes?: (handle: string) => Promise<OtherRecipeTarget[]>;
+	// 自分が他のレシピで使った個人用のタグ（タグのシートの候補）。
+	personalTagSuggestions?: readonly string[];
 };
 
 type ActiveTab = "input" | "preview";
@@ -201,6 +204,7 @@ export function RecipeEditor({
 	loadLinkedRecipes,
 	searchLinkableUsers,
 	loadUserRecipes,
+	personalTagSuggestions,
 }: RecipeEditorProps) {
 	const templateCheckboxId = useId();
 	// 中身が入った状態で始めるか（編集・もとにして作る）。保存済みのレシピの編集かは、isEditing。
@@ -222,6 +226,12 @@ export function RecipeEditor({
 		initialDocument?.stocksWhenMade ?? false,
 	);
 	const [scalable, setScalable] = useState(initialDocument?.scalable ?? true);
+	const [publicTags, setPublicTags] = useState<PublicRecipeTag[]>(
+		initialDocument?.publicTags ?? [],
+	);
+	const [personalTags, setPersonalTags] = useState<string[]>(
+		initialDocument?.personalTags ?? [],
+	);
 	const [cover, setCover] = useState<DishPlacement[] | null>(
 		initialDocument?.cover ?? null,
 	);
@@ -613,6 +623,8 @@ export function RecipeEditor({
 					stocksWhenMade,
 					scalable,
 					cover,
+					publicTags,
+					personalTags,
 					// 本文に出てくるラベルのリンクだけを送る（本文から消したリンクは、送らない）。
 					links: links.filter((link) =>
 						linkedLabels.some(({ label }) => label === link.label),
@@ -953,6 +965,11 @@ export function RecipeEditor({
 					scalable={scalable}
 					onScalableChange={setScalable}
 					onStocksWhenMadeChange={setStocksWhenMade}
+					publicTags={publicTags}
+					onPublicTagsChange={setPublicTags}
+					personalTags={personalTags}
+					onPersonalTagsChange={setPersonalTags}
+					personalTagSuggestions={personalTagSuggestions}
 				/>
 
 				<Button

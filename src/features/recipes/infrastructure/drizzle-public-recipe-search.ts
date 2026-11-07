@@ -1,5 +1,7 @@
 import {
 	and,
+	arrayContains,
+	arrayOverlaps,
 	desc,
 	eq,
 	exists,
@@ -16,27 +18,35 @@ import { accountSuspension } from "#/features/moderation/infrastructure/moderati
 import { user } from "#/integrations/better-auth/auth.sql";
 import {
 	buildLikePatterns,
+	findPublicTagsMatchingTerm,
 	formatSearchCursor,
 	type PublicRecipePage,
 	parseSearchCursor,
 	publicRecipePageSize,
 } from "../domain/public-recipe-search";
+import type { PublicRecipeTag } from "../domain/recipe-tags";
 import { recipe, recipeIngredientNode } from "./recipe.sql";
 
 // 全体公開のレシピを、新しい順に探す。自分のレシピ・停止中のユーザーのレシピは含めない。
-// 検索語（複数なら、すべてに当たるもの）は、レシピ名か材料名の部分一致。
+// 検索語（複数なら、すべてに当たるもの）は、レシピ名か材料名の部分一致か、表示名に語を含む公開用のタグ。
+// tags：選んだ公開用のタグを、すべて持つもの。
 export async function searchPublicRecipes(
 	db: DB,
 	viewerUserId: string,
 	terms: readonly string[],
 	cursor: string | null,
+	tags: readonly PublicRecipeTag[] = [],
 ): Promise<PublicRecipePage> {
 	const parsedCursor = cursor === null ? null : parseSearchCursor(cursor);
 
 	const termConditions = terms.map((term): SQL | undefined => {
 		const patterns = buildLikePatterns(term);
+		const matchingTags = findPublicTagsMatchingTerm(term);
 
 		return or(
+			matchingTags.length > 0
+				? arrayOverlaps(recipe.publicTags, matchingTags)
+				: undefined,
 			or(...patterns.map((pattern) => sql`${recipe.name} ILIKE ${pattern}`)),
 			exists(
 				db
@@ -63,6 +73,7 @@ export async function searchPublicRecipes(
 			name: recipe.name,
 			yieldText: recipe.yieldText,
 			cover: recipe.cover,
+			publicTags: recipe.publicTags,
 			createdAtText: sql<string>`${recipe.createdAt}::text`,
 			createdAt: recipe.createdAt,
 			authorName: user.name,
@@ -83,6 +94,9 @@ export async function searchPublicRecipes(
 						.where(eq(accountSuspension.userId, recipe.userId)),
 				),
 				...termConditions,
+				tags.length > 0
+					? arrayContains(recipe.publicTags, [...tags])
+					: undefined,
 				parsedCursor
 					? sql`(${recipe.createdAt}, ${recipe.publicId}) < (${parsedCursor.createdAt}::timestamptz, ${parsedCursor.publicId})`
 					: undefined,
@@ -100,6 +114,7 @@ export async function searchPublicRecipes(
 			name: row.name,
 			yieldText: row.yieldText,
 			cover: parseDishCover(row.cover),
+			publicTags: row.publicTags,
 			createdAt: row.createdAt.toISOString(),
 			authorName: row.authorName,
 			authorHandle: row.authorHandle,

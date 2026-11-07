@@ -32,6 +32,7 @@ import {
 } from "../domain/recipe-link-permission";
 import { maxLinksPerRecipe } from "../domain/recipe-links";
 import { toRecipeRevision } from "../domain/recipe-revision";
+import { visiblePersonalTags } from "../domain/recipe-tags";
 import { formatRecipeIngredientQuantity } from "./format-recipe-storage-number";
 import {
 	recipe,
@@ -290,6 +291,9 @@ export async function loadRecipeDetail(
 		stocksWhenMade: found.stocksWhenMade,
 		scalable: found.scalable,
 		cover: parseDishCover(found.cover),
+		publicTags: found.publicTags,
+		// 個人用のタグは、本人にだけ返す（他の人が見るレシピ・継承の親・リンク先では、空）。
+		personalTags: visiblePersonalTags(found, viewerUserId),
 		ingredients: restoreRecipeIngredients(
 			ingredientRows.map((row) => ({
 				id: row.id,
@@ -365,6 +369,8 @@ export function createDrizzleRecipeRepository(
 						stocksWhenMade: command.stocksWhenMade,
 						scalable: command.scalable,
 						cover: command.cover,
+						publicTags: command.publicTags,
+						personalTags: command.personalTags,
 						unlistedPassphrase: command.passphraseCipher ?? null,
 						publishedAt: command.visibility === "private" ? null : new Date(),
 						parentRecipeId: command.parent?.recipeId ?? null,
@@ -424,6 +430,8 @@ export function createDrizzleRecipeRepository(
 						stocksWhenMade: command.stocksWhenMade,
 						scalable: command.scalable,
 						cover: command.cover,
+						publicTags: command.publicTags,
+						personalTags: command.personalTags,
 						// 非公開から公開したときだけ、いまの日時。公開のままなら、最初に公開した日時を残す。
 						publishedAt:
 							command.visibility === "private"
@@ -568,6 +576,8 @@ export function createDrizzleRecipeRepository(
 					yieldText: recipe.yieldText,
 					visibility: recipe.visibility,
 					cover: recipe.cover,
+					publicTags: recipe.publicTags,
+					personalTags: recipe.personalTags,
 					createdAt: recipe.createdAt,
 				})
 				.from(recipe)
@@ -580,6 +590,8 @@ export function createDrizzleRecipeRepository(
 				yieldText: row.yieldText,
 				visibility: parseRecipeVisibility(row.visibility),
 				cover: parseDishCover(row.cover),
+				publicTags: row.publicTags,
+				personalTags: row.personalTags,
 				createdAt: row.createdAt.toISOString(),
 			}));
 		},

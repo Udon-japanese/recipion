@@ -8,6 +8,7 @@ import {
 	extractLinkLabels,
 	type RecipeLinkReference,
 } from "../domain/recipe-links";
+import type { PublicRecipeTag } from "../domain/recipe-tags";
 import { defaultScaleWeight } from "../domain/scale-weight";
 import { validateRecipeEditorDocument } from "../domain/validate-recipe-editor-document";
 
@@ -36,6 +37,8 @@ export type PreparedRecipeForStorage = {
 	stocksWhenMade: boolean;
 	scalable: boolean;
 	cover: DishPlacement[] | null;
+	publicTags: PublicRecipeTag[];
+	personalTags: string[];
 	ingredients: StoredRecipeIngredientNode[];
 	preparations: {
 		id: string;
@@ -139,6 +142,8 @@ export function prepareRecipeForStorage(
 		stocksWhenMade: document.stocksWhenMade ?? false,
 		scalable: document.scalable ?? true,
 		cover: document.cover ?? null,
+		publicTags: document.publicTags ?? [],
+		personalTags: document.personalTags ?? [],
 		ingredients,
 		preparations: document.preparations.map((preparation, sortOrder) => ({
 			id: preparation.id,

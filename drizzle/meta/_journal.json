@@ -99,6 +99,13 @@
       "when": 1793960207069,
       "tag": "0013_fold_kana_ingredient_alias",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1794012883996,
+      "tag": "0014_recipe_tags",
+      "breakpoints": true
     }
   ]
 }

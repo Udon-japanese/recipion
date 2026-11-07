@@ -34,3 +34,18 @@ export const error = style({
 	margin: 0,
 	color: "var(--color-error)",
 });
+
+// 検索欄と、タグの絞り込み。
+export const search = style({ display: "grid", gap: 12 });
+
+export const tagSheetBody = style({
+	display: "grid",
+	gap: 12,
+});
+
+export const tagSheetHint = style({
+	margin: 0,
+	color: "var(--color-text-muted)",
+	fontSize: "var(--font-size-sm)",
+	lineHeight: "var(--line-height-normal)",
+});

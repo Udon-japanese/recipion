@@ -3,6 +3,7 @@ import type { RecipeEditorDocument } from "../domain/recipe-editor-document";
 import type { RecipeVisibility } from "../domain/recipe-link-permission";
 import type { RecipeLinkView } from "../domain/recipe-links";
 import type { RecipeSnapshot } from "../domain/recipe-snapshot";
+import type { PublicRecipeTag } from "../domain/recipe-tags";
 import type { PreparedRecipeForStorage } from "./prepare-recipe-for-storage";
 
 // passphraseCipher: 限定公開のパスフレーズ（暗号化したもの）。undefined は、いまのまま。null は、なし（限定公開でなくなる）。
@@ -24,6 +25,9 @@ export type RecipeSummary = {
 	visibility: RecipeVisibility;
 	// 料理の絵（なければ、レシピ名から選ぶプリセット）。
 	cover: DishPlacement[] | null;
+	publicTags: PublicRecipeTag[];
+	// 自分のレシピの一覧なので、個人用のタグも入る。
+	personalTags: string[];
 	// 登録した日時（ISO 8601）。
 	createdAt: string;
 };

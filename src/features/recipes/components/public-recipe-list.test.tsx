@@ -5,6 +5,7 @@ import type {
 	PublicRecipePage,
 	PublicRecipeSummary,
 } from "../domain/public-recipe-search";
+import type { PublicRecipeTag } from "../domain/recipe-tags";
 import { PublicRecipeList } from "./public-recipe-list";
 
 // リンクは、ルーターの外では、描画できないため、差し替える。
@@ -30,6 +31,7 @@ function recipe(
 		name,
 		yieldText: "2人分",
 		cover: null,
+		publicTags: [],
 		createdAt: "2026-10-23T00:00:00.000Z",
 		authorName: "作者",
 		authorHandle: "author",
@@ -45,13 +47,15 @@ function renderList(
 	initialPage: PublicRecipePage,
 	options: {
 		query?: string;
-		onSearch?: (query: string) => void;
+		tags?: PublicRecipeTag[];
+		onSearch?: (query: string, tags: PublicRecipeTag[]) => void;
 		loadMore?: (cursor: string) => Promise<PublicRecipePage>;
 	} = {},
 ) {
 	return render(
 		<PublicRecipeList
 			query={options.query ?? ""}
+			tags={options.tags ?? []}
 			initialPage={initialPage}
 			onSearch={options.onSearch ?? vi.fn()}
 			loadMore={options.loadMore ?? vi.fn()}
@@ -85,7 +89,49 @@ describe("PublicRecipeList", () => {
 		await user.type(screen.getByRole("searchbox"), "  卵  ");
 		await user.click(screen.getByRole("button", { name: "探す" }));
 
-		expect(onSearch).toHaveBeenCalledWith("卵");
+		expect(onSearch).toHaveBeenCalledWith("卵", []);
+	});
+
+	it("タグのシートで選んだタグで、いまの検索語のまま探す（選んだ途中では、探さない）", async () => {
+		const user = userEvent.setup();
+		const onSearch = vi.fn();
+
+		renderList({ recipes: [], nextCursor: null }, { query: "卵", onSearch });
+
+		await user.click(screen.getByRole("button", { name: "タグで絞る" }));
+		await user.click(screen.getByText("料理の分類"));
+		await user.click(screen.getByRole("button", { name: "主菜" }));
+		await user.click(screen.getByRole("button", { name: "時短" }));
+
+		expect(onSearch).not.toHaveBeenCalled();
+
+		await user.click(screen.getByRole("button", { name: "この条件で探す" }));
+
+		// 語の一覧の順にそろえる。
+		expect(onSearch).toHaveBeenCalledWith("卵", ["main_dish", "quick"]);
+	});
+
+	it("選んでいるタグを押すと、そのタグだけを外して探し、検索の送信ではタグを保つ", async () => {
+		const user = userEvent.setup();
+		const onSearch = vi.fn();
+
+		renderList(
+			{ recipes: [], nextCursor: null },
+			{ query: "卵", tags: ["main_dish", "quick"], onSearch },
+		);
+
+		await user.click(
+			screen.getByRole("button", { name: "主菜の絞り込みを外す" }),
+		);
+
+		expect(onSearch).toHaveBeenLastCalledWith("卵", ["quick"]);
+
+		await user.click(screen.getByRole("button", { name: "探す" }));
+
+		expect(onSearch).toHaveBeenLastCalledWith("卵", ["main_dish", "quick"]);
+		expect(
+			screen.getByText("「卵」に合うレシピは見つかりませんでした。"),
+		).toBeInTheDocument();
 	});
 
 	it("結果がないときの文は、検索語の有無で変わる", () => {

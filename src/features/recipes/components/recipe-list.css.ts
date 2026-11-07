@@ -40,3 +40,6 @@ export const empty = style({
 });
 
 export const emptyText = style({ margin: 0 });
+
+// 検索欄と、タグの絞り込みのチップ。
+export const search = style({ display: "grid", gap: 12 });

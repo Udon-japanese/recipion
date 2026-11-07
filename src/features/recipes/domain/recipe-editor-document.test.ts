@@ -106,6 +106,8 @@ describe("createRecipeEditorDocument", () => {
 			stocksWhenMade: false,
 			scalable: true,
 			cover: null,
+			publicTags: [],
+			personalTags: [],
 		});
 	});
 
@@ -124,6 +126,8 @@ describe("createRecipeEditorDocument", () => {
 				stocksWhenMade: false,
 				scalable: true,
 				cover: null,
+				publicTags: [],
+				personalTags: [],
 			},
 		);
 	});
