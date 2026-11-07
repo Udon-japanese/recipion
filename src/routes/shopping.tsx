@@ -21,6 +21,7 @@ import { listRecipesServerFn } from "#/features/recipes/server/list-recipes";
 import { GuestShoppingMemoAdoption } from "#/features/shopping/components/guest-shopping-memo-adoption";
 import type { RecipePickerContext } from "#/features/shopping/components/recipe-picker-slot";
 import { ShoppingList } from "#/features/shopping/components/shopping-list";
+import { ShoppingSyncNotice } from "#/features/shopping/components/shopping-sync-notice";
 import { useShoppingOwnerScope } from "#/features/shopping/hooks/use-shopping-owner-scope";
 
 export const Route = createFileRoute("/shopping")({
@@ -119,6 +120,7 @@ function ShoppingPage() {
 							syncPurchases={syncDexieInventoryPurchaseOutbox}
 						/>
 						<GuestShoppingMemoAdoption ownerScope={ownerScope} />
+						<ShoppingSyncNotice ownerScope={ownerScope} />
 					</>
 				}
 				syncPurchases={syncDexieInventoryPurchaseOutbox}

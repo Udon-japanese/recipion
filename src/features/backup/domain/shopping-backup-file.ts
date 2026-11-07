@@ -1,22 +1,20 @@
 import * as v from "valibot";
 import { UserFacingError } from "#/errors/user-facing-error";
 import {
-	maxShoppingBranchConditionLength,
 	maxShoppingBranchCount,
-	maxShoppingBranchLabelLength,
 	type ShoppingBranch,
 } from "#/features/shopping/domain/shopping-branch";
+import type { ShoppingItem } from "#/features/shopping/domain/shopping-item";
 import {
-	isShoppingCategoryId,
-	type ShoppingCategoryId,
-} from "#/features/shopping/domain/shopping-category";
-import {
-	inventoryConversionSchema,
-	type ShoppingItem,
-} from "#/features/shopping/domain/shopping-item";
+	shoppingBranchSchema,
+	shoppingConversionMemorySchema,
+	shoppingItemSchema,
+	shoppingRecordLimits,
+	shoppingStoreDefaultSchema,
+	shoppingStoreSchema,
+} from "#/features/shopping/domain/shopping-record-schemas";
 import {
 	maxShoppingStoreCount,
-	maxShoppingStoreNameLength,
 	type ShoppingStore,
 } from "#/features/shopping/domain/shopping-store";
 import type {
@@ -37,7 +35,7 @@ export const shoppingBackupLimits = {
 	maxBranches: maxShoppingBranchCount,
 	maxStoreDefaults: 2000,
 	maxConversionMemories: 2000,
-	maxNameLength: 100,
+	maxNameLength: shoppingRecordLimits.maxNameLength,
 } as const;
 
 // ファイルに入れる項目は、まだ買っていないものだけ（購入済みは、在庫に入っていて、移した先では一覧を散らかすだけ）。
@@ -59,90 +57,34 @@ export type ShoppingBackupFile = ShoppingBackupData & {
 	exportedAt: string;
 };
 
-const idSchema = v.pipe(v.string(), v.minLength(1), v.maxLength(100));
-const timestampSchema = v.pipe(v.string(), v.isoTimestamp());
-const sortOrderSchema = v.pipe(v.number(), v.integer(), v.minValue(0));
-const nameSchema = (maxLength: number) =>
-	v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(maxLength));
-
-const storeSchema = v.object({
-	id: idSchema,
-	name: nameSchema(maxShoppingStoreNameLength),
-	sortOrder: sortOrderSchema,
-	createdAt: timestampSchema,
-});
-
-const branchLabelSchema = v.nullable(nameSchema(maxShoppingBranchLabelLength));
-
-const branchSchema = v.object({
-	id: idSchema,
-	condition: nameSchema(maxShoppingBranchConditionLength),
-	thenLabel: branchLabelSchema,
-	elseLabel: branchLabelSchema,
-	sortOrder: sortOrderSchema,
-	createdAt: timestampSchema,
-});
-
+// 書き出すのは、まだ買っていない項目だけ。
 const itemSchema = v.object({
-	id: idSchema,
-	name: nameSchema(shoppingBackupLimits.maxNameLength),
-	quantity: v.pipe(v.number(), v.finite(), v.gtValue(0)),
-	unitLabel: v.nullable(
-		v.pipe(v.string(), v.maxLength(shoppingBackupLimits.maxNameLength)),
-	),
-	inventoryConversion: v.nullable(inventoryConversionSchema),
-	categoryId: v.nullable(
-		v.custom<ShoppingCategoryId>(
-			(input) => typeof input === "string" && isShoppingCategoryId(input),
-		),
-	),
-	categoryAssignment: v.nullable(v.picklist(["automatic", "manual"])),
-	storeId: v.nullable(idSchema),
-	branchId: v.nullable(idSchema),
-	branchSide: v.nullable(v.picklist(["condition", "then", "else"])),
+	...shoppingItemSchema.entries,
 	status: v.picklist(["pending", "checked"]),
-	sortOrder: v.pipe(v.number(), v.finite()),
-	createdAt: timestampSchema,
-	updatedAt: timestampSchema,
-});
-
-const storeDefaultSchema = v.object({
-	nameKey: nameSchema(shoppingBackupLimits.maxNameLength),
-	storeId: idSchema,
-});
-
-const conversionMemorySchema = v.object({
-	key: v.pipe(v.string(), v.minLength(1), v.maxLength(300)),
-	nameKey: nameSchema(shoppingBackupLimits.maxNameLength),
-	unitLabel: v.nullable(
-		v.pipe(v.string(), v.maxLength(shoppingBackupLimits.maxNameLength)),
-	),
-	inventoryConversion: inventoryConversionSchema,
-	usedAt: v.pipe(v.number(), v.finite(), v.minValue(0)),
 });
 
 const fileSchema = v.object({
 	format: v.literal(shoppingBackupFormat),
 	version: v.number(),
-	exportedAt: timestampSchema,
+	exportedAt: v.pipe(v.string(), v.isoTimestamp()),
 	items: v.pipe(
 		v.array(itemSchema),
 		v.maxLength(shoppingBackupLimits.maxItems),
 	),
 	stores: v.pipe(
-		v.array(storeSchema),
+		v.array(shoppingStoreSchema),
 		v.maxLength(shoppingBackupLimits.maxStores),
 	),
 	branches: v.pipe(
-		v.array(branchSchema),
+		v.array(shoppingBranchSchema),
 		v.maxLength(shoppingBackupLimits.maxBranches),
 	),
 	storeDefaults: v.pipe(
-		v.array(storeDefaultSchema),
+		v.array(shoppingStoreDefaultSchema),
 		v.maxLength(shoppingBackupLimits.maxStoreDefaults),
 	),
 	conversionMemories: v.pipe(
-		v.array(conversionMemorySchema),
+		v.array(shoppingConversionMemorySchema),
 		v.maxLength(shoppingBackupLimits.maxConversionMemories),
 	),
 });

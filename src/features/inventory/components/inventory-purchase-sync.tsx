@@ -17,6 +17,8 @@ type InventoryPurchaseSyncProps = {
 	syncPurchases: SyncPurchases;
 	// 内容で断られた購入を、在庫に入れずに、端末から消す。
 	discardPurchase?: (entryId: string) => Promise<void>;
+	// 送る購入の数。0 なら、送らず、「同期しています」も出さない（画面に戻るたびに、Note が一瞬出ないように）。
+	countPending?: (ownerScope: InventoryPurchaseOwnerScope) => Promise<number>;
 };
 
 type SyncState =
@@ -31,6 +33,7 @@ export function InventoryPurchaseSync({
 	ownerScope,
 	syncPurchases,
 	discardPurchase,
+	countPending,
 }: InventoryPurchaseSyncProps) {
 	const [state, setState] = useState<SyncState>({ status: "idle" });
 	const [discarding, setDiscarding] = useState<InventoryPurchaseFailure | null>(
@@ -49,6 +52,18 @@ export function InventoryPurchaseSync({
 			return;
 		}
 
+		if (countPending) {
+			const pendingCount = await countPending(ownerScope).catch(() => null);
+
+			if (pendingCount === 0) {
+				if (currentScope.current === ownerScope) {
+					setState({ status: "idle" });
+				}
+
+				return;
+			}
+		}
+
 		setState({ status: "syncing" });
 
 		let next: SyncState;
@@ -62,7 +77,7 @@ export function InventoryPurchaseSync({
 		if (currentScope.current === ownerScope) {
 			setState(next);
 		}
-	}, [ownerScope, syncPurchases]);
+	}, [ownerScope, syncPurchases, countPending]);
 
 	useEffect(() => {
 		void runSync();

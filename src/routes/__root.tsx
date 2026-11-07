@@ -8,6 +8,8 @@ import { APP_DISPLAY_NAME } from "#/config/app";
 import { SuspensionGate } from "#/features/moderation/components/suspension-gate";
 import { PwaRegister } from "#/features/pwa/components/pwa-register";
 import { AppShell } from "#/features/shell/components/app-shell";
+import { ShoppingSyncRunner } from "#/features/shopping/components/shopping-sync-runner";
+import { syncDexieShoppingMemo } from "#/features/shopping/infrastructure/sync-dexie-shopping-memo";
 import { getInitialSessionServerFn } from "#/integrations/better-auth/get-initial-session";
 import appCss from "../styles.css?url";
 
@@ -84,6 +86,7 @@ function RootLayout() {
 		<SuspensionGate>
 			<AppShell>
 				<Outlet />
+				<ShoppingSyncRunner sync={syncDexieShoppingMemo} />
 			</AppShell>
 		</SuspensionGate>
 	);
