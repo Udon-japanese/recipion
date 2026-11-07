@@ -20,6 +20,10 @@ import {
 
 // 買い物メモの5つの表の行の形（ファイルの書き出し・読み込みと、サーバーとの同期で共通に使う）。
 export const shoppingRecordLimits = {
+	// 1人の買い物メモの行の数（ファイルの読み込みと、サーバーとの同期で共通。店・条件つきメモは、画面の上限と同じ）。
+	maxItems: 2000,
+	maxStoreDefaults: 2000,
+	maxConversionMemories: 2000,
 	maxIdLength: 100,
 	maxNameLength: 100,
 	maxConversionMemoryKeyLength: 300,

@@ -1,6 +1,10 @@
 import * as v from "valibot";
+import { maxShoppingBranchCount } from "./shopping-branch";
+import { shoppingRecordLimits } from "./shopping-record-schemas";
+import { maxShoppingStoreCount } from "./shopping-store";
 import {
 	parseShoppingSyncRecord,
+	type ShoppingRecordKind,
 	type ShoppingSyncRecord,
 	shoppingSyncLimits,
 } from "./shopping-sync-record";
@@ -104,6 +108,57 @@ export function planShoppingPush(
 	});
 
 	return { results, writes, version };
+}
+
+// 1人の買い物メモの、種類ごとの行の数の上限（消していない行だけ数える）。
+export const shoppingSyncRowLimits: Record<ShoppingRecordKind, number> = {
+	item: shoppingRecordLimits.maxItems,
+	store: maxShoppingStoreCount,
+	branch: maxShoppingBranchCount,
+	storeDefault: shoppingRecordLimits.maxStoreDefaults,
+	conversionMemory: shoppingRecordLimits.maxConversionMemories,
+};
+
+const rowKindLabels: Record<ShoppingRecordKind, string> = {
+	item: "項目",
+	store: "店",
+	branch: "条件つきメモ",
+	storeDefault: "いつも買う店",
+	conversionMemory: "在庫への換算",
+};
+
+// 当てる行（writes）で、上限を超える種類があれば、利用者に見せる文を返す（なければ null）。
+// 増える種類だけを見る（上限を超えていても、消す・直すことはできる）。
+// liveCounts：いまサーバーにある、消していない行の数。existingRecords：当てる行の、いまのサーバーの行。
+export function findShoppingSyncLimitProblem(
+	liveCounts: Partial<Record<ShoppingRecordKind, number>>,
+	existingRecords: readonly ShoppingSyncRecord[],
+	writes: readonly ShoppingSyncRecord[],
+	limits: Record<ShoppingRecordKind, number> = shoppingSyncRowLimits,
+): string | null {
+	const existingByKey = new Map(
+		existingRecords.map((record) => [shoppingRecordKey(record), record]),
+	);
+	const deltas = new Map<ShoppingRecordKind, number>();
+
+	for (const write of writes) {
+		const wasLive =
+			existingByKey.get(shoppingRecordKey(write))?.deleted === false;
+		const isLive = !write.deleted;
+		const delta = Number(isLive) - Number(wasLive);
+
+		deltas.set(write.kind, (deltas.get(write.kind) ?? 0) + delta);
+	}
+
+	for (const [kind, delta] of deltas) {
+		const count = (liveCounts[kind] ?? 0) + delta;
+
+		if (delta > 0 && count > limits[kind]) {
+			return `買い物メモの${rowKindLabels[kind]}が多すぎます（${limits[kind]}件まで）`;
+		}
+	}
+
+	return null;
 }
 
 const changeIdSchema = v.pipe(v.string(), v.minLength(1), v.maxLength(100));

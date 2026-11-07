@@ -7,7 +7,8 @@
 // - `--confirm` がないと、接続先と、入れる内容の要約を表示するだけで、何も書かない。
 // - 何度でも実行できる。同じメールアドレスのユーザーが既にあれば、そのユーザー（と、連鎖で消える全データ）を消して、入れ直す。
 // - DEMO_LOGIN_EMAIL が未指定なら、ランダムなアドレスを作って表示する（同じ値を、シークレット DEMO_LOGIN_EMAIL にも設定する）。
-// - 買い物メモは、ブラウザの中（IndexedDB）にだけあるので、ここでは入れない。
+// - 買い物メモは入れない。ユーザーを消すと、サーバーに同期した買い物メモ（shopping_record・shopping_sync_state）も、外部キーの連鎖で消える。
+//   消えるのは、この確認用アカウントの分だけ。e2e から動かすときは、e2e/safety.ts が、本番・開発用の DB でないことを先に確かめる。
 import { randomBytes } from "node:crypto";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { eq } from "drizzle-orm";

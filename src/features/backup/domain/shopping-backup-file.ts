@@ -30,11 +30,11 @@ export const shoppingBackupVersion = 1;
 
 export const shoppingBackupLimits = {
 	maxFileBytes: 5 * 1024 * 1024,
-	maxItems: 2000,
+	maxItems: shoppingRecordLimits.maxItems,
 	maxStores: maxShoppingStoreCount,
 	maxBranches: maxShoppingBranchCount,
-	maxStoreDefaults: 2000,
-	maxConversionMemories: 2000,
+	maxStoreDefaults: shoppingRecordLimits.maxStoreDefaults,
+	maxConversionMemories: shoppingRecordLimits.maxConversionMemories,
 	maxNameLength: shoppingRecordLimits.maxNameLength,
 } as const;
 
