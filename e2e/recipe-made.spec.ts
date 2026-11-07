@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { inventoryLabel, openRecipe } from "./helpers";
+import { inventoryLabel, openRecipe, pressMade } from "./helpers";
 
 test.describe("レシピの「つくった」と在庫", () => {
 	test("つくると在庫が減り、元に戻すと、元の数量に戻る", async ({
@@ -10,10 +10,7 @@ test.describe("レシピの「つくった」と在庫", () => {
 		const before = await inventoryLabel(stock, "玉ねぎ");
 
 		await openRecipe(page, "豚の生姜焼き");
-		await page.getByRole("button", { name: "つくった！" }).click();
-		await expect(page.getByText(/在庫から\d+件を引きました/)).toBeVisible({
-			timeout: 20_000,
-		});
+		await pressMade(page);
 
 		// シートを開いたまま、別のタブで在庫を見る。
 		expect(await inventoryLabel(stock, "玉ねぎ")).not.toBe(before);
@@ -33,10 +30,7 @@ test.describe("レシピの「つくった」と在庫", () => {
 		const cabbageBefore = await inventoryLabel(stock, "キャベツ");
 
 		await openRecipe(page, "豚の生姜焼き");
-		await page.getByRole("button", { name: "つくった！" }).click();
-		await expect(page.getByText(/在庫から\d+件を引きました/)).toBeVisible({
-			timeout: 20_000,
-		});
+		await pressMade(page);
 
 		await page.getByRole("button", { name: "玉ねぎを戻す" }).click();
 		await expect(
@@ -76,10 +70,7 @@ test.describe("レシピの「つくった」と在庫", () => {
 			await intoStock.check();
 			await expect(intoStock).toBeChecked();
 		}).toPass();
-		await page.getByRole("button", { name: "つくった！" }).click();
-		await expect(page.getByText(/在庫から\d+件を引きました/)).toBeVisible({
-			timeout: 20_000,
-		});
+		await pressMade(page);
 
 		await stock.reload();
 		await expect(

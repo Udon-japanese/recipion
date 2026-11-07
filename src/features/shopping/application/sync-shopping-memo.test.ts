@@ -7,6 +7,7 @@ import {
 	type ShoppingPushRecord,
 	type StoredShoppingRecord,
 } from "../domain/shopping-sync-push";
+import { clearAccountShoppingMemo } from "../infrastructure/dexie-shopping-sign-out";
 import { createDexieShoppingSyncStore } from "../infrastructure/dexie-shopping-sync-store";
 import { readOwnedShoppingData } from "../infrastructure/read-owned-shopping-data";
 import {
@@ -380,6 +381,25 @@ describe("syncShoppingMemo", () => {
 			expect(server.rows.get("storeDefault/ねぎ")?.deleted).toBe(false);
 			expect(await deviceB.pendingCount()).toBe(0);
 		});
+	});
+
+	it("ログアウトで端末のメモを消しても、もう一度ログインすると、サーバーから受け取り直す", async () => {
+		const device = createDevice(server);
+
+		await device.addItem("卵");
+		await device.sync();
+		await clearAccountShoppingMemo(
+			user,
+			{ discardUnsent: false },
+			device.database,
+		);
+
+		expect((await device.read()).items).toEqual([]);
+
+		await device.sync();
+
+		expect(await itemsOf(device)).toEqual([{ name: "卵", quantity: 1 }]);
+		expect(await device.pendingCount()).toBe(0);
 	});
 
 	it("受け取る行が多いときは、何回かに分けて受け取る", async () => {

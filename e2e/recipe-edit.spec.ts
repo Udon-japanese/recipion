@@ -5,7 +5,11 @@ const recipeName = "親子丼";
 async function openEditor(page: Page) {
 	await page.getByRole("link", { name: "編集" }).click();
 
-	const yieldInput = page.getByLabel("できあがり");
+	// 「できあがりの量を増やす・減らす」のボタンも名前に「できあがり」を含むので、入力欄だけを、名前の完全一致で選ぶ。
+	const yieldInput = page.getByRole("textbox", {
+		name: "できあがり",
+		exact: true,
+	});
 
 	await expect(yieldInput).toBeVisible();
 

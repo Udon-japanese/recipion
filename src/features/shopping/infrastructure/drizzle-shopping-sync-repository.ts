@@ -1,6 +1,8 @@
-import { and, asc, eq, gt, or, sql } from "drizzle-orm";
+import { and, asc, count, eq, gt, or, sql } from "drizzle-orm";
 import type { DB } from "#/db/client";
+import { UserFacingError } from "#/errors/user-facing-error";
 import {
+	findShoppingSyncLimitProblem,
 	planShoppingPush,
 	type ShoppingPushRecord,
 	type ShoppingPushResult,
@@ -84,13 +86,35 @@ export function createDrizzleShoppingSyncRepository(db: DB, userId: string) {
 							),
 						),
 					);
+				const existingRecords = existingRows.map(toStored);
 				const { results, writes, version } = planShoppingPush(
-					existingRows.map(toStored),
+					existingRecords,
 					records,
 					base,
 				);
 
 				if (writes.length > 0) {
+					const counts = await transaction
+						.select({ kind: shoppingRecord.kind, count: count() })
+						.from(shoppingRecord)
+						.where(
+							and(
+								eq(shoppingRecord.userId, userId),
+								eq(shoppingRecord.deleted, false),
+							),
+						)
+						.groupBy(shoppingRecord.kind);
+					const problem = findShoppingSyncLimitProblem(
+						Object.fromEntries(counts.map((row) => [row.kind, row.count])),
+						existingRecords,
+						writes,
+					);
+
+					// 送信ごと断る（1つのトランザクションなので、何も書かない）。
+					if (problem) {
+						throw new UserFacingError(problem);
+					}
+
 					await transaction
 						.insert(shoppingRecord)
 						.values(

@@ -44,6 +44,7 @@ import {
 } from "#/features/settings/components/settings-page";
 import * as settingsStyles from "#/features/settings/components/settings-page.css";
 import { useShoppingOwnerScope } from "#/features/shopping/hooks/use-shopping-owner-scope";
+import { syncDexieShoppingMemo } from "#/features/shopping/infrastructure/sync-dexie-shopping-memo";
 import { authClient } from "#/integrations/better-auth/auth-client";
 import { useAppSession } from "#/integrations/better-auth/use-app-session";
 
@@ -190,7 +191,13 @@ function SettingsRoute() {
 				session ? (
 					<AccountSettingsSection
 						email={session.user.email}
-						signOut={<SignOutButton />}
+						signOut={
+							<SignOutButton
+								syncBeforeSignOut={(ownerScope) =>
+									syncDexieShoppingMemo(ownerScope, "write")
+								}
+							/>
+						}
 						deletion={
 							session.user.handle ? (
 								<AccountDeletionSection
