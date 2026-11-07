@@ -11,6 +11,11 @@ import type {
 	ShoppingItemInventoryConversion,
 } from "../features/shopping/domain/shopping-item";
 import type { ShoppingStore } from "../features/shopping/domain/shopping-store";
+import type {
+	ShoppingRecordKind,
+	ShoppingSyncOutboxEntry,
+} from "../features/shopping/domain/shopping-sync-record";
+import { createShoppingSyncTrackingMiddleware } from "../features/shopping/infrastructure/shopping-sync-tracking";
 
 // 食材ごとに、いつも買う店を覚える（nameKey は、食材名を正規化したもの）。
 export type ShoppingStoreDefault = {
@@ -39,6 +44,23 @@ export type ShoppingStoreDefaultRecord = Owned<ShoppingStoreDefault>;
 export type ScopedShoppingConversionMemoryRecord =
 	Owned<ShoppingConversionMemoryRecord>;
 
+// ログインした人の買い物メモの、サーバーから受け取り済みの版（初めて同期するまでは、行がない）。
+export type ShoppingSyncStateRecord = {
+	ownerScope: `user:${string}`;
+	cursor: number;
+};
+
+// ログインした人の買い物メモの1行について、端末が知っているサーバーの版。
+// 送るときに、変えたもとの版として添える（別の端末が先に変えていたら、サーバーが当てない）。
+export type ShoppingSyncVersionRecord = {
+	ownerScope: `user:${string}`;
+	kind: ShoppingRecordKind;
+	id: string;
+	version: number;
+	// 送ったが、返事を受け取れなかった変更（届いていたら、その変更の上に、次の変更を当ててよい）。
+	unackedChangeIds: string[];
+};
+
 export class LocalDatabase extends Dexie {
 	shoppingItems!: Table<ShoppingItemRecord, string>;
 	inventoryPurchaseOutbox!: Table<InventoryPurchaseOutboxEntry, string>;
@@ -56,6 +78,14 @@ export class LocalDatabase extends Dexie {
 		[string, string]
 	>;
 	ingredientDictionaries!: Table<IngredientDictionarySnapshot, string>;
+	// 主キーは [持ち主, 種類, ID]。
+	shoppingSyncOutbox!: Table<ShoppingSyncOutboxEntry, [string, string, string]>;
+	shoppingSyncStates!: Table<ShoppingSyncStateRecord, string>;
+	// 主キーは [持ち主, 種類, ID]。
+	shoppingSyncVersions!: Table<
+		ShoppingSyncVersionRecord,
+		[string, string, string]
+	>;
 
 	// 公開済みなので、バージョンは、まとめず、スキーマを変えるたびに足す（古いデータを直すときは .upgrade）。
 	// version(1) は、公開したときの形。変えない。
@@ -127,6 +157,15 @@ export class LocalDatabase extends Dexie {
 						.bulkAdd(memories.map((memory) => ({ ...memory, ...guest }))),
 				]);
 			});
+		// 買い物メモのサーバー同期：送っていない行の印、受け取り済みの版、行ごとに知っているサーバーの版。
+		this.version(6).stores({
+			shoppingSyncOutbox: "[ownerScope+kind+id], ownerScope",
+			shoppingSyncStates: "ownerScope",
+			shoppingSyncVersions: "[ownerScope+kind+id], ownerScope",
+		});
+
+		// 買い物メモの行を書いたら、同じトランザクションで、送る印を付ける。
+		this.use(createShoppingSyncTrackingMiddleware());
 	}
 }
 

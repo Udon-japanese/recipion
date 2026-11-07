@@ -10,6 +10,15 @@ type SyncPurchases = (
 	ownerScope: InventoryPurchaseOwnerScope,
 ) => Promise<SyncInventoryPurchaseOutboxResult>;
 
+async function countPendingPurchases(
+	ownerScope: InventoryPurchaseOwnerScope,
+): Promise<number> {
+	const entries =
+		await createDexieInventoryPurchaseOutboxRepository().list(ownerScope);
+
+	return entries.length;
+}
+
 async function loadGuestPurchaseCount(): Promise<number> {
 	const repository = createDexieInventoryPurchaseOutboxRepository();
 
@@ -53,6 +62,7 @@ export function PurchaseOutboxSync({
 				ownerScope={ownerScope}
 				syncPurchases={syncPurchases}
 				discardPurchase={discardPurchase}
+				countPending={countPendingPurchases}
 			/>
 		</>
 	);

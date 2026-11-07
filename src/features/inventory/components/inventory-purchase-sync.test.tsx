@@ -28,6 +28,48 @@ describe("InventoryPurchaseSync", () => {
 		).toBeInTheDocument();
 	});
 
+	it("送る購入がなければ、送らず、「同期しています」も出さない（画面に戻るたびに、一瞬出ない）", async () => {
+		const syncPurchases = vi.fn().mockResolvedValue(synced(0));
+		const countPending = vi.fn().mockResolvedValue(0);
+
+		render(
+			<InventoryPurchaseSync
+				ownerScope="user:user-id"
+				syncPurchases={syncPurchases}
+				countPending={countPending}
+			/>,
+		);
+
+		expect(screen.queryByText("在庫を同期しています…")).toBeNull();
+		await waitFor(() => {
+			expect(countPending).toHaveBeenCalledWith("user:user-id");
+		});
+
+		document.dispatchEvent(new Event("visibilitychange"));
+
+		await waitFor(() => {
+			expect(countPending).toHaveBeenCalledTimes(2);
+		});
+		expect(screen.queryByText("在庫を同期しています…")).toBeNull();
+		expect(syncPurchases).not.toHaveBeenCalled();
+	});
+
+	it("送る購入があれば、送る", async () => {
+		const syncPurchases = vi.fn().mockResolvedValue(synced(1));
+
+		render(
+			<InventoryPurchaseSync
+				ownerScope="user:user-id"
+				syncPurchases={syncPurchases}
+				countPending={() => Promise.resolve(1)}
+			/>,
+		);
+
+		expect(
+			await screen.findByText("1件の在庫を反映しました"),
+		).toBeInTheDocument();
+	});
+
 	it("ゲストのoutboxは自動同期しない", () => {
 		const syncPurchases = vi.fn();
 
