@@ -1,4 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import {
+	clearAccountLocalData,
+	noUnsentAccountChanges,
+} from "#/local-db/clear-account-local-data";
 import { LocalDatabase } from "#/local-db/database";
 import { createShoppingItem, type ShoppingItem } from "../domain/shopping-item";
 import { createShoppingStore } from "../domain/shopping-store";
@@ -7,7 +11,6 @@ import {
 	type ShoppingPushRecord,
 	type StoredShoppingRecord,
 } from "../domain/shopping-sync-push";
-import { clearAccountShoppingMemo } from "../infrastructure/dexie-shopping-sign-out";
 import { createDexieShoppingSyncStore } from "../infrastructure/dexie-shopping-sync-store";
 import { readOwnedShoppingData } from "../infrastructure/read-owned-shopping-data";
 import {
@@ -388,11 +391,7 @@ describe("syncShoppingMemo", () => {
 
 		await device.addItem("卵");
 		await device.sync();
-		await clearAccountShoppingMemo(
-			user,
-			{ discardUnsent: false },
-			device.database,
-		);
+		await clearAccountLocalData(user, noUnsentAccountChanges, device.database);
 
 		expect((await device.read()).items).toEqual([]);
 
