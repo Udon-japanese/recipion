@@ -1,6 +1,10 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+	noUnsentAccountChanges,
+	type UnsentAccountChanges,
+} from "#/local-db/clear-account-local-data";
 import { SignOutButton } from "./sign-out-button";
 
 const mocks = vi.hoisted(() => ({
@@ -28,22 +32,28 @@ afterEach(() => {
 	mocks.session = null;
 });
 
-function renderSignedIn(unsentCount: number) {
+const unsentBoth: UnsentAccountChanges = {
+	shoppingChangeIds: ["change-1", "change-2"],
+	purchaseIds: ["purchase-1"],
+};
+
+function renderSignedIn(unsent: UnsentAccountChanges) {
 	mocks.session = { user: { id: "user-1" } };
 	mocks.signOut.mockResolvedValue({ data: {}, error: null });
 
 	const syncBeforeSignOut = vi.fn(async () => null);
-	const clearLocalMemo = vi.fn(async () => true);
+	const findUnsent = vi.fn(async () => unsent);
+	const clearLocalData = vi.fn(async () => true);
 
 	render(
 		<SignOutButton
 			syncBeforeSignOut={syncBeforeSignOut}
-			countUnsent={async () => unsentCount}
-			clearLocalMemo={clearLocalMemo}
+			findUnsent={findUnsent}
+			clearLocalData={clearLocalData}
 		/>,
 	);
 
-	return { syncBeforeSignOut, clearLocalMemo };
+	return { syncBeforeSignOut, findUnsent, clearLocalData };
 }
 
 describe("SignOutButton", () => {
@@ -77,10 +87,12 @@ describe("SignOutButton", () => {
 		expect(mocks.navigate).not.toHaveBeenCalled();
 	});
 
-	describe("この端末の、その人の買い物メモ", () => {
+	describe("この端末の、その人のデータ", () => {
 		it("送り残しがなければ、送ってからログアウトし、そのあとで消す", async () => {
 			const user = userEvent.setup();
-			const { syncBeforeSignOut, clearLocalMemo } = renderSignedIn(0);
+			const { syncBeforeSignOut, clearLocalData } = renderSignedIn(
+				noUnsentAccountChanges,
+			);
 
 			await user.click(screen.getByRole("button", { name: "ログアウト" }));
 
@@ -88,15 +100,16 @@ describe("SignOutButton", () => {
 				expect(mocks.navigate).toHaveBeenCalledWith({ to: "/" }),
 			);
 			expect(syncBeforeSignOut).toHaveBeenCalledWith("user:user-1");
-			expect(clearLocalMemo).toHaveBeenCalledWith("user:user-1", {
-				discardUnsent: false,
-			});
+			expect(clearLocalData).toHaveBeenCalledWith(
+				"user:user-1",
+				noUnsentAccountChanges,
+			);
 			expect(screen.queryByRole("alertdialog")).toBeNull();
 		});
 
 		it("送り残しがあれば、先に聞く。「ログアウトしない」なら、ログアウトせず、何も消さない", async () => {
 			const user = userEvent.setup();
-			const { clearLocalMemo } = renderSignedIn(2);
+			const { clearLocalData } = renderSignedIn(unsentBoth);
 
 			await user.click(screen.getByRole("button", { name: "ログアウト" }));
 
@@ -104,7 +117,9 @@ describe("SignOutButton", () => {
 				name: "まだ送れていない変更があります",
 			});
 
-			expect(dialog.textContent).toContain("2件");
+			expect(dialog.textContent).toContain(
+				"（買い物メモ 2件、在庫に入れる買い物 1件）",
+			);
 			expect(dialog.textContent).toContain("この端末にしかありません");
 			expect(dialog.textContent).toContain("元に戻せません");
 
@@ -113,12 +128,60 @@ describe("SignOutButton", () => {
 			);
 
 			expect(mocks.signOut).not.toHaveBeenCalled();
-			expect(clearLocalMemo).not.toHaveBeenCalled();
+			expect(clearLocalData).not.toHaveBeenCalled();
 		});
 
-		it("「消してログアウト」を選んだら、ログアウトしてから、送り残しも消す", async () => {
+		it("片方の種類しかなければ、その種類だけを書く", async () => {
 			const user = userEvent.setup();
-			const { clearLocalMemo } = renderSignedIn(1);
+
+			renderSignedIn({ shoppingChangeIds: [], purchaseIds: ["purchase-1"] });
+			await user.click(screen.getByRole("button", { name: "ログアウト" }));
+
+			const dialog = await screen.findByRole("alertdialog");
+
+			expect(dialog.textContent).toContain("（在庫に入れる買い物 1件）");
+			expect(dialog.textContent).not.toContain("買い物メモ");
+		});
+
+		it("送り終えるのを待ってから、送れていない分を数える", async () => {
+			const user = userEvent.setup();
+			let finishSync = () => {};
+			const { syncBeforeSignOut, findUnsent } = renderSignedIn(
+				noUnsentAccountChanges,
+			);
+
+			syncBeforeSignOut.mockImplementation(
+				() =>
+					new Promise((resolve) => {
+						finishSync = () => resolve(null);
+					}),
+			);
+			await user.click(screen.getByRole("button", { name: "ログアウト" }));
+
+			await waitFor(() => expect(syncBeforeSignOut).toHaveBeenCalled());
+			expect(findUnsent).not.toHaveBeenCalled();
+
+			finishSync();
+
+			await waitFor(() => expect(mocks.signOut).toHaveBeenCalledTimes(1));
+			expect(findUnsent).toHaveBeenCalledTimes(1);
+		});
+
+		it("送れなくても（通信の失敗）、ログアウトは止めない", async () => {
+			const user = userEvent.setup();
+			const { syncBeforeSignOut } = renderSignedIn(noUnsentAccountChanges);
+
+			syncBeforeSignOut.mockRejectedValue(new TypeError("Failed to fetch"));
+			await user.click(screen.getByRole("button", { name: "ログアウト" }));
+
+			await waitFor(() =>
+				expect(mocks.navigate).toHaveBeenCalledWith({ to: "/" }),
+			);
+		});
+
+		it("「消してログアウト」を選んだら、ログアウトしてから、確かめた送り残しを渡して消す", async () => {
+			const user = userEvent.setup();
+			const { clearLocalData } = renderSignedIn(unsentBoth);
 
 			await user.click(screen.getByRole("button", { name: "ログアウト" }));
 			await user.click(
@@ -126,16 +189,14 @@ describe("SignOutButton", () => {
 			);
 
 			await waitFor(() =>
-				expect(clearLocalMemo).toHaveBeenCalledWith("user:user-1", {
-					discardUnsent: true,
-				}),
+				expect(clearLocalData).toHaveBeenCalledWith("user:user-1", unsentBoth),
 			);
 			expect(mocks.signOut).toHaveBeenCalledTimes(1);
 		});
 
 		it("ログアウトに失敗したら、何も消さない", async () => {
 			const user = userEvent.setup();
-			const { clearLocalMemo } = renderSignedIn(0);
+			const { clearLocalData } = renderSignedIn(noUnsentAccountChanges);
 
 			mocks.signOut.mockResolvedValue({
 				data: null,
@@ -144,7 +205,24 @@ describe("SignOutButton", () => {
 			await user.click(screen.getByRole("button", { name: "ログアウト" }));
 
 			expect(await screen.findByRole("alert")).toBeTruthy();
-			expect(clearLocalMemo).not.toHaveBeenCalled();
+			expect(clearLocalData).not.toHaveBeenCalled();
+		});
+
+		it("「消してログアウト」でも、ログアウトに失敗したら、何も消さない", async () => {
+			const user = userEvent.setup();
+			const { clearLocalData } = renderSignedIn(unsentBoth);
+
+			mocks.signOut.mockResolvedValue({
+				data: null,
+				error: { status: 500, message: "x" },
+			});
+			await user.click(screen.getByRole("button", { name: "ログアウト" }));
+			await user.click(
+				await screen.findByRole("button", { name: "消してログアウト" }),
+			);
+
+			expect(await screen.findByRole("alert")).toBeTruthy();
+			expect(clearLocalData).not.toHaveBeenCalled();
 		});
 	});
 });

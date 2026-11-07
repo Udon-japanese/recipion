@@ -31,6 +31,7 @@ import {
 	manageIngredientDictionaryServerFn,
 } from "#/features/ingredients/server/ingredient-dictionary";
 import { createDexieInventoryPurchaseOutboxRepository } from "#/features/inventory/infrastructure/dexie-inventory-purchase-outbox-repository";
+import { syncDexieInventoryPurchaseOutbox } from "#/features/inventory/infrastructure/sync-dexie-inventory-purchase-outbox";
 import { AccountDeletionSection } from "#/features/profile/components/account-deletion-section";
 import { HouseholdSizeSetting } from "#/features/recipes/components/household-size-setting";
 import {
@@ -194,7 +195,10 @@ function SettingsRoute() {
 						signOut={
 							<SignOutButton
 								syncBeforeSignOut={(ownerScope) =>
-									syncDexieShoppingMemo(ownerScope, "write")
+									Promise.allSettled([
+										syncDexieShoppingMemo(ownerScope, "write"),
+										syncDexieInventoryPurchaseOutbox(ownerScope),
+									])
 								}
 							/>
 						}
