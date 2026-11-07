@@ -8,6 +8,11 @@ import type {
 	BackupImportDependencies,
 } from "#/features/backup/application/backup-transfer";
 import { BackupSettingsSection } from "#/features/backup/components/backup-settings-section";
+import { ShoppingBackupSection } from "#/features/backup/components/shopping-backup-section";
+import {
+	readShoppingData,
+	replaceShoppingData,
+} from "#/features/backup/infrastructure/dexie-shopping-backup";
 import {
 	exportBackupDictionaryServerFn,
 	exportBackupInventoryServerFn,
@@ -147,27 +152,33 @@ function SettingsRoute() {
 				) : undefined
 			}
 			data={
-				session ? (
-					<BackupSettingsSection
-						exportDependencies={exportDependencies}
-						importDependencies={createImportDependencies(session.user.id)}
+				<>
+					<ShoppingBackupSection
+						loadData={readShoppingData}
+						replaceData={replaceShoppingData}
 					/>
-				) : (
-					<section
-						className={settingsStyles.section}
-						aria-labelledby="settings-data"
-					>
-						<h2 className={settingsStyles.sectionTitle} id="settings-data">
-							在庫とレシピ
-						</h2>
-						<p className={settingsStyles.sectionNote}>
-							ログインすると、在庫とレシピを、ファイルに書き出したり、読み込んだりできます。
-						</p>
-						<div>
-							<ButtonLink to="/login">ログイン</ButtonLink>
-						</div>
-					</section>
-				)
+					{session ? (
+						<BackupSettingsSection
+							exportDependencies={exportDependencies}
+							importDependencies={createImportDependencies(session.user.id)}
+						/>
+					) : (
+						<section
+							className={settingsStyles.section}
+							aria-labelledby="settings-data"
+						>
+							<h2 className={settingsStyles.sectionTitle} id="settings-data">
+								在庫とレシピ
+							</h2>
+							<p className={settingsStyles.sectionNote}>
+								ログインすると、在庫とレシピを、ファイルに書き出したり、読み込んだりできます。
+							</p>
+							<div>
+								<ButtonLink to="/login">ログイン</ButtonLink>
+							</div>
+						</section>
+					)}
+				</>
 			}
 			account={
 				session ? (

@@ -219,7 +219,7 @@ export function parseBackupFile(text: string): BackupFile {
 	);
 
 	if (!envelope.success) {
-		throw new UserFacingError("recipion で書き出したファイルではありません");
+		throw new UserFacingError("在庫とレシピのファイルではありません");
 	}
 
 	const parsed = v.safeParse(backupEnvelopeSchema, json);

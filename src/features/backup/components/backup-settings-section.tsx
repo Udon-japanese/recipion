@@ -21,6 +21,11 @@ import {
 	formatBackupFileName,
 	parseBackupFile,
 } from "../domain/backup-file";
+import {
+	formatBackupDate,
+	formatCount,
+	saveFileWithDownload,
+} from "./backup-file-helpers";
 import * as styles from "./backup-settings-section.css";
 
 type BackupSettingsSectionProps = {
@@ -30,23 +35,6 @@ type BackupSettingsSectionProps = {
 	saveFile?: (fileName: string, contents: string) => void;
 	now?: () => Date;
 };
-
-function saveFileWithDownload(fileName: string, contents: string): void {
-	const url = URL.createObjectURL(
-		new Blob([contents], { type: "application/json" }),
-	);
-	const anchor = document.createElement("a");
-
-	anchor.href = url;
-	anchor.download = fileName;
-	anchor.click();
-	// クリックの処理が終わってから、URL を捨てる。
-	setTimeout(() => URL.revokeObjectURL(url), 0);
-}
-
-function formatCount(count: number): string {
-	return count.toLocaleString("ja-JP");
-}
 
 function describeResult(result: BackupImportResult): string {
 	const parts: string[] = [];
@@ -257,7 +245,8 @@ export function BackupSettingsSection({
 				/>
 				<Button
 					variant="secondary"
-					status={readAction.status}
+					// 読めたら確認のシートが開くので、完了の見た目は出さない（シートの裏で変わって見えるため）。
+					status={readAction.status === "success" ? "idle" : readAction.status}
 					pendingLabel="ファイルを読んでいます"
 					errorLabel="読めませんでした"
 					disabled={isImporting}
@@ -398,15 +387,4 @@ export function BackupSettingsSection({
 			</CornerSheet>
 		</section>
 	);
-}
-
-function formatBackupDate(value: string): string {
-	return new Intl.DateTimeFormat("ja-JP", {
-		timeZone: "Asia/Tokyo",
-		year: "numeric",
-		month: "numeric",
-		day: "numeric",
-		hour: "numeric",
-		minute: "2-digit",
-	}).format(new Date(value));
 }
