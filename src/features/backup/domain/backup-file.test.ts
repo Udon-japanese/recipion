@@ -43,7 +43,7 @@ describe("parseBackupFile", () => {
 		[
 			"別の形式",
 			serialize({ format: "other" }),
-			"recipion で書き出したファイルではありません",
+			"在庫とレシピのファイルではありません",
 		],
 		[
 			"違う版",

@@ -49,7 +49,7 @@ export type ShoppingItem = {
 	updatedAt: string;
 };
 
-const inventoryConversionSchema = v.object({
+export const inventoryConversionSchema = v.object({
 	inputUnitCode: v.pipe(
 		v.string(),
 		v.trim(),

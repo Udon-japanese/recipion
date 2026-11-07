@@ -185,7 +185,7 @@ describe("BackupSettingsSection", () => {
 		);
 
 		expect(await screen.findByRole("alert")).toHaveTextContent(
-			"recipion で書き出したファイルではありません",
+			"在庫とレシピのファイルではありません",
 		);
 		expect(importDependencies.inspect).not.toHaveBeenCalled();
 	});
