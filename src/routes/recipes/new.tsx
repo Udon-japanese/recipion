@@ -8,6 +8,7 @@ import { useIngredientDictionaryWithActions } from "#/features/ingredients/hooks
 import { useOwnerScope } from "#/features/inventory/hooks/use-owner-scope";
 import { RecipeEditor } from "#/features/recipes/components/recipe-editor";
 import { createForkDocument } from "#/features/recipes/domain/create-fork-document";
+import { collectOwnRecipeTags } from "#/features/recipes/domain/filter-own-recipes";
 import { createRecipeServerFn } from "#/features/recipes/server/create-recipe";
 import { forkRecipeServerFn } from "#/features/recipes/server/fork-recipe";
 import { getLinkedRecipesServerFn } from "#/features/recipes/server/get-linked-recipes";
@@ -18,15 +19,19 @@ import {
 } from "#/features/recipes/server/linkable-recipes";
 import { listRecipesServerFn } from "#/features/recipes/server/list-recipes";
 
-// リンクできるレシピ（自分のレシピ）。
-async function loadLinkTargets() {
-	const recipes = await listRecipesServerFn();
+type OwnRecipes = Awaited<ReturnType<typeof listRecipesServerFn>>;
 
+function toLinkTargets(recipes: OwnRecipes) {
 	return recipes.map(({ publicId, name, createdAt }) => ({
 		publicId,
 		name,
 		createdAt,
 	}));
+}
+
+// リンクできるレシピ（自分のレシピ）。
+async function loadLinkTargets() {
+	return toLinkTargets(await listRecipesServerFn());
 }
 
 // 保存前の確認で押したリンクのプレビュー。編集中の内容を失わないよう、「レシピを開く」は、新しいタブで開く。
@@ -86,12 +91,19 @@ export const Route = createFileRoute("/recipes/new")({
 	loaderDeps: ({ search }) => ({ from: search.from }),
 	// リンクできるレシピは、前もって取る（ログインしていなければ、取らない）。
 	loader: async ({ deps }) => {
-		const [linkTargets, fork] = await Promise.all([
-			loadLinkTargets().catch(() => undefined),
+		const [recipes, fork] = await Promise.all([
+			listRecipesServerFn().catch(() => undefined),
 			loadForkSource(deps.from),
 		]);
 
-		return { linkTargets, fork };
+		return {
+			linkTargets: recipes ? toLinkTargets(recipes) : undefined,
+			// タグのシートの候補（自分が使った個人用のタグ）。
+			personalTagSuggestions: recipes
+				? collectOwnRecipeTags(recipes).personalTags
+				: [],
+			fork,
+		};
 	},
 	component: NewRecipePage,
 });
@@ -102,7 +114,7 @@ function NewRecipePage() {
 	const { dictionary, mergeNames } =
 		useIngredientDictionaryWithActions(ownerScope);
 	const navigate = useNavigate();
-	const { linkTargets, fork } = Route.useLoaderData();
+	const { linkTargets, personalTagSuggestions, fork } = Route.useLoaderData();
 
 	if (ownerScope === null) return null;
 
@@ -132,6 +144,7 @@ function NewRecipePage() {
 				loadLinkedRecipes={loadLinkedRecipes}
 				loadLinkTargets={loadLinkTargets}
 				initialLinkTargets={linkTargets}
+				personalTagSuggestions={personalTagSuggestions}
 				searchLinkableUsers={(query) =>
 					searchLinkableUsersServerFn({ data: { query } })
 				}

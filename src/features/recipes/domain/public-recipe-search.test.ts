@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
 	buildLikePatterns,
+	findPublicTagsMatchingTerm,
 	formatSearchCursor,
 	maxSearchTermLength,
 	maxSearchTerms,
 	parseRecipeSearchTerms,
 	parseSearchCursor,
+	parseSearchTags,
 } from "./public-recipe-search";
 
 describe("parseRecipeSearchTerms", () => {
@@ -62,5 +64,46 @@ describe("検索の続きの取り方", () => {
 		"2026-10-23 03:21:09+00'; drop table recipe;--|x",
 	])("形の違う値（%j）は、読まない", (value) => {
 		expect(parseSearchCursor(value)).toBeNull();
+	});
+});
+
+describe("findPublicTagsMatchingTerm", () => {
+	it.each([
+		{ term: "時短", expected: ["quick"] },
+		// ひらがなとカタカナ、全角と半角を区別しない。
+		{ term: "ぴり辛", expected: ["hot_spicy"] },
+		{ term: "ﾜﾝﾊﾟﾝ", expected: ["one_pan"] },
+		// 表示名の一部でも当たる。
+		{
+			term: "向き",
+			expected: [
+				"make_ahead",
+				"batch_cooking",
+				"beginner",
+				"bento",
+				"kids",
+				"family",
+			],
+		},
+		{ term: "カレー", expected: [] },
+	])("「$term」→ $expected", ({ term, expected }) => {
+		expect(findPublicTagsMatchingTerm(term)).toEqual(expected);
+	});
+});
+
+describe("parseSearchTags", () => {
+	it("語の一覧にないキーは捨て、重複を除き、上限までにする", () => {
+		expect(
+			parseSearchTags([
+				"main_dish",
+				"unknown",
+				"main_dish",
+				"quick",
+				"bento",
+				"spring",
+				"soup",
+				"salad",
+			]),
+		).toEqual(["main_dish", "quick", "bento", "spring", "soup"]);
 	});
 });

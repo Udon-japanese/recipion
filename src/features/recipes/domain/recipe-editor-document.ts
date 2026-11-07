@@ -9,6 +9,7 @@ import { parseRecipeInstructions } from "./parse-recipe-instructions";
 import { parseRecipePreparations } from "./parse-recipe-preparations";
 import type { RecipeVisibility } from "./recipe-link-permission";
 import type { RecipeLinkReference } from "./recipe-links";
+import type { PublicRecipeTag } from "./recipe-tags";
 import { defaultRecipeYieldText } from "./recipe-yield";
 
 export type RecipeEditorIngredientItem = ParsedRecipeIngredientItem & {
@@ -60,6 +61,10 @@ export type RecipeEditorDocument = {
 	scalable?: boolean;
 	// 料理の絵。省略か null は、レシピ名から選ぶプリセット。
 	cover?: DishPlacement[] | null;
+	// 公開用のタグ（語の一覧の順）。省略は空。
+	publicTags?: PublicRecipeTag[];
+	// 個人用のタグ（本人にしか見えない）。省略は空。
+	personalTags?: string[];
 };
 
 export type CreateRecipeEditorDocumentInput = {
@@ -75,6 +80,8 @@ export type CreateRecipeEditorDocumentInput = {
 	stocksWhenMade?: boolean;
 	scalable?: boolean;
 	cover?: DishPlacement[] | null;
+	publicTags?: PublicRecipeTag[];
+	personalTags?: string[];
 };
 
 type CreateId = () => string;
@@ -131,5 +138,7 @@ export function createRecipeEditorDocument(
 		stocksWhenMade: input.stocksWhenMade ?? false,
 		scalable: input.scalable ?? true,
 		cover: input.cover ?? null,
+		publicTags: input.publicTags ? [...input.publicTags] : [],
+		personalTags: input.personalTags ? [...input.personalTags] : [],
 	};
 }

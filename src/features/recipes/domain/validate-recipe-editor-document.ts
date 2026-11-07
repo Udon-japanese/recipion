@@ -7,6 +7,7 @@ import type {
 } from "./recipe-editor-document";
 import { findRecipeLimitViolation } from "./recipe-limits";
 import { isValidLinkLabel, maxLinksPerRecipe } from "./recipe-links";
+import { publicRecipeTags, sortPublicRecipeTags } from "./recipe-tags";
 import { maxRecipeYieldLength } from "./recipe-yield";
 import { scaleWeightOptions } from "./scale-weight";
 
@@ -89,6 +90,12 @@ const documentSchema = v.object({
 	stocksWhenMade: v.optional(v.boolean(), false),
 	scalable: v.optional(v.boolean(), true),
 	cover: v.optional(v.nullable(dishPlacementsSchema), null),
+	// 個数・長さの上限と、具体的な文は、recipe-limits.ts。ここは構造の安全弁。
+	publicTags: v.optional(
+		v.pipe(v.array(v.picklist(publicRecipeTags)), v.maxLength(50)),
+		[],
+	),
+	personalTags: v.optional(v.pipe(v.array(requiredText), v.maxLength(50)), []),
 	// 古い画面（links を送らない）からの保存も受け付ける。
 	links: v.optional(
 		v.pipe(
@@ -151,6 +158,14 @@ export function validateRecipeEditorDocument(
 		throw new UserFacingError("引用元のURLがあるレシピは公開できません");
 	}
 
+	if (new Set(document.publicTags).size !== document.publicTags.length) {
+		throw new UserFacingError("公開用のタグが重複しています");
+	}
+
+	if (new Set(document.personalTags).size !== document.personalTags.length) {
+		throw new UserFacingError("個人用のタグが重複しています");
+	}
+
 	const linkLabels = new Set<string>();
 
 	for (const link of document.links) {
@@ -190,5 +205,8 @@ export function validateRecipeEditorDocument(
 		precedingInstructionIds.add(instruction.id);
 	}
 
-	return document;
+	return {
+		...document,
+		publicTags: sortPublicRecipeTags(document.publicTags),
+	};
 }

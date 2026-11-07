@@ -1,12 +1,18 @@
 import { Link } from "@tanstack/react-router";
-import { useId } from "react";
+import { useId, useState } from "react";
+import { Button } from "#/components/button/button";
 import { Card } from "#/components/card/card";
 import { Checkbox } from "#/components/checkbox/checkbox";
 import { SelectBox } from "#/components/field/field";
 import { Note } from "#/components/note/note";
 import type { RecipeVisibility } from "../domain/recipe-link-permission";
+import {
+	type PublicRecipeTag,
+	publicRecipeTagLabel,
+} from "../domain/recipe-tags";
 import { recipeVisibilityLabels } from "../domain/recipe-visibility-label";
 import * as styles from "./recipe-settings-card.css";
+import { RecipeTagDialog } from "./recipe-tag-dialog";
 
 type RecipeSettingsCardProps = {
 	visibility: RecipeVisibility;
@@ -18,6 +24,11 @@ type RecipeSettingsCardProps = {
 	// 量を変えられるか（チェックの「この分量で作る」は、その反対）。
 	scalable: boolean;
 	onScalableChange: (value: boolean) => void;
+	publicTags: readonly PublicRecipeTag[];
+	onPublicTagsChange: (tags: PublicRecipeTag[]) => void;
+	personalTags: readonly string[];
+	onPersonalTagsChange: (tags: string[]) => void;
+	personalTagSuggestions?: readonly string[];
 };
 
 const visibilityHints: Record<RecipeVisibility, string> = {
@@ -36,7 +47,17 @@ function isRecipeVisibility(value: string): value is RecipeVisibility {
 	return visibilityOrder.some((visibility) => visibility === value);
 }
 
-// レシピの設定（公開範囲・作り置き・この分量で作る）。設定が増えても、行が1つずつ増えるだけにする。
+// 付けたタグの一覧の文（なければ「なし」）。
+function describeTags(
+	publicTags: readonly PublicRecipeTag[],
+	personalTags: readonly string[],
+): string {
+	const labels = [...publicTags.map(publicRecipeTagLabel), ...personalTags];
+
+	return labels.length === 0 ? "なし" : labels.join("・");
+}
+
+// レシピの設定（公開範囲・作り置き・この分量で作る・タグ）。設定が増えても、行が1つずつ増えるだけにする。
 // 公開を選んだら、注意書きを出す（保存するときの確認でも、もう一度出す。recipe-editor.tsx）。
 export function RecipeSettingsCard({
 	visibility,
@@ -46,7 +67,14 @@ export function RecipeSettingsCard({
 	onStocksWhenMadeChange,
 	scalable,
 	onScalableChange,
+	publicTags,
+	onPublicTagsChange,
+	personalTags,
+	onPersonalTagsChange,
+	personalTagSuggestions,
 }: RecipeSettingsCardProps) {
+	const [isTagSheetOpen, setIsTagSheetOpen] = useState(false);
+	const tagsId = useId();
 	const headingId = useId();
 	const visibilityId = useId();
 	const stocksId = useId();
@@ -120,8 +148,35 @@ export function RecipeSettingsCard({
 							onChange={(event) => onScalableChange(!event.target.checked)}
 						/>
 					</li>
+					<li className={styles.row}>
+						<div className={styles.text}>
+							<span className={styles.label} id={tagsId}>
+								タグ
+							</span>
+							<span className={styles.hint}>
+								{describeTags(publicTags, personalTags)}
+							</span>
+						</div>
+						<Button
+							variant="secondary"
+							size="sm"
+							aria-describedby={tagsId}
+							onClick={() => setIsTagSheetOpen(true)}
+						>
+							選ぶ
+						</Button>
+					</li>
 				</ul>
 			</Card>
+			<RecipeTagDialog
+				open={isTagSheetOpen}
+				onOpenChange={setIsTagSheetOpen}
+				publicTags={publicTags}
+				onPublicTagsChange={onPublicTagsChange}
+				personalTags={personalTags}
+				onPersonalTagsChange={onPersonalTagsChange}
+				personalTagSuggestions={personalTagSuggestions}
+			/>
 
 			{hasSourceUrl ? (
 				<Note tone="warn">引用元のURLがあるレシピは公開できません。</Note>

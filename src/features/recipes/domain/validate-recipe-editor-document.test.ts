@@ -11,6 +11,74 @@ function createDocument() {
 }
 
 describe("validateRecipeEditorDocument", () => {
+	it("タグ：公開用は語の一覧の順にそろえ、省略は空にする", () => {
+		const document = createDocument();
+
+		expect(
+			validateRecipeEditorDocument({
+				...document,
+				publicTags: ["quick", "main_dish"],
+				personalTags: ["晩ご飯"],
+			}),
+		).toMatchObject({
+			publicTags: ["main_dish", "quick"],
+			personalTags: ["晩ご飯"],
+		});
+
+		const { publicTags, personalTags, ...withoutTags } = document;
+
+		expect(validateRecipeEditorDocument(withoutTags)).toMatchObject({
+			publicTags: [],
+			personalTags: [],
+		});
+	});
+
+	it.each([
+		{
+			title: "語の一覧にない公開用のタグ",
+			tags: { publicTags: ["gluten_free"] },
+			message: "レシピの入力内容を確認してください",
+		},
+		{
+			title: "6つ目の公開用のタグ",
+			tags: {
+				publicTags: ["main_dish", "quick", "bento", "spring", "soup", "salad"],
+			},
+			message: "公開用のタグは5つまでです。",
+		},
+		{
+			title: "重なった公開用のタグ",
+			tags: { publicTags: ["main_dish", "main_dish"] },
+			message: "公開用のタグが重複しています",
+		},
+		{
+			title: "11個目の個人用のタグ",
+			tags: {
+				personalTags: Array.from({ length: 11 }, (_, index) => `タグ${index}`),
+			},
+			message: "個人用のタグは10個までです。",
+		},
+		{
+			title: "21文字の個人用のタグ",
+			tags: { personalTags: ["あ".repeat(21)] },
+			message: "個人用のタグは1つ20文字までです。",
+		},
+		{
+			title: "空の個人用のタグ",
+			tags: { personalTags: ["　"] },
+			message: "レシピの入力内容を確認してください",
+		},
+		{
+			title: "重なった個人用のタグ（前後の空白は除いて比べる）",
+			tags: { personalTags: ["晩ご飯", " 晩ご飯 "] },
+			message: "個人用のタグが重複しています",
+		},
+	])("$title は保存しない", ({ tags, message }) => {
+		expect(() =>
+			validateRecipeEditorDocument({ ...createDocument(), ...tags }),
+		).toThrow(message);
+	});
+
 	it("正しいレシピを受け取る", () => {
 		const document = createDocument();
 

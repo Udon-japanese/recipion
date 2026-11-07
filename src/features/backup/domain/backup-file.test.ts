@@ -25,6 +25,8 @@ describe("parseBackupFile", () => {
 						cover: [{ partId: "rice", x: 50, y: 50 }],
 						stocksWhenMade: true,
 						visibility: "public",
+						publicTags: ["main_dish", "quick"],
+						personalTags: ["晩ご飯"],
 					},
 				}),
 			],

@@ -58,5 +58,8 @@ export function createForkDocument(
 		stocksWhenMade: parent.stocksWhenMade ?? false,
 		scalable: parent.scalable ?? true,
 		cover: parent.cover ?? null,
+		// 公開用のタグは料理の説明なので写す。個人用のタグは、親の作者のものなので写さない。
+		publicTags: [...(parent.publicTags ?? [])],
+		personalTags: [],
 	};
 }

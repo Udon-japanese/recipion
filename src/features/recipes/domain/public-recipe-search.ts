@@ -1,6 +1,12 @@
 // 全体公開のレシピの一覧・検索に使う、純粋な関数と型。
 import type { Avatar } from "#/features/avatar/domain/avatar";
 import type { DishPlacement } from "#/features/dish-art/domain/dish-cover";
+import {
+	type PublicRecipeTag,
+	publicRecipeTagLabels,
+	publicRecipeTags,
+	recipeTagLimits,
+} from "./recipe-tags";
 
 export type PublicRecipeSummary = {
 	publicId: string;
@@ -8,6 +14,7 @@ export type PublicRecipeSummary = {
 	yieldText: string;
 	// 料理の絵（なければ、れしぽよの絵）。
 	cover: DishPlacement[] | null;
+	publicTags: PublicRecipeTag[];
 	// 登録した日時（ISO 8601）。
 	createdAt: string;
 	authorName: string;
@@ -56,6 +63,30 @@ export function buildLikePatterns(term: string): string[] {
 	return [...new Set([term, hiragana, katakana])].map(
 		(variant) => `%${escapeLike(variant)}%`,
 	);
+}
+
+function toHiragana(text: string): string {
+	return convertKana(text.normalize("NFKC").toLowerCase(), -0x60, /[ァ-ヶ]/gu);
+}
+
+// 検索語が表示名に含まれる、公開用のタグ（「時短」で探すと、時短のタグが付いたレシピも当たる）。
+export function findPublicTagsMatchingTerm(term: string): PublicRecipeTag[] {
+	const comparable = toHiragana(term);
+
+	return publicRecipeTags.filter((tag) =>
+		toHiragana(publicRecipeTagLabels.get(tag) ?? "").includes(comparable),
+	);
+}
+
+// 絞り込みに選んだ公開用のタグ：語の一覧にあるものだけ、重複なしで、上限まで。
+export function parseSearchTags(values: readonly string[]): PublicRecipeTag[] {
+	return [
+		...new Set(
+			values.filter((value): value is PublicRecipeTag =>
+				publicRecipeTags.some((tag) => tag === value),
+			),
+		),
+	].slice(0, recipeTagLimits.maxSearchTags);
 }
 
 // 続きの取り方：「登録日時|公開 ID」（登録日時は、データベースが返した文字のまま。精度を落とさないため）。

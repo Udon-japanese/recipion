@@ -15,6 +15,7 @@ import { useOwnerScope } from "#/features/inventory/hooks/use-owner-scope";
 import { RecipeEditor } from "#/features/recipes/components/recipe-editor";
 import { RecipeParentMerge } from "#/features/recipes/components/recipe-parent-merge";
 import { RecipeRouteError } from "#/features/recipes/components/recipe-route-error";
+import { collectOwnRecipeTags } from "#/features/recipes/domain/filter-own-recipes";
 import { collectRecipeLinkTargetIds } from "#/features/recipes/domain/ingredient-link-target";
 import {
 	applyMergedSnapshot,
@@ -66,13 +67,17 @@ function renderOpenLink(publicId: string) {
 // 前もって取るリンク先の数の上限（getLinkedRecipesServerFn の入力の上限と同じ）。
 const maxPreloadedLinkTargets = 30;
 
-// リンクできるレシピ（自分のレシピ）。編集中のレシピ自身には、リンクできない。
-async function loadLinkTargets(editingPublicId: string) {
-	const recipes = await listRecipesServerFn();
+type OwnRecipes = Awaited<ReturnType<typeof listRecipesServerFn>>;
 
+// リンクできるレシピ（自分のレシピ）。編集中のレシピ自身には、リンクできない。
+function toLinkTargets(recipes: OwnRecipes, editingPublicId: string) {
 	return recipes
 		.filter((candidate) => candidate.publicId !== editingPublicId)
 		.map(({ publicId, name, createdAt }) => ({ publicId, name, createdAt }));
+}
+
+async function loadLinkTargets(editingPublicId: string) {
+	return toLinkTargets(await listRecipesServerFn(), editingPublicId);
 }
 
 export const Route = createFileRoute("/recipes/$publicId/edit")({
@@ -90,8 +95,8 @@ export const Route = createFileRoute("/recipes/$publicId/edit")({
 			0,
 			maxPreloadedLinkTargets,
 		);
-		const [linkTargets, linkedRecipes, mergeSource] = await Promise.all([
-			loadLinkTargets(recipe.publicId),
+		const [ownRecipes, linkedRecipes, mergeSource] = await Promise.all([
+			listRecipesServerFn(),
 			linkTargetIds.length > 0
 				? getLinkedRecipesServerFn({ data: { publicIds: linkTargetIds } })
 				: {},
@@ -103,7 +108,9 @@ export const Route = createFileRoute("/recipes/$publicId/edit")({
 		return {
 			recipe,
 			revision,
-			linkTargets,
+			linkTargets: toLinkTargets(ownRecipes, recipe.publicId),
+			// タグのシートの候補（自分が使った個人用のタグ）。
+			personalTagSuggestions: collectOwnRecipeTags(ownRecipes).personalTags,
 			linkedRecipes,
 			merge: deps.merge
 				? mergeSource
@@ -143,8 +150,14 @@ function RecipeNotFound() {
 }
 
 function EditRecipePage() {
-	const { recipe, revision, linkTargets, linkedRecipes, merge } =
-		Route.useLoaderData();
+	const {
+		recipe,
+		revision,
+		linkTargets,
+		personalTagSuggestions,
+		linkedRecipes,
+		merge,
+	} = Route.useLoaderData();
 	const navigate = useNavigate();
 	const router = useRouter();
 	// 取り込んだ結果のレシピ（取り込みの画面で「エディタで開く」を押したあと）。
@@ -268,6 +281,7 @@ function EditRecipePage() {
 				}
 				loadLinkTargets={() => loadLinkTargets(recipe.publicId)}
 				initialLinkTargets={linkTargets}
+				personalTagSuggestions={personalTagSuggestions}
 				preloadedLinkedRecipes={linkedRecipes}
 				missingLinkLabels={recipe.linkViews.flatMap((view) =>
 					view.target ? [] : [view.label],

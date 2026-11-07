@@ -22,6 +22,8 @@ describe("createForkDocument", () => {
 			visibility: "public",
 			stocksWhenMade: true,
 			scalable: false,
+			publicTags: ["main_dish", "bento"],
+			personalTags: ["週末"],
 		},
 		sequentialIds("parent"),
 	);
@@ -48,6 +50,13 @@ describe("createForkDocument", () => {
 			stocksWhenMade: true,
 			scalable: false,
 		});
+	});
+
+	it("公開用のタグは写し、個人用のタグ（親の作者のもの）は写さない", () => {
+		const fork = createForkDocument(parent, sequentialIds("fork"));
+
+		expect(fork.publicTags).toEqual(["main_dish", "bento"]);
+		expect(fork.personalTags).toEqual([]);
 	});
 
 	it("材料・下準備・作り方の ID は作り直し、作り方の参照も付け替える", () => {

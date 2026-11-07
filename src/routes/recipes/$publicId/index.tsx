@@ -47,6 +47,7 @@ import {
 import { RecipePassphraseSection } from "#/features/recipes/components/recipe-passphrase-section";
 import { RecipeRouteError } from "#/features/recipes/components/recipe-route-error";
 import { RecipeShoppingSection } from "#/features/recipes/components/recipe-shopping-section";
+import { RecipeTagLine } from "#/features/recipes/components/recipe-tag-line";
 import { RecipeUnlockForm } from "#/features/recipes/components/recipe-unlock-form";
 import { RecipeViewWithLinks } from "#/features/recipes/components/recipe-view-with-links";
 import { RecipeYieldStepper } from "#/features/recipes/components/recipe-yield-stepper";
@@ -420,6 +421,10 @@ function OwnRecipePage({
 						{preload.parent ? (
 							<RecipeParentLine parent={preload.parent} />
 						) : null}
+						<RecipeTagLine
+							publicTags={recipe.publicTags ?? []}
+							personalTags={recipe.personalTags ?? []}
+						/>
 					</>
 				}
 				actions={
@@ -558,6 +563,10 @@ function SharedRecipePage({
 						{preload.parent ? (
 							<RecipeParentLine parent={preload.parent} />
 						) : null}
+						<RecipeTagLine
+							publicTags={recipe.publicTags ?? []}
+							personalTags={recipe.personalTags ?? []}
+						/>
 					</>
 				}
 				actions={
