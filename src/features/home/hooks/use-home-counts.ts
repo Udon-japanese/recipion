@@ -4,7 +4,8 @@ import { toDateString } from "#/features/inventory/domain/inventory-lot";
 import { createDexieInventoryCacheRepository } from "#/features/inventory/infrastructure/dexie-inventory-cache-repository";
 import { listInventoryItemsServerFn } from "#/features/inventory/server/list-inventory-items";
 import { listRecipesServerFn } from "#/features/recipes/server/list-recipes";
-import { dexieShoppingRepository } from "#/features/shopping/infrastructure/dexie-shopping-repository";
+import { useShoppingOwnerScope } from "#/features/shopping/hooks/use-shopping-owner-scope";
+import { createDexieShoppingRepository } from "#/features/shopping/infrastructure/dexie-shopping-repository";
 import {
 	type ExpirySummary,
 	summarizeExpiry,
@@ -17,12 +18,19 @@ export type CountState<T> =
 
 const loading = { status: "loading" } as const;
 
-// 買い物メモの残り（この端末のメモ。購入済みと、条件つきのメモの中の項目は数えない）。
+// 買い物メモの残り（その持ち主のメモ。購入済みと、条件つきのメモの中の項目は数えない）。持ち主が決まるまでは、読み込み中。
 export function useShoppingRemaining(): CountState<number> {
+	const ownerScope = useShoppingOwnerScope();
 	const [state, setState] = useState<CountState<number>>(loading);
 
 	useEffect(() => {
-		const unsubscribe = dexieShoppingRepository.watch(
+		if (ownerScope === null) {
+			setState(loading);
+
+			return;
+		}
+
+		const unsubscribe = createDexieShoppingRepository(ownerScope).watch(
 			(items) =>
 				setState({
 					status: "ready",
@@ -34,7 +42,7 @@ export function useShoppingRemaining(): CountState<number> {
 		);
 
 		return unsubscribe;
-	}, []);
+	}, [ownerScope]);
 
 	return state;
 }

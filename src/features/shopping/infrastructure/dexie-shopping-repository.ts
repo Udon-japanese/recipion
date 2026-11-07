@@ -1,67 +1,111 @@
 import { liveQuery } from "dexie";
+import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import { getLocalDatabase } from "../../../local-db/database";
 import type { ShoppingRepository } from "../application/shopping-repository";
 import { categorizeUnassignedShoppingItems } from "../domain/shopping-item-categorization";
+import {
+	ownerSortRange,
+	toShoppingItem,
+	withOwner,
+} from "./owned-shopping-records";
 
-export const dexieShoppingRepository = {
-	async list() {
-		return getLocalDatabase().shoppingItems.orderBy("sortOrder").toArray();
-	},
+// その持ち主（ゲスト／ログインした人）の買い物メモの項目。ほかの持ち主の行は、読まない・書かない。
+export function createDexieShoppingRepository(
+	ownerScope: InventoryPurchaseOwnerScope,
+) {
+	async function listItems() {
+		const [lower, upper] = ownerSortRange(ownerScope);
+		const records = await getLocalDatabase()
+			.shoppingItems.where("[ownerScope+sortOrder]")
+			.between(lower, upper, true, true)
+			.toArray();
 
-	async findById(id) {
-		return getLocalDatabase().shoppingItems.get(id);
-	},
+		return records.map(toShoppingItem);
+	}
 
-	async save(item) {
-		await getLocalDatabase().shoppingItems.put(item);
-	},
+	// ID が、この持ち主の行か（ほかの持ち主の行を、ID で消したり上書きしたりしない）。
+	async function ownedIds(ids: readonly string[]) {
+		const records = await getLocalDatabase().shoppingItems.bulkGet([...ids]);
 
-	async saveAll(items) {
-		const database = getLocalDatabase();
+		return records.flatMap((record) =>
+			record && record.ownerScope === ownerScope ? [record.id] : [],
+		);
+	}
 
-		await database.transaction("rw", database.shoppingItems, async () => {
-			await database.shoppingItems.bulkPut([...items]);
-		});
-	},
+	return {
+		list: listItems,
 
-	async categorizeUnassigned(ids, now = new Date()) {
-		const database = getLocalDatabase();
+		async findById(id) {
+			const record = await getLocalDatabase().shoppingItems.get(id);
 
-		await database.transaction("rw", database.shoppingItems, async () => {
-			const storedItems = (
-				await database.shoppingItems.bulkGet([...ids])
-			).filter((item) => item !== undefined);
-			const categorizedItems = categorizeUnassignedShoppingItems(
-				storedItems,
-				now,
-			);
-			const changedItems = categorizedItems.filter(
-				(item, index) => item !== storedItems[index],
-			);
+			return record && record.ownerScope === ownerScope
+				? toShoppingItem(record)
+				: undefined;
+		},
 
-			if (changedItems.length > 0) {
-				await database.shoppingItems.bulkPut(changedItems);
-			}
-		});
-	},
+		async save(item) {
+			await getLocalDatabase().shoppingItems.put(withOwner(item, ownerScope));
+		},
 
-	async remove(id) {
-		await getLocalDatabase().shoppingItems.delete(id);
-	},
+		async saveAll(items) {
+			const database = getLocalDatabase();
 
-	async removeAll(ids) {
-		const database = getLocalDatabase();
+			await database.transaction("rw", database.shoppingItems, async () => {
+				await database.shoppingItems.bulkPut(
+					items.map((item) => withOwner(item, ownerScope)),
+				);
+			});
+		},
 
-		await database.transaction("rw", database.shoppingItems, async () => {
-			await database.shoppingItems.bulkDelete([...ids]);
-		});
-	},
+		// カテゴリが未判定の項目を、保存されている今の値から判定し直して保存する。
+		// 画面の写しで上書きしないため、読み直しと保存は1つのトランザクションで行う（消えた項目・判定済みの項目は触らない）。
+		async categorizeUnassigned(ids, now = new Date()) {
+			const database = getLocalDatabase();
 
-	watch(onChange, onError) {
-		const subscription = liveQuery(() =>
-			getLocalDatabase().shoppingItems.orderBy("sortOrder").toArray(),
-		).subscribe({ next: onChange, error: onError });
+			await database.transaction("rw", database.shoppingItems, async () => {
+				const storedItems = (await database.shoppingItems.bulkGet([...ids]))
+					.filter((record) => record?.ownerScope === ownerScope)
+					.flatMap((record) => (record ? [toShoppingItem(record)] : []));
+				const categorizedItems = categorizeUnassignedShoppingItems(
+					storedItems,
+					now,
+				);
+				const changedItems = categorizedItems.filter(
+					(item, index) => item !== storedItems[index],
+				);
 
-		return () => subscription.unsubscribe();
-	},
-} satisfies ShoppingRepository;
+				if (changedItems.length > 0) {
+					await database.shoppingItems.bulkPut(
+						changedItems.map((item) => withOwner(item, ownerScope)),
+					);
+				}
+			});
+		},
+
+		async remove(id) {
+			const database = getLocalDatabase();
+
+			await database.transaction("rw", database.shoppingItems, async () => {
+				await database.shoppingItems.bulkDelete(await ownedIds([id]));
+			});
+		},
+
+		// まとめて消す（途中で失敗したら、どれも消さない）。
+		async removeAll(ids) {
+			const database = getLocalDatabase();
+
+			await database.transaction("rw", database.shoppingItems, async () => {
+				await database.shoppingItems.bulkDelete(await ownedIds(ids));
+			});
+		},
+
+		watch(onChange, onError) {
+			const subscription = liveQuery(listItems).subscribe({
+				next: onChange,
+				error: onError,
+			});
+
+			return () => subscription.unsubscribe();
+		},
+	} satisfies ShoppingRepository;
+}

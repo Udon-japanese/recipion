@@ -1,7 +1,10 @@
 import Dexie, { type Table } from "dexie";
 import type { IngredientDictionarySnapshot } from "../features/ingredients/application/ingredient-dictionary-cache";
 import type { InventoryCacheSnapshot } from "../features/inventory/application/inventory-cache-repository";
-import type { InventoryPurchaseOutboxEntry } from "../features/inventory/application/inventory-purchase-outbox";
+import type {
+	InventoryPurchaseOutboxEntry,
+	InventoryPurchaseOwnerScope,
+} from "../features/inventory/application/inventory-purchase-outbox";
 import type { ShoppingBranch } from "../features/shopping/domain/shopping-branch";
 import type {
 	ShoppingItem,
@@ -26,14 +29,32 @@ export type ShoppingConversionMemoryRecord = {
 	usedAt: number;
 };
 
+// 買い物メモの行は、持ち主（ゲスト／ログインした人）ごとに分ける。同じ端末でも、別の人のメモは見えない。
+export type Owned<T> = T & { ownerScope: InventoryPurchaseOwnerScope };
+
+export type ShoppingItemRecord = Owned<ShoppingItem>;
+export type ShoppingStoreRecord = Owned<ShoppingStore>;
+export type ShoppingBranchRecord = Owned<ShoppingBranch>;
+export type ShoppingStoreDefaultRecord = Owned<ShoppingStoreDefault>;
+export type ScopedShoppingConversionMemoryRecord =
+	Owned<ShoppingConversionMemoryRecord>;
+
 export class LocalDatabase extends Dexie {
-	shoppingItems!: Table<ShoppingItem, string>;
+	shoppingItems!: Table<ShoppingItemRecord, string>;
 	inventoryPurchaseOutbox!: Table<InventoryPurchaseOutboxEntry, string>;
 	inventorySnapshots!: Table<InventoryCacheSnapshot, string>;
-	shoppingStores!: Table<ShoppingStore, string>;
-	shoppingBranches!: Table<ShoppingBranch, string>;
-	shoppingStoreDefaults!: Table<ShoppingStoreDefault, string>;
-	shoppingConversionMemories!: Table<ShoppingConversionMemoryRecord, string>;
+	shoppingStores!: Table<ShoppingStoreRecord, string>;
+	shoppingBranches!: Table<ShoppingBranchRecord, string>;
+	// 主キーは [持ち主, 食材名のキー]。
+	scopedShoppingStoreDefaults!: Table<
+		ShoppingStoreDefaultRecord,
+		[string, string]
+	>;
+	// 主キーは [持ち主, 食材×単位のキー]。
+	scopedShoppingConversionMemories!: Table<
+		ScopedShoppingConversionMemoryRecord,
+		[string, string]
+	>;
 	ingredientDictionaries!: Table<IngredientDictionarySnapshot, string>;
 
 	// 公開済みなので、バージョンは、まとめず、スキーマを変えるたびに足す（古いデータを直すときは .upgrade）。
@@ -64,6 +85,48 @@ export class LocalDatabase extends Dexie {
 		this.version(4).stores({
 			ingredientDictionaries: "ownerScope",
 		});
+		// 買い物メモを、持ち主ごとに分けた（それまでのメモは、ゲストのものにする。ログインすると、引き継ぐかを聞く）。
+		// いつも買う店・換算の記憶は、主キーに持ち主を入れるため、表を作り直す（Dexie は主キーを変えられない）。
+		// 消す表も、この版の upgrade の中では読める（Dexie の updateTablesAndIndexes）。
+		this.version(5)
+			.stores({
+				shoppingItems:
+					"id, ownerScope, [ownerScope+sortOrder], [ownerScope+status], status, categoryId, categoryAssignment, storeId, branchId, sortOrder, createdAt, updatedAt",
+				shoppingStores: "id, ownerScope, [ownerScope+sortOrder], sortOrder",
+				shoppingBranches: "id, ownerScope, [ownerScope+sortOrder], sortOrder",
+				shoppingStoreDefaults: null,
+				shoppingConversionMemories: null,
+				scopedShoppingStoreDefaults:
+					"[ownerScope+nameKey], ownerScope, storeId",
+				scopedShoppingConversionMemories: "[ownerScope+key], ownerScope",
+			})
+			.upgrade(async (transaction) => {
+				const guest = { ownerScope: "guest" as const };
+
+				await Promise.all([
+					transaction.table("shoppingItems").toCollection().modify(guest),
+					transaction.table("shoppingStores").toCollection().modify(guest),
+					transaction.table("shoppingBranches").toCollection().modify(guest),
+				]);
+
+				const [defaults, memories] = await Promise.all([
+					transaction
+						.table<ShoppingStoreDefault>("shoppingStoreDefaults")
+						.toArray(),
+					transaction
+						.table<ShoppingConversionMemoryRecord>("shoppingConversionMemories")
+						.toArray(),
+				]);
+
+				await Promise.all([
+					transaction
+						.table("scopedShoppingStoreDefaults")
+						.bulkAdd(defaults.map((entry) => ({ ...entry, ...guest }))),
+					transaction
+						.table("scopedShoppingConversionMemories")
+						.bulkAdd(memories.map((memory) => ({ ...memory, ...guest }))),
+				]);
+			});
 	}
 }
 

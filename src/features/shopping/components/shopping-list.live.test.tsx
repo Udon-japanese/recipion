@@ -1,9 +1,13 @@
 import { act, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { asGuest } from "#/test/builders/as-guest";
 import { getLocalDatabase } from "../../../local-db/database";
 import { createShoppingItem } from "../domain/shopping-item";
-import { dexieShoppingRepository } from "../infrastructure/dexie-shopping-repository";
+import { createDexieShoppingRepository } from "../infrastructure/dexie-shopping-repository";
 import { ShoppingList } from "./shopping-list";
+
+// このテストの持ち主（ゲスト）のメモの保存先。
+const dexieShoppingRepository = createDexieShoppingRepository("guest");
 
 beforeEach(async () => {
 	const database = getLocalDatabase();
@@ -11,7 +15,7 @@ beforeEach(async () => {
 	await database.shoppingItems.clear();
 	await database.shoppingBranches.clear();
 	await database.shoppingStores.clear();
-	await database.shoppingStoreDefaults.clear();
+	await database.scopedShoppingStoreDefaults.clear();
 });
 
 afterEach(() => {
@@ -31,7 +35,7 @@ describe("ShoppingList のライブデータ", () => {
 		});
 
 		await act(async () => {
-			await getLocalDatabase().shoppingItems.put(item);
+			await getLocalDatabase().shoppingItems.put(asGuest(item));
 		});
 
 		expect(

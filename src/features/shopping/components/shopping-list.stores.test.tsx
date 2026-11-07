@@ -1,6 +1,7 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { asGuest } from "#/test/builders/as-guest";
 import { buildShoppingItem } from "#/test/builders/build-shopping-item";
 import { createFakeShoppingRepository } from "#/test/fakes/fake-shopping-repository";
 import { getLocalDatabase } from "../../../local-db/database";
@@ -11,7 +12,7 @@ beforeEach(async () => {
 	const database = getLocalDatabase();
 
 	await database.shoppingStores.clear();
-	await database.shoppingStoreDefaults.clear();
+	await database.scopedShoppingStoreDefaults.clear();
 });
 
 afterEach(() => {
@@ -62,7 +63,7 @@ describe("ShoppingList の店", () => {
 		// 記憶したあと、同じ食材を打つと、店が入る。
 		await waitFor(async () => {
 			await expect(
-				getLocalDatabase().shoppingStoreDefaults.count(),
+				getLocalDatabase().scopedShoppingStoreDefaults.count(),
 			).resolves.toBe(1);
 		});
 		await user.type(screen.getByLabelText("買うもの"), "卵");
@@ -90,7 +91,7 @@ describe("ShoppingList の店", () => {
 		const repository = createFakeShoppingRepository();
 		const store = createShoppingStore("イオン", 0);
 
-		await getLocalDatabase().shoppingStores.add(store);
+		await getLocalDatabase().shoppingStores.add(asGuest(store));
 		render(<ShoppingList repository={repository} />);
 
 		await screen.findByText("買うものはまだありません。");
@@ -148,7 +149,7 @@ describe("ShoppingList の店", () => {
 		const repository = createFakeShoppingRepository();
 
 		await getLocalDatabase().shoppingStores.add(
-			createShoppingStore("イオン", 0),
+			asGuest(createShoppingStore("イオン", 0)),
 		);
 		render(<ShoppingList repository={repository} />);
 
@@ -232,7 +233,7 @@ describe("ShoppingList の店", () => {
 		const user = userEvent.setup();
 		const store = createShoppingStore("スーパーA", 0);
 
-		await getLocalDatabase().shoppingStores.add(store);
+		await getLocalDatabase().shoppingStores.add(asGuest(store));
 		// 配列の順番は、並び順（sortOrder）と、わざと違える。
 		const repository = createFakeShoppingRepository([
 			buildShoppingItem({

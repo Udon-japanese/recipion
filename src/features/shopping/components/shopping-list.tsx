@@ -36,11 +36,8 @@ import {
 	useShoppingPurchase,
 } from "../hooks/use-shopping-purchase";
 import { useShoppingStores } from "../hooks/use-shopping-stores";
-import { dexieShoppingBranchRepository } from "../infrastructure/dexie-shopping-branch-repository";
-import { dexieShoppingConversionDefaultRepository } from "../infrastructure/dexie-shopping-conversion-default-repository";
 import { confirmCheckedShoppingItemsPurchase } from "../infrastructure/dexie-shopping-purchase";
-import { dexieShoppingRepository } from "../infrastructure/dexie-shopping-repository";
-import { dexieShoppingStoreRepository } from "../infrastructure/dexie-shopping-store-repository";
+import { createDexieShoppingRepositories } from "../infrastructure/dexie-shopping-repositories";
 import { shoppingViewStorage } from "../infrastructure/shopping-view-storage";
 import { PurchaseConversionSheet } from "./purchase-conversion-sheet";
 import type { RenderRecipePicker } from "./recipe-picker-slot";
@@ -86,16 +83,24 @@ type ShoppingListProps = {
 };
 
 export function ShoppingList({
-	repository = dexieShoppingRepository,
-	storeRepository = dexieShoppingStoreRepository,
-	conversionDefaultRepository = dexieShoppingConversionDefaultRepository,
-	branchRepository = dexieShoppingBranchRepository,
 	confirmPurchases = defaultConfirmPurchases,
 	syncPurchases,
 	ownerScope = "guest",
 	renderRecipePicker,
 	notices,
+	...injected
 }: ShoppingListProps) {
+	// 保存先は、持ち主（ゲスト／ログインした人）ごと。持ち主が変わるときは、画面ごと作り直す（routes/shopping.tsx の key）。
+	const [dexieRepositories] = useState(() =>
+		createDexieShoppingRepositories(ownerScope ?? "guest"),
+	);
+	const repository = injected.repository ?? dexieRepositories.items;
+	const storeRepository = injected.storeRepository ?? dexieRepositories.stores;
+	const conversionDefaultRepository =
+		injected.conversionDefaultRepository ??
+		dexieRepositories.conversionDefaults;
+	const branchRepository =
+		injected.branchRepository ?? dexieRepositories.branches;
 	const shopping = useShoppingItems(repository);
 	const { items, isLoading, isReordering, errorMessage, setErrorMessage } =
 		shopping;

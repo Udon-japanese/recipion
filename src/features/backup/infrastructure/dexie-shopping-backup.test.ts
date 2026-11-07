@@ -11,31 +11,33 @@ async function clearShoppingTables() {
 		database.shoppingItems.clear(),
 		database.shoppingStores.clear(),
 		database.shoppingBranches.clear(),
-		database.shoppingStoreDefaults.clear(),
-		database.shoppingConversionMemories.clear(),
+		database.scopedShoppingStoreDefaults.clear(),
+		database.scopedShoppingConversionMemories.clear(),
 	]);
 }
 
 describe("replaceShoppingData", () => {
 	beforeEach(clearShoppingTables);
 
-	it("いまの中身（購入済みも）を消して、ファイルの内容だけにする", async () => {
+	it("その持ち主のいまの中身（購入済みも）を消して、ファイルの内容だけにする", async () => {
 		const database = getLocalDatabase();
 
 		await database.shoppingItems.put({
 			...buildShoppingData().items[2],
 			id: "old-item",
+			ownerScope: "guest",
 		});
 		await database.shoppingStores.put({
 			...buildShoppingData().stores[0],
 			id: "old-store",
+			ownerScope: "guest",
 		});
 
 		const file = createShoppingBackupFile(buildShoppingData());
 
-		await replaceShoppingData(file);
+		await replaceShoppingData("guest", file);
 
-		const stored = await readShoppingData();
+		const stored = await readShoppingData("guest");
 
 		expect(stored.items.map((item) => item.id).sort()).toEqual([
 			"item-egg",
@@ -47,10 +49,30 @@ describe("replaceShoppingData", () => {
 		expect(stored.conversionMemories).toEqual(file.conversionMemories);
 	});
 
+	it("ほかの持ち主のメモは、消さない", async () => {
+		const database = getLocalDatabase();
+
+		await database.shoppingItems.put({
+			...buildShoppingData().items[0],
+			id: "someone-item",
+			storeId: null,
+			ownerScope: "user:someone",
+		});
+
+		await replaceShoppingData(
+			"guest",
+			createShoppingBackupFile(buildShoppingData()),
+		);
+
+		expect(await readShoppingData("user:someone")).toMatchObject({
+			items: [{ id: "someone-item" }],
+		});
+	});
+
 	it("途中で失敗したら、いまの中身のまま", async () => {
 		const original = buildShoppingData();
 
-		await replaceShoppingData(createShoppingBackupFile(original));
+		await replaceShoppingData("guest", createShoppingBackupFile(original));
 
 		const file = createShoppingBackupFile(original);
 		const broken = {
@@ -60,9 +82,9 @@ describe("replaceShoppingData", () => {
 			items: [],
 		};
 
-		await expect(replaceShoppingData(broken)).rejects.toThrow();
+		await expect(replaceShoppingData("guest", broken)).rejects.toThrow();
 
-		const stored = await readShoppingData();
+		const stored = await readShoppingData("guest");
 
 		expect(stored.items.map((item) => item.id).sort()).toEqual([
 			"item-egg",

@@ -5,10 +5,6 @@ import { Note } from "#/components/note/note";
 import type { AdoptGuestInventoryPurchasesResult } from "../application/adopt-guest-inventory-purchases";
 import type { InventoryPurchaseOwnerScope } from "../application/inventory-purchase-outbox";
 import { isPurchaseOutboxSynced } from "../application/sync-inventory-purchase-outbox";
-import {
-	type LastOwnerMemory,
-	localStorageLastOwnerMemory,
-} from "../infrastructure/last-owner-storage";
 
 type LoadGuestPurchaseCount = () => Promise<number>;
 
@@ -20,8 +16,6 @@ type GuestPurchaseAdoptionProps = {
 	ownerScope: InventoryPurchaseOwnerScope | null;
 	loadGuestPurchaseCount: LoadGuestPurchaseCount;
 	adoptGuestPurchases: AdoptGuestPurchases;
-	// この端末で、前にも使った人かを、覚えておく場所。
-	lastOwnerMemory?: LastOwnerMemory;
 };
 
 type AdoptionStatus =
@@ -32,11 +26,12 @@ type AdoptionStatus =
 	| "waiting"
 	| "error";
 
+// ログインしたとき、ログインする前（ゲスト）の購入があれば、このアカウントの在庫に入れるかを、毎回聞く。
+// ゲストの購入は、ログアウトしたと確かめたあとの購入だけ（共用の端末なら、別の人の購入かもしれない）。
 export function GuestPurchaseAdoption({
 	ownerScope,
 	loadGuestPurchaseCount,
 	adoptGuestPurchases,
-	lastOwnerMemory = localStorageLastOwnerMemory,
 }: GuestPurchaseAdoptionProps) {
 	const [guestPurchaseCount, setGuestPurchaseCount] = useState(0);
 	const [status, setStatus] = useState<AdoptionStatus>("idle");
@@ -58,9 +53,6 @@ export function GuestPurchaseAdoption({
 		try {
 			const result = await adoptGuestPurchases(ownerScope);
 
-			// 引き継ぎ（端末の中の付け替え）は、この人のもの。送るのは、サーバーが Cookie の人と照らして断る。
-			lastOwnerMemory.set(ownerScope);
-
 			if (currentScope.current !== ownerScope) {
 				return;
 			}
@@ -78,7 +70,7 @@ export function GuestPurchaseAdoption({
 				setStatus("error");
 			}
 		}
-	}, [ownerScope, adoptGuestPurchases, lastOwnerMemory]);
+	}, [ownerScope, adoptGuestPurchases]);
 
 	useEffect(() => {
 		let isActive = true;
@@ -102,18 +94,8 @@ export function GuestPurchaseAdoption({
 					return;
 				}
 
-				if (count === 0) {
-					// 引き継ぐものがない。この人を、覚えておく（次に、ログイン前の購入があっても、聞かない）。
-					lastOwnerMemory.set(ownerScope);
-				}
-
 				setGuestPurchaseCount(count);
 				setStatus("idle");
-
-				// 前にも、この端末を使った同じ人（オフラインで、ログイン状態が読めなかった、など）は、聞かずに引き継ぐ。
-				if (count > 0 && lastOwnerMemory.get() === ownerScope) {
-					void adopt();
-				}
 			})
 			.catch(() => {
 				if (isActive) {
@@ -124,7 +106,7 @@ export function GuestPurchaseAdoption({
 		return () => {
 			isActive = false;
 		};
-	}, [ownerScope, loadGuestPurchaseCount, lastOwnerMemory, adopt]);
+	}, [ownerScope, loadGuestPurchaseCount]);
 
 	if (
 		!ownerScope ||

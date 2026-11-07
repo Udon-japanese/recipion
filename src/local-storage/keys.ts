@@ -19,8 +19,8 @@ export const storageKeys = {
 	inventoryGroupBy: "inventory-group-by",
 	// 在庫：冷凍野菜を、生の野菜の代わりに使うか（auto / ask / off）。
 	standInMode: "stand-in-mode",
-	// 在庫：この端末で、最後に、ログイン前の購入を片づけたユーザー。
-	inventoryLastOwner: "inventory-last-owner",
+	// 買い物メモ：この端末で、いまログインしている人（オフラインでログイン状態を確かめられないとき、その人のメモを見せる。ログアウトで消す）。
+	shoppingSignedInOwner: "shopping-signed-in-owner",
 	// 買い物メモ：表示の切り替え（aisle＝売り場順 / store＝店ごと）。
 	shoppingView: "shopping-view",
 	// レシピの入力：新規登録で、見出しの雛形を最初から入れるか。
