@@ -32,7 +32,7 @@ type IconButtonProps = Omit<
 	// muted（既定）：薄い灰色の丸／plain：背景なし／danger：赤い文字／on：選択中（黄色の丸＋濃い枠）。
 	tone?: IconButtonTone;
 	iconSize?: 16 | 20 | 24;
-	// 並べ替えのつかみ部分（タッチで動かしたとき、スクロールではなくドラッグになるよう、スクロールを止める）。
+	// 並べ替えのつかみ部分（指は長押しでドラッグ、それまではスクロールできる。押している間、色が満ちる）。
 	dragHandle?: boolean;
 };
 

@@ -1,5 +1,6 @@
 import { style } from "@vanilla-extract/css";
 import { type RecipeVariants, recipe } from "@vanilla-extract/recipes";
+import { dragHandleHoldMs } from "./drag-handle-hold";
 
 // 見た目は 36px の丸。押せる範囲は、44px 以上（::before で広げる）。
 // 押せないか（disabled）や、押している最中（:active）は、状態なので、セレクタで書く。
@@ -71,6 +72,7 @@ export const button = recipe({
 			},
 		},
 		// 並べ替えのつかみ：指は、長押ししてから動かす（それまでは、スクロールできる）。長押しで、文字の選択や吹き出しを出さない。
+		// 押している間は、長押しと同じ時間をかけて、色が満ちて少し膨らむ（満ちたら持ち上がる）。離すと、すぐ戻る。
 		dragHandle: {
 			true: {
 				touchAction: "manipulation",
@@ -78,6 +80,14 @@ export const button = recipe({
 				userSelect: "none",
 				WebkitUserSelect: "none",
 				WebkitTouchCallout: "none",
+				selectors: {
+					"&:active:not(:disabled)": {
+						background: "var(--color-primary-soft)",
+						color: "var(--color-accent-text)",
+						transform: "scale(1.15)",
+						transition: `background-color ${dragHandleHoldMs}ms linear, color ${dragHandleHoldMs}ms linear, transform ${dragHandleHoldMs}ms linear`,
+					},
+				},
 			},
 		},
 	},
