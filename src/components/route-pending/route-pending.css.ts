@@ -23,3 +23,17 @@ export const root = style({
 		"(prefers-reduced-motion: reduce)": { animation: "none" },
 	},
 });
+
+// 最初の読み込み：画面全体を覆い、画面の真ん中に出す（OS のスプラッシュのアイコンと同じ位置）。
+// 背景は不透明にするので、薄い所から出さない（下のヘッダー・ナビが透けて見えないように）。
+export const launch = style([
+	root,
+	{
+		position: "fixed",
+		inset: 0,
+		zIndex: 100,
+		minHeight: 0,
+		background: "var(--color-background)",
+		animation: "none",
+	},
+]);

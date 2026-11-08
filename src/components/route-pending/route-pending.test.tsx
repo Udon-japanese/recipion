@@ -94,4 +94,50 @@ describe("RoutePending", () => {
 		});
 		expect(screen.getByText("読み込んだ画面")).toBeTruthy();
 	});
+
+	it("最初の読み込みだけ全画面に出し、そのあとの画面の移動では中身の場所に出す", async () => {
+		const finishers: Array<() => void> = [];
+		const slowLoader = () =>
+			new Promise<void>((resolve) => {
+				finishers.push(resolve);
+			});
+		const rootRoute = createRootRoute({ component: () => <Outlet /> });
+		const router = createRouter({
+			routeTree: rootRoute.addChildren([
+				createRoute({
+					getParentRoute: () => rootRoute,
+					path: "/",
+					loader: slowLoader,
+					component: () => <p>ホーム</p>,
+				}),
+				createRoute({
+					getParentRoute: () => rootRoute,
+					path: "/load",
+					loader: slowLoader,
+					component: () => <p>読み込んだ画面</p>,
+				}),
+			]),
+			history: createMemoryHistory({ initialEntries: ["/"] }),
+			defaultPendingComponent: RoutePending,
+			...routePendingOptions,
+		});
+		const finishLatest = () => finishers.at(-1)?.();
+
+		render(<RouterProvider router={router} />);
+
+		const launch = await screen.findByRole("status");
+		expect(launch.hasAttribute("data-launch")).toBe(true);
+		await act(async () => finishLatest());
+		await screen.findByText("ホーム", undefined, {
+			timeout: routePendingOptions.defaultPendingMinMs + 1000,
+		});
+
+		router.history.push("/load");
+		const inline = await screen.findByRole("status");
+		expect(inline.hasAttribute("data-launch")).toBe(false);
+		await act(async () => finishLatest());
+		await screen.findByText("読み込んだ画面", undefined, {
+			timeout: routePendingOptions.defaultPendingMinMs + 1000,
+		});
+	});
 });
