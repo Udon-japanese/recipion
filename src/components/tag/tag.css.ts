@@ -1,3 +1,4 @@
+import { style } from "@vanilla-extract/css";
 import { type RecipeVariants, recipe } from "@vanilla-extract/recipes";
 
 // 枠なし＝押せない（見るだけ）。
@@ -24,15 +25,15 @@ export const tag = recipe({
 			soft: { background: "var(--color-primary-soft)" },
 			success: { background: "var(--color-success-soft)", fontWeight: 700 },
 		},
-		// 「約」（だいたい）の印：破線の輪郭。
-		approximate: {
-			true: {
-				outline: "1.5px dashed var(--color-text-muted)",
-				outlineOffset: -1.5,
-			},
-		},
 	},
 	defaultVariants: { tone: "default" },
+});
+
+// 札の中の添え書き（本文より小さく、薄く）。
+export const note = style({
+	fontSize: 12,
+	fontWeight: 400,
+	color: "var(--color-text-muted)",
 });
 
 // アイコンの色は、札の tone に合わせる。

@@ -38,7 +38,7 @@ function isZoneId(id: string): id is InventoryZoneId {
 	return inventoryZones.some((zone) => zone.id === id);
 }
 
-// 「早めに使う」のカードの、大きく出す期限（「今日まで」「あと3日」「切れ」）。
+// 「早めに使う」のカードの、大きく出す期限（「今日まで」「あと3日」「期限切れ」）。
 function describeUseSoon(expiry: InventoryTileExpiry): {
 	before?: string;
 	main: string;

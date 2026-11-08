@@ -7,26 +7,22 @@ import * as styles from "./tag.css";
 type TagProps = {
 	tone?: TagTone;
 	icon?: IconName;
-	// 「約」（だいたい）の印として、輪郭を破線にする。
-	approximate?: boolean;
+	// 本文のあとに、小さく薄く添える一言（「目安」など）。
+	note?: string;
 	children: ReactNode;
 };
 
 // 状態・場所・期限などの札。枠がなく、押せない（押せるものは Chip）。
-export function Tag({
-	tone = "default",
-	icon,
-	approximate = false,
-	children,
-}: TagProps) {
+export function Tag({ tone = "default", icon, note, children }: TagProps) {
 	return (
-		<span className={styles.tag({ tone, approximate })}>
+		<span className={styles.tag({ tone })}>
 			{icon ? (
 				<span className={styles.icon({ tone })}>
 					<Icon name={icon} size={16} />
 				</span>
 			) : null}
 			{children}
+			{note ? <span className={styles.note}>{note}</span> : null}
 		</span>
 	);
 }

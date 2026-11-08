@@ -54,7 +54,7 @@ describe("describeInventoryTile", () => {
 						level: "expired",
 						kind: null,
 						approximate: false,
-						badgeText: "切れ",
+						badgeText: "期限切れ",
 					},
 				}),
 			),

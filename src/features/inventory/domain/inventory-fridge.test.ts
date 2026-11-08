@@ -150,7 +150,7 @@ describe("buildInventoryFridge", () => {
 		expect(freezerTile?.expiry).toBeNull();
 	});
 
-	it("期限の札は、数量が 0 のロットを数えず、目安は「約」にする", () => {
+	it("期限の札は、数量が 0 のロットを数えず、自動の目安かどうかを持つ", () => {
 		const item = buildInventoryListItem({
 			quantity: 1,
 			lots: [
@@ -177,14 +177,14 @@ describe("buildInventoryFridge", () => {
 		});
 	});
 
-	it("期限が切れたものは「切れ」", () => {
+	it("期限が切れたものは「期限切れ」", () => {
 		const item = buildInventoryListItem({
 			lots: [lot({ storage: "fridge", expiresOn: "2026-10-13" })],
 		});
 
 		expect(tilesOf([item], "fridge")[0]?.expiry).toMatchObject({
 			level: "expired",
-			badgeText: "切れ",
+			badgeText: "期限切れ",
 		});
 	});
 
