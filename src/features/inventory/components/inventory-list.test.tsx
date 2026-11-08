@@ -179,7 +179,10 @@ describe("InventoryList", () => {
 		await openPanel(user, "卵");
 		await user.click(screen.getByRole("button", { name: "おうちで見る" }));
 
-		expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+		// シートは、閉じる動きを見せてから消える。
+		await waitFor(() =>
+			expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+		);
 	});
 
 	describe("ログインしている人が変わったとき", () => {

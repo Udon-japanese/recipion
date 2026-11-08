@@ -11,6 +11,7 @@ import {
 import { createPortal } from "react-dom";
 import { Icon } from "../icon/icon";
 import { Sheet } from "../sheet/sheet";
+import { useExitPresence } from "../sheet/use-exit-presence";
 import * as styles from "./picker-select.css";
 
 type Choice = { value: string; label: string; disabled: boolean };
@@ -70,6 +71,8 @@ export function PickerSelect(props: PickerSelectProps) {
 	const [choices, setChoices] = useState<Choice[]>([]);
 	const [title, setTitle] = useState("");
 	const [selectedValue, setSelectedValue] = useState("");
+	// シートは、閉じる動きのあいだも描く。
+	const sheet = useExitPresence(opened?.kind === "sheet" ? opened : null);
 
 	const close = useCallback((restoreFocus: boolean) => {
 		setOpened(null);
@@ -182,16 +185,16 @@ export function PickerSelect(props: PickerSelectProps) {
 					anchor={selectRef}
 				/>
 			) : null}
-			{opened?.kind === "sheet" ? (
+			{sheet.value ? (
 				<Sheet
-					open
+					open={sheet.open}
 					onOpenChange={(next) => {
 						if (!next) {
 							close(true);
 						}
 					}}
 					title={title}
-					snapPoints={[opened.snap]}
+					snapPoints={[sheet.value.snap]}
 				>
 					<OptionList
 						choices={choices}

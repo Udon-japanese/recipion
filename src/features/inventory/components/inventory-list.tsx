@@ -11,6 +11,7 @@ import { Icon } from "#/components/icon/icon";
 import { IconButton } from "#/components/icon-button/icon-button";
 import { Mascot } from "#/components/mascot/mascot";
 import { Note } from "#/components/note/note";
+import { useExitPresence } from "#/components/sheet/use-exit-presence";
 import { useMediaQuery } from "#/components/use-media-query";
 import { MASCOT_DISPLAY_NAME } from "#/config/app";
 import { useStorageItem } from "#/local-storage/use-storage-item";
@@ -263,6 +264,13 @@ export function InventoryList({
 
 	const selectedItem = selection
 		? items.find((item) => item.inventoryItemId === selection.inventoryItemId)
+		: undefined;
+	// パネル（スマホはシート）は、閉じる動きのあいだも、最後に開いていた食材を描く。
+	// 消した食材は一覧から無くなるので、そのまま閉じる。
+	const shownSelection = useExitPresence(selectedItem ? selection : null);
+	const shownItemId = shownSelection.value?.inventoryItemId;
+	const shownItem = shownItemId
+		? items.find((item) => item.inventoryItemId === shownItemId)
 		: undefined;
 
 	const handleUpdate = useCallback(
@@ -604,14 +612,15 @@ export function InventoryList({
 				/>
 			) : null}
 
-			{selection && selectedItem ? (
+			{shownSelection.value && shownItem ? (
 				<ItemPanel
-					key={selectedItem.inventoryItemId}
-					item={selectedItem}
-					zone={selection.zone}
+					key={shownItem.inventoryItemId}
+					open={shownSelection.open}
+					item={shownItem}
+					zone={shownSelection.value.zone}
 					mode={panelMode}
 					actions={actions}
-					anchorTileKey={selection.tileKey}
+					anchorTileKey={shownSelection.value.tileKey}
 					anchorPlacement={view === "scene" ? "beside" : "overlap"}
 					readOnly={isOffline}
 					onClose={handleClose}

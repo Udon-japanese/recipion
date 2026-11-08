@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { Button } from "#/components/button/button";
 import { Modal } from "#/components/dialog/modal";
 import { Sheet } from "#/components/sheet/sheet";
@@ -8,6 +9,8 @@ import * as styles from "./purchase-conversion-sheet.css";
 import { PurchaseRowQuantity } from "./purchase-row-quantity";
 
 type PurchaseConversionSheetProps = {
+	// false のあいだは、閉じる動きを見せている途中（呼び出し側が useExitPresence で描いたままにする）。
+	open?: boolean;
 	// 在庫換算が足りない、チェック済みの商品。
 	items: readonly ShoppingItem[];
 	drafts: Record<string, AmountDraft>;
@@ -21,15 +24,36 @@ type PurchaseConversionSheetProps = {
 // 購入確定の前に、「買ったものが、在庫でいくつになるか」を聞く（換算が足りない商品だけ）。
 // 期限・保存方法は、ここでは聞かない（自動の目安が入る。直すのは、在庫の画面）。
 export function PurchaseConversionSheet({
-	items,
-	drafts,
-	errors,
+	open = true,
+	items: liveItems,
+	drafts: liveDrafts,
+	errors: liveErrors,
 	onChangeDraft,
 	isConfirming,
 	onConfirm,
 	onCancel,
 }: PurchaseConversionSheetProps) {
 	const isWide = useMediaQuery("(min-width: 768px)");
+	// 閉じると、呼び出し側は一覧を空にする。閉じる動きのあいだは、開いていたときの内容を見せる。
+	const lastOpen = useRef({
+		items: liveItems,
+		drafts: liveDrafts,
+		errors: liveErrors,
+	});
+
+	useEffect(() => {
+		if (open) {
+			lastOpen.current = {
+				items: liveItems,
+				drafts: liveDrafts,
+				errors: liveErrors,
+			};
+		}
+	});
+
+	const { items, drafts, errors } = open
+		? { items: liveItems, drafts: liveDrafts, errors: liveErrors }
+		: lastOpen.current;
 
 	const footer = (
 		<div className={styles.actions}>
@@ -88,9 +112,9 @@ export function PurchaseConversionSheet({
 		return (
 			<Modal
 				narrow
-				open
-				onOpenChange={(open) => {
-					if (!open && !isConfirming) {
+				open={open}
+				onOpenChange={(next) => {
+					if (!next && !isConfirming) {
 						onCancel();
 					}
 				}}
@@ -104,9 +128,9 @@ export function PurchaseConversionSheet({
 
 	return (
 		<Sheet
-			open
-			onOpenChange={(open) => {
-				if (!open && !isConfirming) {
+			open={open}
+			onOpenChange={(next) => {
+				if (!next && !isConfirming) {
 					onCancel();
 				}
 			}}

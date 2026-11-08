@@ -10,6 +10,7 @@ import { Mascot } from "#/components/mascot/mascot";
 import { Menu, type MenuItem } from "#/components/menu/menu";
 import { Note } from "#/components/note/note";
 import { SegmentedControl } from "#/components/segmented-control/segmented-control";
+import { useExitPresence } from "#/components/sheet/use-exit-presence";
 import { Tag } from "#/components/tag/tag";
 import { useMediaQuery } from "#/components/use-media-query";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
@@ -111,6 +112,9 @@ export function ShoppingList({
 	const [view, setView] = useStorageItem(shoppingViewStorage);
 	const [isPickingRecipe, setIsPickingRecipe] = useState(false);
 	const [isBulkAdding, setIsBulkAdding] = useState(false);
+	// シートは、閉じる動きのあいだも描く。
+	const bulkAdd = useExitPresence(isBulkAdding || null);
+	const recipePicker = useExitPresence(isPickingRecipe || null);
 	const isDesktop = useMediaQuery("(min-width: 768px)");
 	const [isAddingItem, setIsAddingItem] = useState(false);
 	const [isCreatingBranch, setIsCreatingBranch] = useState(false);
@@ -180,6 +184,10 @@ export function ShoppingList({
 		saveConversion: shopping.changeItem,
 		conversionMemory: conversionState,
 	});
+	// 量を聞く画面は、閉じる動きのあいだも描く。
+	const conversionReview = useExitPresence(
+		purchase.isReviewingConversion || null,
+	);
 
 	// 1 項目の中身（編集中は編集フォーム）。一覧（並び替えあり）と店ごと（並び替えなし）で共通。
 	function renderItem(
@@ -499,8 +507,9 @@ export function ShoppingList({
 				/>
 			) : null}
 
-			{isBulkAdding ? (
+			{bulkAdd.value ? (
 				<ShoppingBulkAdd
+					open={bulkAdd.open}
 					stores={stores}
 					conversionDefaults={conversionState.defaults}
 					onClose={() => setIsBulkAdding(false)}
@@ -509,9 +518,10 @@ export function ShoppingList({
 				/>
 			) : null}
 
-			{renderRecipePicker && isPickingRecipe
+			{renderRecipePicker && recipePicker.value
 				? renderRecipePicker({
 						repository,
+						open: recipePicker.open,
 						onClose: () => setIsPickingRecipe(false),
 						onApplied: () => void reloadItems(),
 					})
@@ -561,8 +571,9 @@ export function ShoppingList({
 				{`チェックした${checkedItems.length}件を、買い物メモから削除します。在庫には入りません。`}
 			</ConfirmDialog>
 
-			{purchase.isReviewingConversion ? (
+			{conversionReview.value ? (
 				<PurchaseConversionSheet
+					open={conversionReview.open}
 					items={purchase.conversionReviewItems.filter(
 						(item) => item.id in purchase.conversionDrafts,
 					)}

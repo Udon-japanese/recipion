@@ -244,6 +244,11 @@ export function RecipeToShoppingPicker({
 
 	// 浮いたパネル：後ろのメモを見ながら、続けて入れられる。PC は、見出しをつかんで動かせるパネル。
 	if (isWide) {
+		// 浮いたパネルには、閉じる動きがない。
+		if (context.open === false) {
+			return null;
+		}
+
 		return (
 			<FloatingPanel
 				title={title}
@@ -263,9 +268,9 @@ export function RecipeToShoppingPicker({
 
 	return (
 		<Sheet
-			open
-			onOpenChange={(open) => {
-				if (!open) {
+			open={context.open ?? true}
+			onOpenChange={(next) => {
+				if (!next) {
 					close();
 				}
 			}}

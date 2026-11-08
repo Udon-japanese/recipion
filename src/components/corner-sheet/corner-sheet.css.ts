@@ -20,11 +20,11 @@ export const root = style({
 	vars: { [radius]: "104px" },
 });
 
-// 後ろの画面が見える、薄い暗幕。
+// 暗幕（シート・モーダルと同じ濃さ）。
 export const scrim = style({
 	position: "absolute",
 	inset: 0,
-	background: "rgba(41, 39, 32, 0.16)",
+	background: "var(--color-overlay)",
 	animation: `${fadeIn} var(--duration-normal) var(--ease-standard)`,
 });
 

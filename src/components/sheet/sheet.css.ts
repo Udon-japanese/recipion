@@ -15,6 +15,11 @@ export const scrim = style({
 	opacity: 0,
 	pointerEvents: "auto",
 	touchAction: "none",
+
+	selectors: {
+		// 閉じる動きの途中は、後ろの画面をすぐ押せるようにする。
+		'[data-state="closed"] > &': { pointerEvents: "none" },
+	},
 });
 
 export const panel = style({
@@ -40,6 +45,7 @@ export const panel = style({
 			border: "1px solid var(--color-border-strong)",
 			boxShadow: "var(--shadow-md)",
 		},
+		'&[data-state="closed"]': { pointerEvents: "none" },
 	},
 });
 

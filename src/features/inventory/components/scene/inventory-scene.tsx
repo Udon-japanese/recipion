@@ -1,6 +1,7 @@
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Icon } from "#/components/icon/icon";
 import type { IconName } from "#/components/icon/icon-definitions";
+import { useCloseOnBack } from "#/components/sheet/use-close-on-back";
 import { MASCOT_DISPLAY_NAME } from "#/config/app";
 import type {
 	InventoryFridgeZone,
@@ -299,6 +300,9 @@ export function InventoryScene({
 				?.focus();
 		}, 520);
 	}
+
+	// タッチ端末の戻る操作でも、おうちにもどる（食材のシートを開いているときは、あとに開いたシートが先に閉じる）。
+	useCloseOnBack(inside, leave);
 
 	// Esc で、おうちにもどる（食材のパネルを開いているときは、そちらが先。変換中の Esc は除く）。
 	useEffect(() => {

@@ -51,6 +51,8 @@ import { isCurrentUnit, toOptionValue, useItemPanel } from "./use-item-panel";
 export type ItemPanelMode = "sheet-bottom" | "floating";
 
 type ItemPanelProps = {
+	// false のあいだは、閉じる動きを見せている途中（呼び出し側が useExitPresence で描いたままにする）。
+	open?: boolean;
 	item: InventoryListItem;
 	// 開いたタイルのゾーン。そのゾーンのロットを先頭に並べる。
 	zone: InventoryZoneId;
@@ -98,6 +100,7 @@ function formatQuantityText(item: InventoryListItem, quantity: number) {
 
 // 食材のパネル：上から、量 → 主な操作 → ロット → ほかの操作。6つのフォームは、本体に差し替える。
 export function ItemPanel({
+	open = true,
 	item,
 	zone,
 	mode,
@@ -632,6 +635,11 @@ export function ItemPanel({
 	) : null;
 
 	if (mode === "floating") {
+		// 浮いたパネルには、閉じる動きがない。
+		if (!open) {
+			return null;
+		}
+
 		return (
 			<>
 				<FloatingPanel
@@ -679,9 +687,9 @@ export function ItemPanel({
 
 	return (
 		<Sheet
-			open
-			onOpenChange={(open) => {
-				if (open) {
+			open={open}
+			onOpenChange={(next) => {
+				if (next) {
 					return;
 				}
 

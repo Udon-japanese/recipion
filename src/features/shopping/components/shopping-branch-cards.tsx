@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ConfirmDialog } from "#/components/dialog/confirm-dialog";
+import { useExitPresence } from "#/components/sheet/use-exit-presence";
 import {
 	formatQuantity,
 	formatQuantityForUnit,
@@ -149,6 +150,11 @@ export function ShoppingBranchCards({
 		branch: ShoppingBranch;
 		side: ShoppingBranchSide;
 	} | null>(null);
+	// シートは、閉じる動きのあいだも描く。
+	const shownPickTarget = useExitPresence(pickTarget);
+	const shownBulkTarget = useExitPresence(bulkTarget);
+	const pickedSide = shownPickTarget.value;
+	const bulkSide = shownBulkTarget.value;
 	// 条件を編集している分岐。
 	const [editingBranch, setEditingBranch] = useState<ShoppingBranch | null>(
 		null,
@@ -226,18 +232,19 @@ export function ShoppingBranchCards({
 				</div>
 			))}
 
-			{pickTarget && context.renderRecipePicker && context.repository
+			{pickedSide && context.renderRecipePicker && context.repository
 				? context.renderRecipePicker({
 						repository: context.repository,
 						destination: {
-							branchId: pickTarget.branch.id,
-							side: pickTarget.side,
+							branchId: pickedSide.branch.id,
+							side: pickedSide.side,
 						},
+						open: shownPickTarget.open,
 						onClose: () => setPickTarget(null),
 						onApplied: (recipeName) =>
 							context.onRecipeApplied?.(
-								pickTarget.branch,
-								pickTarget.side,
+								pickedSide.branch,
+								pickedSide.side,
 								recipeName,
 							),
 					})
@@ -256,14 +263,15 @@ export function ShoppingBranchCards({
 				/>
 			) : null}
 
-			{bulkTarget ? (
+			{bulkSide ? (
 				<ShoppingBulkAdd
-					title={`${sideAddTitle(bulkTarget.branch, bulkTarget.side)}にまとめて追加`}
+					open={shownBulkTarget.open}
+					title={`${sideAddTitle(bulkSide.branch, bulkSide.side)}にまとめて追加`}
 					stores={context.stores}
 					conversionDefaults={context.conversionDefaults}
 					onClose={() => setBulkTarget(null)}
 					onAdd={(lines) =>
-						context.onAddItems(bulkTarget.branch, bulkTarget.side, lines)
+						context.onAddItems(bulkSide.branch, bulkSide.side, lines)
 					}
 					onCreateStore={context.onCreateStore}
 				/>

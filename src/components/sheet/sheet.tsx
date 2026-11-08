@@ -21,10 +21,11 @@ import {
 } from "./sheet-physics";
 import { useBodyScrollLock } from "./use-body-scroll-lock";
 import { useCloseOnBack } from "./use-close-on-back";
+import { SHEET_EXIT_MS } from "./use-exit-presence";
 import { useModalFocus } from "./use-modal-focus";
 import { useVisualViewport } from "./use-visual-viewport";
 
-const EXIT_FALLBACK_MS = 480;
+const EXIT_FALLBACK_MS = SHEET_EXIT_MS;
 const REDUCED_MOTION_EXIT_MS = 160;
 // この距離（px）より動いたら、スクロールではなく、ドラッグとみなす。
 const DRAG_START_DISTANCE = 4;
@@ -538,7 +539,11 @@ export function Sheet({
 	}
 
 	return createPortal(
-		<div className={styles.root} ref={portalRef}>
+		<div
+			className={styles.root}
+			ref={portalRef}
+			data-state={open ? "open" : "closed"}
+		>
 			{modal ? (
 				<div
 					className={styles.scrim}
