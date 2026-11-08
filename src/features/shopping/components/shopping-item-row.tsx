@@ -91,7 +91,8 @@ export function ShoppingItemRow({
 		<ListRow
 			ref={rowRef}
 			dragging={isDragging}
-			data-checked={isChecked || undefined}
+			// 薄い緑は、チェックしただけ（まだ買い物中）の行。購入済みは、購入済みの欄の灰色のまま。
+			data-checked={item.status === "checked" || undefined}
 			leading={
 				<Checkbox
 					label={`${item.name}をチェック`}

@@ -227,6 +227,8 @@ describe("ShoppingList の店", () => {
 		);
 		expect(input).toHaveProperty("value", "");
 		await expect(getLocalDatabase().shoppingStores.count()).resolves.toBe(1);
+		// 1つ目を足しても、店の管理は閉じない（続けて足せる）。
+		expect(input.closest("details")).toHaveAttribute("open");
 	});
 
 	it("店ごとの表示でも、同じ店の項目は、一覧の並び順のまま。分類をまたいだ並び順も保つ", async () => {

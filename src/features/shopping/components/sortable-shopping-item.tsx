@@ -33,10 +33,7 @@ export function SortableShoppingItem({
 	return children({ rowRef: ref, handleRef, isDragging });
 }
 
-// つかみ（ハンドル）から動かしたら、すぐにドラッグを始める。
-// 既定では、指で触れたときは、250ms 待ってから始まり、そのあいだに、ブラウザがスクロールを始めて、ドラッグが取り消される。
-// つかみには touch-action: none を付けてあるので、待たずに始めてよい。
-export const shoppingSortSensors = [
-	PointerSensor.configure({ activationConstraints: () => undefined }),
-	KeyboardSensor,
-];
+// ドラッグの始め方は、dnd-kit の既定のまま：マウスは、つかみを押して動かせばすぐ。指は、つかみを少し長押し（250ms・5px 以内）してから。
+// 指で、すぐに始めると、右手の親指でスクロールしたときに、右端のつかみに触れて、並べ替えが暴発する。
+// 長押しの前に指が動いたら、ブラウザのスクロールになる（つかみの touch-action は、スクロールを許す）。
+export const shoppingSortSensors = [PointerSensor, KeyboardSensor];

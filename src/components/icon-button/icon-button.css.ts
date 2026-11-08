@@ -70,10 +70,10 @@ export const button = recipe({
 				color: "var(--color-on-primary)",
 			},
 		},
-		// 並べ替えのつかみ：指で触れたとき、ブラウザのスクロールに奪われない。
+		// 並べ替えのつかみ：指は、長押ししてから動かす（それまでは、スクロールできる）。長押しで、文字の選択や吹き出しを出さない。
 		dragHandle: {
 			true: {
-				touchAction: "none",
+				touchAction: "manipulation",
 				cursor: "grab",
 				userSelect: "none",
 				WebkitUserSelect: "none",

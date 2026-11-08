@@ -801,6 +801,10 @@ describe("ShoppingList", () => {
 				name: "卵をチェック",
 			}),
 		).toBeDisabled();
+		// 購入済みの行は、チェック済みの薄い緑にしない（購入済みの欄の灰色のまま）。
+		expect(
+			screen.getByRole("checkbox", { name: "卵をチェック" }).closest("li"),
+		).not.toHaveAttribute("data-checked");
 	});
 
 	describe("購入済みのまとめ", () => {
