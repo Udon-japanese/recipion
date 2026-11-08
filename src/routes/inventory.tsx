@@ -10,10 +10,7 @@ import type {
 	ChangeStockUnitCommand,
 	RenameInventoryItemCommand,
 } from "#/features/inventory/application/inventory-item-management-repository";
-import type {
-	SetLotQuantityCommand,
-	UpdateInventoryLotCommand,
-} from "#/features/inventory/application/inventory-lot-repository";
+import type { UpdateInventoryLotCommand } from "#/features/inventory/application/inventory-lot-repository";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import { userIdOfOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import type { ChangeInventoryTrackingModeCommand } from "#/features/inventory/application/inventory-tracking-mode-repository";
@@ -24,10 +21,7 @@ import {
 	renameInventoryItemWithCache,
 } from "#/features/inventory/application/manage-inventory-item-with-cache";
 import type { RegisterInventoryItemInput } from "#/features/inventory/application/register-inventory-item";
-import {
-	setLotQuantityWithCache,
-	updateInventoryLotWithCache,
-} from "#/features/inventory/application/update-inventory-lot-with-cache";
+import { updateInventoryLotWithCache } from "#/features/inventory/application/update-inventory-lot-with-cache";
 import { InventoryList } from "#/features/inventory/components/inventory-list";
 import { PurchaseOutboxSync } from "#/features/inventory/components/purchase-outbox-sync";
 import { useExpiryEstimateLevel } from "#/features/inventory/hooks/use-expiry-estimate-level";
@@ -44,10 +38,7 @@ import {
 	renameInventoryItemServerFn,
 } from "#/features/inventory/server/manage-inventory-item";
 import { registerInventoryItemServerFn } from "#/features/inventory/server/register-inventory-item";
-import {
-	setLotQuantityServerFn,
-	updateInventoryLotServerFn,
-} from "#/features/inventory/server/update-inventory-lot";
+import { updateInventoryLotServerFn } from "#/features/inventory/server/update-inventory-lot";
 
 export const Route = createFileRoute("/inventory")({
 	head: () => ({ meta: [{ title: pageTitle("在庫") }] }),
@@ -167,22 +158,6 @@ function InventoryPage() {
 		[ownerScope],
 	);
 
-	const setLotQuantity = useCallback(
-		async (command: SetLotQuantityCommand) => {
-			if (!ownerScope || ownerScope === "guest") {
-				throw new Error("数量を直せるユーザーではありません");
-			}
-
-			return setLotQuantityWithCache(
-				ownerScope,
-				command,
-				(setCommand) => setLotQuantityServerFn({ data: setCommand }),
-				createDexieInventoryCacheRepository(),
-			);
-		},
-		[ownerScope],
-	);
-
 	const changeStockUnit = useCallback(
 		async (command: ChangeStockUnitCommand) => {
 			if (!ownerScope || ownerScope === "guest") {
@@ -236,7 +211,6 @@ function InventoryPage() {
 				deleteInventoryItem={deleteInventoryItem}
 				renameInventoryItem={renameInventoryItem}
 				changeStockUnit={changeStockUnit}
-				setLotQuantity={setLotQuantity}
 				refreshKey={inventoryRefreshKey}
 				registration={{
 					registerInventoryItem,

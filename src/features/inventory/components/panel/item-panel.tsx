@@ -23,7 +23,6 @@ import { Tag } from "#/components/tag/tag";
 import { listStockUnitOptions } from "#/features/ingredients/domain/list-stock-unit-options";
 import { QuantityInput } from "#/features/quantity/components/quantity-input";
 import { formatStockAmount } from "#/features/quantity/domain/format-quantity";
-import { formatQuantityInput } from "#/features/quantity/domain/quantity-buttons";
 import type { InventoryListItem } from "../../application/inventory-query-repository";
 import {
 	expiryKindLabels,
@@ -43,6 +42,7 @@ import {
 	trackingModeHints,
 	trackingModeOptions,
 } from "../tracking-mode-options";
+import { AdjustControls } from "./adjust-controls";
 import type { InventoryActions } from "./inventory-actions";
 import * as styles from "./item-panel.css";
 import { LotEditor } from "./lot-editor";
@@ -417,13 +417,15 @@ export function ItemPanel({
 				) : null}
 
 				{!isPresence && actions.adjustInventoryItem ? (
-					<AdjustForm
+					<AdjustControls
 						item={item}
-						panel={panel}
-						lotLabel={lotLabel}
+						label={`${item.name}の使った量・買い足した量`}
+						available={item.quantity}
+						quantity={panel.adjustForm.quantity}
+						onQuantityChange={panel.adjustForm.setQuantity}
 						readOnly={readOnly}
 						onRun={(operation) =>
-							runAdjust(operation, () => panel.run.adjust(operation))
+							runAdjust(operation, () => panel.run.adjustItem(operation))
 						}
 						decreaseStatus={decrease.status}
 						increaseStatus={increase.status}
@@ -437,7 +439,7 @@ export function ItemPanel({
 								const expiryText = formatLotExpiry(lot);
 								const badge = findNearestExpiry([lot], panel.today);
 								const canEdit = Boolean(
-									actions.setLotQuantity || actions.updateInventoryLot,
+									actions.adjustInventoryItem || actions.updateInventoryLot,
 								);
 								const isEditing = editingLotId === lot.id;
 								const summary = (
@@ -627,7 +629,13 @@ export function ItemPanel({
 				lot={editingLot}
 				label={lotLabel(editingLot)}
 				today={panel.today}
-				isPresence={isPresence || !actions.setLotQuantity}
+				amountText={formatQuantityText(item, editingLot.quantity)}
+				readOnly={readOnly}
+				canAdjust={!isPresence && Boolean(actions.adjustInventoryItem)}
+				canEditExpiry={Boolean(actions.updateInventoryLot)}
+				onAdjust={(operation, quantityText) =>
+					panel.run.adjustLot(editingLot, operation, quantityText)
+				}
 				onSave={(edits) => panel.run.saveLotEdits(editingLot, edits)}
 				onClose={closeLotEditor}
 			/>
@@ -721,124 +729,6 @@ export function ItemPanel({
 		>
 			{editingLot ? lotEditor : content}
 		</Sheet>
-	);
-}
-
-type PanelState = ReturnType<typeof useItemPanel>;
-type ButtonStatus = ReturnType<typeof useButtonAction>["status"];
-
-// 使った量・買い足した量（パネルの本体に置く。量を打って、ボタンを押す）。
-// 内訳が2つ以上なら、入れた分ごとに減らす欄に切り替えられる。
-function AdjustForm({
-	item,
-	panel,
-	lotLabel,
-	readOnly,
-	onRun,
-	decreaseStatus,
-	increaseStatus,
-}: {
-	item: InventoryListItem;
-	panel: PanelState;
-	lotLabel: (lot: InventoryLot) => string;
-	readOnly: boolean;
-	onRun: (operation: "decrease" | "increase") => void;
-	decreaseStatus: ButtonStatus;
-	increaseStatus: ButtonStatus;
-}) {
-	const form = panel.adjustForm;
-	const canSpecifyLots = item.lots.length > 1;
-	// もう一方のボタンの処理中は、押せない（理由の吹き出しも出さない）。
-	const isDecreasing = decreaseStatus === "pending";
-	const isIncreasing = increaseStatus === "pending";
-	const isLotSpecified = canSpecifyLots && form.isLotSpecified;
-
-	return (
-		<div className={styles.adjust}>
-			{isLotSpecified ? (
-				<div className={styles.lotFieldList}>
-					{item.lots.map((lot) => (
-						<Field
-							key={lot.id}
-							label={`${lotLabel(lot)}（${formatStockAmount(lot.quantity, item.stockUnitCode)}${item.stockUnitLabel}）`}
-						>
-							{(control) => (
-								<TextInput
-									{...control}
-									aria-label={`${lotLabel(lot)}から減らす数量`}
-									type="number"
-									inputMode="decimal"
-									min="0"
-									step="any"
-									value={form.lotQuantities[lot.id] ?? ""}
-									onChange={(event) =>
-										form.setLotQuantity(lot.id, event.target.value)
-									}
-								/>
-							)}
-						</Field>
-					))}
-				</div>
-			) : (
-				<QuantityInput
-					className={fieldInput}
-					aria-label={`${item.name}の使った量・買い足した量`}
-					value={form.quantity}
-					onChange={form.setQuantity}
-					unitLabel={item.stockUnitLabel}
-					trailing={
-						<span className={styles.unitSuffix}>{item.stockUnitLabel}</span>
-					}
-					// 「使った」なら全部、「買い足した」なら同じだけ。
-					presetButton={
-						item.quantity > 0
-							? { label: "今ある分", value: formatQuantityInput(item.quantity) }
-							: undefined
-					}
-				/>
-			)}
-
-			<div className={styles.primaryActions}>
-				<Button
-					variant="secondary"
-					fullWidth
-					status={decreaseStatus}
-					disabled={readOnly || item.quantity === 0 || isIncreasing}
-					disabledReason={
-						isIncreasing
-							? undefined
-							: readOnly
-								? offlineMessage
-								: "在庫が 0 のため、減らせません。"
-					}
-					onClick={() => onRun("decrease")}
-				>
-					使った
-				</Button>
-				{isLotSpecified ? null : (
-					<Button
-						fullWidth
-						status={increaseStatus}
-						disabled={readOnly || isDecreasing}
-						disabledReason={isDecreasing ? undefined : offlineMessage}
-						onClick={() => onRun("increase")}
-					>
-						買い足した
-					</Button>
-				)}
-			</div>
-
-			{canSpecifyLots ? (
-				<button
-					type="button"
-					className={styles.textButton}
-					aria-pressed={isLotSpecified}
-					onClick={() => form.setIsLotSpecified(!isLotSpecified)}
-				>
-					{isLotSpecified ? "まとめて入力する" : "入れた分ごとに減らす"}
-				</button>
-			) : null}
-		</div>
 	);
 }
 

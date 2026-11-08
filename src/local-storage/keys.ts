@@ -17,6 +17,8 @@ export const storageKeys = {
 	inventoryPet: "inventory-pet",
 	// 在庫：リストのまとめ方（zone / expiry / kana）。
 	inventoryGroupBy: "inventory-group-by",
+	// 在庫：食材ごとに、使った・買い足したときに打った量（チップに出す）。
+	inventoryAmountMemory: "inventory-amount-memory",
 	// 在庫：冷凍野菜を、生の野菜の代わりに使うか（auto / ask / off）。
 	standInMode: "stand-in-mode",
 	// 買い物メモ：この端末で、いまログインしている人（オフラインでログイン状態を確かめられないとき、その人のメモを見せる。ログアウトで消す）。

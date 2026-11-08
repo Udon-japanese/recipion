@@ -1,20 +1,19 @@
 import { useState } from "react";
 import { Button } from "#/components/button/button";
 import { useButtonAction } from "#/components/button/use-button-action";
-import { input as fieldInput } from "#/components/field/field.css";
 import { Toggle } from "#/components/toggle/toggle";
-import { QuantityInput } from "#/features/quantity/components/quantity-input";
-import { formatQuantity } from "#/features/quantity/domain/format-quantity";
+import { initialQuantityInput } from "#/features/quantity/domain/quantity-buttons";
 import type { InventoryListItem } from "../../application/inventory-query-repository";
+import type { InventoryOperation } from "../../domain/apply-inventory-adjustment";
 import type { InventoryLot } from "../../domain/inventory-lot";
 import { ExpiryFields, type ExpiryFieldsValue } from "../expiry-fields";
+import { AdjustControls } from "./adjust-controls";
 import * as styles from "./item-panel.css";
 import { lotExpiryValue } from "./use-item-panel";
 
 export type LotEdits = {
-	quantityText?: string;
-	expiry?: ExpiryFieldsValue;
-	saveAsDefault?: boolean;
+	expiry: ExpiryFieldsValue;
+	saveAsDefault: boolean;
 };
 
 type LotEditorProps = {
@@ -23,57 +22,77 @@ type LotEditorProps = {
 	// 読み上げる名前（例：「10/1に入れた分」）。
 	label: string;
 	today: string;
-	// 有無だけの食材は、数量を直さない。
-	isPresence: boolean;
-	// 保存する。成功したら true。
+	// この入れた分の、いまの量（「約 300ml」など）。
+	amountText: string;
+	readOnly: boolean;
+	// 量を増減できるか（有無だけの食材は、量を持たない）。
+	canAdjust: boolean;
+	// 期限・保存方法を直せるか。
+	canEditExpiry: boolean;
+	// 「使った」「買い足した」：この入れた分だけを増減する。成功したら true。
+	onAdjust: (
+		operation: InventoryOperation,
+		quantityText: string,
+	) => Promise<boolean>;
+	// 期限などを保存する。成功したら true。
 	onSave: (edits: LotEdits) => Promise<boolean>;
 	onClose: () => void;
 };
 
-// 内訳の1行を、その場で直す（数量・期限・期限の種類・保存方法・食材の初期値）。直したときだけ、送る。
-// 期限の欄は、在庫に追加と同じ（保存方法・期限の種類は、1行にたたむ）。
+// 内訳の1行を、その場で直す。
+// 上：量は、パネルの本体と同じく、量を打って「使った」「買い足した」（押したら、すぐ反映。編集は開いたまま）。
+// 下：期限・期限の種類・保存方法・食材の初期値は、「保存」で送る（直したときだけ）。
 export function LotEditor({
 	item,
 	lot,
 	label,
 	today,
-	isPresence,
+	amountText,
+	readOnly,
+	canAdjust,
+	canEditExpiry,
+	onAdjust,
 	onSave,
 	onClose,
 }: LotEditorProps) {
-	const initialQuantity = formatQuantity(lot.quantity, {
-		grouping: false,
-		allowFractions: item.stockUnitCode === "count",
-	});
 	const initialExpiry = lotExpiryValue(item, lot);
-	const [quantityText, setQuantityText] = useState(initialQuantity);
+	const [quantityText, setQuantityText] = useState(() =>
+		initialQuantityInput(item.stockUnitLabel),
+	);
 	const [expiry, setExpiry] = useState(initialExpiry);
 	const [saveAsDefault, setSaveAsDefault] = useState(false);
-	const { status, run, isPending } = useButtonAction();
+	const save = useButtonAction();
+	const decrease = useButtonAction();
+	const increase = useButtonAction();
 
-	async function save() {
-		const edits: LotEdits = {};
-
-		if (!isPresence && quantityText !== initialQuantity) {
-			edits.quantityText = quantityText;
+	function runAdjust(operation: InventoryOperation) {
+		if (decrease.isPending || increase.isPending) {
+			return;
 		}
 
-		if (
-			saveAsDefault ||
-			JSON.stringify(expiry) !== JSON.stringify(initialExpiry)
-		) {
-			edits.expiry = expiry;
-			edits.saveAsDefault = saveAsDefault;
-		}
+		void (operation === "decrease" ? decrease : increase).run(async () => {
+			const done = await onAdjust(operation, quantityText);
 
-		if (edits.quantityText === undefined && edits.expiry === undefined) {
+			if (done) {
+				setQuantityText(initialQuantityInput(item.stockUnitLabel));
+			}
+
+			return done;
+		});
+	}
+
+	async function saveExpiry() {
+		const isChanged =
+			saveAsDefault || JSON.stringify(expiry) !== JSON.stringify(initialExpiry);
+
+		if (!isChanged) {
 			onClose();
 
 			return;
 		}
 
-		await run(async () => {
-			const done = await onSave(edits);
+		await save.run(async () => {
+			const done = await onSave({ expiry, saveAsDefault });
 
 			if (done) {
 				onClose();
@@ -85,55 +104,63 @@ export function LotEditor({
 
 	return (
 		<div className={styles.lotEditor}>
-			{isPresence ? null : (
-				<QuantityInput
-					className={fieldInput}
-					aria-label={`${label}の数量`}
-					value={quantityText}
-					disabled={isPending}
-					onChange={setQuantityText}
-					unitLabel={item.stockUnitLabel}
-					trailing={<span>{item.stockUnitLabel}</span>}
+			{canAdjust ? <p className={styles.amount}>{amountText}</p> : null}
+
+			{canAdjust ? (
+				<AdjustControls
+					item={item}
+					label={`${label}の使った量・買い足した量`}
+					available={lot.quantity}
+					quantity={quantityText}
+					onQuantityChange={setQuantityText}
+					readOnly={readOnly}
+					decreaseStatus={decrease.status}
+					increaseStatus={increase.status}
+					onRun={runAdjust}
 				/>
-			)}
+			) : null}
 
-			<ExpiryFields
-				value={expiry}
-				onChange={setExpiry}
-				today={today}
-				disabled={isPending}
-				extraDetails={
-					<div className={styles.checkLine}>
-						<Toggle
-							label="この食材の初期値にする"
-							checked={saveAsDefault}
-							onChange={setSaveAsDefault}
-						/>
-						<span aria-hidden="true">
-							保存方法・期限の種類をこの食材の初期値にする
-						</span>
+			{canEditExpiry ? (
+				<>
+					<ExpiryFields
+						value={expiry}
+						onChange={setExpiry}
+						today={today}
+						disabled={save.isPending}
+						extraDetails={
+							<div className={styles.checkLine}>
+								<Toggle
+									label="この食材の初期値にする"
+									checked={saveAsDefault}
+									onChange={setSaveAsDefault}
+								/>
+								<span aria-hidden="true">
+									保存方法・期限の種類をこの食材の初期値にする
+								</span>
+							</div>
+						}
+					/>
+
+					<div className={styles.lotEditorActions}>
+						<Button
+							variant="secondary"
+							size="sm"
+							disabled={save.isPending}
+							onClick={onClose}
+						>
+							やめる
+						</Button>
+						<Button
+							size="sm"
+							status={save.status}
+							disabled={save.isPending}
+							onClick={() => void saveExpiry()}
+						>
+							保存
+						</Button>
 					</div>
-				}
-			/>
-
-			<div className={styles.lotEditorActions}>
-				<Button
-					variant="secondary"
-					size="sm"
-					disabled={isPending}
-					onClick={onClose}
-				>
-					やめる
-				</Button>
-				<Button
-					size="sm"
-					status={status}
-					disabled={isPending}
-					onClick={() => void save()}
-				>
-					保存
-				</Button>
-			</div>
+				</>
+			) : null}
 		</div>
 	);
 }

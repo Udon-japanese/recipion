@@ -181,23 +181,3 @@ export const adjust = style({
 	display: "grid",
 	gap: 12,
 });
-
-// 文字だけのボタン（入れた分ごとに減らす、など）。
-export const textButton = style({
-	justifySelf: "start",
-	minHeight: 44,
-	padding: 0,
-	color: "var(--color-accent-text)",
-	background: "none",
-	border: "none",
-	font: "inherit",
-	fontSize: "var(--font-size-sm)",
-	fontWeight: "var(--font-weight-bold)",
-	cursor: "pointer",
-	selectors: {
-		"&:focus-visible": {
-			outline: "3px solid var(--color-focus)",
-			outlineOffset: 2,
-		},
-	},
-});

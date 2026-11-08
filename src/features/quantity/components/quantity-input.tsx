@@ -23,8 +23,16 @@ type QuantityInputProps = {
 	unitLabel?: string | null;
 	// 入力欄の右に並べるもの（単位の選択など）。ボタンは、その下に、横幅いっぱいで並ぶ。
 	trailing?: ReactNode;
-	// 単位のボタンの前に置く、決まった値のボタン（在庫の「今ある分」など）。単位にボタンがなくても出す。
-	presetButton?: { label: string; value: string };
+	// 単位のボタンの前に置く、決まった値のボタン（在庫の「今ある分」・前に打った量など）。単位にボタンがなくても出す。
+	// 同じ値になる単位のボタン（1/2 など）は、重ねて出さない。
+	presetButtons?: readonly QuantityPresetButton[];
+};
+
+export type QuantityPresetButton = {
+	label: string;
+	value: string;
+	// 読み上げる名前（省略すると label）。
+	ariaLabel?: string;
 };
 
 // 数量の入力欄。「1/2」「1と1/2」「0.5」のように、分数でも小数でも入力できる。
@@ -40,9 +48,16 @@ export function QuantityInput({
 	"aria-label": ariaLabel,
 	unitLabel,
 	trailing,
-	presetButton,
+	presetButtons = [],
 }: QuantityInputProps) {
-	const buttons = getQuantityButtons(unitLabel);
+	const presetValues = new Set(
+		presetButtons.map((preset) => parseQuantityInput(preset.value)),
+	);
+	const buttons = getQuantityButtons(unitLabel).filter(
+		(button) =>
+			button.kind !== "set" ||
+			!presetValues.has(parseQuantityInput(button.value)),
+	);
 	const parsed = parseQuantityInput(value);
 	// 小数・整数のままのときは、確認の表示は要らない。
 	const isPlainNumber = /^\s*[\d.]+\s*$/u.test(value);
@@ -77,17 +92,19 @@ export function QuantityInput({
 				<span className={styles.hint}>= {parsed}</span>
 			) : null}
 
-			{buttons.length > 0 || presetButton ? (
+			{buttons.length > 0 || presetButtons.length > 0 ? (
 				<div className={styles.fractionButtons}>
-					{presetButton ? (
+					{presetButtons.map((preset) => (
 						<Chip
+							key={preset.label}
 							size="qty"
 							disabled={disabled}
-							onClick={() => onChange(presetButton.value)}
+							aria-label={preset.ariaLabel}
+							onClick={() => onChange(preset.value)}
 						>
-							{presetButton.label}
+							{preset.label}
 						</Chip>
-					) : null}
+					))}
 					{buttons.map((button) => (
 						<Chip
 							key={describeQuantityButton(button)}
