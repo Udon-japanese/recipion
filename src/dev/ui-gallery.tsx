@@ -478,13 +478,13 @@ function PartsGallery() {
 						明日
 					</Tag>
 					<Tag icon="alert-triangle" tone="error">
-						切れ
+						期限切れ
 					</Tag>
 					<Tag tone="soft">自分だけ</Tag>
 					<Tag icon="check" tone="success">
 						3
 					</Tag>
-					<Tag icon="clock" tone="warn" approximate>
+					<Tag icon="clock" tone="warn">
 						3日
 					</Tag>
 				</div>

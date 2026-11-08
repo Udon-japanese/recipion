@@ -37,7 +37,7 @@ export const inventoryZoneLabels: Record<InventoryZoneId, string> =
 		inventoryZones.map((zone) => [zone.id, zone.label]),
 	) as Record<InventoryZoneId, string>;
 
-// 期限の近さ。expired：切れ／soon：今日・明日／near：2〜3日後／none：何も出さない。
+// 期限の近さ。expired：期限切れ／soon：今日・明日／near：2〜3日後／none：何も出さない。
 export type InventoryExpiryLevel = "expired" | "soon" | "near" | "none";
 
 export type InventoryTileExpiry = {
@@ -46,9 +46,9 @@ export type InventoryTileExpiry = {
 	daysLeft: number;
 	level: Exclude<InventoryExpiryLevel, "none">;
 	kind: InventoryExpiryKind | null;
-	// 自動の目安（「約」）。
+	// 自動の目安（食材ごとの標準の日持ち）。
 	approximate: boolean;
-	// 「切れ」「今日」「明日」「3日」。
+	// 「期限切れ」「今日」「明日」「3日」。
 	badgeText: string;
 };
 
@@ -160,7 +160,7 @@ export function getLotZone(
 
 function expiryBadgeText(daysLeft: number): string {
 	if (daysLeft < 0) {
-		return "切れ";
+		return "期限切れ";
 	}
 
 	if (daysLeft === 0) {

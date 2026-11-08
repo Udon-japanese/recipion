@@ -463,7 +463,7 @@ export function ItemPanel({
 																? "alert-triangle"
 																: "clock"
 														}
-														approximate={badge.approximate}
+														note={badge.approximate ? "目安" : undefined}
 													>
 														{badge.badgeText}
 													</Tag>

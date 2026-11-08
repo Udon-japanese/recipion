@@ -57,7 +57,7 @@ export function InventoryRow({
 							<Tag
 								tone={expiry.level === "near" ? "warn" : "error"}
 								icon={expiry.level === "expired" ? "alert-triangle" : "clock"}
-								approximate={expiry.approximate}
+								note={expiry.approximate ? "目安" : undefined}
 							>
 								{expiry.badgeText}
 							</Tag>
