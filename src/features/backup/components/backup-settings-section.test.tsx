@@ -1,6 +1,7 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ToastViewport } from "#/components/toast/toast-viewport";
 import {
 	buildBackupInventoryItem,
 	buildBackupRecipe,
@@ -11,6 +12,11 @@ import type {
 } from "../application/backup-transfer";
 import { createBackupFile } from "../domain/backup-file";
 import { BackupSettingsSection } from "./backup-settings-section";
+
+// 画面の上のお知らせ（showToast）を、見えるようにする。
+beforeEach(() => {
+	render(<ToastViewport />);
+});
 
 const now = new Date("2026-11-01T03:00:00.000Z");
 

@@ -523,16 +523,6 @@ export const stepperInput = style({
 	},
 });
 
-// 消したあとの「元に戻す」。画面の下に、浮かせて出す。
-export const undoToast = style({
-	position: "fixed",
-	bottom: 16,
-	left: "50%",
-	zIndex: 40,
-	maxWidth: "calc(100vw - 32px)",
-	transform: "translateX(-50%)",
-});
-
 // 本文の入力欄と、見出しの下に重ねる案内（Tips）の土台。
 export const textareaFrame = style({
 	position: "relative",

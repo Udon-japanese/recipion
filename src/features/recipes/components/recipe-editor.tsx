@@ -16,7 +16,7 @@ import { ConfirmDialog } from "#/components/dialog/confirm-dialog";
 import { Field, TextInput } from "#/components/field/field";
 import { IconButton } from "#/components/icon-button/icon-button";
 import { Note } from "#/components/note/note";
-import { Toast } from "#/components/toast/toast";
+import { dismissToast, showToast } from "#/components/toast/toast-store";
 import { describeError } from "#/errors/user-facing-error";
 import { DishCoverField } from "#/features/dish-art/components/dish-cover-field";
 import type { DishPlacement } from "#/features/dish-art/domain/dish-cover";
@@ -188,6 +188,8 @@ function createInitialState(
 		),
 	};
 }
+
+const deletionToastId = "recipe-editor-deletion";
 
 export function RecipeEditor({
 	onSave,
@@ -486,6 +488,30 @@ export function RecipeEditor({
 		setSync(reconcileFromText(deletion.previous, text));
 		setDeletion(null);
 	}
+
+	// 消したことと「元に戻す」は、画面の上のお知らせで出す（お知らせは、画面を離れても残るので、離れたら消す）。
+	const undoDeletionRef = useRef(undoDeletion);
+	undoDeletionRef.current = undoDeletion;
+
+	useEffect(() => {
+		if (!deletion) {
+			dismissToast(deletionToastId);
+
+			return;
+		}
+
+		showToast({
+			id: deletionToastId,
+			message: deletion.message,
+			action: {
+				label: "元に戻す",
+				icon: "undo",
+				onClick: () => undoDeletionRef.current(),
+			},
+		});
+	}, [deletion]);
+
+	useEffect(() => () => dismissToast(deletionToastId), []);
 
 	function removeIngredient(id: string) {
 		const name = removeIngredientItem(sync.nodes, id).removed?.name ?? "材料";
@@ -1023,14 +1049,6 @@ export function RecipeEditor({
 			>
 				別のタブや端末で、このレシピを開いたあとに保存されています。この画面の内容で上書きすると、そちらで保存した内容は消えます。やめると、この画面の入力はそのまま残ります（必要なら、本文をコピーしてから開き直してください）。
 			</ConfirmDialog>
-
-			{deletion ? (
-				<div className={styles.undoToast}>
-					<Toast action={{ label: "元に戻す", onClick: undoDeletion }}>
-						{deletion.message}
-					</Toast>
-				</div>
-			) : null}
 
 			{openedLinkPublicId !== null && loadLinkedRecipe && renderOpenLink ? (
 				<RecipeLinkPreview

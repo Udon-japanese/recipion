@@ -3,6 +3,7 @@ import { Button } from "#/components/button/button";
 import { useButtonAction } from "#/components/button/use-button-action";
 import { ConfirmDialog } from "#/components/dialog/confirm-dialog";
 import { Note } from "#/components/note/note";
+import { showToast } from "#/components/toast/toast-store";
 import * as styles from "./recipe-passphrase-section.css";
 
 type RecipePassphraseSectionProps = {
@@ -18,6 +19,7 @@ export function RecipePassphraseSection({
 	const [passphrase, setPassphrase] = useState<string | null>(null);
 	const [isConfirming, setIsConfirming] = useState(false);
 	const action = useButtonAction();
+	// 失敗したとき（できたことは、画面の上のお知らせで伝える）。
 	const [message, setMessage] = useState<string | null>(null);
 
 	useEffect(() => {
@@ -42,7 +44,11 @@ export function RecipePassphraseSection({
 		try {
 			setPassphrase(await regeneratePassphrase());
 			setIsConfirming(false);
-			setMessage("パスフレーズを作り直しました。");
+			showToast({
+				id: "recipe-passphrase",
+				message: "パスフレーズを作り直しました",
+				icon: "check",
+			});
 
 			return true;
 		} catch {
@@ -57,7 +63,12 @@ export function RecipePassphraseSection({
 
 		try {
 			await navigator.clipboard.writeText(passphrase);
-			setMessage("コピーしました。");
+			setMessage(null);
+			showToast({
+				id: "recipe-passphrase",
+				message: "パスフレーズをコピーしました",
+				icon: "check",
+			});
 		} catch {
 			setMessage("コピーできませんでした。選んでコピーしてください");
 		}

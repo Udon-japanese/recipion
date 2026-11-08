@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Field, SelectBox } from "#/components/field/field";
 import { Note } from "#/components/note/note";
+import { showToast } from "#/components/toast/toast-store";
 import { maxHouseholdSize, minHouseholdSize } from "../domain/household-size";
 
 type HouseholdSizeSettingProps = {
@@ -29,10 +30,8 @@ export function HouseholdSizeSetting({
 	save,
 }: HouseholdSizeSettingProps) {
 	const [state, setState] = useState<LoadState>({ status: "loading" });
-	const [message, setMessage] = useState<{
-		tone: "success" | "error";
-		text: string;
-	} | null>(null);
+	// 保存できなかったとき（保存できたことは、画面の上のお知らせで伝える）。
+	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [isSaving, setIsSaving] = useState(false);
 
 	useEffect(() => {
@@ -64,18 +63,21 @@ export function HouseholdSizeSetting({
 		const next = raw === notSet ? null : Number(raw);
 
 		setState({ status: "ready", value: next });
-		setMessage(null);
+		setErrorMessage(null);
 		setIsSaving(true);
 
 		try {
 			await save(next);
-			setMessage({ tone: "success", text: "保存しました" });
+			showToast({
+				id: "household-size-saved",
+				message: "うちの人数を保存しました",
+				icon: "check",
+			});
 		} catch {
 			setState({ status: "ready", value: previous });
-			setMessage({
-				tone: "error",
-				text: "保存できませんでした。通信を確認して、もう一度お試しください",
-			});
+			setErrorMessage(
+				"保存できませんでした。通信を確認して、もう一度お試しください",
+			);
 		} finally {
 			setIsSaving(false);
 		}
@@ -109,7 +111,7 @@ export function HouseholdSizeSetting({
 							</option>
 						))}
 					</SelectBox>
-					{message ? <Note tone={message.tone}>{message.text}</Note> : null}
+					{errorMessage ? <Note tone="error">{errorMessage}</Note> : null}
 				</>
 			)}
 		</Field>

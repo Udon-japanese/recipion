@@ -2,6 +2,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "#/components/button/button";
 import { ConfirmDialog } from "#/components/dialog/confirm-dialog";
 import { Note } from "#/components/note/note";
+import {
+	dismissPendingToast,
+	dismissToast,
+	showToast,
+} from "#/components/toast/toast-store";
 import type { InventoryPurchaseOwnerScope } from "../application/inventory-purchase-outbox";
 import type {
 	InventoryPurchaseFailure,
@@ -20,6 +25,8 @@ type InventoryPurchaseSyncProps = {
 	// 送る購入の数。0 なら、送らず、「同期しています」も出さない（画面に戻るたびに、Note が一瞬出ないように）。
 	countPending?: (ownerScope: InventoryPurchaseOwnerScope) => Promise<number>;
 };
+
+const syncToastId = "inventory-purchase-sync";
 
 type SyncState =
 	| { status: "idle" }
@@ -83,6 +90,29 @@ export function InventoryPurchaseSync({
 		void runSync();
 	}, [runSync]);
 
+	// 送っている間と、反映した件数は、画面の上のお知らせで伝える（送れなかったものは、この場の Note に残す）。
+	useEffect(() => {
+		if (state.status === "syncing") {
+			showToast({
+				id: syncToastId,
+				message: "在庫を同期しています…",
+				spinning: true,
+				duration: null,
+			});
+		} else if (state.status === "done" && state.result.syncedCount > 0) {
+			showToast({
+				id: syncToastId,
+				message: `${state.result.syncedCount}件の在庫を反映しました`,
+				icon: "check",
+			});
+		} else {
+			dismissToast(syncToastId);
+		}
+	}, [state]);
+
+	// 画面を離れたら、同期中のお知らせは消す（反映したお知らせは、時間で消える）。
+	useEffect(() => () => dismissPendingToast(syncToastId), []);
+
 	useEffect(() => {
 		function handleOnline() {
 			void runSync();
@@ -116,16 +146,13 @@ export function InventoryPurchaseSync({
 		await runSync();
 	}
 
-	if (!ownerScope || ownerScope === "guest" || state.status === "idle") {
+	if (
+		!ownerScope ||
+		ownerScope === "guest" ||
+		state.status === "idle" ||
+		state.status === "syncing"
+	) {
 		return null;
-	}
-
-	if (state.status === "syncing") {
-		return (
-			<Note tone="info" spinning>
-				在庫を同期しています…
-			</Note>
-		);
 	}
 
 	const retry = (
@@ -150,10 +177,6 @@ export function InventoryPurchaseSync({
 
 	return (
 		<>
-			{result.syncedCount > 0 ? (
-				<Note tone="success">{result.syncedCount}件の在庫を反映しました</Note>
-			) : null}
-
 			{result.stoppedBy === "offline" ? (
 				<Note tone="neutral" icon="wifi-off" action={retry}>
 					通信できないため、買ったものを在庫に入れていません。通信が戻ったら、もう一度送ります

@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "#/components/dialog/confirm-dialog";
 import { Note } from "#/components/note/note";
+import {
+	dismissPendingToast,
+	dismissToast,
+	showToast,
+} from "#/components/toast/toast-store";
 
 import type { AdoptGuestInventoryPurchasesResult } from "../application/adopt-guest-inventory-purchases";
 import type { InventoryPurchaseOwnerScope } from "../application/inventory-purchase-outbox";
@@ -17,6 +22,8 @@ type GuestPurchaseAdoptionProps = {
 	loadGuestPurchaseCount: LoadGuestPurchaseCount;
 	adoptGuestPurchases: AdoptGuestPurchases;
 };
+
+const adoptionToastId = "guest-purchase-adoption";
 
 type AdoptionStatus =
 	| "idle"
@@ -108,27 +115,38 @@ export function GuestPurchaseAdoption({
 		};
 	}, [ownerScope, loadGuestPurchaseCount]);
 
+	// 入れている間と、入れたことは、画面の上のお知らせで伝える。
+	useEffect(() => {
+		if (status === "adopting") {
+			showToast({
+				id: adoptionToastId,
+				message: "ログインする前に買ったものを在庫に入れています…",
+				spinning: true,
+				duration: null,
+			});
+		} else if (status === "adopted") {
+			showToast({
+				id: adoptionToastId,
+				message: "ログインする前に買ったものを在庫に入れました",
+				icon: "check",
+			});
+		} else {
+			dismissToast(adoptionToastId);
+		}
+	}, [status]);
+
+	// 画面を離れたら、処理中のお知らせは消す。
+	useEffect(() => () => dismissPendingToast(adoptionToastId), []);
+
 	if (
 		!ownerScope ||
 		ownerScope === "guest" ||
 		status === "checking" ||
+		status === "adopting" ||
+		status === "adopted" ||
 		(status === "idle" && (guestPurchaseCount === 0 || isDismissed))
 	) {
 		return null;
-	}
-
-	if (status === "adopting") {
-		return (
-			<Note tone="info" spinning>
-				ログインする前に買ったものを在庫に入れています…
-			</Note>
-		);
-	}
-
-	if (status === "adopted") {
-		return (
-			<Note tone="success">ログインする前に買ったものを在庫に入れました</Note>
-		);
 	}
 
 	if (status === "waiting") {

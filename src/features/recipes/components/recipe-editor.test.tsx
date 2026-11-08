@@ -7,6 +7,7 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ToastViewport } from "#/components/toast/toast-viewport";
 import { IngredientDictionaryScope } from "#/features/ingredients/components/ingredient-dictionary-context";
 import { buildDictionary } from "#/test/builders/build-ingredient-dictionary";
 import {
@@ -15,6 +16,11 @@ import {
 } from "../domain/recipe-editor-document";
 import { recipeEditorTemplateItem } from "../infrastructure/recipe-editor-preferences";
 import { RecipeEditor } from "./recipe-editor";
+
+// 画面の上のお知らせ（showToast）を、見えるようにする。
+beforeEach(() => {
+	render(<ToastViewport />);
+});
 
 vi.mock("@tanstack/react-router", () => ({
 	Link: ({ children, to }: { children: React.ReactNode; to: string }) => (

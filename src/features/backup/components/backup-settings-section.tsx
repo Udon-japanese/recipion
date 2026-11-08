@@ -4,6 +4,7 @@ import { useButtonAction } from "#/components/button/use-button-action";
 import { Checkbox } from "#/components/checkbox/checkbox";
 import { CornerSheet } from "#/components/corner-sheet/corner-sheet";
 import { Note } from "#/components/note/note";
+import { showToast } from "#/components/toast/toast-store";
 import { describeError } from "#/errors/user-facing-error";
 import * as settingsStyles from "#/features/settings/components/settings-page.css";
 import {
@@ -86,10 +87,6 @@ export function BackupSettingsSection({
 	const exportAction = useButtonAction();
 	const isExporting = exportAction.isPending;
 	const [exportError, setExportError] = useState<string | null>(null);
-	const [exported, setExported] = useState<{
-		recipes: number;
-		inventory: number;
-	} | null>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	// ファイルを読む状態。読めたら確認のシートが開くので、見せるのは処理中と失敗だけ。
 	const readAction = useButtonAction();
@@ -109,9 +106,10 @@ export function BackupSettingsSection({
 				const file = await collectBackup(exportDependencies, now());
 
 				saveFile(formatBackupFileName(now()), JSON.stringify(file, null, "\t"));
-				setExported({
-					recipes: file.recipes.length,
-					inventory: file.inventory.length,
+				showToast({
+					id: "backup-exported",
+					message: `書き出しました（レシピ${formatCount(file.recipes.length)}件・在庫${formatCount(file.inventory.length)}品目）`,
+					icon: "check",
 				});
 				setIsExportOpen(false);
 			} catch (error) {
@@ -207,18 +205,11 @@ export function BackupSettingsSection({
 					variant="secondary"
 					onClick={() => {
 						setExportError(null);
-						setExported(null);
 						setIsExportOpen(true);
 					}}
 				>
 					ファイルに書き出す
 				</Button>
-				{exported ? (
-					<Note tone="success">
-						書き出しました（レシピ{formatCount(exported.recipes)}件・在庫
-						{formatCount(exported.inventory)}品目）。
-					</Note>
-				) : null}
 			</div>
 
 			<div className={styles.block}>
