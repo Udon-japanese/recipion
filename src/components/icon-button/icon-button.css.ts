@@ -48,7 +48,7 @@ export const button = recipe({
 				selectors: { "&::before": { inset: 0 } },
 			},
 		},
-		// muted（既定）：薄い灰色の丸／plain：背景なし／danger：赤い文字／on：選択中（黄色の丸＋濃い枠）。
+		// muted（既定）：薄い灰色の丸／plain：背景なし／danger：赤い文字／tint：背景なし、乗せると下の色を少し濃く／on：選択中（黄色の丸＋濃い枠）。
 		tone: {
 			muted: {},
 			plain: {
@@ -64,6 +64,15 @@ export const button = recipe({
 			accent: {
 				background: "var(--color-primary-soft)",
 				color: "var(--color-accent-text)",
+			},
+			// 背景なしで、マウスを乗せると、下の色を少し濃くする（灰色や黄色の帯の上に置くとき）。
+			tint: {
+				background: "transparent",
+				selectors: {
+					'&:hover:not(:disabled):not([aria-disabled="true"])': {
+						background: "var(--color-hover-tint)",
+					},
+				},
 			},
 			on: {
 				background: "var(--color-primary)",

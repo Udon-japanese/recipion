@@ -1,6 +1,7 @@
 // レシピのできあがりの量（「4人分」「12個」「18cmのパウンド型1台」「作りやすい分量」）。
 // 文章の最後の数（型の大きさなどの寸法は除く）を、増減の基準として読む（その前後の文字は、そのまま残す）。
 import { formatQuantity } from "#/features/quantity/domain/format-quantity";
+import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
 
 export type RecipeYield = {
 	// 最後の数の前の文字（「18cmのパウンド型」）。
@@ -69,7 +70,24 @@ export function formatRecipeYield(
 	recipeYield: RecipeYield,
 	quantity: number,
 ): string {
-	return `${recipeYield.prefix}${formatQuantity(quantity, { grouping: false }).replace(" ", "と")}${recipeYield.suffix}`;
+	return `${recipeYield.prefix}${formatRecipeYieldQuantity(quantity)}${recipeYield.suffix}`;
+}
+
+// できあがりの量の、数の部分だけ（「1.5」→「1と1/2」）。
+export function formatRecipeYieldQuantity(quantity: number): string {
+	return formatQuantity(quantity, { grouping: false }).replace(" ", "と");
+}
+
+// 見る人が選べる、できあがりの数の上限（詳細の URL の ?n= の上限と同じ）。
+export const maxWantedYield = 1000;
+
+// 見る人が打った、できあがりの数（「16」「１６」「1.5」「1/2」）。0 以下・上限を超える・読めないときは null。
+export function parseWantedYieldInput(text: string): number | null {
+	const quantity = parseQuantityInput(text);
+
+	return quantity !== null && quantity > 0 && quantity <= maxWantedYield
+		? quantity
+		: null;
 }
 
 // 単位の比べ方：前後の空白と、最後の「分」を除く（「4人分」と「2人分」、「12個分」と「6個」を同じ単位にする）。

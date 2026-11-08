@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	parseRecipeYield,
+	parseWantedYieldInput,
 	ratioForYield,
 	scaleRecipeYieldText,
 	stepRecipeYield,
@@ -69,6 +70,25 @@ describe("scaleRecipeYieldText", () => {
 		["25×6×5cmパウンドケーキ型", 2, "25×6×5cmパウンドケーキ型の2倍"],
 	])("%s の %d 倍は %s", (text, ratio, expected) => {
 		expect(scaleRecipeYieldText(text, ratio)).toBe(expected);
+	});
+});
+
+describe("parseWantedYieldInput", () => {
+	it.each([
+		["16", 16],
+		["１６", 16],
+		[" 16 ", 16],
+		["1.5", 1.5],
+		["1/2", 0.5],
+		["1と1/2", 1.5],
+		["1000", 1000],
+		["", null],
+		["0", null],
+		["abc", null],
+		["16個", null],
+		["1001", null],
+	])("「%s」は %s", (text, expected) => {
+		expect(parseWantedYieldInput(text)).toBe(expected);
 	});
 });
 
