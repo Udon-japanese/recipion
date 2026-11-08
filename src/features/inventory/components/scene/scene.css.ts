@@ -11,8 +11,10 @@ export const frame = style({
 	position: "relative",
 	// 画面の高さから、まわりの分（スマホ：上のバー 56・余白 16×2・下のナビ 57。PC：余白 32×2）を引く。
 	// 引く分が足りないと、ページが少しスクロールする（app-shell.css.ts と合わせる）。
+	// スマホは、画面の高さいっぱいにする。絵（camera）より縦に長い分は、床を下へ延ばして埋める。
+	// PC は、絵の縦横の比のまま（中央の400が見える高さまで）。
 	vars: {
-		"--h": "min(calc(100dvh - 145px - env(safe-area-inset-bottom)), 160cqw)",
+		"--h": "calc(100dvh - 145px - env(safe-area-inset-bottom))",
 	},
 	"@media": {
 		"(min-width: 768px)": {
@@ -27,19 +29,34 @@ export const frame = style({
 	// 文字や余白は、絵の高さ（cqh）に合わせる。
 	containerType: "size",
 	borderRadius: 28,
-	background: "#f2d9a6",
+	// 絵の下に延ばした床（room-art.tsx の床の色）。
+	background: "#d9a766",
+	selectors: {
+		'&[data-night="true"]': { background: "#7d6058" },
+	},
 });
 
-// 絵と、その上の押せる場所をまとめる層。高さは場面いっぱい、幅は 800:640。左右の中央に置く。
+// 絵と、その上の押せる場所をまとめる層。幅は 800:640。左右の中央に置く。
+// 縦に長い場面（スマホ）では、絵の上に操作の段の分（64px）の壁、下に右下の＋の分（88px）の床を空ける。
+// 絵の高さ：場面の高さから上下の分を引いた高さ。ただし、中央の400が見える高さ（幅の1.6倍）より大きくせず、
+// 幅の1.3倍より小さくもしない（小さくしすぎると、押せる場所が小さくなる）。場面より高くもしない。
+// use-floor-room.ts の計算と合わせる。中の札・れしぽよの大きさ（cqh）は、この層（絵）の高さに合わせる。
 export const camera = style({
 	position: "absolute",
-	top: 0,
-	bottom: 0,
 	left: "50%",
+	top: "min(64px, max(0px, calc(100cqh - var(--art-h))))",
+	height: "var(--art-h)",
 	aspectRatio: "800 / 640",
+	containerType: "size",
 	transformOrigin: "0 0",
 	transition: "transform 760ms cubic-bezier(0.5, 0, 0.2, 1)",
-	vars: { "--cx": "50", "--cy": "50", "--zoom": "1", "--aim": "50" },
+	vars: {
+		"--art-h": "min(100cqh, 160cqw, max(130cqw, calc(100cqh - 152px)))",
+		"--cx": "50",
+		"--cy": "50",
+		"--zoom": "1",
+		"--aim": "50",
+	},
 	transform:
 		"translateX(-50%) translate(calc(50% - var(--cx) * var(--zoom) * 1%), calc(var(--aim) * 1% - var(--cy) * var(--zoom) * 1%)) scale(var(--zoom))",
 });
@@ -50,6 +67,8 @@ export const art = style({
 	width: "100%",
 	height: "100%",
 	display: "block",
+	// 上の壁・下の床は、絵の枠の外まで描いてある（場面の枠で切れる）。
+	overflow: "visible",
 });
 
 export const fridgeDoor = style({
@@ -254,4 +273,9 @@ export const interiorScroll = style({
 	minHeight: 0,
 	paddingBottom: 20,
 	overflowY: "auto",
+});
+
+// 絵の下の床に、右下の＋（在庫に追加）を置くとき：庫内の一覧の最後の行が、＋に隠れないようにする。
+globalStyle(`${frame}[data-floor-room="true"] ${interiorScroll}`, {
+	paddingBottom: 56 + 16 + 16,
 });

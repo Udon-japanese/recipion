@@ -4,6 +4,7 @@ import {
 	assignInventoryZone,
 	buildInventoryFridge,
 	getExpiryLevel,
+	hideOutOfStockTiles,
 	type InventoryCatalogLookup,
 } from "./inventory-fridge";
 import type { InventoryLot } from "./inventory-lot";
@@ -287,5 +288,51 @@ describe("buildInventoryFridge", () => {
 		expect(tilesOf(items, "freezer").map((t) => t.inventoryItemId)).toEqual([
 			"ginger",
 		]);
+	});
+});
+
+describe("hideOutOfStockTiles", () => {
+	const items = [
+		buildInventoryListItem({
+			inventoryItemId: "stocked",
+			name: "にんじん",
+			quantity: 2,
+			lots: [lot({ id: "s1", quantity: 2 })],
+		}),
+		buildInventoryListItem({
+			inventoryItemId: "empty",
+			name: "にんじん",
+			displayName: "使い切ったにんじん",
+			quantity: 0,
+			lots: [],
+		}),
+		buildInventoryListItem({
+			inventoryItemId: "present",
+			name: "塩",
+			trackingMode: "presence",
+			quantity: 1,
+			lots: [lot({ id: "p1", quantity: 1 })],
+		}),
+		buildInventoryListItem({
+			inventoryItemId: "absent",
+			name: "塩",
+			displayName: "切らした塩",
+			trackingMode: "presence",
+			quantity: 0,
+			lots: [],
+		}),
+	];
+	const ids = (keep: string | null) =>
+		hideOutOfStockTiles(buildInventoryFridge(items, today, lookup), keep)
+			.flatMap((zone) => zone.tiles)
+			.map((tile) => tile.inventoryItemId)
+			.sort();
+
+	it("量が 0 の食材と、数えない食材の「なし」を除く", () => {
+		expect(ids(null)).toEqual(["present", "stocked"]);
+	});
+
+	it("開いている食材は、ない在庫でも残す（使い切った直後に、行が消えない）", () => {
+		expect(ids("empty")).toEqual(["empty", "present", "stocked"]);
 	});
 });

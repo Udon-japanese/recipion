@@ -127,6 +127,26 @@ export const iconDefinitions = {
 			</>
 		) as ReactNode,
 	},
+	// 在庫：ない在庫を出している（押すと、かくす）。
+	eye: {
+		style: "outline",
+		content: (
+			<>
+				<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" />
+				<circle cx={12} cy={12} r={3} />
+			</>
+		) as ReactNode,
+	},
+	// 在庫：ない在庫を、かくしている（押すと、出す）。
+	"eye-off": {
+		style: "outline",
+		content: (
+			<>
+				<path d="M9.9 5.7A9.6 9.6 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a17 17 0 0 1-2.7 3.4M6.6 6.6C3.9 8.4 2.5 12 2.5 12S6 18.5 12 18.5c1.9 0 3.6-.6 5-1.5" />
+				<path d="M9.9 9.9a3 3 0 0 0 4.2 4.2M3 3l18 18" />
+			</>
+		) as ReactNode,
+	},
 	grip: {
 		style: "solid",
 		content: (

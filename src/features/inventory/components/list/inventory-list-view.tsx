@@ -31,6 +31,8 @@ type InventoryListViewProps = {
 	// 検索の言葉と、まとめ方（上の操作の段で選ぶ。InventorySearch）。
 	query: string;
 	by: InventoryGroupBy;
+	// ない在庫をかくしているか（何も残らないとき、その旨を出す）。
+	hidingEmpty?: boolean;
 	onOpen: (tile: InventoryTile) => void;
 };
 
@@ -125,6 +127,7 @@ export function InventoryListView({
 	highlightedItemIds,
 	query,
 	by,
+	hidingEmpty = false,
 	onOpen,
 }: InventoryListViewProps) {
 	const useSoonHeadingId = useId();
@@ -209,7 +212,11 @@ export function InventoryListView({
 			) : null}
 
 			{sections.length === 0 ? (
-				<p className={styles.empty}>見つかりませんでした。</p>
+				<p className={styles.empty}>
+					{hidingEmpty && query.trim() === ""
+						? "ある在庫はありません（ない在庫は、かくしています）。"
+						: "見つかりませんでした。"}
+				</p>
 			) : (
 				sections.map((section) => (
 					<section className={styles.section} key={section.id}>

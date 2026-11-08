@@ -76,6 +76,11 @@ export const fab = style({
 			outline: "3px solid var(--color-focus)",
 			outlineOffset: 3,
 		},
+		// おうちの絵の下の床に置くとき：場面（画面の端から 16）の角から、さらに 16 離す。
+		"&[data-on-scene]": {
+			right: 16 + 16,
+			bottom: "calc(64px + 16px + 16px + env(safe-area-inset-bottom))",
+		},
 	},
 	"@media": {
 		// 広い画面では、タイトルの行の主ボタンを使う。

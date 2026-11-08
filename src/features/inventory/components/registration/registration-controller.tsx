@@ -28,6 +28,8 @@ type InventoryRegistrationControllerProps = {
 	onRegistered: (info: RegisteredInfo) => void;
 	// スマホの右下の「在庫に追加」を出すか（空のときは、画面の中のボタンに一本化する）。
 	showFab: boolean;
+	// おうちの絵の下の床に置くとき：場面の角から離す（場面の枠に、くっつかないように）。
+	fabOnScene?: boolean;
 };
 
 // 登録のパネル・右下の「在庫に追加」。入力の状態は、ここで持つ（パネルを閉じても残る）。
@@ -37,6 +39,7 @@ export function InventoryRegistrationController({
 	onOpenChange,
 	onRegistered,
 	showFab,
+	fabOnScene = false,
 }: InventoryRegistrationControllerProps) {
 	const registration = useInventoryRegistration({
 		registerInventoryItem: config.registerInventoryItem,
@@ -50,6 +53,7 @@ export function InventoryRegistrationController({
 			{showFab ? (
 				<button
 					className={styles.fab}
+					data-on-scene={fabOnScene || undefined}
 					type="button"
 					aria-label="在庫に追加"
 					aria-haspopup="dialog"

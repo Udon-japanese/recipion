@@ -21,6 +21,7 @@ import type { LoadInventoryItemsResult } from "../application/load-inventory-ite
 import {
 	buildInventoryFridge,
 	compareTiles,
+	hideOutOfStockTiles,
 	type InventoryFridgeZone,
 	type InventoryTile as InventoryTileModel,
 	type InventoryZoneId,
@@ -29,6 +30,7 @@ import { toDateString } from "../domain/inventory-lot";
 import {
 	type InventoryView,
 	inventoryGroupByStorage,
+	inventoryHideEmptyStorage,
 	inventoryPetStorage,
 	inventoryViewStorage,
 } from "../infrastructure/inventory-view-storage";
@@ -120,6 +122,11 @@ export function InventoryList({
 	const [view, setView] = useStorageItem(inventoryViewStorage);
 	const [night] = useState(() => isNight(new Date()));
 	const [petVisible, changePetVisible] = useStorageItem(inventoryPetStorage);
+	const [hideEmpty, changeHideEmpty] = useStorageItem(
+		inventoryHideEmptyStorage,
+	);
+	// おうちの表示で、絵の下に、右下の＋を置けるだけの床があるか（縦に長いスマホ）。
+	const [sceneHasFloorRoom, setSceneHasFloorRoom] = useState(false);
 	// リストの検索と、まとめ方（最後に選んだもの。読み込めなければ、場所）。
 	const [query, setQuery] = useState("");
 	const [groupBy, setGroupBy] = useStorageItem(inventoryGroupByStorage);
@@ -239,10 +246,15 @@ export function InventoryList({
 		rankedEpochRef.current = orderEpoch;
 	}
 
+	const keptItemId = selection?.inventoryItemId ?? null;
 	const zones: InventoryFridgeZone[] = useMemo(() => {
 		const ranks = rankRef.current;
+		// ない在庫をかくすとき：開いている食材は、パネルを閉じるまで残す。
+		const shownZones = hideEmpty
+			? hideOutOfStockTiles(baseZones, keptItemId)
+			: baseZones;
 
-		return baseZones.map((zone) => ({
+		return shownZones.map((zone) => ({
 			...zone,
 			tiles: [...zone.tiles].sort((a, b) => {
 				const aRank = ranks.get(a.key);
@@ -260,7 +272,7 @@ export function InventoryList({
 						: compareTiles(a, b);
 			}),
 		}));
-	}, [baseZones]);
+	}, [baseZones, hideEmpty, keptItemId]);
 
 	const selectedItem = selection
 		? items.find((item) => item.inventoryItemId === selection.inventoryItemId)
@@ -424,6 +436,16 @@ export function InventoryList({
 
 	const tools = (
 		<span className={styles.tools} data-tools>
+			{showControls ? (
+				<IconButton
+					icon={hideEmpty ? "eye-off" : "eye"}
+					label={hideEmpty ? "ない在庫を出す" : "ない在庫をかくす"}
+					size="std"
+					tone={hideEmpty ? "on" : "plain"}
+					onClick={() => changeHideEmpty(!hideEmpty)}
+				/>
+			) : null}
+
 			{view === "scene" ? (
 				<IconButton
 					icon={petVisible ? "mascot-shown" : "mascot-hidden"}
@@ -448,15 +470,29 @@ export function InventoryList({
 
 	const addButton =
 		registration && showControls ? (
-			<span className={styles.addButton}>
-				<Button
-					leadingIcon={<Icon name="plus" size={20} />}
-					aria-haspopup="dialog"
-					onClick={() => handleRegistrationOpenChange(true)}
-				>
-					在庫に追加
-				</Button>
-			</span>
+			<>
+				<span className={styles.addButton}>
+					<Button
+						leadingIcon={<Icon name="plus" size={20} />}
+						aria-haspopup="dialog"
+						onClick={() => handleRegistrationOpenChange(true)}
+					>
+						在庫に追加
+					</Button>
+				</span>
+				{/* おうちの表示（スマホ）：絵の下に床がなければ、右下の＋は絵に重なるので、絵の上の操作の段に置く。 */}
+				{view === "scene" && !sceneHasFloorRoom ? (
+					<button
+						className={styles.sceneAddButton}
+						type="button"
+						aria-label="在庫に追加"
+						aria-haspopup="dialog"
+						onClick={() => handleRegistrationOpenChange(true)}
+					>
+						<Icon name="plus" size={24} />
+					</button>
+				) : null}
+			</>
 		) : null;
 
 	// リストでは、検索とまとめ方も、同じ段に並べる（読み込みの前後で、段を作り直さない）。
@@ -479,7 +515,7 @@ export function InventoryList({
 	);
 
 	return (
-		<section className={styles.container}>
+		<section className={styles.container} data-view={view}>
 			{title}
 			{isSceneShown ? null : (
 				<div className={isListMode ? listStyles.toolbar : styles.header}>
@@ -565,6 +601,7 @@ export function InventoryList({
 								night={night}
 								petVisible={petVisible}
 								toolbar={toolbar}
+								onFloorRoomChange={setSceneHasFloorRoom}
 							/>
 						</>
 					)}
@@ -591,6 +628,7 @@ export function InventoryList({
 				<InventoryListView
 					query={query}
 					by={groupBy}
+					hidingEmpty={hideEmpty}
 					zones={zones}
 					today={today}
 					selectedItemId={selection?.inventoryItemId ?? null}
@@ -605,6 +643,7 @@ export function InventoryList({
 					night={night}
 					petVisible={petVisible}
 					toolbar={toolbar}
+					onFloorRoomChange={setSceneHasFloorRoom}
 					onDismissPanel={() => setSelection(null)}
 					selectedItemId={selection?.inventoryItemId ?? null}
 					highlightedItemIds={highlightedIds}
@@ -635,7 +674,11 @@ export function InventoryList({
 					isOpen={isRegistrationOpen}
 					onOpenChange={handleRegistrationOpenChange}
 					onRegistered={handleRegistered}
-					showFab={hasItems || showSkeleton}
+					showFab={
+						(hasItems || showSkeleton) &&
+						(view !== "scene" || sceneHasFloorRoom)
+					}
+					fabOnScene={view === "scene"}
 				/>
 			) : null}
 		</section>

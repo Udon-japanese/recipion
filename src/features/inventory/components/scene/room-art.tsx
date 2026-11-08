@@ -210,15 +210,16 @@ export function RoomArt({
 				</radialGradient>
 			</defs>
 
-			{/* 壁と床 */}
-			<rect x="-200" width="800" height="400" fill={c.wall} />
+			{/* 壁と床。縦に長い画面では、絵の枠の外（上の壁・下の床）まで見えるので、上下に延ばして描く（svg は overflow: visible） */}
+			<rect x="-200" y="-600" width="800" height="1000" fill={c.wall} />
 			<rect x="-200" y="300" width="800" height="100" fill={c.wainscot} />
 			<path d="M-200 300H600" stroke={c.wainscotLine} strokeWidth="3" />
-			<rect x="-200" y="400" width="800" height="240" fill={c.floor} />
+			<rect x="-200" y="400" width="800" height="1040" fill={c.floor} />
 			{[-200, -120, -40, 40, 120, 200, 280, 360, 440, 520, 600].map((x) => (
 				<path
 					key={x}
-					d={`M${x} 400L${200 + (x - 200) * 3.4} 640`}
+					// 640 で 3.4 倍に広がる線を、同じ傾きのまま 1440 まで延ばす。
+					d={`M${x} 400L${200 + (x - 200) * 11.4} 1440`}
 					stroke={c.floorLine}
 					strokeWidth="2"
 				/>
@@ -229,8 +230,9 @@ export function RoomArt({
 			<rect
 				className={styles.fade}
 				x="-200"
+				y="-600"
 				width="800"
-				height="640"
+				height="2040"
 				fill="url(#lampGlow)"
 				style={{ opacity: night ? 0.75 : 0.35 }}
 				pointerEvents="none"
@@ -238,8 +240,9 @@ export function RoomArt({
 			<rect
 				className={styles.fade}
 				x="-200"
+				y="-600"
 				width="800"
-				height="640"
+				height="2040"
 				fill="url(#tableLight)"
 				style={{ opacity: night ? 1 : 0 }}
 				pointerEvents="none"
@@ -725,7 +728,7 @@ export function RoomArt({
 
 			{/* 天井のランプ：コード、笠（縁の線）、電球 */}
 			<g>
-				<path d="M170 0V40" stroke={INK} strokeWidth="2" />
+				<path d="M170 -600V40" stroke={INK} strokeWidth="2" />
 				<rect x="164" y="34" width="12" height="8" rx="2" fill={INK} />
 				<ellipse
 					cx="170"
