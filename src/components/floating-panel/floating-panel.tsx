@@ -49,7 +49,10 @@ type FloatingPanelProps = {
 	children: ReactNode;
 	// 開いたときの位置（開いた時に1度だけ呼ぶ）。
 	getInitialPosition: () => PanelPosition;
-	// 動かした位置を知らせる（覚えておきたい呼び出し側のため）。
+	// スクロールしたとき、パネルの上端を置きたい高さ（開いた元の行の位置）。返せなければ、動かさない。
+	// 画面の上下の端で止まる。見出しをつかんで動かしたら、それからは追いかけない。
+	followTop?: () => number | null;
+	// 動かした位置を知らせる（覚えておきたい呼び出し側のため）。追いかけて動いたときも知らせる。
 	onMove?: (position: PanelPosition) => void;
 	// Esc を押したとき（フォームが開いていれば、まずフォームを閉じる、のように使う）。
 	onEscape: () => void;
@@ -66,6 +69,7 @@ export function FloatingPanel({
 	footer,
 	children,
 	getInitialPosition,
+	followTop,
 	onMove,
 	onEscape,
 	onClose,
@@ -79,6 +83,10 @@ export function FloatingPanel({
 	const panelRef = useRef<HTMLElement>(null);
 	const heightRef = useRef(120);
 	const dragRef = useRef<{ dx: number; dy: number } | null>(null);
+	// 自分で動かすまでは、開いた元の行を追いかける。
+	const followingRef = useRef(true);
+	const latest = useRef({ followTop, onMove });
+	latest.current = { followTop, onMove };
 
 	function move(x: number, y: number) {
 		const next = clampPanelPosition(x, y, heightRef.current);
@@ -86,6 +94,48 @@ export function FloatingPanel({
 		setPosition(next);
 		onMove?.(next);
 	}
+
+	// 人が動かした（ドラッグ・Alt + 矢印キー）。
+	function moveByUser(x: number, y: number) {
+		followingRef.current = false;
+		move(x, y);
+	}
+
+	// スクロールしたら、行の高さへ（横の位置は、そのまま。横に並べた編集のために、ずらしていることがある）。
+	const follows = followTop !== undefined;
+	const positionRef = useRef(position);
+	positionRef.current = position;
+
+	useEffect(() => {
+		if (!follows) {
+			return;
+		}
+
+		function follow() {
+			const top = followingRef.current ? latest.current.followTop?.() : null;
+
+			if (top === null || top === undefined) {
+				return;
+			}
+
+			const current = positionRef.current;
+			const next = clampPanelPosition(current.x, top, heightRef.current);
+
+			if (next.x === current.x && next.y === current.y) {
+				return;
+			}
+
+			positionRef.current = next;
+			setPosition(next);
+			latest.current.onMove?.(next);
+		}
+
+		// 一覧の中のスクロールも拾う（capture）。
+		window.addEventListener("scroll", follow, { capture: true, passive: true });
+
+		return () =>
+			window.removeEventListener("scroll", follow, { capture: true });
+	}, [follows]);
 
 	useImperativeHandle(handleRef, () => ({
 		moveTo: (next) => move(next.x, next.y),
@@ -171,7 +221,7 @@ export function FloatingPanel({
 					const drag = dragRef.current;
 
 					if (drag) {
-						move(event.clientX - drag.dx, event.clientY - drag.dy);
+						moveByUser(event.clientX - drag.dx, event.clientY - drag.dy);
 					}
 				}}
 				onPointerUp={() => {
@@ -198,7 +248,7 @@ export function FloatingPanel({
 
 						if (step) {
 							event.preventDefault();
-							move(position.x + step[0], position.y + step[1]);
+							moveByUser(position.x + step[0], position.y + step[1]);
 						}
 					}}
 				>
