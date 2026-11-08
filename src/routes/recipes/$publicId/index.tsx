@@ -62,6 +62,7 @@ import type {
 } from "#/features/recipes/domain/recipe-cook-log";
 import { recipeVisibilityLabels } from "#/features/recipes/domain/recipe-visibility-label";
 import {
+	maxWantedYield,
 	parseRecipeYield,
 	ratioForYield,
 	scaleRecipeYieldText,
@@ -94,7 +95,7 @@ export const Route = createFileRoute("/recipes/$publicId/")({
 	// n：見る人が選んだ、できあがりの数（「4人分」のレシピを2人分で見る、など）。なければ、レシピの量のまま。
 	validateSearch: v.object({
 		n: v.optional(
-			v.pipe(v.number(), v.finite(), v.gtValue(0), v.maxValue(1000)),
+			v.pipe(v.number(), v.finite(), v.gtValue(0), v.maxValue(maxWantedYield)),
 		),
 	}),
 	// 見てはいけないレシピと、存在しないレシピは、どちらも null（パスフレーズの入力画面になる）。

@@ -22,6 +22,8 @@
 	--color-border: #e6e1d6;
 	--color-border-strong: #cec7b8;
 	--color-focus: rgba(41, 39, 32, 0.18);
+	/* 色のついた面の上で、押せる部品にマウスを乗せたとき（下の色を少しだけ濃くする、半透明の色）。 */
+	--color-hover-tint: rgba(41, 39, 32, 0.07);
 
 	--color-success: #2f7d4a;
 	--color-success-soft: #eaf5ee;
