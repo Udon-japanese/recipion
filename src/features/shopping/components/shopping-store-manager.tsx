@@ -22,6 +22,9 @@ export function ShoppingStoreManager({
 	onRemove,
 }: ShoppingStoreManagerProps) {
 	const [newName, setNewName] = useState("");
+	// 開いているか。店が1つもないときは、追加の入力が見えるよう、いつも開く。
+	// 1つ目を足したあとも、続けて足せるよう、開いたままにする（店の数だけで決めると、1つ目で閉じる）。
+	const [isOpen, setIsOpen] = useState(false);
 	const [editingId, setEditingId] = useState<string | null>(null);
 	const [editName, setEditName] = useState("");
 	const [confirmingRemoveId, setConfirmingRemoveId] = useState<string | null>(
@@ -35,12 +38,16 @@ export function ShoppingStoreManager({
 
 		if (await onAdd(newName)) {
 			setNewName("");
+			setIsOpen(true);
 		}
 	}
 
 	return (
-		// 店が1つもないときは、追加の入力が見えるよう、開いておく。
-		<details className={styles.manager} open={stores.length === 0 || undefined}>
+		<details
+			className={styles.manager}
+			open={isOpen || stores.length === 0}
+			onToggle={(event) => setIsOpen(event.currentTarget.open)}
+		>
 			<summary className={styles.summary}>
 				<Icon name="store" size={20} />
 				店の管理
