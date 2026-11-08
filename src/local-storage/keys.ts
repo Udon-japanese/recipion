@@ -15,6 +15,8 @@ export const storageKeys = {
 	inventoryView: "inventory-view",
 	// 在庫：おうちの表示で、れしぽよを出すか。
 	inventoryPet: "inventory-pet",
+	// 在庫：ない在庫（量が 0・「なし」）を、かくすか。
+	inventoryHideEmpty: "inventory-hide-empty",
 	// 在庫：リストのまとめ方（zone / expiry / kana）。
 	inventoryGroupBy: "inventory-group-by",
 	// 在庫：冷凍野菜を、生の野菜の代わりに使うか（auto / ask / off）。

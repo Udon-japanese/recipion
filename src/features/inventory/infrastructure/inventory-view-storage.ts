@@ -33,3 +33,11 @@ export const inventoryGroupByStorage = enumStorageItem<InventoryGroupBy>({
 	values: inventoryGroupByOptions.map((option) => option.value),
 	defaultValue: "zone",
 });
+
+// ない在庫（量が 0・「なし」）を、かくすか（初期値は、出す）。リストとおうちで共通。
+export const inventoryHideEmptyStorage = defineStorageItem<boolean>({
+	key: storageKeys.inventoryHideEmpty,
+	defaultValue: false,
+	parse: (raw) => (raw === "on" ? true : raw === "off" ? false : undefined),
+	serialize: (hidden) => (hidden ? "on" : "off"),
+});

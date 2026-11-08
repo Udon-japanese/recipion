@@ -13,6 +13,7 @@ import { describePetMessage } from "./pet-message";
 import { type OpenPart, RoomArt } from "./room-art";
 import * as styles from "./scene.css";
 import { SceneInterior } from "./scene-interior";
+import { useFloorRoom } from "./use-floor-room";
 import { type Point, useHopWalker } from "./use-hop-walker";
 
 type Target = "fridge" | "table";
@@ -117,6 +118,8 @@ type InventorySceneProps = {
 	onOpen: (tile: InventoryTile) => void;
 	// 開いている食材のパネルを閉じる（場所を移るとき、おうちにもどるとき）。
 	onDismissPanel: () => void;
+	// 絵の下に、右下の＋を置けるだけの床があるか（変わったときに呼ぶ）。
+	onFloorRoomChange?: (hasRoom: boolean) => void;
 };
 
 // 在庫の「おうち」表示：奥に冷蔵庫、手前に丸いテーブル。押すとズームして、その場所の食材が見える。
@@ -129,6 +132,7 @@ export function InventoryScene({
 	highlightedItemIds,
 	onOpen,
 	onDismissPanel,
+	onFloorRoomChange,
 }: InventorySceneProps) {
 	const [target, setTarget] = useState<Target | null>(null);
 	const [opened, setOpened] = useState(false);
@@ -137,6 +141,7 @@ export function InventoryScene({
 	const [zone, setZone] = useState<InventoryZoneId>("fridge");
 	const timers = useRef<number[]>([]);
 	const frameRef = useRef<HTMLElement>(null);
+	const hasFloorRoom = useFloorRoom(frameRef, onFloorRoomChange);
 	const isPanelOpen = selectedItemId !== null;
 
 	const zoomed = target !== null;
@@ -335,6 +340,8 @@ export function InventoryScene({
 			<section
 				ref={frameRef}
 				className={styles.frame}
+				data-night={night}
+				data-floor-room={hasFloorRoom}
 				aria-label={`${MASCOT_DISPLAY_NAME}のおうち`}
 			>
 				<div className={styles.bar}>{toolbar}</div>
@@ -448,6 +455,7 @@ type InventorySceneLoadingProps = {
 	night: boolean;
 	petVisible: boolean;
 	toolbar: ReactNode;
+	onFloorRoomChange?: (hasRoom: boolean) => void;
 };
 
 // 在庫を読み込んでいる間のおうち：絵だけを描き、れしぽよが、その場でふきだしで知らせる（押せる場所は置かない）。
@@ -455,8 +463,10 @@ export function InventorySceneLoading({
 	night,
 	petVisible,
 	toolbar,
+	onFloorRoomChange,
 }: InventorySceneLoadingProps) {
 	const frameRef = useRef<HTMLElement>(null);
+	const hasFloorRoom = useFloorRoom(frameRef, onFloorRoomChange);
 	const spot = night ? (spots[cushionIndex] ?? startSpot) : startSpot;
 
 	return (
@@ -464,6 +474,8 @@ export function InventorySceneLoading({
 			<section
 				ref={frameRef}
 				className={styles.frame}
+				data-night={night}
+				data-floor-room={hasFloorRoom}
 				aria-label={`${MASCOT_DISPLAY_NAME}のおうち`}
 				aria-busy
 			>

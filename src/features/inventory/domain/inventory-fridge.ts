@@ -337,3 +337,22 @@ export function buildInventoryFridge(
 		tiles: (tilesByZone.get(zone.id) ?? []).sort(compareTiles),
 	}));
 }
+
+// ない在庫（量が 0／数えない食材の「なし」）。
+export function isOutOfStockTile(tile: InventoryTile): boolean {
+	return tile.isEmpty || (tile.trackingMode === "presence" && !tile.isPresent);
+}
+
+// ない在庫を、場所ごとの一覧から除く。keepItemId の食材は、ない在庫でも残す
+// （パネルで使い切った直後に、開いている食材の行が、目の前から消えないように）。
+export function hideOutOfStockTiles(
+	zones: readonly InventoryFridgeZone[],
+	keepItemId: string | null,
+): InventoryFridgeZone[] {
+	return zones.map((zone) => ({
+		...zone,
+		tiles: zone.tiles.filter(
+			(tile) => tile.inventoryItemId === keepItemId || !isOutOfStockTile(tile),
+		),
+	}));
+}

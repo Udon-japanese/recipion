@@ -18,6 +18,7 @@ import {
 } from "../domain/inventory-lot";
 import {
 	inventoryGroupByStorage,
+	inventoryHideEmptyStorage,
 	inventoryPetStorage,
 	inventoryViewStorage,
 } from "../infrastructure/inventory-view-storage";
@@ -552,6 +553,67 @@ describe("InventoryList", () => {
 		await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
 		await waitFor(() =>
 			expect(screen.getByRole("button", { name: /^卵、/u })).toHaveFocus(),
+		);
+	});
+
+	it("ない在庫をかくす・出すを、ボタン1つで切り替え、選んだものを覚える", async () => {
+		const user = userEvent.setup();
+
+		renderList([
+			stocked({ inventoryItemId: "egg", name: "卵", quantity: 6 }),
+			buildInventoryListItem({
+				inventoryItemId: "milk",
+				name: "牛乳",
+				quantity: 0,
+				lots: [],
+			}),
+		]);
+
+		await screen.findByRole("button", { name: /^牛乳、/u });
+		await user.click(screen.getByRole("button", { name: "ない在庫をかくす" }));
+
+		expect(screen.queryByRole("button", { name: /^牛乳、/u })).toBeNull();
+		expect(screen.getByRole("button", { name: /^卵、/u })).toBeInTheDocument();
+		expect(inventoryHideEmptyStorage.read()).toBe(true);
+
+		await user.click(screen.getByRole("button", { name: "ない在庫を出す" }));
+
+		expect(
+			screen.getByRole("button", { name: /^牛乳、/u }),
+		).toBeInTheDocument();
+	});
+
+	it("ない在庫をかくしていても、パネルで使い切った食材は、パネルを閉じるまで残る", async () => {
+		const user = userEvent.setup();
+		const adjustInventoryItem = vi.fn().mockResolvedValue({
+			status: "applied",
+			transactionId: "71af9bc7-03ed-4df4-a783-a45e743a81f7",
+			quantity: 0,
+			lots: [],
+		});
+
+		inventoryHideEmptyStorage.write(true);
+		renderList(
+			[
+				stocked({
+					inventoryItemId: "1fc94e80-a9cf-4458-b0e6-3d72550cce06",
+					quantity: 1,
+				}),
+			],
+			{ adjustInventoryItem },
+		);
+
+		const dialog = await openPanel(user, "卵");
+
+		await user.click(within(dialog).getByRole("button", { name: "使った" }));
+		await within(dialog).findByText("0個");
+
+		expect(screen.getByRole("button", { name: /^卵、/u })).toBeInTheDocument();
+
+		await user.click(within(dialog).getByRole("button", { name: "閉じる" }));
+
+		await waitFor(() =>
+			expect(screen.queryByRole("button", { name: /^卵、/u })).toBeNull(),
 		);
 	});
 

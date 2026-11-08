@@ -5,10 +5,13 @@ export const container = style({
 	gap: 16,
 	minWidth: 0,
 	"@media": {
-		// スマホ：一番下まで送ったとき、最後の行の操作が、右下の＋（在庫に追加）に重ならないよう、
+		// スマホのリスト：一番下まで送ったとき、最後の行の操作が、右下の＋（在庫に追加）に重ならないよう、
 		// その高さ（56）と間（16）の分を空ける（買い物メモと同じ考え方。PC は＋を出さないので空けない）。
+		// おうちの表示は、＋を絵の上の操作の段に置くので、空けない（絵を画面いっぱいに広げる）。
 		"(max-width: 767px)": {
-			paddingBottom: 56 + 16,
+			selectors: {
+				'&:not([data-view="scene"])': { paddingBottom: 56 + 16 },
+			},
 		},
 	},
 });
@@ -51,6 +54,34 @@ export const addButton = style({
 	display: "none",
 	"@media": {
 		"(min-width: 768px)": { display: "block" },
+	},
+});
+
+// おうちの表示の「在庫に追加」（スマホだけ。PC は、文字つきの addButton）。
+// 絵の上の操作の段（右上）に、ほかの丸いボタンと並べる。
+export const sceneAddButton = style({
+	display: "grid",
+	placeItems: "center",
+	boxSizing: "border-box",
+	width: 44,
+	height: 44,
+	padding: 0,
+	color: "var(--color-on-primary)",
+	background: "var(--color-primary)",
+	border: "none",
+	borderRadius: "50%",
+	boxShadow: "var(--shadow-sm)",
+	cursor: "pointer",
+	transition: "transform var(--duration-fast) var(--ease-standard)",
+	selectors: {
+		"&:active": { transform: "scale(0.94)" },
+		"&:focus-visible": {
+			outline: "3px solid var(--color-focus)",
+			outlineOffset: 3,
+		},
+	},
+	"@media": {
+		"(min-width: 768px)": { display: "none" },
 	},
 });
 
