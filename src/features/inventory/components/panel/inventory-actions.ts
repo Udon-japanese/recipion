@@ -9,8 +9,6 @@ import type {
 	RenameInventoryItemResult,
 } from "../../application/inventory-item-management-repository";
 import type {
-	SetLotQuantityCommand,
-	SetLotQuantityResult,
 	UpdateInventoryLotCommand,
 	UpdateInventoryLotResult,
 } from "../../application/inventory-lot-repository";
@@ -30,9 +28,6 @@ export type InventoryActions = {
 	changeTrackingMode?: (
 		command: ChangeInventoryTrackingModeCommand,
 	) => Promise<ChangeInventoryTrackingModeResult>;
-	setLotQuantity?: (
-		command: SetLotQuantityCommand,
-	) => Promise<SetLotQuantityResult>;
 	changeStockUnit?: (
 		command: ChangeStockUnitCommand,
 	) => Promise<ChangeStockUnitResult>;

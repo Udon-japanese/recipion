@@ -731,67 +731,6 @@ describe("InventoryList", () => {
 			expect(lots.getByText("3個")).toBeInTheDocument();
 		});
 
-		it("入れた分を指定して減らすと、ロットごとの数量を送り、結果を表示する", async () => {
-			const user = userEvent.setup();
-			const adjustInventoryItem = vi.fn().mockResolvedValue({
-				status: "applied",
-				transactionId: "71af9bc7-03ed-4df4-a783-a45e743a81f7",
-				quantity: 3,
-				lots: [
-					createLot({ id: lotA, quantity: 1, acquiredOn: "2026-10-01" }),
-					createLot({ id: lotB, quantity: 2, acquiredOn: "2026-10-03" }),
-				],
-			});
-
-			renderList([eggItem], { adjustInventoryItem });
-
-			const dialog = await openPanel(user, "卵");
-
-			await user.click(
-				within(dialog).getByRole("button", { name: "入れた分ごとに減らす" }),
-			);
-			await user.type(
-				screen.getByLabelText("10/1に入れた分から減らす数量"),
-				"1",
-			);
-			await user.type(
-				screen.getByLabelText("10/3に入れた分から減らす数量"),
-				"1",
-			);
-			await user.click(within(dialog).getByRole("button", { name: "使った" }));
-
-			await waitFor(() =>
-				expect(adjustInventoryItem).toHaveBeenCalledWith(
-					expect.objectContaining({
-						operation: "decrease",
-						inputQuantity: 2,
-						allocations: [
-							{ lotId: lotA, quantity: 1 },
-							{ lotId: lotB, quantity: 1 },
-						],
-					}),
-				),
-			);
-			expect(
-				await within(await screen.findByRole("dialog")).findByText("3個"),
-			).toBeInTheDocument();
-		});
-
-		it("ロットが1つだけなら、入れた分ごとに減らす切り替えは出さない", async () => {
-			const user = userEvent.setup();
-
-			renderList(
-				[{ ...eggItem, quantity: 2, lots: eggItem.lots.slice(0, 1) }],
-				{ adjustInventoryItem: vi.fn() },
-			);
-
-			const dialog = await openPanel(user, "卵");
-
-			expect(
-				within(dialog).queryByRole("button", { name: "入れた分ごとに減らす" }),
-			).toBeNull();
-		});
-
 		it("期限と保存方法を表示する（目安は「約」付き）。期限の近いロットを先に並べる", async () => {
 			const user = userEvent.setup();
 
@@ -1438,25 +1377,33 @@ describe("InventoryList", () => {
 		});
 	});
 
-	describe("ロットごとの数量を直す", () => {
+	describe("入れた分ごとの量を、使った・買い足したで増減する", () => {
 		function milk() {
 			return buildInventoryListItem({
-				inventoryItemId: "milk",
+				inventoryItemId: "2b6a4f10-6c1d-4e2a-9b1f-0c7d5e3a9f01",
 				name: "牛乳",
 				quantity: 500,
 				stockUnitCode: "ml",
 				stockUnitLabel: "ml",
-				lots: [createLot({ id: "lot-1", quantity: 500 })],
+				lots: [createLot({ id: lotA, quantity: 500 })],
 			});
 		}
 
-		it("ロットの数量を直接直せる。有無だけの食材には、出さない", async () => {
+		function applied(quantity: number) {
+			return {
+				status: "applied",
+				transactionId: "71af9bc7-03ed-4df4-a783-a45e743a81f7",
+				quantity,
+				lots: [createLot({ id: lotA, quantity })],
+			};
+		}
+
+		it("入れた分の編集で「使った」「買い足した」を押すと、その分だけを増減して、編集は開いたまま。有無だけの食材には、量の欄を出さない", async () => {
 			const user = userEvent.setup();
-			const setLotQuantity = vi.fn().mockResolvedValue({
-				inventoryItemId: "milk",
-				quantity: 300,
-				lots: [createLot({ id: "lot-1", quantity: 300 })],
-			});
+			const adjustInventoryItem = vi
+				.fn()
+				.mockResolvedValueOnce(applied(300))
+				.mockResolvedValueOnce(applied(350));
 
 			renderList(
 				[
@@ -1469,16 +1416,17 @@ describe("InventoryList", () => {
 						lots: [createLot({ id: "lot-2", quantity: 1 })],
 					}),
 				],
-				{ setLotQuantity },
+				{ adjustInventoryItem, updateInventoryLot: vi.fn() },
 			);
 
 			const oilDialog = await openPanel(user, "オリーブオイル");
 
-			// 有無だけの食材は、直す欄に、数量がない。
 			await user.click(
 				within(oilDialog).getByRole("button", { name: "10/1に入れた分を直す" }),
 			);
-			expect(screen.queryByLabelText("10/1に入れた分の数量")).toBeNull();
+			expect(
+				screen.queryByLabelText("10/1に入れた分の使った量・買い足した量"),
+			).toBeNull();
 			expect(screen.getByLabelText("期限")).toBeInTheDocument();
 
 			// 編集は、シートの中身を切り替えて出す。「戻る」で本体に戻り、「閉じる」でパネルを閉じる。
@@ -1496,44 +1444,104 @@ describe("InventoryList", () => {
 			await user.click(
 				within(dialog).getByRole("button", { name: "10/1に入れた分を直す" }),
 			);
-			await user.clear(screen.getByLabelText("10/1に入れた分の数量"));
-			await user.type(screen.getByLabelText("10/1に入れた分の数量"), "300");
-			await user.click(screen.getByRole("button", { name: "保存" }));
 
-			expect(setLotQuantity).toHaveBeenCalledWith({
-				lotId: "lot-1",
-				quantity: 300,
-			});
+			const amount = screen.getByLabelText(
+				"10/1に入れた分の使った量・買い足した量",
+			);
+
+			await user.type(amount, "200");
+			await user.click(screen.getByRole("button", { name: "使った" }));
+
+			await waitFor(() =>
+				expect(adjustInventoryItem).toHaveBeenLastCalledWith(
+					expect.objectContaining({
+						operation: "decrease",
+						inputQuantity: 200,
+						allocations: [{ lotId: lotA, quantity: 200 }],
+					}),
+				),
+			);
 			expect(await screen.findAllByText("300ml")).not.toHaveLength(0);
+			// 編集は開いたまま、欄は空に戻る。
+			expect(amount).toHaveValue("");
+
+			await user.type(amount, "50");
+			await user.click(screen.getByRole("button", { name: "買い足した" }));
+
+			await waitFor(() =>
+				expect(adjustInventoryItem).toHaveBeenLastCalledWith(
+					expect.objectContaining({
+						operation: "increase",
+						inputQuantity: 50,
+						allocations: [{ lotId: lotA, quantity: 50 }],
+					}),
+				),
+			);
 		});
 
-		it("数量が読めないときは送らず、失敗したときはエラーを出す", async () => {
+		it("量が読めないときは送らず、失敗したときはエラーを出す", async () => {
 			const user = userEvent.setup();
-			const setLotQuantity = vi.fn().mockRejectedValue(new Error("failed"));
+			const adjustInventoryItem = vi
+				.fn()
+				.mockRejectedValue(new Error("failed"));
 
-			renderList([milk()], { setLotQuantity });
+			renderList([milk()], { adjustInventoryItem });
 
 			const dialog = await openPanel(user, "牛乳");
 
 			await user.click(
 				within(dialog).getByRole("button", { name: "10/1に入れた分を直す" }),
 			);
-			await user.clear(screen.getByLabelText("10/1に入れた分の数量"));
-			await user.type(screen.getByLabelText("10/1に入れた分の数量"), "abc");
-			await user.click(screen.getByRole("button", { name: "保存" }));
+
+			const amount = screen.getByLabelText(
+				"10/1に入れた分の使った量・買い足した量",
+			);
+
+			await user.type(amount, "abc");
+			await user.click(screen.getByRole("button", { name: "使った" }));
 
 			expect(await screen.findByRole("alert")).toHaveTextContent("数量を確認");
-			expect(setLotQuantity).not.toHaveBeenCalled();
+			expect(adjustInventoryItem).not.toHaveBeenCalled();
 
-			await user.clear(screen.getByLabelText("10/1に入れた分の数量"));
-			await user.type(screen.getByLabelText("10/1に入れた分の数量"), "100");
-			await user.click(screen.getByRole("button", { name: "保存" }));
+			await user.clear(amount);
+			await user.type(amount, "100");
+			await user.click(screen.getByRole("button", { name: "使った" }));
 
 			await waitFor(() =>
 				expect(screen.getByRole("alert")).toHaveTextContent(
-					"数量を直せませんでした",
+					"在庫数量を変更できませんでした",
 				),
 			);
+		});
+
+		it("打った量を覚えて、次から、量の欄のチップに出す（押すと、その量が入る）", async () => {
+			const user = userEvent.setup();
+			const adjustInventoryItem = vi.fn().mockResolvedValue(applied(300));
+
+			renderList([milk()], { adjustInventoryItem });
+
+			const dialog = await openPanel(user, "牛乳");
+			const amount = within(dialog).getByRole("textbox", {
+				name: "牛乳の使った量・買い足した量",
+			});
+
+			expect(
+				within(dialog).queryByRole("button", {
+					name: "前に打った量：200mlにする",
+				}),
+			).toBeNull();
+
+			await user.type(amount, "200");
+			await user.click(within(dialog).getByRole("button", { name: "使った" }));
+			await waitFor(() => expect(amount).toHaveValue(""));
+
+			await user.click(
+				within(dialog).getByRole("button", {
+					name: "前に打った量：200mlにする",
+				}),
+			);
+
+			expect(amount).toHaveValue("200");
 		});
 	});
 });

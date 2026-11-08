@@ -15,6 +15,7 @@ import type { ChangeInventoryTrackingModeCommand } from "../../application/inven
 import type { InventoryOperation } from "../../domain/apply-inventory-adjustment";
 import { type InventoryLot, toDateString } from "../../domain/inventory-lot";
 import type { InventoryTrackingMode } from "../../domain/inventory-tracking-mode";
+import { rememberAmount } from "../../infrastructure/amount-memory-storage";
 import { recordExpiryHint } from "../../infrastructure/expiry-hints-storage";
 import type { ExpiryFieldsValue } from "../expiry-fields";
 import type { InventoryActions } from "./inventory-actions";
@@ -76,10 +77,6 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 	const [adjustQuantity, setAdjustQuantity] = useState(() =>
 		initialQuantityInput(item.stockUnitLabel),
 	);
-	const [isLotSpecified, setIsLotSpecified] = useState(false);
-	const [adjustLotQuantities, setAdjustLotQuantities] = useState<
-		Record<string, string>
-	>({});
 	// 単位
 	const [unitOption, setUnitOption] = useState("");
 	const [unitLotQuantities, setUnitLotQuantities] = useState<
@@ -207,44 +204,35 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 	}
 
 	// ---- 実行 ----
-	async function adjust(operation: InventoryOperation): Promise<boolean> {
+	// 「使った」「買い足した」。lot を渡すと、その入れた分だけを増減する（入れた分の編集）。
+	// 成功したら、打った量を、次のチップのために覚える。
+	async function adjust(
+		operation: InventoryOperation,
+		quantityText: string,
+		lot?: InventoryLot,
+	): Promise<boolean> {
 		const { adjustInventoryItem } = actions;
 
 		if (!adjustInventoryItem) {
 			return false;
 		}
 
-		// ロットを指定して減らすときは、数量が入っているロットだけを、そのまま送る。
-		const allocations =
-			operation === "decrease" && isLotSpecified
-				? item.lots.flatMap((lot) => {
-						const quantity =
-							parseQuantityInput(adjustLotQuantities[lot.id] ?? "") ?? 0;
+		const quantity = parseQuantityInput(quantityText);
 
-						return quantity > 0 ? [{ lotId: lot.id, quantity }] : [];
-					})
-				: undefined;
-
-		if (allocations && allocations.length === 0) {
-			setErrorMessage("減らすロットの数量を入力してください");
+		if (quantity === null || !(quantity > 0)) {
+			setErrorMessage(quantityError);
 
 			return false;
 		}
 
-		// 量の欄は、パネルの本体にある。成功したら、次の入力のために、はじめの値に戻す。
-		const done = await attempt("在庫数量を変更できませんでした", async () => {
+		return attempt("在庫数量を変更できませんでした", async () => {
 			const result = await adjustInventoryItem(
 				createManualInventoryAdjustment({
 					inventoryItemId: item.inventoryItemId,
-					quantity: allocations
-						? allocations.reduce(
-								(sum, allocation) => sum + allocation.quantity,
-								0,
-							)
-						: (parseQuantityInput(adjustQuantity) ?? Number.NaN),
+					quantity,
 					stockUnitCode: item.stockUnitCode,
 					operation,
-					allocations,
+					allocations: lot ? [{ lotId: lot.id, quantity }] : undefined,
 				}),
 			);
 
@@ -252,12 +240,20 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 				quantity: result.quantity,
 				lots: result.lots,
 			});
+			rememberAmount({
+				ingredientName: item.name,
+				stockUnitLabel: item.stockUnitLabel,
+				amount: quantity,
+			});
 		});
+	}
+
+	// パネルの本体の量の欄。成功したら、次の入力のために、はじめの値に戻す。
+	async function adjustItem(operation: InventoryOperation): Promise<boolean> {
+		const done = await adjust(operation, adjustQuantity);
 
 		if (done) {
 			setAdjustQuantity(initialQuantityInput(item.stockUnitLabel));
-			setIsLotSpecified(false);
-			setAdjustLotQuantities({});
 		}
 
 		return done;
@@ -288,90 +284,58 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 		});
 	}
 
-	// 内訳の1行を、その場で直す（数量・期限・期限の種類・保存方法・食材の初期値）。直した項目だけを、送る。
+	// 内訳の1行の期限・期限の種類・保存方法・食材の初期値を、その場で直す（量は、adjust で増減する）。
 	// 保存したあとも、パネルは、本体のまま。
 	async function saveLotEdits(
 		lot: InventoryLot,
 		edits: {
-			quantityText?: string;
-			expiry?: ExpiryFieldsValue;
-			saveAsDefault?: boolean;
+			expiry: ExpiryFieldsValue;
+			saveAsDefault: boolean;
 		},
 	): Promise<boolean> {
-		const { setLotQuantity, updateInventoryLot } = actions;
-		let quantity: number | undefined;
+		const { updateInventoryLot } = actions;
 
-		if (edits.quantityText !== undefined) {
-			if (!setLotQuantity) {
-				return false;
-			}
-
-			const parsed = parseQuantityInput(edits.quantityText);
-
-			if (parsed === null) {
-				setErrorMessage(quantityError);
-
-				return false;
-			}
-
-			quantity = parsed;
-		}
-
-		if (edits.expiry && !updateInventoryLot) {
+		if (!updateInventoryLot) {
 			return false;
 		}
 
-		return attempt(
-			edits.expiry ? "内訳を直せませんでした" : "数量を直せませんでした",
-			async () => {
-				if (quantity !== undefined && setLotQuantity) {
-					const result = await setLotQuantity({ lotId: lot.id, quantity });
+		return attempt("内訳を直せませんでした", async () => {
+			const expiry = edits.expiry;
+			const isDateChanged = expiry.expiresOn !== (lot.expiresOn ?? "");
+			const result = await updateInventoryLot({
+				lotId: lot.id,
+				expiresOn: expiry.expiresOn === "" ? null : expiry.expiresOn,
+				// 日付を直したときは、入力（期限の欄が決める）。直していないときは、これまでの出所のまま。
+				expirySource:
+					expiry.expiresOn === "" || expiry.expirySource === ""
+						? null
+						: expiry.expirySource,
+				expiryKind: expiry.expiryKind === "" ? null : expiry.expiryKind,
+				storage: expiry.storage === "" ? null : expiry.storage,
+				saveAsIngredientDefault: edits.saveAsDefault,
+			});
 
-					onUpdate(item.inventoryItemId, {
-						quantity: result.quantity,
-						lots: result.lots,
-					});
-				}
+			onUpdate(item.inventoryItemId, {
+				quantity: result.quantity,
+				lots: result.lots,
+				defaultExpiryKind: result.defaultExpiryKind,
+				defaultStorage: result.defaultStorage,
+			});
 
-				if (edits.expiry && updateInventoryLot) {
-					const expiry = edits.expiry;
-					const isDateChanged = expiry.expiresOn !== (lot.expiresOn ?? "");
-					const result = await updateInventoryLot({
-						lotId: lot.id,
-						expiresOn: expiry.expiresOn === "" ? null : expiry.expiresOn,
-						// 日付を直したときは、入力（期限の欄が決める）。直していないときは、これまでの出所のまま。
-						expirySource:
-							expiry.expiresOn === "" || expiry.expirySource === ""
-								? null
-								: expiry.expirySource,
-						expiryKind: expiry.expiryKind === "" ? null : expiry.expiryKind,
-						storage: expiry.storage === "" ? null : expiry.storage,
-						saveAsIngredientDefault: edits.saveAsDefault ?? false,
-					});
-
-					onUpdate(item.inventoryItemId, {
-						quantity: result.quantity,
-						lots: result.lots,
-						defaultExpiryKind: result.defaultExpiryKind,
-						defaultStorage: result.defaultStorage,
-					});
-
-					// 入力した期限は、次の目安のために、覚える。
-					if (
-						isDateChanged &&
-						expiry.expiresOn !== "" &&
-						expiry.expirySource === "entered"
-					) {
-						recordExpiryHint({
-							ingredientName: item.name,
-							acquiredOn: lot.acquiredOn,
-							expiresOn: expiry.expiresOn,
-							storage: expiry.storage === "" ? null : expiry.storage,
-						});
-					}
-				}
-			},
-		);
+			// 入力した期限は、次の目安のために、覚える。
+			if (
+				isDateChanged &&
+				expiry.expiresOn !== "" &&
+				expiry.expirySource === "entered"
+			) {
+				recordExpiryHint({
+					ingredientName: item.name,
+					acquiredOn: lot.acquiredOn,
+					expiresOn: expiry.expiresOn,
+					storage: expiry.storage === "" ? null : expiry.storage,
+				});
+			}
+		});
 	}
 
 	async function changeUnit(): Promise<boolean> {
@@ -530,11 +494,6 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 		adjustForm: {
 			quantity: adjustQuantity,
 			setQuantity: setAdjustQuantity,
-			isLotSpecified,
-			setIsLotSpecified,
-			lotQuantities: adjustLotQuantities,
-			setLotQuantity: (lotId: string, value: string) =>
-				setAdjustLotQuantities((current) => ({ ...current, [lotId]: value })),
 		},
 		unitForm: {
 			option: unitOption,
@@ -556,7 +515,12 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 			tracking: openTracking,
 		},
 		run: {
-			adjust,
+			adjustItem,
+			adjustLot: (
+				lot: InventoryLot,
+				operation: InventoryOperation,
+				quantityText: string,
+			) => adjust(operation, quantityText, lot),
 			togglePresence,
 			saveLotEdits,
 			changeUnit,

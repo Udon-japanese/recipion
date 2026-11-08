@@ -2,9 +2,15 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
-import { QuantityInput } from "./quantity-input";
+import { QuantityInput, type QuantityPresetButton } from "./quantity-input";
 
-function Harness({ unitLabel }: { unitLabel?: string }) {
+function Harness({
+	unitLabel,
+	presetButtons,
+}: {
+	unitLabel?: string;
+	presetButtons?: QuantityPresetButton[];
+}) {
 	const [value, setValue] = useState("");
 
 	return (
@@ -15,6 +21,7 @@ function Harness({ unitLabel }: { unitLabel?: string }) {
 				value={value}
 				onChange={setValue}
 				unitLabel={unitLabel}
+				presetButtons={presetButtons}
 			/>
 		</>
 	);
@@ -85,5 +92,35 @@ describe("QuantityInput", () => {
 			expect(screen.queryAllByRole("button")).toHaveLength(0);
 			unmount();
 		}
+	});
+
+	it("決まった値のボタンを、単位のボタンの前に出し、同じ値の単位のボタンは重ねて出さない", async () => {
+		const user = userEvent.setup();
+
+		render(
+			<Harness
+				unitLabel="本"
+				presetButtons={[
+					{ label: "今ある分", value: "2" },
+					{
+						label: "1/2本",
+						value: "1/2",
+						ariaLabel: "前に打った量：1/2本にする",
+					},
+				]}
+			/>,
+		);
+
+		const labels = screen
+			.getAllByRole("button")
+			.map((button) => button.textContent);
+
+		expect(labels).toEqual(["今ある分", "1/2本", "1/3", "2/3"]);
+
+		await user.click(
+			screen.getByRole("button", { name: "前に打った量：1/2本にする" }),
+		);
+
+		expect(screen.getByLabelText("数量")).toHaveValue("1/2");
 	});
 });

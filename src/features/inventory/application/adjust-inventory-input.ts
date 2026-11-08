@@ -45,9 +45,13 @@ export function parseAdjustInventoryInput(
 ): InventoryAdjustmentCommand {
 	const command = v.parse(adjustInventoryInputSchema, input);
 
-	// ロットの指定は、減らすときだけ。
-	if (command.allocations && command.operation !== "decrease") {
-		throw new UserFacingError("ロットを指定できるのは、減らすときだけです");
+	// ロットを指定して増やすのは、入れた分の編集から、1つのロットに足すときだけ。
+	if (
+		command.allocations &&
+		command.operation === "increase" &&
+		(command.allocations.length !== 1 || command.lot)
+	) {
+		throw new UserFacingError("増やすときに指定できるロットは、1つだけです");
 	}
 
 	if (command.lot && command.operation !== "increase") {

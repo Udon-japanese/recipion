@@ -46,7 +46,7 @@ it("PC では、入れた分の編集を、食材のパネルの横に、重な�
 				cacheReason: null,
 				cachedAt: null,
 			})}
-			setLotQuantity={vi.fn()}
+			adjustInventoryItem={vi.fn()}
 		/>,
 	);
 
@@ -75,7 +75,7 @@ it("食材のパネルを動かすと、横の編集も、付いて動く", asyn
 				cacheReason: null,
 				cachedAt: null,
 			})}
-			setLotQuantity={vi.fn()}
+			adjustInventoryItem={vi.fn()}
 		/>,
 	);
 

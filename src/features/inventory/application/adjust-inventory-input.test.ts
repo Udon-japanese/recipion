@@ -38,4 +38,31 @@ describe("parseAdjustInventoryInput", () => {
 			}),
 		).toThrow("数量は0より大きい数にしてください");
 	});
+
+	it("増やすときのロットの指定は、1つだけ受け付ける（入れた分の編集の「買い足した」）", () => {
+		const lotId = "6b1d4f0e-0a0e-4c85-9a3f-111111111111";
+		const otherLotId = "6b1d4f0e-0a0e-4c85-9a3f-222222222222";
+		const increase = {
+			...validInput,
+			reason: "manual-adjustment" as const,
+			sourceType: undefined,
+			sourceId: undefined,
+		};
+
+		expect(
+			parseAdjustInventoryInput({
+				...increase,
+				allocations: [{ lotId, quantity: 6 }],
+			}).allocations,
+		).toEqual([{ lotId, quantity: 6 }]);
+		expect(() =>
+			parseAdjustInventoryInput({
+				...increase,
+				allocations: [
+					{ lotId, quantity: 3 },
+					{ lotId: otherLotId, quantity: 3 },
+				],
+			}),
+		).toThrow("増やすときに指定できるロットは、1つだけです");
+	});
 });
