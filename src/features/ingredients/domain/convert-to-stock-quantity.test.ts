@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { convertToStockQuantity } from "./convert-to-stock-quantity";
+import {
+	convertAmountToStockQuantity,
+	convertToStockQuantity,
+} from "./convert-to-stock-quantity";
 import { findIngredientCatalogEntry } from "./ingredient-catalog";
 
 function entryOf(name: string) {
@@ -184,5 +187,58 @@ describe("convertToStockQuantity：在庫の単位の呼び名（本・玉・枚
 				),
 			).toBe(2);
 		}
+	});
+});
+
+describe("convertAmountToStockQuantity（括弧の言い換え）", () => {
+	const chickenThigh = findIngredientCatalogEntry("鶏もも肉");
+
+	it.each([
+		{
+			title:
+				"在庫が g なら、「1枚(300g)」は書いてある 300g で比べる（カタログの目安の 250g を使わない）",
+			amount: {
+				quantity: 1,
+				unitLabel: "枚",
+				alternate: { quantity: 300, unitLabel: "g" },
+			},
+			stock: { stockUnitCode: "g" as const },
+			expected: 300,
+		},
+		{
+			title:
+				"在庫が枚なら、「300g(2枚)」は書いてある 2枚で比べる（カタログなら 1.2枚）",
+			amount: {
+				quantity: 300,
+				unitLabel: "g",
+				alternate: { quantity: 2, unitLabel: "枚" },
+			},
+			stock: { stockUnitCode: "count" as const, stockUnitLabel: "枚" },
+			expected: 2,
+		},
+		{
+			title: "どちらもそのまま比べられるなら、主の分量",
+			amount: {
+				quantity: 300,
+				unitLabel: "g",
+				alternate: { quantity: 0.3, unitLabel: "kg" },
+			},
+			stock: { stockUnitCode: "g" as const },
+			expected: 300,
+		},
+		{
+			title: "言い換えがなければ、今までどおりカタログで換算する",
+			amount: { quantity: 1, unitLabel: "枚" },
+			stock: { stockUnitCode: "g" as const },
+			expected: convertToStockQuantity(
+				{ quantity: 1, unitLabel: "枚", stockUnitCode: "g" },
+				chickenThigh,
+			),
+		},
+	])("$title", ({ amount, stock, expected }) => {
+		expect(expected).not.toBeNull();
+		expect(convertAmountToStockQuantity(amount, stock, chickenThigh)).toBe(
+			expected,
+		);
 	});
 });

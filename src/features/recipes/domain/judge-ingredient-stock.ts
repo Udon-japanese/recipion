@@ -1,14 +1,17 @@
-import { convertToStockQuantity } from "#/features/ingredients/domain/convert-to-stock-quantity";
+import { convertAmountToStockQuantity } from "#/features/ingredients/domain/convert-to-stock-quantity";
 import {
 	findIngredientCatalogEntry,
 	type IngredientStockUnitCode,
 } from "#/features/ingredients/domain/ingredient-catalog";
+import type { AlternateAmount } from "#/features/ingredients/domain/parse-ingredient-line";
 
 export type RecipeIngredientNeed = {
 	name: string;
 	// 「少々」「適量」「60~70g」など、数量にできない分量は null。
 	quantity: number | null;
 	unitLabel: string | null;
+	// 分量の言い換え（「1枚(250g)」の 250g）。在庫の単位と、そのまま比べられるときに使う。
+	alternate?: AlternateAmount | null;
 };
 
 export type IngredientStock = {
@@ -54,13 +57,9 @@ export function judgeIngredientStock(
 
 	const requiredQuantity =
 		stock !== null && need.quantity !== null && !isPresenceOnly
-			? convertToStockQuantity(
-					{
-						quantity: need.quantity,
-						unitLabel: need.unitLabel,
-						stockUnitCode: stock.stockUnitCode,
-						stockUnitLabel: stock.stockUnitLabel,
-					},
+			? convertAmountToStockQuantity(
+					need,
+					stock,
 					findIngredientCatalogEntry(need.name),
 				)
 			: null;

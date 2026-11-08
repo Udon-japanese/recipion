@@ -1,7 +1,10 @@
 // 人数を変えたときの、材料の分量の丸め方（表示用）。買い物と「つくった」の数量は、丸めずに計算する。
 import {
+	type AlternateAmount,
 	type AmountRange,
+	parseAlternateAmount,
 	parseAmountRange,
+	splitAmountText,
 } from "#/features/ingredients/domain/parse-ingredient-line";
 import { describeAmount, describeAmountRange } from "./merge-recipe-needs";
 import { weightedRatio } from "./scale-weight";
@@ -90,8 +93,61 @@ export function describeScaledAmountRange(
 	return `${prefix}${describeAmountRange({ min, max }, unitLabel)}`;
 }
 
+// 分量の言い換えに、割合を掛ける（範囲は、下限と上限を掛ける）。数量は丸めない。
+export function scaleAlternateAmount(
+	alternate: AlternateAmount,
+	ratio: number,
+): AlternateAmount {
+	const round = (value: number) => Number(value.toFixed(6));
+
+	return {
+		...alternate,
+		quantity:
+			alternate.quantity === null ? null : round(alternate.quantity * ratio),
+		range: alternate.range
+			? {
+					min: round(alternate.range.min * ratio),
+					max: round(alternate.range.max * ratio),
+				}
+			: null,
+	};
+}
+
+// 割合を掛けた分量の、括弧の補足（なければ空）。言い換え（「1枚(250g)」の「(250g)」）は同じ割合で掛け、
+// それ以外の補足（「1丁(木綿)」の「(木綿)」）は、割合と関係ないので、そのまま付ける。
+export function scaleAmountSupplement(
+	amountText: string | null,
+	ratio: number,
+): string {
+	if (amountText === null) {
+		return "";
+	}
+
+	const { supplement } = splitAmountText(amountText.normalize("NFKC"));
+
+	if (supplement === null) {
+		return "";
+	}
+
+	const alternate = parseAlternateAmount(amountText);
+
+	if (alternate === null) {
+		return supplement;
+	}
+
+	const scaled = scaleAlternateAmount(alternate, ratio);
+
+	if (scaled.quantity !== null) {
+		return `(${describeScaledAmount(scaled.quantity, scaled.unitLabel)})`;
+	}
+
+	return scaled.range
+		? `(${describeScaledAmountRange(scaled.range, scaled.unitLabel)})`
+		: supplement;
+}
+
 // 材料の行に出す分量（割合が1なら、原文のまま）。数量にできない分量（少々・適量）も、原文のまま。
-// 原文に括弧の補足（「1丁(300g)」）があれば、計算した分量のあとに、元の分量を添える。
+// 原文に括弧の補足があれば、計算した分量のあとに付ける（言い換えの「(300g)」は、同じ割合で掛ける）。
 export function scaleIngredientAmountText(
 	item: {
 		quantity: number | null;
@@ -125,5 +181,5 @@ export function scaleIngredientAmountText(
 		return amountText;
 	}
 
-	return /[(（]/u.test(amountText) ? `${scaled}（元：${amountText}）` : scaled;
+	return `${scaled}${scaleAmountSupplement(amountText, ratio)}`;
 }

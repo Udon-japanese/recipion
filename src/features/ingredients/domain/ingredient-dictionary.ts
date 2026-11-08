@@ -72,20 +72,47 @@ export function createIngredientDictionary(
 	};
 }
 
-// 照合に使う名前：辞書にあれば代表の名前、なければ、そのまま（辞書がなければ、今までどおり）。
+// 名前の終わりの、括弧つきの説明（「鶏もも肉(大きめ)」の「(大きめ)」）。
+const trailingNotePattern = /^(?<base>.+?)\s*\([^()]*\)$/u;
+
+// 名前そのままで、辞書かカタログにあれば、その名前（辞書は代表の名前）。なければ undefined。
+function findKnownName(
+	name: string,
+	dictionary: IngredientDictionary | undefined,
+): string | undefined {
+	return (
+		dictionary?.findCanonicalName(name) ??
+		(findIngredientCatalogEntry(name) ? name : undefined)
+	);
+}
+
+// 照合に使う名前：辞書にあれば代表の名前、カタログにあれば、そのまま。
+// どちらにもなく、名前が括弧で終わるとき（「鶏もも肉(大きめ)」）は、括弧を除いた名前で探す。
+// 括弧ごとで1つの名前（「冷凍玉ねぎ(みじん切り)」）は、先に名前そのままで当たる。どこにも当たらなければ、そのまま。
 export function toCanonicalIngredientName(
 	name: string,
 	dictionary: IngredientDictionary | undefined,
 ): string {
-	return dictionary?.findCanonicalName(name) ?? name;
+	const known = findKnownName(name, dictionary);
+
+	if (known !== undefined) {
+		return known;
+	}
+
+	const base = name.normalize("NFKC").match(trailingNotePattern)?.groups?.base;
+
+	return (base && findKnownName(base, dictionary)) || name;
 }
 
-// 「管理しない」材料か（辞書がなければ、どれも管理する）。
+// 「管理しない」材料か（辞書がなければ、どれも管理する）。名前の括弧の説明は、照合の名前と同じく除いて見る。
 export function isUnmanagedIngredient(
 	name: string,
 	dictionary: IngredientDictionary | undefined,
 ): boolean {
-	return dictionary?.isUnmanaged(name) ?? false;
+	return (
+		dictionary?.isUnmanaged(toCanonicalIngredientName(name, dictionary)) ??
+		false
+	);
 }
 
 // 食材が自分で足した呼び名（カタログの別名を除く）。設定に出し、消せるのは、これだけ。

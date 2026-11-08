@@ -510,6 +510,42 @@ describe("範囲の分量（60~70g）", () => {
 	});
 });
 
+describe("材料の行の括弧", () => {
+	it("名前の括弧の説明を除いて在庫を見つけ、分量の括弧の言い換え（300g）で、g の在庫と比べる", () => {
+		const needs = flattenRecipeIngredients([
+			{
+				type: "ingredient",
+				id: "1",
+				status: "parsed",
+				rawText: "鶏もも肉(大きめ) 1枚(300g)",
+				name: "鶏もも肉(大きめ)",
+				amountText: "1枚(300g)",
+				quantity: 1,
+				unitLabel: "枚",
+			},
+		] as RecipeEditorIngredientNode[]);
+
+		const [row] = plan({
+			needs,
+			stockItems: [
+				{
+					name: "鶏もも肉",
+					quantity: 200,
+					stockUnitCode: "g",
+					stockUnitLabel: "g",
+				},
+			],
+		});
+
+		expect(row).toMatchObject({
+			need: { name: "鶏もも肉(大きめ)", amountText: "1枚(300g)" },
+			// カタログの目安（1枚 250g）ではなく、書いてある 300g で比べる。
+			amount: { quantity: 100, unitLabel: "g" },
+			defaultChecked: true,
+		});
+	});
+});
+
 describe("planShoppingFromRecipe（自分の食材辞書）", () => {
 	const dictionary = buildDictionary([
 		{ name: "マイだし", aliases: ["うちのだし"] },

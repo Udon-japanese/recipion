@@ -39,6 +39,27 @@ describe("toCanonicalIngredientName", () => {
 			"うちのだし",
 		);
 	});
+
+	it.each([
+		{ title: "カタログの食材", name: "鶏もも肉(大きめ)", expected: "鶏もも肉" },
+		{ title: "全角の括弧", name: "鶏もも肉（大きめ）", expected: "鶏もも肉" },
+		{ title: "辞書の呼び名", name: "うちのだし(濃いめ)", expected: "マイだし" },
+		{
+			title: "括弧ごとで1つの名前（カタログ）は、そのまま",
+			name: "冷凍玉ねぎ(みじん切り)",
+			expected: "冷凍玉ねぎ(みじん切り)",
+		},
+		{
+			title: "括弧を除いても当たらなければ、そのまま",
+			name: "謎の食材(大きめ)",
+			expected: "謎の食材(大きめ)",
+		},
+	])(
+		"名前の終わりの括弧の説明は、除いて照合する：$title",
+		({ name, expected }) => {
+			expect(toCanonicalIngredientName(name, dictionary)).toBe(expected);
+		},
+	);
 });
 
 describe("listUserAliases", () => {

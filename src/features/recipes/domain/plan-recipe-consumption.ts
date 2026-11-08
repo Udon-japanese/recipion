@@ -1,4 +1,4 @@
-import { convertToStockQuantity } from "#/features/ingredients/domain/convert-to-stock-quantity";
+import { convertAmountToStockQuantity } from "#/features/ingredients/domain/convert-to-stock-quantity";
 import { findIngredientCatalogEntry } from "#/features/ingredients/domain/ingredient-catalog";
 import {
 	type IngredientDictionary,
@@ -80,13 +80,9 @@ function requiredIn(
 		return null;
 	}
 
-	return convertToStockQuantity(
-		{
-			quantity: need.quantity,
-			unitLabel: need.unitLabel,
-			stockUnitCode: stock.stockUnitCode,
-			stockUnitLabel: stock.stockUnitLabel,
-		},
+	return convertAmountToStockQuantity(
+		need,
+		stock,
 		findIngredientCatalogEntry(need.name),
 	);
 }
