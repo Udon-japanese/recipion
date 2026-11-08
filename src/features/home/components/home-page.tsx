@@ -5,6 +5,7 @@ import { Icon } from "#/components/icon/icon";
 import type { IconName } from "#/components/icon/icon-definitions";
 import { Mascot } from "#/components/mascot/mascot";
 import { Tag } from "#/components/tag/tag";
+import { HomeInstallCard } from "#/features/pwa/components/install-entry";
 import { useAppSession } from "#/integrations/better-auth/use-app-session";
 import {
 	type CountState,
@@ -56,6 +57,8 @@ function GuestHome() {
 					ログイン
 				</ButtonLink>
 			</div>
+
+			<HomeInstallCard />
 		</div>
 	);
 }
@@ -139,6 +142,8 @@ function MemberHome({ userId, name }: { userId: string; name: string }) {
 					value={(count) => count}
 				/>
 			</div>
+
+			<HomeInstallCard />
 		</div>
 	);
 }

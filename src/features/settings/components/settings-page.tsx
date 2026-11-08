@@ -2,6 +2,7 @@ import { type KeyboardEvent, type ReactNode, useRef } from "react";
 import { useMediaQuery } from "#/components/use-media-query";
 import { ExpiryEstimateSetting } from "#/features/inventory/components/expiry-estimate-setting";
 import { useExpiryEstimateLevel } from "#/features/inventory/hooks/use-expiry-estimate-level";
+import { InstallEntry } from "#/features/pwa/components/install-entry";
 import { StandInModeSetting } from "#/features/recipes/components/stand-in-mode-setting";
 import { standInModeItem } from "#/features/recipes/infrastructure/stand-in-mode-storage";
 import { useStorageItem } from "#/local-storage/use-storage-item";
@@ -88,6 +89,7 @@ export function SettingsPage({
 	return (
 		<div className={styles.page}>
 			<h1 className={styles.title}>設定</h1>
+			<InstallEntry />
 
 			<div className={styles.layout}>
 				<div
