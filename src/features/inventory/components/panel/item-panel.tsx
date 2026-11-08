@@ -689,12 +689,14 @@ export function ItemPanel({
 	return (
 		<Sheet
 			open={open}
+			// つかんで下げる・暗幕・×は、どの階層にいても、パネルごと閉じる。
 			onOpenChange={(next) => {
-				if (next) {
-					return;
+				if (!next) {
+					onClose();
 				}
-
-				// 1回目は、編集やフォームを閉じて本体に戻る。もう1回で、パネルを閉じる。
+			}}
+			// Esc・端末の戻る操作は、1つ戻る（編集やフォームから本体へ。本体なら閉じる）。
+			onBack={() => {
 				if (editingLot) {
 					closeLotEditor();
 				} else if (view.name === "main") {

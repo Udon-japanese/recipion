@@ -56,6 +56,9 @@ type SheetProps = {
 	// false にすると、暗幕を出さず、後ろの画面を操作できる「浮いたパネル」になる（続けて入力する場面向け）。
 	// 閉じるのは、閉じるボタン・つかんで下げる・パネルの中での Esc。
 	modal?: boolean;
+	// 中身に階層があるとき（一覧の中の1件を開いている、など）の「1つ戻る」。
+	// 渡すと、Esc と端末の戻る操作は、これを呼ぶ（閉じない）。つかんで下げる・暗幕・閉じるボタンは、いつも閉じる。
+	onBack?: () => void;
 };
 
 function prefersReducedMotion() {
@@ -87,6 +90,7 @@ export function Sheet({
 	dismissible = true,
 	padded = true,
 	modal = true,
+	onBack,
 }: SheetProps) {
 	const [mounted, setMounted] = useState(open);
 	const [activeIndex, setActiveIndex] = useState(defaultSnapIndex);
@@ -130,7 +134,12 @@ export function Sheet({
 
 	useBodyScrollLock(mounted && modal);
 	useModalFocus(mounted && modal, panelRef, portalRef);
-	useCloseOnBack(open, dismissible ? () => onOpenChange(false) : undefined);
+	useCloseOnBack(
+		open,
+		onBack ?? (dismissible ? () => onOpenChange(false) : undefined),
+	);
+	const onBackRef = useRef(onBack);
+	onBackRef.current = onBack;
 
 	// 見える高さ visible へ、シートと暗幕を動かす。
 	const place = useCallback((visible: number, animate: boolean) => {
@@ -263,7 +272,14 @@ export function Sheet({
 				return;
 			}
 
-			if (event.key === "Escape" && latest.current.dismissible) {
+			if (event.key !== "Escape") {
+				return;
+			}
+
+			if (onBackRef.current) {
+				event.stopPropagation();
+				onBackRef.current();
+			} else if (latest.current.dismissible) {
 				event.stopPropagation();
 				onOpenChange(false);
 			}
