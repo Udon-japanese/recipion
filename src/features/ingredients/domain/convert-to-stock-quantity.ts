@@ -188,3 +188,45 @@ export function convertToStockQuantity(
 		}
 	}
 }
+
+type StockAmount = { quantity: number | null; unitLabel: string | null };
+
+/**
+ * 材料の分量（と、括弧の言い換え「1枚(250g)」の 250g）を、在庫の単位に換算する。換算できなければ null。
+ * 書いてある量のまま換算できる方（カタログの目安の重さを使わない）を先に使う：主の分量 → 言い換え。
+ * どちらもできなければ、カタログで換算する：主の分量 → 言い換え。
+ */
+export function convertAmountToStockQuantity(
+	amount: StockAmount & { alternate?: StockAmount | null },
+	stock: {
+		stockUnitCode: IngredientStockUnitCode;
+		stockUnitLabel?: string | null;
+	},
+	entry?: IngredientCatalogEntry,
+): number | null {
+	const amounts = [amount, amount.alternate].flatMap((candidate) =>
+		candidate && candidate.quantity !== null
+			? [{ quantity: candidate.quantity, unitLabel: candidate.unitLabel }]
+			: [],
+	);
+
+	for (const catalogEntry of entry ? [undefined, entry] : [undefined]) {
+		for (const { quantity, unitLabel } of amounts) {
+			const converted = convertToStockQuantity(
+				{
+					quantity,
+					unitLabel,
+					stockUnitCode: stock.stockUnitCode,
+					stockUnitLabel: stock.stockUnitLabel,
+				},
+				catalogEntry,
+			);
+
+			if (converted !== null) {
+				return converted;
+			}
+		}
+	}
+
+	return null;
+}

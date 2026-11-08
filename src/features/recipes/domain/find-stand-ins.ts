@@ -1,9 +1,10 @@
-import { convertToStockQuantity } from "#/features/ingredients/domain/convert-to-stock-quantity";
+import { convertAmountToStockQuantity } from "#/features/ingredients/domain/convert-to-stock-quantity";
 import {
 	findIngredientCatalogEntry,
 	getFixedShapeStandInCatalogEntryIds,
 	getStandInCatalogEntryIds,
 } from "#/features/ingredients/domain/ingredient-catalog";
+import type { AlternateAmount } from "#/features/ingredients/domain/parse-ingredient-line";
 import type { InventoryTrackingMode } from "#/features/inventory/domain/inventory-tracking-mode";
 import type { InventoryUnitCode } from "#/features/inventory/domain/inventory-unit";
 
@@ -27,6 +28,8 @@ export type StandInNeed = {
 	name: string;
 	quantity: number | null;
 	unitLabel: string | null;
+	// 分量の言い換え（「1株(250g)」の 250g）。
+	alternate?: AlternateAmount | null;
 };
 
 export type StandInCandidate<T> = {
@@ -63,13 +66,9 @@ function toSufficientCandidate<T extends StandInStockItem>(
 	}
 
 	// 単位が違う（レシピは「1個」、冷凍は g）ときは、生の食材の重さで換算する。
-	const required = convertToStockQuantity(
-		{
-			quantity: need.quantity,
-			unitLabel: need.unitLabel,
-			stockUnitCode: item.stockUnitCode,
-			stockUnitLabel: item.stockUnitLabel,
-		},
+	const required = convertAmountToStockQuantity(
+		need,
+		item,
 		findIngredientCatalogEntry(need.name),
 	);
 

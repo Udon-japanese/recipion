@@ -222,8 +222,12 @@ export function mergeRecipeNeeds(
 			const supplements = index === 0 ? unquantifiedTexts : [];
 			const base = describeAmount(quantity, unitLabel);
 
-			// まとめた行は、範囲ではない（上限を足した数量になる）。
-			const { range: _range, ...rest } = first as RecipeShoppingNeed;
+			// まとめた行は、範囲ではない（上限を足した数量になる）。言い換えも、まとめた数量には合わないので外す。
+			const {
+				range: _range,
+				alternate: _alternate,
+				...rest
+			} = first as RecipeShoppingNeed;
 
 			return {
 				...rest,

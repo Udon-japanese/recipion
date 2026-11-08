@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { parseAmountRange, parseIngredientLine } from "./parse-ingredient-line";
+import {
+	parseAlternateAmount,
+	parseAmountRange,
+	parseIngredientLine,
+} from "./parse-ingredient-line";
 
 describe("parseIngredientLine", () => {
 	it.each([
@@ -303,4 +307,62 @@ describe("parseAmountRange", () => {
 			expect(parseAmountRange(amountText)).toBeNull();
 		},
 	);
+});
+
+describe("parseAlternateAmount", () => {
+	it.each([
+		{
+			amountText: "1枚(250g)",
+			expected: { quantity: 250, unitLabel: "g", range: null },
+		},
+		{
+			amountText: "1枚(約250g)",
+			expected: { quantity: 250, unitLabel: "g", range: null },
+		},
+		{
+			amountText: "1枚（２５０ｇ）",
+			expected: { quantity: 250, unitLabel: "g", range: null },
+		},
+		{
+			amountText: "250g(1枚)",
+			expected: { quantity: 1, unitLabel: "枚", range: null },
+		},
+		{
+			amountText: "1/2個(100g)",
+			expected: { quantity: 100, unitLabel: "g", range: null },
+		},
+		{
+			amountText: "200g(二枚)",
+			expected: { quantity: 2, unitLabel: "枚", range: null },
+		},
+		{
+			amountText: "1袋(大さじ2)",
+			expected: { quantity: 2, unitLabel: "大さじ", range: null },
+		},
+		{
+			amountText: "1枚(200~250g)",
+			expected: {
+				quantity: null,
+				unitLabel: "g",
+				range: { min: 200, max: 250 },
+			},
+		},
+	])(
+		"括弧の中身の全体が分量なら、言い換えとして読む（$amountText）",
+		({ amountText, expected }) => {
+			expect(parseAlternateAmount(amountText)).toEqual(expected);
+		},
+	);
+
+	it.each([
+		"1丁(木綿)",
+		"1個(大きめ)",
+		"1丁(3cm角)",
+		"少々(ひとつまみ)",
+		"1枚(約250g・大きめ)",
+		"4個(2人分)",
+		"1枚",
+	])("分量でない括弧・括弧なしは、言い換えにしない（%s）", (amountText) => {
+		expect(parseAlternateAmount(amountText)).toBeNull();
+	});
 });

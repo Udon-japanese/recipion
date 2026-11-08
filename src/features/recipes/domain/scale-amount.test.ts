@@ -65,10 +65,34 @@ describe("scaleIngredientAmountText", () => {
 			expected: "少々",
 		},
 		{
-			title: "括弧の補足は、元の分量として添える",
+			title: "括弧の言い換えの分量も、同じ割合で掛ける",
 			item: { quantity: 1, unitLabel: "丁", amountText: "1丁(300g)" },
 			ratio: 2,
-			expected: "2丁（元：1丁(300g)）",
+			expected: "2丁(600g)",
+		},
+		{
+			title: "言い換えも、丸めたら「約」を付ける",
+			item: { quantity: 1, unitLabel: "枚", amountText: "1枚(約250g)" },
+			ratio: 1 / 3,
+			expected: "約1/2枚(約83g)",
+		},
+		{
+			title: "言い換えが範囲なら、下限と上限を掛ける",
+			item: { quantity: 1, unitLabel: "枚", amountText: "1枚(200~250g)" },
+			ratio: 2,
+			expected: "2枚(400~500g)",
+		},
+		{
+			title: "分量でない括弧の補足は、そのまま付ける",
+			item: { quantity: 1, unitLabel: "丁", amountText: "1丁(木綿)" },
+			ratio: 2,
+			expected: "2丁(木綿)",
+		},
+		{
+			title: "割合の単位（人分）の括弧は、言い換えにしない",
+			item: { quantity: 4, unitLabel: "個", amountText: "4個(2人分)" },
+			ratio: 2,
+			expected: "8個(2人分)",
 		},
 		{
 			title: "増減のしかた（やや控えめ）を掛ける：2倍で1.8倍",

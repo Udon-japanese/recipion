@@ -11,6 +11,22 @@ function need(
 }
 
 describe("scaleRecipeNeed", () => {
+	it("括弧の言い換えも同じ割合で掛け、表示に残す（在庫と比べる量もそろう）", () => {
+		expect(
+			scaleRecipeNeed(
+				{
+					...need(1, "枚", "1枚(250g)"),
+					alternate: { quantity: 250, unitLabel: "g", range: null },
+				},
+				2,
+			),
+		).toMatchObject({
+			quantity: 2,
+			amountText: "2枚(500g)",
+			alternate: { quantity: 500, unitLabel: "g", range: null },
+		});
+	});
+
 	it("数量と分量の表示を、割合で掛ける", () => {
 		expect(scaleRecipeNeed(need(3, "大さじ", "大さじ3"), 0.5)).toMatchObject({
 			quantity: 1.5,

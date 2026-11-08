@@ -32,9 +32,12 @@ const rangeToken = String.raw`${numericToken}(?:\s*${rangeSeparator}\s*${numeric
 // 「2本分」「100gくらい」「2本分位」「3cm程度」のような、単位のあとに付く語。
 const amountSuffix = "(?:分)?(?:位|くらい|ぐらい|程度)?";
 
+// 材料の量の単位。
+const measureUnitToken =
+	"大さじ|小さじ|カップ|パック|ひとつまみ|個|枚|本|袋|束|株|片|かけ|玉|丁|缶|瓶|切れ|房|合|kg|g|ml|l|cc|cm|つ|キログラム|ミリリットル|センチメートル|センチ|グラム|キロ|ミリ|リットル";
+
 // 「人分」「倍」「量」は、他のレシピへのリンクの行で、リンク先の何回分を使うか（割合）を表す。
-const unitToken =
-	"人分|倍|(?<=\\d)量|大さじ|小さじ|カップ|パック|ひとつまみ|個|枚|本|袋|束|株|片|かけ|玉|丁|缶|瓶|切れ|房|合|kg|g|ml|l|cc|cm|つ|キログラム|ミリリットル|センチメートル|センチ|グラム|キロ|ミリ|リットル";
+const unitToken = `人分|倍|(?<=\\d)量|${measureUnitToken}`;
 
 // 行の終わりの分量にある漢数字（「一切れ」「大さじ二」「二〜三本」）。名前の中の漢数字（三つ葉・一味・二十日大根）は、
 // 行の終わりが分量の形のときだけ読むので、対象にならない。
@@ -183,16 +186,25 @@ function createParsedLine(
 	// 分量のあとの括弧つきの補足（原文のまま分量に残す。数量には使わない）。
 	supplement = "",
 ): ParsedIngredientLine {
-	// 数量と単位は、漢数字を半角にした形で読む。amountText には原文の表記が残る。
-	const readableAmount = convertKanjiAmount(amountText);
-	const quantityMatch = readableAmount.match(quantityPattern);
-	const unitMatch = readableAmount.match(unitPattern);
-
 	return {
 		status: "parsed",
 		rawText,
 		name: name.trim(),
 		amountText: `${amountText.trim()}${supplement}`,
+		...readAmount(amountText),
+	};
+}
+
+// 分量の文字から、数量と単位を読む。数量と単位は、漢数字を半角にした形で読む（原文の表記は、呼び出し側に残る）。
+function readAmount(amountText: string): {
+	quantity: number | null;
+	unitLabel: string | null;
+} {
+	const readableAmount = convertKanjiAmount(amountText);
+	const quantityMatch = readableAmount.match(quantityPattern);
+	const unitMatch = readableAmount.match(unitPattern);
+
+	return {
 		// 範囲は1つの数値にしない。原文は amountText に残る。
 		quantity:
 			quantityMatch && !rangePattern.test(readableAmount)
@@ -204,6 +216,70 @@ function createParsedLine(
 
 // 行の終わりの、括弧つきの補足（「適量(色がつくくらい)」「1丁(300g)」）。
 const trailingSupplementPattern = /^(?<body>.+?)(?<supplement>\s*\([^()]*\))$/u;
+
+// 括弧の中身の全体が、1つの分量（「250g」「約250g」「1枚」「200~250g」「大さじ二」）か。
+// 割合の単位（人分・倍・量）は、言い換えにしない（「(2人分)」は補足）。
+const standaloneAmountPatterns = [
+	new RegExp(
+		String.raw`^(?:約\s*)?(?:大さじ|小さじ|カップ)\s*${rangeToken}${amountSuffix}$`,
+		"iu",
+	),
+	new RegExp(
+		String.raw`^(?:約\s*)?${rangeToken}\s*(?:${measureUnitToken})${amountSuffix}$`,
+		"iu",
+	),
+];
+
+export type AmountParts = {
+	// 分量の本体（「1枚」）。
+	main: string;
+	// 行の終わりの、括弧つきの補足（「(250g)」「(木綿)」）。なければ null。
+	supplement: string | null;
+};
+
+// 分量の原文を、本体と、括弧つきの補足に分ける。
+export function splitAmountText(amountText: string): AmountParts {
+	const match = amountText.match(trailingSupplementPattern);
+
+	return match?.groups
+		? {
+				main: match.groups.body.trim(),
+				supplement: match.groups.supplement.trim(),
+			}
+		: { main: amountText, supplement: null };
+}
+
+// 分量の言い換え（「1枚(250g)」の 250g）。範囲（「1枚(200~250g)」）なら、quantity は null で range を持つ。
+export type AlternateAmount = {
+	quantity: number | null;
+	unitLabel: string | null;
+	range: AmountRange | null;
+};
+
+// 分量の原文の、括弧つきの補足が、分量の言い換えなら、その数量と単位。補足でない・分量でなければ null。
+export function parseAlternateAmount(
+	amountText: string,
+): AlternateAmount | null {
+	const { supplement } = splitAmountText(amountText.normalize("NFKC"));
+
+	if (supplement === null) {
+		return null;
+	}
+
+	const content = supplement.slice(1, -1).trim();
+	const readable = convertKanjiAmount(content);
+
+	if (!standaloneAmountPatterns.some((pattern) => pattern.test(readable))) {
+		return null;
+	}
+
+	const amount = readAmount(content);
+	const range = parseAmountRange(content);
+
+	return amount.quantity === null && range === null
+		? null
+		: { ...amount, range };
+}
 
 export function parseIngredientLine(
 	input: string,

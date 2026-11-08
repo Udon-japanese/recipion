@@ -4,7 +4,9 @@ import {
 	toCanonicalIngredientName,
 } from "#/features/ingredients/domain/ingredient-dictionary";
 import {
+	type AlternateAmount,
 	type AmountRange,
+	parseAlternateAmount,
 	parseAmountRange,
 } from "#/features/ingredients/domain/parse-ingredient-line";
 import { findInventoryItemByName } from "#/features/inventory/domain/build-expiry-prefill";
@@ -15,6 +17,7 @@ import {
 	type IngredientStock,
 	type IngredientStockJudgment,
 	judgeIngredientStock,
+	type RecipeIngredientNeed,
 } from "./judge-ingredient-stock";
 import type { RecipeEditorIngredientNode } from "./recipe-editor-document";
 
@@ -28,6 +31,8 @@ export type RecipeShoppingNeed = {
 	amountText: string | null;
 	// 分量が範囲（「60~70g」）のとき、その下限と上限（quantity は null のまま）。買い物と「作った」では、上限を使う（withRangeUpperBound）。
 	range?: AmountRange;
+	// 分量の言い換え（「1枚(250g)」の 250g）。在庫の単位と、そのまま比べられるときに使う（convertAmountToStockQuantity）。
+	alternate?: AlternateAmount;
 	// 材料が、他のレシピへのリンクのとき、そのレシピ（そのレシピの材料を、展開して使う。この行自体は、買い物の候補にしない）。
 	linkedRecipe?: { publicId: string; name: string };
 	// リンク先のレシピから展開した材料のとき、そのレシピの名前（一覧で、まとめて表示する）。
@@ -132,6 +137,8 @@ export function flattenRecipeIngredients(
 				node.quantity === null && node.amountText !== null
 					? parseAmountRange(node.amountText)
 					: null;
+			const alternate =
+				node.amountText !== null ? parseAlternateAmount(node.amountText) : null;
 
 			needs.push({
 				id: node.id,
@@ -140,6 +147,7 @@ export function flattenRecipeIngredients(
 				unitLabel: node.unitLabel,
 				amountText: node.amountText,
 				...(range ? { range } : {}),
+				...(alternate ? { alternate } : {}),
 				...(node.scaleWeight === undefined
 					? {}
 					: { scaleWeight: node.scaleWeight }),
@@ -234,7 +242,7 @@ function toIngredientStock(item: RecipeShoppingStockItem): IngredientStock {
 
 // その食材の在庫で足りていなければ、代わりになる食材（冷凍野菜など）の在庫で、必要な量を満たすかも見る。
 function judgeWithStandIns(
-	need: { name: string; quantity: number | null; unitLabel: string | null },
+	need: RecipeIngredientNeed,
 	stockItem: RecipeShoppingStockItem | undefined,
 	stockItems: readonly RecipeShoppingStockItem[],
 	mode: StandInMode,
@@ -316,6 +324,7 @@ export function planShoppingFromRecipe(
 			name: matchName,
 			quantity: need.quantity,
 			unitLabel: need.unitLabel,
+			alternate: need.alternate,
 		};
 
 		const stock: JudgedOrUnknownStock =
