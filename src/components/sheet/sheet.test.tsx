@@ -8,10 +8,12 @@ function Harness({
 	dismissible = true,
 	modal = true,
 	onChange,
+	onBack,
 }: {
 	dismissible?: boolean;
 	modal?: boolean;
 	onChange?: (open: boolean) => void;
+	onBack?: () => void;
 }) {
 	const [open, setOpen] = useState(false);
 
@@ -29,6 +31,7 @@ function Harness({
 				title="在庫に追加"
 				dismissible={dismissible}
 				modal={modal}
+				onBack={onBack}
 				footer={<button type="button">追加</button>}
 			>
 				<input aria-label="食材名" />
@@ -81,6 +84,24 @@ describe("Sheet", () => {
 		await user.keyboard("{Escape}");
 
 		expect(onChange).toHaveBeenLastCalledWith(false);
+	});
+
+	it("「1つ戻る」を渡すと、Esc は戻るだけで閉じず、閉じるボタンと暗幕は閉じる", async () => {
+		const user = userEvent.setup();
+		const onChange = vi.fn();
+		const onBack = vi.fn();
+
+		render(<Harness onChange={onChange} onBack={onBack} />);
+		await user.click(screen.getByRole("button", { name: "開く" }));
+		await user.keyboard("{Escape}");
+
+		expect(onBack).toHaveBeenCalledTimes(1);
+		expect(onChange).not.toHaveBeenCalledWith(false);
+
+		await user.click(screen.getByRole("button", { name: "閉じる" }));
+
+		expect(onChange).toHaveBeenLastCalledWith(false);
+		expect(onBack).toHaveBeenCalledTimes(1);
 	});
 
 	it("閉じるボタンで閉じる", async () => {
