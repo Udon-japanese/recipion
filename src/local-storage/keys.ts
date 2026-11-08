@@ -27,6 +27,8 @@ export const storageKeys = {
 	recipeEditorTemplate: "recipe-editor-template",
 	// レシピの参照：見ているあいだ、画面を消灯させないか。
 	recipeKeepAwake: "recipe-keep-awake",
+	// アプリのインストール：ホームの案内のカードを閉じたか（一度閉じたら、もう出さない）。
+	installCardDismissed: "install-card-dismissed",
 } as const;
 
 export type StorageKey = (typeof storageKeys)[keyof typeof storageKeys];
