@@ -5,8 +5,14 @@ import {
 	screen,
 	waitFor,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ToastViewport } from "#/components/toast/toast-viewport";
 import { HouseholdSizeSetting } from "./household-size-setting";
+
+// 画面の上のお知らせ（showToast）を、見えるようにする。
+beforeEach(() => {
+	render(<ToastViewport />);
+});
 
 afterEach(cleanup);
 
@@ -30,7 +36,9 @@ describe("HouseholdSizeSetting", () => {
 
 		fireEvent.change(select, { target: { value: "4" } });
 
-		expect(await screen.findByText("保存しました")).toBeInTheDocument();
+		expect(
+			await screen.findByText("うちの人数を保存しました"),
+		).toBeInTheDocument();
 		expect(save).toHaveBeenLastCalledWith(4);
 
 		fireEvent.change(await findSelect(), { target: { value: "none" } });

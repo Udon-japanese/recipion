@@ -1,9 +1,15 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { act } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ToastViewport } from "#/components/toast/toast-viewport";
 import type { GuestShoppingMemoState } from "../infrastructure/dexie-guest-shopping-adoption";
 import { GuestShoppingMemoAdoption } from "./guest-shopping-memo-adoption";
+
+// 画面の上のお知らせ（showToast）を、見えるようにする。
+beforeEach(() => {
+	render(<ToastViewport />);
+});
 
 afterEach(cleanup);
 

@@ -1,9 +1,15 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ToastViewport } from "#/components/toast/toast-viewport";
 import { buildShoppingData } from "#/test/builders/build-shopping-backup";
 import { createShoppingBackupFile } from "../domain/shopping-backup-file";
 import { ShoppingBackupSection } from "./shopping-backup-section";
+
+// 画面の上のお知らせ（showToast）を、見えるようにする。
+beforeEach(() => {
+	render(<ToastViewport />);
+});
 
 const now = new Date("2026-11-01T03:00:00.000Z");
 
@@ -46,7 +52,7 @@ describe("ShoppingBackupSection", () => {
 		).toEqual(["item-egg", "item-mince"]);
 		expect(
 			await screen.findByText(
-				"書き出しました（項目2件・店1件・条件つきメモ1件）。",
+				"書き出しました（項目2件・店1件・条件つきメモ1件）",
 			),
 		).toBeInTheDocument();
 	});
@@ -84,7 +90,7 @@ describe("ShoppingBackupSection", () => {
 		expect(replaceData).toHaveBeenCalledWith(file);
 		expect(
 			await screen.findByText(
-				"買い物メモを、ファイルの内容（項目2件・店1件・条件つきメモ1件）に置き換えました。",
+				"買い物メモを、ファイルの内容（項目2件・店1件・条件つきメモ1件）に置き換えました",
 			),
 		).toBeInTheDocument();
 	});

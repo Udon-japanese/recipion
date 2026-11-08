@@ -42,6 +42,8 @@ export function useModalFocus(
 			if (
 				child instanceof HTMLElement &&
 				child !== portalRef.current &&
+				// お知らせ（画面の上のトースト）は、モーダルの上でも操作でき、読み上げる。
+				!child.hasAttribute("data-toast-viewport") &&
 				!child.hasAttribute("inert") &&
 				child.tagName !== "SCRIPT"
 			) {

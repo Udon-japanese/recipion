@@ -4,6 +4,7 @@ import {
 	Outlet,
 	Scripts,
 } from "@tanstack/react-router";
+import { ToastViewport } from "#/components/toast/toast-viewport";
 import { APP_DISPLAY_NAME } from "#/config/app";
 import { SuspensionGate } from "#/features/moderation/components/suspension-gate";
 import { PwaRegister } from "#/features/pwa/components/pwa-register";
@@ -88,6 +89,7 @@ function RootLayout() {
 			<AppShell>
 				<Outlet />
 				<ShoppingSyncRunner sync={syncDexieShoppingMemo} />
+				<ToastViewport />
 			</AppShell>
 		</SuspensionGate>
 	);

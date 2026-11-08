@@ -1,8 +1,14 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ToastViewport } from "#/components/toast/toast-viewport";
 import type { SyncInventoryPurchaseOutboxResult } from "../application/sync-inventory-purchase-outbox";
 import { InventoryPurchaseSync } from "./inventory-purchase-sync";
+
+// 画面の上のお知らせ（showToast）を、見えるようにする。
+beforeEach(() => {
+	render(<ToastViewport />);
+});
 
 function synced(count: number): SyncInventoryPurchaseOutboxResult {
 	return { syncedCount: count, failures: [], stoppedBy: null };

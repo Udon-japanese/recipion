@@ -128,7 +128,7 @@ it("スマホで、入れた分の編集を開いたまま、シートを下げ�
 				cacheReason: null,
 				cachedAt: null,
 			})}
-			setLotQuantity={vi.fn()}
+			adjustInventoryItem={vi.fn()}
 		/>,
 	);
 

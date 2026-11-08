@@ -12,6 +12,11 @@ import { IconButton } from "#/components/icon-button/icon-button";
 import { Mascot } from "#/components/mascot/mascot";
 import { Note } from "#/components/note/note";
 import { useExitPresence } from "#/components/sheet/use-exit-presence";
+import {
+	dismissPendingToast,
+	dismissToast,
+	showToast,
+} from "#/components/toast/toast-store";
 import { useMediaQuery } from "#/components/use-media-query";
 import { MASCOT_DISPLAY_NAME } from "#/config/app";
 import { useStorageItem } from "#/local-storage/use-storage-item";
@@ -44,6 +49,8 @@ import {
 import type { RegisteredInfo } from "./registration/use-inventory-registration";
 import { InventoryScene, InventorySceneLoading } from "./scene/inventory-scene";
 import { ViewToggle } from "./view-toggle";
+
+const refreshToastId = "inventory-refresh";
 
 // 夜の絵にする時間（18時〜翌5時）。
 function isNight(date: Date): boolean {
@@ -90,10 +97,6 @@ export function InventoryList({
 	const [isLoading, setIsLoading] = useState(false);
 	const [hasLoaded, setHasLoaded] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
-	// 「更新」を押したときだけ、お知らせを出す（最初の読み込みや、登録のあとの再取得では出さない）。
-	const [refreshStatus, setRefreshStatus] = useState<
-		"idle" | "refreshing" | "done"
-	>("idle");
 	const [itemsSource, setItemsSource] = useState<"network" | "cache">(
 		"network",
 	);
@@ -200,20 +203,29 @@ export function InventoryList({
 			}
 		}, [ownerScope, loadInventoryItems]);
 
+	// 「更新」：画面の上のお知らせで、更新中と、更新したことを伝える（失敗は、一覧の上のエラーに出る）。
+	// お知らせは「更新」を押したときだけ（最初の読み込みや、登録のあとの再取得では出さない）。
 	async function refresh() {
-		setRefreshStatus("refreshing");
-		setRefreshStatus((await loadItems()) ? "done" : "idle");
+		showToast({
+			id: refreshToastId,
+			message: "在庫を更新しています…",
+			spinning: true,
+			duration: null,
+		});
+
+		if (await loadItems()) {
+			showToast({
+				id: refreshToastId,
+				message: "在庫を更新しました",
+				icon: "check",
+			});
+		} else {
+			dismissToast(refreshToastId);
+		}
 	}
 
-	useEffect(() => {
-		if (refreshStatus !== "done") {
-			return;
-		}
-
-		const timer = window.setTimeout(() => setRefreshStatus("idle"), 3000);
-
-		return () => window.clearTimeout(timer);
-	}, [refreshStatus]);
+	// 画面を離れたら、更新中のお知らせは消す。
+	useEffect(() => () => dismissPendingToast(refreshToastId), []);
 
 	// biome-ignore lint: refreshKeyが変化したら再取得
 	useEffect(() => {
@@ -504,16 +516,6 @@ export function InventoryList({
 			) : null}
 
 			{errorMessage ? <Note tone="error">{errorMessage}</Note> : null}
-
-			{refreshStatus === "refreshing" ? (
-				<Note tone="info" icon="refresh" spinning>
-					在庫を更新しています…
-				</Note>
-			) : null}
-
-			{refreshStatus === "done" ? (
-				<Note tone="success">在庫を更新しました</Note>
-			) : null}
 
 			{isRegisteredButStale ? (
 				<Note tone="warn">

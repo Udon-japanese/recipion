@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ToastViewport } from "#/components/toast/toast-viewport";
 import { resetStorageItemsForTest } from "#/local-storage/storage-item";
 import { buildInventoryListItem } from "#/test/builders/build-inventory-list-item";
 import { typeDate } from "#/test/date-field-helpers";
@@ -503,6 +504,7 @@ describe("InventoryList", () => {
 	it("「更新」を押したときだけ、更新したことを、お知らせで伝える", async () => {
 		const user = userEvent.setup();
 
+		render(<ToastViewport />);
 		renderList([]);
 
 		expect(await screen.findByText("在庫はまだありません。")).toBeVisible();

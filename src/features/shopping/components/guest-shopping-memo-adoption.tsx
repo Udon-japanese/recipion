@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import { ConfirmDialog } from "#/components/dialog/confirm-dialog";
 import { Note } from "#/components/note/note";
+import {
+	dismissPendingToast,
+	dismissToast,
+	showToast,
+} from "#/components/toast/toast-store";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import type { ShoppingMemoAdoption } from "../domain/plan-shopping-memo-adoption";
 import {
@@ -16,6 +21,8 @@ type GuestShoppingMemoAdoptionProps = {
 	watchGuestMemo?: typeof watchGuestShoppingMemo;
 	adoptGuestMemo?: (ownerScope: UserScope) => Promise<ShoppingMemoAdoption>;
 };
+
+const adoptionToastId = "guest-shopping-memo-adoption";
 
 type AdoptionStatus = "idle" | "adopting" | "adopted" | "error";
 
@@ -65,20 +72,31 @@ export function GuestShoppingMemoAdoption({
 		}
 	}
 
-	if (!isUser) {
+	// 移している間と、移したことは、画面の上のお知らせで伝える。
+	useEffect(() => {
+		if (status === "adopting") {
+			showToast({
+				id: adoptionToastId,
+				message: "ログインする前の買い物メモを移しています…",
+				spinning: true,
+				duration: null,
+			});
+		} else if (status === "adopted") {
+			showToast({
+				id: adoptionToastId,
+				message: "ログインする前の買い物メモを移しました",
+				icon: "check",
+			});
+		} else {
+			dismissToast(adoptionToastId);
+		}
+	}, [status]);
+
+	// 画面を離れたら、処理中のお知らせは消す。
+	useEffect(() => () => dismissPendingToast(adoptionToastId), []);
+
+	if (!isUser || status === "adopting" || status === "adopted") {
 		return null;
-	}
-
-	if (status === "adopting") {
-		return (
-			<Note tone="info" spinning>
-				ログインする前の買い物メモを移しています…
-			</Note>
-		);
-	}
-
-	if (status === "adopted") {
-		return <Note tone="success">ログインする前の買い物メモを移しました</Note>;
 	}
 
 	if (status === "error") {

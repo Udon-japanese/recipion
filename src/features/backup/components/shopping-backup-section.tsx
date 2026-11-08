@@ -3,6 +3,7 @@ import { Button } from "#/components/button/button";
 import { useButtonAction } from "#/components/button/use-button-action";
 import { CornerSheet } from "#/components/corner-sheet/corner-sheet";
 import { Note } from "#/components/note/note";
+import { showToast } from "#/components/toast/toast-store";
 import { describeError } from "#/errors/user-facing-error";
 import * as settingsStyles from "#/features/settings/components/settings-page.css";
 import {
@@ -42,13 +43,11 @@ export function ShoppingBackupSection({
 	const [isExportOpen, setIsExportOpen] = useState(false);
 	const exportAction = useButtonAction();
 	const [exportError, setExportError] = useState<string | null>(null);
-	const [exported, setExported] = useState<ShoppingBackupFile | null>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const readAction = useButtonAction();
 	const importAction = useButtonAction();
 	const [importError, setImportError] = useState<string | null>(null);
 	const [preview, setPreview] = useState<ShoppingBackupFile | null>(null);
-	const [imported, setImported] = useState<ShoppingBackupFile | null>(null);
 
 	async function exportShopping() {
 		setExportError(null);
@@ -61,7 +60,11 @@ export function ShoppingBackupSection({
 					formatShoppingBackupFileName(now()),
 					JSON.stringify(file, null, "\t"),
 				);
-				setExported(file);
+				showToast({
+					id: "shopping-backup",
+					message: `書き出しました（${describeContents(file)}）`,
+					icon: "check",
+				});
 				setIsExportOpen(false);
 			} catch (error) {
 				setExportError(describeError(error));
@@ -73,7 +76,6 @@ export function ShoppingBackupSection({
 
 	async function readFile(file: File) {
 		setImportError(null);
-		setImported(null);
 		setPreview(null);
 
 		if (file.size > shoppingBackupLimits.maxFileBytes) {
@@ -102,7 +104,11 @@ export function ShoppingBackupSection({
 		await importAction.run(async () => {
 			try {
 				await replaceData(preview);
-				setImported(preview);
+				showToast({
+					id: "shopping-backup",
+					message: `買い物メモを、ファイルの内容（${describeContents(preview)}）に置き換えました`,
+					icon: "check",
+				});
 			} catch (error) {
 				// 1つのトランザクションなので、失敗したときは、いまのメモのまま。
 				setImportError(
@@ -136,17 +142,11 @@ export function ShoppingBackupSection({
 					variant="secondary"
 					onClick={() => {
 						setExportError(null);
-						setExported(null);
 						setIsExportOpen(true);
 					}}
 				>
 					買い物メモを書き出す
 				</Button>
-				{exported ? (
-					<Note tone="success">
-						書き出しました（{describeContents(exported)}）。
-					</Note>
-				) : null}
 			</div>
 
 			<div className={styles.block}>
@@ -182,12 +182,6 @@ export function ShoppingBackupSection({
 				>
 					買い物メモのファイルを選ぶ
 				</Button>
-				{imported ? (
-					<Note tone="success">
-						買い物メモを、ファイルの内容（{describeContents(imported)}
-						）に置き換えました。
-					</Note>
-				) : null}
 				{importError ? <Note tone="error">{importError}</Note> : null}
 			</div>
 
