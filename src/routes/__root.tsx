@@ -49,8 +49,9 @@ export const Route = createRootRoute({
 				title: APP_DISPLAY_NAME,
 			},
 			{
+				// 上のヘッダーと同じ色にして、OS のバーとひと続きに見せる（styles.css の --color-background）。
 				name: "theme-color",
-				content: "#e9a900",
+				content: "#fffdf7",
 			},
 			{
 				name: "apple-mobile-web-app-capable",

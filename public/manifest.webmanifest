@@ -8,7 +8,7 @@
 	"scope": "/",
 	"display": "standalone",
 	"background_color": "#fffdf7",
-	"theme_color": "#e9a900",
+	"theme_color": "#fffdf7",
 	"icons": [
 		{
 			"src": "/recipion-icon.svg",
