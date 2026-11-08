@@ -656,6 +656,7 @@ export function ItemPanel({
 					getInitialPosition={() =>
 						anchoredPosition(anchorTileKey, anchorPlacement)
 					}
+					followTop={() => anchoredTop(anchorTileKey)}
 					onEscape={() =>
 						editingLot
 							? closeLotEditor()
@@ -893,16 +894,28 @@ function placeBesidePanel(id: string): {
 	};
 }
 
-function anchoredPosition(
-	tileKey: string | undefined,
-	placement: "overlap" | "beside",
-) {
+function anchorRect(tileKey: string | undefined) {
 	const row = tileKey
 		? document.querySelector<HTMLElement>(
 				`[data-tile-key="${CSS.escape(tileKey)}"]`,
 			)
 		: null;
-	const rect = row?.getBoundingClientRect();
+
+	return row?.getBoundingClientRect();
+}
+
+// パネルの上端を置く高さ：押した行の少し上。行が見つからなければ（消えた・表示を切り替えた）、null。
+function anchoredTop(tileKey: string | undefined): number | null {
+	const rect = anchorRect(tileKey);
+
+	return rect ? rect.top - 8 : null;
+}
+
+function anchoredPosition(
+	tileKey: string | undefined,
+	placement: "overlap" | "beside",
+) {
+	const rect = anchorRect(tileKey);
 	const left = rect
 		? placement === "beside"
 			? rect.right + edge
@@ -910,5 +923,5 @@ function anchoredPosition(
 		: window.innerWidth / 2;
 	const x = Math.min(left, window.innerWidth - floatingPanelWidth - edge);
 
-	return clampPanelPosition(x, rect ? rect.top - 8 : 24);
+	return clampPanelPosition(x, anchoredTop(tileKey) ?? 24);
 }
