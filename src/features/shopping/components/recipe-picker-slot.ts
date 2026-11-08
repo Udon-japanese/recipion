@@ -9,6 +9,8 @@ export type RecipePickerContext = {
 	repository: ShoppingRepository;
 	// 入れ先。省略は通常のメモ。条件つきのメモの側にも入れられる。
 	destination?: { branchId: string; side: ShoppingBranchSide };
+	// false のあいだは、閉じる動きを見せている途中（省略は true）。
+	open?: boolean;
 	onClose: () => void;
 	// 入れたあとに呼ぶ。recipeName は、選んだレシピの名前。
 	onApplied: (recipeName: string) => void;

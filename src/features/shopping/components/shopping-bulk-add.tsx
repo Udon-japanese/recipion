@@ -43,6 +43,8 @@ import type { ShoppingStore } from "../domain/shopping-store";
 import * as styles from "./shopping-page.css";
 
 type ShoppingBulkAddProps = {
+	// false のあいだは、閉じる動きを見せている途中（呼び出し側が useExitPresence で描いたままにする）。
+	open?: boolean;
 	// シートの見出し（省略すると、「まとめて追加」）。条件つきのメモの側に入れるときは、その側の名前を添える。
 	title?: string;
 	stores: readonly ShoppingStore[];
@@ -68,6 +70,7 @@ function formatQuantity(line: ParsedShoppingMemoLine): string | null {
 // 買い物のメモを、1行に1つずつ書いて（貼り付けて）、読み取った結果を確認してから、まとめて一覧に追加する。
 // 書いた文章は、追加したあと、一覧とは結びつかない（一覧が正）。
 export function ShoppingBulkAdd({
+	open = true,
 	title = "まとめて追加",
 	stores,
 	conversionDefaults = noConversionDefaults,
@@ -445,9 +448,9 @@ export function ShoppingBulkAdd({
 	if (isWide) {
 		return (
 			<Modal
-				open
-				onOpenChange={(open) => {
-					if (!open) {
+				open={open}
+				onOpenChange={(next) => {
+					if (!next) {
 						onClose();
 					}
 				}}
@@ -466,9 +469,9 @@ export function ShoppingBulkAdd({
 	// スマホ：ボトムシートに、「入力」と「確認」のタブ（レシピエディタと同じ切り替え）。
 	return (
 		<Sheet
-			open
-			onOpenChange={(open) => {
-				if (!open) {
+			open={open}
+			onOpenChange={(next) => {
+				if (!next) {
 					onClose();
 				}
 			}}

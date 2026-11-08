@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -102,6 +102,12 @@ describe("PickerSelect（選択の一覧）", () => {
 
 		await user.click(screen.getByRole("button", { name: "常温" }));
 
+		// シートは、閉じる動きを見せてから消える。
+		await waitFor(() =>
+			expect(
+				screen.queryByRole("dialog", { name: "保存方法" }),
+			).not.toBeInTheDocument(),
+		);
 		expect(screen.getByLabelText("保存方法")).toHaveValue("room");
 	});
 
