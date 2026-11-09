@@ -1,3 +1,4 @@
+import type { DishPlacement } from "#/features/dish-art/domain/dish-cover";
 import type { InventoryLot } from "../domain/inventory-lot";
 
 export type RenameInventoryItemCommand = {
@@ -10,6 +11,14 @@ export type RenameInventoryItemResult = {
 	inventoryItemId: string;
 	displayName: string | null;
 };
+
+export type SetInventoryItemArtCommand = {
+	inventoryItemId: string;
+	// 組み立てた絵。null は、名前から決める絵に戻す。
+	art: DishPlacement[] | null;
+};
+
+export type SetInventoryItemArtResult = SetInventoryItemArtCommand;
 
 export type ChangeStockUnitCommand = {
 	inventoryItemId: string;
@@ -43,6 +52,11 @@ export interface InventoryItemManagementRepository {
 	renameItem(
 		command: RenameInventoryItemCommand,
 	): Promise<RenameInventoryItemResult>;
+
+	// 在庫の絵を変える（null は、名前から決める絵に戻す）。
+	setItemArt(
+		command: SetInventoryItemArtCommand,
+	): Promise<SetInventoryItemArtResult>;
 }
 
 export const maxInventoryDisplayNameLength = 50;

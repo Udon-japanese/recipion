@@ -48,10 +48,10 @@ export function createDexieInventoryCacheRepository(
 			);
 		},
 
-		async updateDisplayName(
+		async updateItemFields(
 			ownerScope,
 			inventoryItemId,
-			displayName,
+			fields,
 			now = new Date(),
 		) {
 			await database.transaction(
@@ -68,7 +68,7 @@ export function createDexieInventoryCacheRepository(
 						...snapshot,
 						items: snapshot.items.map((item) =>
 							item.inventoryItemId === inventoryItemId
-								? { ...item, displayName, updatedAt: now.toISOString() }
+								? { ...item, ...fields, updatedAt: now.toISOString() }
 								: item,
 						),
 						cachedAt: now.toISOString(),

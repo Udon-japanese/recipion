@@ -9,6 +9,7 @@ import type { InventoryAdjustmentCommand } from "#/features/inventory/applicatio
 import type {
 	ChangeStockUnitCommand,
 	RenameInventoryItemCommand,
+	SetInventoryItemArtCommand,
 } from "#/features/inventory/application/inventory-item-management-repository";
 import type { UpdateInventoryLotCommand } from "#/features/inventory/application/inventory-lot-repository";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
@@ -19,6 +20,7 @@ import {
 	changeStockUnitWithCache,
 	deleteInventoryItemWithCache,
 	renameInventoryItemWithCache,
+	setInventoryItemArtWithCache,
 } from "#/features/inventory/application/manage-inventory-item-with-cache";
 import type { RegisterInventoryItemInput } from "#/features/inventory/application/register-inventory-item";
 import { updateInventoryLotWithCache } from "#/features/inventory/application/update-inventory-lot-with-cache";
@@ -36,6 +38,7 @@ import {
 	changeStockUnitServerFn,
 	deleteInventoryItemServerFn,
 	renameInventoryItemServerFn,
+	setInventoryItemArtServerFn,
 } from "#/features/inventory/server/manage-inventory-item";
 import { registerInventoryItemServerFn } from "#/features/inventory/server/register-inventory-item";
 import { updateInventoryLotServerFn } from "#/features/inventory/server/update-inventory-lot";
@@ -142,6 +145,22 @@ function InventoryPage() {
 		[ownerScope],
 	);
 
+	const setInventoryItemArt = useCallback(
+		async (command: SetInventoryItemArtCommand) => {
+			if (!ownerScope || ownerScope === "guest") {
+				throw new Error("絵を変えられるユーザーではありません");
+			}
+
+			return setInventoryItemArtWithCache(
+				ownerScope,
+				command,
+				(artCommand) => setInventoryItemArtServerFn({ data: artCommand }),
+				createDexieInventoryCacheRepository(),
+			);
+		},
+		[ownerScope],
+	);
+
 	const renameInventoryItem = useCallback(
 		async (command: RenameInventoryItemCommand) => {
 			if (!ownerScope || ownerScope === "guest") {
@@ -210,6 +229,7 @@ function InventoryPage() {
 				changeTrackingMode={changeTrackingMode}
 				deleteInventoryItem={deleteInventoryItem}
 				renameInventoryItem={renameInventoryItem}
+				setInventoryItemArt={setInventoryItemArt}
 				changeStockUnit={changeStockUnit}
 				refreshKey={inventoryRefreshKey}
 				registration={{

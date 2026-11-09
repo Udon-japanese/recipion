@@ -45,6 +45,7 @@ export const exportBackupInventoryServerFn = createServerFn({
 	return items.map((item) => ({
 		name: item.name,
 		displayName: item.displayName,
+		art: item.art,
 		stockUnitCode: item.stockUnitCode,
 		stockUnitLabel: item.stockUnitLabel,
 		trackingMode: item.trackingMode,

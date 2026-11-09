@@ -343,13 +343,19 @@ export const ingredientArtPartIds: readonly string[] = [
 	]),
 ];
 
-// 在庫の食材の絵。作り置き（できあがり）は、元のレシピの絵（付けていなければ、レシピと同じ、れしぽよの絵）。
+// 在庫の食材の絵。ユーザーが組み立てた絵があれば、それ。
+// なければ、作り置き（できあがり）は、元のレシピの絵（付けていなければ、レシピと同じ、れしぽよの絵）。
 // ふつうの食材は、名前から決める（resolveIngredientArt）。
 export function resolveInventoryItemArt(item: {
 	name: string;
+	art?: readonly DishPlacement[] | null;
 	sourceRecipePublicId?: string;
 	sourceRecipeCover?: readonly DishPlacement[];
 }): readonly DishPlacement[] {
+	if (item.art && item.art.length > 0) {
+		return item.art;
+	}
+
 	if (item.sourceRecipePublicId !== undefined) {
 		return item.sourceRecipeCover && item.sourceRecipeCover.length > 0
 			? item.sourceRecipeCover

@@ -27,11 +27,11 @@ export interface InventoryCacheRepository {
 		now?: Date,
 	): Promise<void>;
 
-	// 在庫の一覧に出す呼び名を、キャッシュに反映する。
-	updateDisplayName(
+	// 食材の呼び名・絵を、キャッシュに反映する（渡した項目だけ）。
+	updateItemFields(
 		ownerScope: InventoryCacheOwnerScope,
 		inventoryItemId: string,
-		displayName: string | null,
+		fields: Partial<Pick<InventoryListItem, "displayName" | "art">>,
 		now?: Date,
 	): Promise<void>;
 

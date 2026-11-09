@@ -24,6 +24,7 @@ import type {
 	ChangeStockUnitCommand,
 	InventoryItemManagementRepository,
 	RenameInventoryItemCommand,
+	SetInventoryItemArtCommand,
 } from "../application/inventory-item-management-repository";
 import type {
 	InventoryItemResolver,
@@ -197,6 +198,7 @@ export function createDrizzleInventoryRepository(
 					ingredientId: ingredient.id,
 					name: ingredient.name,
 					displayName: inventoryItem.displayName,
+					art: inventoryItem.art,
 					stockUnitCode: ingredient.stockUnitCode,
 					stockUnitLabel: ingredient.stockUnitLabel,
 					defaultExpiryKind: ingredient.defaultExpiryKind,
@@ -266,6 +268,7 @@ export function createDrizzleInventoryRepository(
 					ingredientId: row.ingredientId,
 					name: row.name,
 					displayName: row.displayName,
+					art: parseDishCover(row.art),
 					quantity: sumLotQuantities(lots),
 					lots,
 					stockUnitCode: parseInventoryUnitCode(row.stockUnitCode),
@@ -1297,6 +1300,31 @@ export function createDrizzleInventoryRepository(
 			}
 
 			return updated;
+		},
+
+		async setItemArt(command: SetInventoryItemArtCommand) {
+			const [updated] = await db
+				.update(inventoryItem)
+				.set({ art: command.art })
+				.where(
+					and(
+						eq(inventoryItem.id, command.inventoryItemId),
+						eq(inventoryItem.userId, userId),
+					),
+				)
+				.returning({
+					inventoryItemId: inventoryItem.id,
+					art: inventoryItem.art,
+				});
+
+			if (!updated) {
+				throw new UserFacingError("在庫項目が見つかりません");
+			}
+
+			return {
+				inventoryItemId: updated.inventoryItemId,
+				art: parseDishCover(updated.art),
+			};
 		},
 
 		async changeTrackingMode(command: ChangeInventoryTrackingModeCommand) {

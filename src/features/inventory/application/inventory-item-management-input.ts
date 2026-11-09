@@ -1,8 +1,10 @@
 import * as v from "valibot";
+import { dishPlacementsSchema } from "#/features/dish-art/domain/dish-cover";
 import {
 	type ChangeStockUnitCommand,
 	maxInventoryDisplayNameLength,
 	type RenameInventoryItemCommand,
+	type SetInventoryItemArtCommand,
 } from "./inventory-item-management-repository";
 
 const inventoryItemIdSchema = v.pipe(
@@ -27,6 +29,18 @@ const renameInventoryItemInputSchema = v.object({
 		),
 	),
 });
+
+// 絵は、レシピの絵と同じ検証（部品の数・位置・大きさの上限）。空の絵は送らず、null で戻す。
+const setInventoryItemArtInputSchema = v.object({
+	inventoryItemId: inventoryItemIdSchema,
+	art: v.nullable(dishPlacementsSchema),
+});
+
+export function parseSetInventoryItemArtInput(
+	input: unknown,
+): SetInventoryItemArtCommand {
+	return v.parse(setInventoryItemArtInputSchema, input);
+}
 
 const changeStockUnitInputSchema = v.object({
 	inventoryItemId: inventoryItemIdSchema,

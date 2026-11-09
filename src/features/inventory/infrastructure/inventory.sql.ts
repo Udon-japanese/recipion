@@ -4,6 +4,7 @@ import {
 	date,
 	foreignKey,
 	index,
+	jsonb,
 	numeric,
 	pgTable,
 	text,
@@ -12,6 +13,7 @@ import {
 	uuid,
 } from "drizzle-orm/pg-core";
 
+import type { DishPlacement } from "#/features/dish-art/domain/dish-cover";
 import { ingredient } from "#/features/ingredients/infrastructure/ingredient.sql";
 import { recipe } from "#/features/recipes/infrastructure/recipe.sql";
 import { user } from "#/integrations/better-auth/auth.sql";
@@ -29,6 +31,8 @@ export const inventoryItem = pgTable(
 		trackingMode: text("tracking_mode").default("estimated").notNull(),
 		// 在庫の一覧に出す、ユーザーが付けた呼び名（空は、食材の名前のまま）。レシピとの突き合わせには使わない。
 		displayName: text("display_name"),
+		// ユーザーが組み立てた、在庫の絵（料理の絵の部品の置き方）。null は、名前から決める絵（作り置きは、元のレシピの絵）。
+		art: jsonb("art").$type<DishPlacement[]>(),
 		// 「作った」で在庫に入れた、できあがりの元のレシピ（作り置き）。レシピを消すと、ふつうの食材として残る。
 		sourceRecipeId: uuid("source_recipe_id").references(() => recipe.id, {
 			onDelete: "set null",

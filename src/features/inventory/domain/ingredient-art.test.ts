@@ -56,6 +56,7 @@ describe("ingredient-art", () => {
 
 describe("resolveInventoryItemArt", () => {
 	const cover = [{ partId: "curry", x: 50, y: 50 }];
+	const userArt = [{ partId: "raw-egg", x: 40, y: 60, scale: 0.8 }];
 
 	it.each([
 		{
@@ -75,6 +76,21 @@ describe("resolveInventoryItemArt", () => {
 		{
 			title: "ふつうの食材 → 名前から決めた絵",
 			item: { name: "卵" },
+			expected: resolveIngredientArt("卵"),
+		},
+		{
+			title: "自分で組み立てた絵 → それを使う（作り置きのレシピの絵より先）",
+			item: {
+				name: "カレー",
+				art: userArt,
+				sourceRecipePublicId: "curry-id",
+				sourceRecipeCover: cover,
+			},
+			expected: userArt,
+		},
+		{
+			title: "組み立てた絵が null → 名前から決めた絵",
+			item: { name: "卵", art: null },
 			expected: resolveIngredientArt("卵"),
 		},
 	])("$title", ({ item, expected }) => {
