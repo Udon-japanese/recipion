@@ -7,6 +7,8 @@ import type {
 	ChangeStockUnitResult,
 	RenameInventoryItemCommand,
 	RenameInventoryItemResult,
+	SetInventoryItemArtCommand,
+	SetInventoryItemArtResult,
 } from "../../application/inventory-item-management-repository";
 import type {
 	UpdateInventoryLotCommand,
@@ -35,4 +37,7 @@ export type InventoryActions = {
 	renameInventoryItem?: (
 		command: RenameInventoryItemCommand,
 	) => Promise<RenameInventoryItemResult>;
+	setInventoryItemArt?: (
+		command: SetInventoryItemArtCommand,
+	) => Promise<SetInventoryItemArtResult>;
 };

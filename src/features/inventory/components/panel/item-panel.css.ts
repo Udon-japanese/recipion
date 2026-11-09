@@ -181,3 +181,42 @@ export const adjust = style({
 	display: "grid",
 	gap: 12,
 });
+
+// 見出しの左の、在庫の絵（押すと、絵を組み立てる画面が開く）。押せる範囲は 44px。
+// 見出しの間（8px）に足して、右下の鉛筆の印と名前が詰まって見えないようにする（あわせて 16px）。
+export const artButton = style({
+	position: "relative",
+	flexShrink: 0,
+	marginInlineEnd: 8,
+	boxSizing: "border-box",
+	display: "grid",
+	placeItems: "center",
+	width: 44,
+	height: 44,
+	padding: 0,
+	border: "1px solid var(--color-border)",
+	borderRadius: 12,
+	background: "var(--color-primary-soft)",
+	cursor: "pointer",
+	selectors: {
+		"&:focus-visible": {
+			outline: "3px solid var(--color-focus)",
+			outlineOffset: 2,
+		},
+	},
+});
+
+// 絵の右下の、編集の印。
+export const artBadge = style({
+	position: "absolute",
+	right: -6,
+	bottom: -6,
+	display: "grid",
+	placeItems: "center",
+	width: 22,
+	height: 22,
+	borderRadius: "50%",
+	background: "var(--color-surface)",
+	border: "1px solid var(--color-border)",
+	color: "var(--color-text)",
+});

@@ -40,6 +40,7 @@ export function buildBackupInventoryItem(
 	return {
 		name: "卵",
 		displayName: null,
+		art: null,
 		stockUnitCode: "count",
 		stockUnitLabel: "個",
 		trackingMode: "exact",

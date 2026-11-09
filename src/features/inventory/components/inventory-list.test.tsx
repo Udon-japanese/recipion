@@ -1,8 +1,16 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import {
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+	within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ToastViewport } from "#/components/toast/toast-viewport";
+import { findDishPart } from "#/features/dish-art/domain/dish-part";
+import { dishPartCategories } from "#/features/dish-art/domain/dish-part-category";
 import { resetStorageItemsForTest } from "#/local-storage/storage-item";
 import { buildInventoryListItem } from "#/test/builders/build-inventory-list-item";
 import { typeDate } from "#/test/date-field-helpers";
@@ -1606,6 +1614,98 @@ describe("InventoryList", () => {
 			);
 
 			expect(amount).toHaveValue("200");
+		});
+	});
+
+	describe("在庫の絵を、自分で組み立てる", () => {
+		const eggId = "1fc94e80-a9cf-4458-b0e6-3d72550cce06";
+
+		async function openArtEditor(user: ReturnType<typeof userEvent.setup>) {
+			const panel = await openPanel(user, "卵");
+
+			await user.click(
+				within(panel).getByRole("button", { name: "卵の絵を変える" }),
+			);
+
+			return screen.findByRole("dialog", { name: "卵の絵" });
+		}
+
+		it("いまの絵から始め、部品を足して「決定」すると、その絵を保存する。何も変えずに「決定」なら、送らない", async () => {
+			const user = userEvent.setup();
+			const setInventoryItemArt = vi
+				.fn()
+				.mockImplementation(async (command) => command);
+
+			renderList([stocked({ inventoryItemId: eggId })], {
+				setInventoryItemArt,
+			});
+
+			let editor = await openArtEditor(user);
+
+			await user.click(within(editor).getByRole("button", { name: "決定" }));
+			expect(setInventoryItemArt).not.toHaveBeenCalled();
+
+			editor = await openArtEditor(user);
+			await user.click(within(editor).getByRole("button", { name: "パーツ" }));
+
+			const firstPart = findDishPart(dishPartCategories[0]?.partIds[0] ?? "");
+
+			if (!firstPart) throw new Error("棚の部品がありません");
+
+			fireEvent.click(
+				within(editor).getByRole("button", { name: firstPart.label }),
+			);
+			await user.click(within(editor).getByRole("button", { name: "決定" }));
+
+			await waitFor(() =>
+				expect(setInventoryItemArt).toHaveBeenCalledWith({
+					inventoryItemId: eggId,
+					art: [
+						expect.objectContaining({ partId: "raw-egg" }),
+						expect.objectContaining({ partId: firstPart.id }),
+					],
+				}),
+			);
+			await waitFor(() =>
+				expect(screen.queryByRole("dialog", { name: "卵の絵" })).toBeNull(),
+			);
+		});
+
+		it("自分の絵があるときは、「名前から決める絵に戻す」で、自分の絵をやめる。失敗したら、編集の中にエラーを出す", async () => {
+			const user = userEvent.setup();
+			const setInventoryItemArt = vi
+				.fn()
+				.mockRejectedValueOnce(new Error("failed"))
+				.mockImplementation(async (command) => command);
+
+			renderList(
+				[
+					stocked({
+						inventoryItemId: eggId,
+						art: [{ partId: "onion", x: 50, y: 50 }],
+					}),
+				],
+				{ setInventoryItemArt },
+			);
+
+			const editor = await openArtEditor(user);
+			const reset = within(editor).getByRole("button", {
+				name: "名前から決める絵に戻す",
+			});
+
+			await user.click(reset);
+			expect(await within(editor).findByRole("alert")).toHaveTextContent(
+				"絵を保存できませんでした",
+			);
+
+			await user.click(reset);
+
+			await waitFor(() =>
+				expect(setInventoryItemArt).toHaveBeenLastCalledWith({
+					inventoryItemId: eggId,
+					art: null,
+				}),
+			);
 		});
 	});
 });

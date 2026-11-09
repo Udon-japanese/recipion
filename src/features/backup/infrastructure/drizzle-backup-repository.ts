@@ -408,6 +408,7 @@ async function writeInventoryPlan(
 				ingredientId: row.ingredientId,
 				trackingMode: row.trackingMode,
 				displayName: row.displayName,
+				art: row.art,
 				sourceRecipeId: row.sourceRecipeId,
 			})),
 		);

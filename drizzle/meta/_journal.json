@@ -120,6 +120,13 @@
       "when": 1794037922318,
       "tag": "0016_shopping_record_change_id",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1794132450755,
+      "tag": "0017_inventory_item_art",
+      "breakpoints": true
     }
   ]
 }

@@ -9,7 +9,7 @@ type CacheMethod =
 	| "save"
 	| "updateStock"
 	| "removeItem"
-	| "updateDisplayName";
+	| "updateItemFields";
 
 export type FakeInventoryCacheRepository = InventoryCacheRepository & {
 	// 次の呼び出しを1回だけ失敗させる。
@@ -77,13 +77,13 @@ export function createFakeInventoryCacheRepository(
 			});
 		},
 
-		async updateDisplayName(
+		async updateItemFields(
 			ownerScope,
 			inventoryItemId,
-			displayName,
+			fields,
 			now = new Date(),
 		) {
-			guard("updateDisplayName");
+			guard("updateItemFields");
 
 			const snapshot = snapshots.get(ownerScope);
 
@@ -95,7 +95,7 @@ export function createFakeInventoryCacheRepository(
 				...snapshot,
 				items: snapshot.items.map((item) =>
 					item.inventoryItemId === inventoryItemId
-						? { ...item, displayName, updatedAt: now.toISOString() }
+						? { ...item, ...fields, updatedAt: now.toISOString() }
 						: item,
 				),
 				cachedAt: now.toISOString(),

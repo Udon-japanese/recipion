@@ -1,5 +1,6 @@
 import * as v from "valibot";
 import { UserFacingError } from "#/errors/user-facing-error";
+import { dishPlacementsSchema } from "#/features/dish-art/domain/dish-cover";
 import { isValidDateString } from "#/features/inventory/domain/inventory-lot";
 import { inventoryTrackingModeSchema } from "#/features/inventory/domain/inventory-tracking-mode";
 import { inventoryUnitCodeSchema } from "#/features/inventory/domain/inventory-unit";
@@ -66,6 +67,8 @@ export const backupInventoryItemSchema = v.object({
 	// 食材の名前（読み込むときは、この名前で、今ある食材と合わせる）。
 	name: v.pipe(requiredText, v.maxLength(100)),
 	displayName: v.nullable(v.pipe(requiredText, v.maxLength(50))),
+	// ユーザーが組み立てた在庫の絵（null・なしは、名前から決める絵）。
+	art: v.optional(v.nullable(dishPlacementsSchema), null),
 	stockUnitCode: inventoryUnitCodeSchema,
 	stockUnitLabel: v.pipe(requiredText, v.maxLength(10)),
 	trackingMode: inventoryTrackingModeSchema,

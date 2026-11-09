@@ -44,6 +44,7 @@ import {
 } from "../tracking-mode-options";
 import { AdjustControls } from "./adjust-controls";
 import type { InventoryActions } from "./inventory-actions";
+import { ItemArtField } from "./item-art-field";
 import * as styles from "./item-panel.css";
 import { LotEditor } from "./lot-editor";
 import { isCurrentUnit, toOptionValue, useItemPanel } from "./use-item-panel";
@@ -591,8 +592,26 @@ export function ItemPanel({
 		</>
 	);
 
+	// 本体では、見出しの左に、在庫の絵（押すと、絵を組み立てる）。フォームでは、戻る。
+	const { setInventoryItemArt } = actions;
 	const back =
-		view.name === "main" ? undefined : (
+		view.name === "main" ? (
+			setInventoryItemArt ? (
+				<ItemArtField
+					item={item}
+					readOnly={readOnly}
+					onReadOnly={() => panel.setErrorMessage(offlineMessage)}
+					onSave={async (art) => {
+						const result = await setInventoryItemArt({
+							inventoryItemId: item.inventoryItemId,
+							art,
+						});
+
+						onUpdate(item.inventoryItemId, { art: result.art });
+					}}
+				/>
+			) : undefined
+		) : (
 			<IconButton icon="chevron-left" label="戻る" onClick={panel.goMain} />
 		);
 

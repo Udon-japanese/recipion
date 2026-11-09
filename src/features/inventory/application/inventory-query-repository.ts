@@ -14,6 +14,8 @@ export type InventoryListItem = {
 	name: string;
 	// ユーザーが付けた呼び名（在庫の一覧に出す。空は、食材の名前のまま）。
 	displayName: string | null;
+	// ユーザーが組み立てた絵（null は、名前から決める絵。作り置きは、元のレシピの絵）。
+	art: DishPlacement[] | null;
 	// ロットの数量の合計。
 	quantity: number;
 	// 在庫のあるロット（期限の早い順）。

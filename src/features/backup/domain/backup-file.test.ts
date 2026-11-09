@@ -30,12 +30,29 @@ describe("parseBackupFile", () => {
 					},
 				}),
 			],
-			[buildBackupInventoryItem()],
+			[
+				buildBackupInventoryItem(),
+				buildBackupInventoryItem({
+					name: "鶏もも肉",
+					art: [{ partId: "drumstick", x: 50, y: 50 }],
+				}),
+			],
 			now,
 			[{ name: "マイだし", aliases: ["うちのだし"], unmanaged: true }],
 		);
 
 		expect(parseBackupFile(serialize(file))).toEqual(file);
+	});
+
+	it("在庫の絵がない品目は、絵なし（名前から決める絵）として読む", () => {
+		const file = createBackupFile([], [buildBackupInventoryItem()], now);
+		const { art: _art, ...withoutArt } =
+			file.inventory[0] ?? buildBackupInventoryItem();
+
+		expect(
+			parseBackupFile(serialize({ ...file, inventory: [withoutArt] }))
+				.inventory[0]?.art,
+		).toBeNull();
 	});
 
 	it.each([

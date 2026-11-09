@@ -724,6 +724,7 @@ const consumeStock: InventoryListItem[] = [
 	ingredientId: `gallery-ingredient-${name}`,
 	name: String(name),
 	displayName: null,
+	art: null,
 	quantity: Number(quantity),
 	lots: [],
 	stockUnitCode: stockUnitCode as InventoryListItem["stockUnitCode"],

@@ -3,6 +3,7 @@ import {
 	parseChangeStockUnitInput,
 	parseDeleteInventoryItemInput,
 	parseRenameInventoryItemInput,
+	parseSetInventoryItemArtInput,
 } from "./inventory-item-management-input";
 import { maxInventoryDisplayNameLength } from "./inventory-item-management-repository";
 
@@ -78,6 +79,33 @@ describe("parseChangeStockUnitInput", () => {
 				stockUnitLabel: "g",
 				lotQuantities: [{ lotId: inventoryItemId, quantity: -1 }],
 			}),
+		).toThrow();
+	});
+});
+
+describe("parseSetInventoryItemArtInput", () => {
+	const inventoryItemId = "1fc94e80-a9cf-4458-b0e6-3d72550cce06";
+	const part = { partId: "drumstick", x: 50, y: 50 };
+
+	it("組み立てた絵と、null（名前から決める絵に戻す）を受け取る", () => {
+		expect(
+			parseSetInventoryItemArtInput({ inventoryItemId, art: [part] }),
+		).toEqual({ inventoryItemId, art: [part] });
+		expect(
+			parseSetInventoryItemArtInput({ inventoryItemId, art: null }),
+		).toEqual({
+			inventoryItemId,
+			art: null,
+		});
+	});
+
+	it.each([
+		{ note: "空の絵", art: [] },
+		{ note: "知らない部品", art: [{ ...part, partId: "unknown-part" }] },
+		{ note: "部品が多すぎる", art: Array.from({ length: 31 }, () => part) },
+	])("$note は拒否する", ({ art }) => {
+		expect(() =>
+			parseSetInventoryItemArtInput({ inventoryItemId, art }),
 		).toThrow();
 	});
 });

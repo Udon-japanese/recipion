@@ -24,6 +24,7 @@ const egg: InventoryListItem = {
 	ingredientId: "ingredient-id",
 	name: "卵",
 	displayName: null,
+	art: null,
 	quantity: 6,
 	lots: [],
 	stockUnitCode: "count",

@@ -1,3 +1,4 @@
+import type { DishPlacement } from "#/features/dish-art/domain/dish-cover";
 import type { IngredientAliasRegistration } from "#/features/inventory/application/create-ingredient-registration";
 import { createIngredientRegistration } from "#/features/inventory/application/create-ingredient-registration";
 import type {
@@ -38,6 +39,7 @@ export type InventoryReplacePlan = {
 		ingredientId: string;
 		trackingMode: InventoryTrackingMode;
 		displayName: string | null;
+		art: DishPlacement[] | null;
 		sourceRecipeId: string | null;
 	}[];
 	lots: (BackupLot & { id: string; inventoryItemId: string })[];
@@ -135,6 +137,7 @@ export function planInventoryReplace(
 				ingredientId,
 				trackingMode: isMadeRecipe ? "exact" : item.trackingMode,
 				displayName: item.displayName,
+				art: item.art,
 				sourceRecipeId: sourceRecipeId ?? null,
 			});
 		}

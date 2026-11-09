@@ -5,6 +5,7 @@ import {
 	changeStockUnitWithCache,
 	deleteInventoryItemWithCache,
 	renameInventoryItemWithCache,
+	setInventoryItemArtWithCache,
 } from "./manage-inventory-item-with-cache";
 
 function createCache() {
@@ -135,5 +136,34 @@ describe("changeStockUnitWithCache", () => {
 			),
 		).rejects.toThrow("offline");
 		expect((await cache.find("user:u"))?.items[0]?.stockUnitLabel).toBe("個");
+	});
+});
+
+describe("setInventoryItemArtWithCache", () => {
+	it("絵を変え、キャッシュにも反映する。null で、名前から決める絵に戻す", async () => {
+		const cache = createCache();
+		const art = [{ partId: "drumstick", x: 50, y: 50 }];
+		const artOf = async () =>
+			(await cache.find("user:u"))?.items.find(
+				(item) => item.inventoryItemId === "inv-1",
+			)?.art;
+
+		await setInventoryItemArtWithCache(
+			"user:u",
+			{ inventoryItemId: "inv-1", art },
+			async (command) => command,
+			cache,
+		);
+
+		expect(await artOf()).toEqual(art);
+
+		await setInventoryItemArtWithCache(
+			"user:u",
+			{ inventoryItemId: "inv-1", art: null },
+			async (command) => command,
+			cache,
+		);
+
+		expect(await artOf()).toBeNull();
 	});
 });
