@@ -1,6 +1,6 @@
 import { DragDropProvider } from "@dnd-kit/react";
 import { isSortable } from "@dnd-kit/react/sortable";
-import { type ReactNode, type Ref, useState } from "react";
+import { type ReactNode, type Ref, useEffect, useState } from "react";
 import { Button } from "#/components/button/button";
 import { ConfirmDialog } from "#/components/dialog/confirm-dialog";
 import { Field, SelectBox } from "#/components/field/field";
@@ -8,10 +8,15 @@ import { Icon } from "#/components/icon/icon";
 import { IconButton } from "#/components/icon-button/icon-button";
 import { Mascot } from "#/components/mascot/mascot";
 import { Menu, type MenuItem } from "#/components/menu/menu";
-import { Note } from "#/components/note/note";
 import { SegmentedControl } from "#/components/segmented-control/segmented-control";
 import { useExitPresence } from "#/components/sheet/use-exit-presence";
 import { Tag } from "#/components/tag/tag";
+import {
+	dismissPendingToast,
+	dismissToast,
+	showToast,
+} from "#/components/toast/toast-store";
+import { useDelayedFlag } from "#/components/use-delayed-flag";
 import { useMediaQuery } from "#/components/use-media-query";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import { useStorageItem } from "#/local-storage/use-storage-item";
@@ -83,6 +88,8 @@ type ShoppingListProps = {
 	notices?: ReactNode;
 };
 
+const loadingToastId = "shopping-loading";
+
 export function ShoppingList({
 	confirmPurchases = defaultConfirmPurchases,
 	syncPurchases,
@@ -105,6 +112,25 @@ export function ShoppingList({
 	const shopping = useShoppingItems(repository);
 	const { items, isLoading, isReordering, errorMessage, setErrorMessage } =
 		shopping;
+	// 読み込みに時間がかかるときだけ、画面の上のお知らせで伝える。
+	// すぐ終わるとき（ふつうは一瞬）は出さない（一瞬だけ出て、ちらつかないように）。
+	const isLoadingSlowly = useDelayedFlag(isLoading);
+
+	useEffect(() => {
+		if (isLoadingSlowly) {
+			showToast({
+				id: loadingToastId,
+				message: "買い物メモを読み込んでいます…",
+				spinning: true,
+				duration: null,
+			});
+		} else {
+			dismissToast(loadingToastId);
+		}
+	}, [isLoadingSlowly]);
+
+	// 画面を離れたら、読み込み中のお知らせは消す。
+	useEffect(() => () => dismissPendingToast(loadingToastId), []);
 	const [editingItemId, setEditingItemId] = useState<string | null>(null);
 	// 直している項目（条件つきのメモの中の項目も、直せる）。消された・購入済みになったときは、閉じる。
 	const editingItem =
@@ -586,15 +612,6 @@ export function ShoppingList({
 					onConfirm={() => void purchase.confirmWithConversions()}
 					onCancel={purchase.cancelReview}
 				/>
-			) : null}
-
-			{isLoading ? (
-				<div className={styles.center}>
-					<Mascot size={56} />
-					<Note tone="info" spinning>
-						読み込んでいます…
-					</Note>
-				</div>
 			) : null}
 
 			{!isLoading && activeItems.length === 0 && branches.length === 0 ? (

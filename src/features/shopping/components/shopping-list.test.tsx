@@ -1,6 +1,7 @@
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { ToastViewport } from "#/components/toast/toast-viewport";
 import { notifyPurchaseSyncStarted } from "#/features/inventory/application/purchase-sync-events";
 import {
 	addDays,
@@ -1318,5 +1319,43 @@ describe("ShoppingList", () => {
 			}),
 		);
 		expect(await screen.findByText("購入済み")).toBeInTheDocument();
+	});
+});
+
+describe("ShoppingList：読み込み中のお知らせ", () => {
+	const loadingText = "買い物メモを読み込んでいます…";
+
+	it("すぐ読み終わるときは、読み込み中のお知らせを出さない（ちらつかない）", async () => {
+		render(<ToastViewport />);
+		render(
+			<ShoppingList
+				repository={createFakeShoppingRepository([buildShoppingItem()])}
+			/>,
+		);
+
+		await new Promise((resolve) => setTimeout(resolve, 500));
+
+		expect(screen.queryByText(loadingText)).toBeNull();
+	});
+
+	it("読み込みに時間がかかるときだけ、画面の上のお知らせで伝え、読み終えたら消す", async () => {
+		let finish: (items: ShoppingItem[]) => void = () => {};
+		const repository = {
+			...createFakeShoppingRepository(),
+			list: () =>
+				new Promise<ShoppingItem[]>((resolve) => {
+					finish = resolve;
+				}),
+		};
+
+		render(<ToastViewport />);
+		render(<ShoppingList repository={repository} />);
+
+		expect(screen.queryByText(loadingText)).toBeNull();
+		expect(await screen.findByText(loadingText)).toBeInTheDocument();
+
+		act(() => finish([buildShoppingItem()]));
+
+		await waitFor(() => expect(screen.queryByText(loadingText)).toBeNull());
 	});
 });
