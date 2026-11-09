@@ -221,6 +221,34 @@ describe.skipIf(!isEnabled)("文章の判定の評価", () => {
 			const seeds = dedupe(rawSeeds);
 			const ngDirect = dedupe(rawDirect);
 
+			// 注入文：悪い語（そのまま）に、審査への指示を混ぜたもの。テンプレートごとに、元の語を無作為に抜き取る。
+			const injectionTemplates = existsSync(
+				"moderation-eval/injection-templates.txt",
+			)
+				? readBlocks("moderation-eval/injection-templates.txt")
+				: [];
+			const injectionSeedCount =
+				Number(process.env.MODERATION_EVAL_INJECTION_SEEDS ?? "") || 10;
+			// 注入文の抜き取りは、別の乱数にする（悪い文章の抜き取りを、前回と同じに保つ）。
+			const injectionRandom = createRandom(randomSeed + 1);
+			const injectionSamples = injectionTemplates.flatMap((template) =>
+				shuffle(seeds, injectionRandom)
+					.slice(0, injectionSeedCount)
+					.flatMap((seed) => [
+						{
+							label: `${seed}／注入文`,
+							kind: "注入文",
+							text: template.replaceAll("{text}", seed),
+						},
+						// 対照：同じ語を、指示を混ぜずに、そのまま渡す（通した率の差が、注入によるものかを見る）。
+						{
+							label: `${seed}／注入文の対照`,
+							kind: "注入文の対照",
+							text: seed,
+						},
+					]),
+			);
+
 			const allNgSamples = [
 				...seeds.flatMap((seed) => {
 					const variants = generateVariants(seed);
@@ -254,9 +282,13 @@ describe.skipIf(!isEnabled)("文章の判定の評価", () => {
 				})),
 			];
 			// 件数を絞るときは、全体から無作為に抜き取る（先頭に偏らない）。
-			const ngSamples = Number.isFinite(limit)
-				? shuffle(allNgSamples, random).slice(0, limit)
-				: allNgSamples;
+			// 注入文は、件数が少ないので、絞りの外に置く（絞りに混ぜると、数件しか残らず、前回との比べにもならない）。
+			const ngSamples = [
+				...(Number.isFinite(limit)
+					? shuffle(allNgSamples, random).slice(0, limit)
+					: allNgSamples),
+				...injectionSamples,
+			];
 
 			// 1文ずつ審査した結果を返す。確定の語は、1文ずつ見て、AI には、残りだけを、まとめて渡す。
 			async function judgeMany(
