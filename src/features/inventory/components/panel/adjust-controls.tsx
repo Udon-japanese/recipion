@@ -6,7 +6,11 @@ import {
 	type QuantityPresetButton,
 } from "#/features/quantity/components/quantity-input";
 import { formatQuantity } from "#/features/quantity/domain/format-quantity";
-import { formatQuantityInput } from "#/features/quantity/domain/quantity-buttons";
+import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
+import {
+	formatQuantityInput,
+	getShareQuantityPresets,
+} from "#/features/quantity/domain/quantity-buttons";
 import type { InventoryListItem } from "../../application/inventory-query-repository";
 import type { InventoryOperation } from "../../domain/apply-inventory-adjustment";
 import { readRememberedAmounts } from "../../infrastructure/amount-memory-storage";
@@ -31,7 +35,8 @@ type AdjustControlsProps = {
 };
 
 // 量を打って「使った」「買い足した」を押す欄。パネルの本体と、入れた分の編集で、同じものを使う。
-// チップ：「今ある分」、前に打った量（新しい順に3つまで）、単位のボタン（1/2・+50 など）。
+// チップ：「今ある分」、前に打った量（新しい順に3つまで）、今ある分の半分・1/3・1/4（個・玉・本など）、g・ml の足すボタン（+50 など）。
+// 単位ごとの固定の端数（1/2 など）は出さない（在庫が増減しても、使える量にならないため）。
 export function AdjustControls({
 	item,
 	label,
@@ -46,22 +51,34 @@ export function AdjustControls({
 	// もう一方のボタンの処理中は、押せない（理由の吹き出しも出さない）。
 	const isDecreasing = decreaseStatus === "pending";
 	const isIncreasing = increaseStatus === "pending";
+	const remembered: QuantityPresetButton[] = readRememberedAmounts(
+		item.name,
+		item.stockUnitLabel,
+	).map((amount) => {
+		const text = formatQuantity(amount, {
+			grouping: false,
+			allowFractions: item.stockUnitCode === "count",
+		});
+
+		return {
+			label: `${text}${item.stockUnitLabel}`,
+			value: text,
+			ariaLabel: `前に打った量：${text}${item.stockUnitLabel}にする`,
+		};
+	});
+	const rememberedValues = new Set(
+		remembered.map((preset) => parseQuantityInput(preset.value)),
+	);
+	// 前に打った量と同じ量になる割合のボタンは、重ねて出さない。
+	const shares = getShareQuantityPresets(available, item.stockUnitLabel).filter(
+		(preset) => !rememberedValues.has(parseQuantityInput(preset.value)),
+	);
 	const presets: QuantityPresetButton[] = [
 		...(available > 0
 			? [{ label: "今ある分", value: formatQuantityInput(available) }]
 			: []),
-		...readRememberedAmounts(item.name, item.stockUnitLabel).map((amount) => {
-			const text = formatQuantity(amount, {
-				grouping: false,
-				allowFractions: item.stockUnitCode === "count",
-			});
-
-			return {
-				label: `${text}${item.stockUnitLabel}`,
-				value: text,
-				ariaLabel: `前に打った量：${text}${item.stockUnitLabel}にする`,
-			};
-		}),
+		...shares,
+		...remembered,
 	];
 
 	return (
@@ -76,6 +93,7 @@ export function AdjustControls({
 					<span className={styles.unitSuffix}>{item.stockUnitLabel}</span>
 				}
 				presetButtons={presets}
+				hideUnitFractionButtons
 			/>
 
 			<div className={styles.primaryActions}>

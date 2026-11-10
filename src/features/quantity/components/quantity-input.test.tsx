@@ -7,9 +7,11 @@ import { QuantityInput, type QuantityPresetButton } from "./quantity-input";
 function Harness({
 	unitLabel,
 	presetButtons,
+	hideUnitFractionButtons,
 }: {
 	unitLabel?: string;
 	presetButtons?: QuantityPresetButton[];
+	hideUnitFractionButtons?: boolean;
 }) {
 	const [value, setValue] = useState("");
 
@@ -22,6 +24,7 @@ function Harness({
 				onChange={setValue}
 				unitLabel={unitLabel}
 				presetButtons={presetButtons}
+				hideUnitFractionButtons={hideUnitFractionButtons}
 			/>
 		</>
 	);
@@ -122,5 +125,24 @@ describe("QuantityInput", () => {
 		);
 
 		expect(screen.getByLabelText("数量")).toHaveValue("1/2");
+	});
+
+	it("hideUnitFractionButtons のとき、単位の端数のボタンは出さず、g の足すボタンと決まった値のボタンは出す", () => {
+		const { unmount } = render(
+			<Harness
+				unitLabel="玉"
+				hideUnitFractionButtons
+				presetButtons={[{ label: "半分", value: "1 1/2" }]}
+			/>,
+		);
+
+		expect(
+			screen.getAllByRole("button").map((button) => button.textContent),
+		).toEqual(["半分"]);
+		unmount();
+
+		render(<Harness unitLabel="g" hideUnitFractionButtons />);
+
+		expect(screen.getAllByRole("button")).toHaveLength(5);
 	});
 });

@@ -750,6 +750,44 @@ describe("InventoryList", () => {
 		);
 	});
 
+	it("個数の食材は、固定の端数ではなく、今ある量の半分・1/3・1/4 のボタンを出し、押すとその量が入る", async () => {
+		const user = userEvent.setup();
+
+		renderList(
+			[
+				stocked({
+					inventoryItemId: "5d1f0f0e-6e51-4d6e-8d5e-3d0f6d7f1a11",
+					name: "玉ねぎ",
+					quantity: 3,
+					stockUnitCode: "count",
+					stockUnitLabel: "玉",
+				}),
+			],
+			{ adjustInventoryItem: vi.fn() },
+		);
+
+		const dialog = await openPanel(user, "玉ねぎ");
+		const amount = within(dialog).getByRole("textbox", {
+			name: "玉ねぎの使った量・買い足した量",
+		});
+
+		expect(
+			within(dialog).queryByRole("button", { name: "3/4にする" }),
+		).toBeNull();
+
+		await user.click(
+			within(dialog).getByRole("button", { name: /^今ある分の半分/u }),
+		);
+
+		expect(amount).toHaveValue("1 1/2");
+
+		await user.click(
+			within(dialog).getByRole("button", { name: /^今ある分の1\/3/u }),
+		);
+
+		expect(amount).toHaveValue("1");
+	});
+
 	it("通信できず保存済みの在庫を見ているときは、案内を出し、書き換える操作は理由を出して実行しない", async () => {
 		const user = userEvent.setup();
 		const adjustInventoryItem = vi.fn();
