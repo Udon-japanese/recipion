@@ -55,6 +55,51 @@ describe("parseBackupFile", () => {
 		).toBeNull();
 	});
 
+	it("ロットの換算（1玉＝40g）は、書き出して読むと残る。ないロットは、換算なしとして読む", () => {
+		const base = buildBackupInventoryItem();
+		const lot = base.lots[0] ?? {
+			quantity: 1,
+			acquiredOn: "2026-10-30",
+			storage: null,
+			expiresOn: null,
+			expiryKind: null,
+			expirySource: null,
+			purchaseUnit: null,
+		};
+		const file = createBackupFile(
+			[],
+			[
+				{
+					...base,
+					lots: [
+						{
+							...lot,
+							purchaseUnit: {
+								label: "玉",
+								quantity: 40,
+								quantityUnitLabel: "g",
+							},
+						},
+					],
+				},
+			],
+			now,
+		);
+
+		expect(parseBackupFile(serialize(file))).toEqual(file);
+
+		const { purchaseUnit: _purchaseUnit, ...withoutUnit } = lot;
+
+		expect(
+			parseBackupFile(
+				serialize({
+					...file,
+					inventory: [{ ...base, lots: [withoutUnit] }],
+				}),
+			).inventory[0]?.lots[0]?.purchaseUnit,
+		).toBeNull();
+	});
+
 	it.each([
 		["JSON でない", "{", "JSON ではありません"],
 		[
@@ -82,6 +127,7 @@ describe("parseBackupFile", () => {
 									expiresOn: null,
 									expiryKind: null,
 									expirySource: null,
+									purchaseUnit: null,
 								},
 							],
 						}),

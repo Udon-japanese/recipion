@@ -128,10 +128,15 @@ describe("describeAmountTotal / listUnitOptions", () => {
 		).toBeNull();
 	});
 
-	it("単位が決まっている食材は、その種類の単位だけ選べる", () => {
+	it("g の食材は g だけ選べ、個数の食材は g・ml（1個が何gか）も選べる", () => {
 		expect(listUnitOptions(chicken).map((option) => option.value)).toEqual([
 			"g",
 		]);
+		expect(
+			listUnitOptions(
+				buildShoppingItem({ name: "冷凍うどん", inventoryConversion: null }),
+			).map((option) => option.value),
+		).toEqual(["g", "ml", "個", "枚", "本", "袋", "パック", "other"]);
 		expect(
 			listUnitOptions(
 				buildShoppingItem({ name: "謎の商品", inventoryConversion: null }),

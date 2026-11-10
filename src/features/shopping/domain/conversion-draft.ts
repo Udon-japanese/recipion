@@ -11,8 +11,9 @@ export type ShoppingItemInventoryConfiguration = {
 	inventoryConversion: ShoppingItemInventoryConversion;
 };
 
-// 数量プリセットのある食材は、在庫の単位が決まっている（在庫の登録がカタログの単位に固定するため、
-// ここで別の単位を選ぶと、数量が狂う）。
+// 数量プリセットのある食材は、在庫の単位が決まっている（在庫の登録がカタログの単位に固定する）。
+// g・ml の食材は、換算の単位も g・ml だけ。個数の食材は、1個が何gか（g・ml）も決められる
+// （買った個数のまま足し、重さはロットの換算に残す）。
 export function getLockedStockUnitCode(
 	item: ShoppingItem,
 ): "count" | "g" | "ml" | null {

@@ -27,6 +27,7 @@ function lot(overrides: Partial<InventoryLot> = {}): InventoryLot {
 		expiresOn: null,
 		expiryKind: null,
 		expirySource: null,
+		purchaseUnit: null,
 		createdAt: "2026-10-10T00:00:00.000Z",
 		...overrides,
 	};
@@ -167,6 +168,7 @@ describe("buildInventoryFridge", () => {
 					storage: "fridge",
 					expiresOn: "2026-10-17",
 					expirySource: "estimated",
+					purchaseUnit: null,
 				}),
 			],
 		});

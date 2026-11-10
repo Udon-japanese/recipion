@@ -426,6 +426,11 @@ async function writeInventoryPlan(
 				expiresOn: row.expiresOn,
 				expiryKind: row.expiryKind,
 				expirySource: row.expirySource,
+				purchaseUnitLabel: row.purchaseUnit?.label ?? null,
+				purchaseUnitQuantity: row.purchaseUnit
+					? toNumeric(row.purchaseUnit.quantity)
+					: null,
+				purchaseUnitQuantityLabel: row.purchaseUnit?.quantityUnitLabel ?? null,
 			})),
 		);
 	}

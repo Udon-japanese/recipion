@@ -55,6 +55,7 @@ export function buildBackupInventoryItem(
 				expiresOn: "2026-11-10",
 				expiryKind: "best-before",
 				expirySource: "entered",
+				purchaseUnit: null,
 			},
 		],
 		...overrides,

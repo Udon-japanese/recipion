@@ -11,6 +11,7 @@ function lot(id: string, quantity: number): InventoryLot {
 		expiresOn: null,
 		expiryKind: null,
 		expirySource: null,
+		purchaseUnit: null,
 		createdAt: "2026-10-01T00:00:00.000Z",
 	};
 }

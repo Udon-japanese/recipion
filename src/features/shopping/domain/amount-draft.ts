@@ -18,7 +18,7 @@ const countUnits = ["個", "枚", "本", "袋", "パック"] as const;
 
 export type UnitOption = { value: string; label: string };
 
-// 選べる単位。単位が決まっている食材は、その種類だけ（g・ml・個数のどれか）。
+// 選べる単位。g・ml の食材は、その単位だけ。個数の食材は、g・ml（1個が何gか）も選べる。
 export function listUnitOptions(item: ShoppingItem): readonly UnitOption[] {
 	const locked = getLockedStockUnitCode(item);
 	const weight: UnitOption[] = [
@@ -32,7 +32,6 @@ export function listUnitOptions(item: ShoppingItem): readonly UnitOption[] {
 
 	if (locked === "g") return weight.slice(0, 1);
 	if (locked === "ml") return weight.slice(1);
-	if (locked === "count") return count;
 
 	return [...weight, ...count];
 }

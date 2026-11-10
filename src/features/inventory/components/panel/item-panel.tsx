@@ -35,6 +35,7 @@ import {
 	type InventoryZoneId,
 } from "../../domain/inventory-fridge";
 import {
+	describePurchaseUnit,
 	type InventoryLot,
 	sortLotsForConsumption,
 } from "../../domain/inventory-lot";
@@ -438,6 +439,11 @@ export function ItemPanel({
 						<ul className={styles.lotList} aria-label={`${item.name}の内訳`}>
 							{sortedLots.map((lot) => {
 								const expiryText = formatLotExpiry(lot);
+								const purchaseUnitText = isPresence
+									? null
+									: lot.purchaseUnit
+										? describePurchaseUnit(lot.purchaseUnit)
+										: null;
 								const badge = findNearestExpiry([lot], panel.today);
 								const canEdit = Boolean(
 									actions.adjustInventoryItem || actions.updateInventoryLot,
@@ -458,6 +464,11 @@ export function ItemPanel({
 												</span>
 											)}
 										</span>
+										{purchaseUnitText ? (
+											<span className={styles.lotLine}>
+												<span>{purchaseUnitText}</span>
+											</span>
+										) : null}
 										{expiryText || badge ? (
 											<span className={styles.lotLine}>
 												{expiryText ? <span>{expiryText}</span> : null}

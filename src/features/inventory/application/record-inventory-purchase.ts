@@ -1,7 +1,11 @@
 import { UserFacingError } from "#/errors/user-facing-error";
 import { convertToStockQuantity } from "#/features/ingredients/domain/convert-to-stock-quantity";
 import { findIngredientCatalogEntry } from "#/features/ingredients/domain/ingredient-catalog";
-import type { InventoryLotInput } from "../domain/inventory-lot";
+import {
+	type InventoryLotInput,
+	type InventoryLotPurchaseUnit,
+	toPurchaseUnit,
+} from "../domain/inventory-lot";
 import type { CreateIngredientRegistrationInput } from "./create-ingredient-registration";
 import type {
 	InventoryAdjustmentRepository,
@@ -49,9 +53,18 @@ export async function recordInventoryPurchase(
 		reason: "purchase",
 		sourceType: "shopping-item",
 		sourceId: input.shoppingItemId,
-		lot: input.lot,
+		// ロットに、買った単位の換算（1玉＝40g、1個＝110g など）を残す。
+		lot: { ...input.lot, purchaseUnit: quantity.purchaseUnit },
 	});
 }
+
+type StockUnitQuantity = {
+	inputQuantity: number;
+	inputUnitCode: string;
+	stockQuantityPerInputUnit: number;
+	// ロットに残す換算。
+	purchaseUnit: InventoryLotPurchaseUnit | null;
+};
 
 function toStockUnitQuantity(
 	input: RecordInventoryPurchaseInput,
@@ -61,20 +74,23 @@ function toStockUnitQuantity(
 		stockUnitLabel: string;
 		trackingMode: string;
 	},
-): {
-	inputQuantity: number;
-	inputUnitCode: string;
-	stockQuantityPerInputUnit: number;
-} {
+): StockUnitQuantity {
+	// 買い物メモの換算での、1単位あたりの量の単位（g・ml・個数の呼び名）。
+	const quantityUnitLabel = input.stockUnitLabel;
 	const asIs = {
 		inputQuantity: input.inputQuantity,
 		inputUnitCode: input.inputUnitCode,
 		stockQuantityPerInputUnit: input.stockQuantityPerInputUnit,
+		purchaseUnit: toPurchaseUnit({
+			inputUnitCode: input.inputUnitCode,
+			quantity: input.stockQuantityPerInputUnit,
+			quantityUnitLabel,
+		}),
 	};
 
 	// 有無だけの食材は、量を使わない。
 	if (resolved.trackingMode === "presence") {
-		return asIs;
+		return { ...asIs, purchaseUnit: null };
 	}
 
 	const isSameUnit =
@@ -84,6 +100,32 @@ function toStockUnitQuantity(
 
 	if (isSameUnit) {
 		return asIs;
+	}
+
+	// 在庫の単位が個数で、個数の単位（個・玉など）で買い、1つあたりを g・ml で決めたとき（1個＝110g など）：
+	// 買った個数のまま足す（重さから個数に直さない）。1つあたりの重さは、ロットの換算に残す。
+	const isCountPurchase =
+		input.inputUnitCode === "count" ||
+		input.inputUnitCode === resolved.stockUnitLabel;
+
+	if (
+		resolved.stockUnitCode === "count" &&
+		input.stockUnitCode !== "count" &&
+		isCountPurchase
+	) {
+		return {
+			inputQuantity: input.inputQuantity,
+			inputUnitCode: resolved.stockUnitCode,
+			stockQuantityPerInputUnit: 1,
+			purchaseUnit: toPurchaseUnit({
+				inputUnitCode:
+					input.inputUnitCode === "count"
+						? resolved.stockUnitLabel
+						: input.inputUnitCode,
+				quantity: input.stockQuantityPerInputUnit,
+				quantityUnitLabel,
+			}),
+		};
 	}
 
 	// 買い物メモの換算での、在庫の単位の量（g / ml / 個数の呼び名つき）。
@@ -111,5 +153,6 @@ function toStockUnitQuantity(
 		inputQuantity: converted,
 		inputUnitCode: resolved.stockUnitCode,
 		stockQuantityPerInputUnit: 1,
+		purchaseUnit: null,
 	};
 }

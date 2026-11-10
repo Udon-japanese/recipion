@@ -61,6 +61,10 @@ describe("recordInventoryPurchase", () => {
 			reason: "purchase",
 			sourceType: "shopping-item",
 			sourceId: "shopping-item-id",
+			// 買った単位の換算（1pack＝10個）を、ロットに残す。
+			lot: {
+				purchaseUnit: { label: "pack", quantity: 10, quantityUnitLabel: "個" },
+			},
 		});
 
 		expect(result).toEqual({
@@ -68,6 +72,48 @@ describe("recordInventoryPurchase", () => {
 			transactionId: "transaction-id",
 			quantity: 10,
 		});
+	});
+
+	it("g・個そのもので買ったときは、ロットに換算を残さない。入力したロットの条件は、そのまま渡す", async () => {
+		const inventoryItemResolver: InventoryItemResolver = {
+			resolveOrCreateInventoryItem: vi.fn().mockResolvedValue({
+				ingredientId: "ingredient-id",
+				inventoryItemId: "inventory-item-id",
+				name: "鶏もも肉",
+				stockUnitCode: "g",
+				stockUnitLabel: "g",
+				trackingMode: "exact",
+			}),
+		};
+		const inventoryAdjustmentRepository: InventoryAdjustmentRepository = {
+			applyAdjustment: vi.fn().mockResolvedValue({
+				status: "applied",
+				transactionId: "transaction-id",
+				quantity: 300,
+			}),
+		};
+
+		await recordInventoryPurchase(
+			{
+				transactionId: "transaction-id",
+				shoppingItemId: "shopping-item-id",
+				ingredientName: "鶏もも肉",
+				stockUnitCode: "g",
+				stockUnitLabel: "g",
+				trackingMode: "exact",
+				inputQuantity: 300,
+				inputUnitCode: "g",
+				stockQuantityPerInputUnit: 1,
+				lot: { storage: "fridge" },
+			},
+			{ inventoryItemResolver, inventoryAdjustmentRepository },
+		);
+
+		expect(inventoryAdjustmentRepository.applyAdjustment).toHaveBeenCalledWith(
+			expect.objectContaining({
+				lot: { storage: "fridge", purchaseUnit: null },
+			}),
+		);
 	});
 
 	describe("在庫の単位が、買い物メモの換算の単位と違うとき", () => {
@@ -172,5 +218,66 @@ describe("recordInventoryPurchase", () => {
 
 			expect(applyAdjustment).toHaveBeenCalledTimes(1);
 		});
+	});
+
+	it("在庫が個の食材を「6個（1個＝110g）」で買うと、6個のまま足し、1個＝110g をロットに残す（重さから個数に直さない）", async () => {
+		const applyAdjustment = vi.fn().mockResolvedValue({
+			status: "applied",
+			transactionId: "t",
+			quantity: 6,
+			lots: [],
+		});
+		const buy = (inputQuantity: number, gramsPerUnit: number) =>
+			recordInventoryPurchase(
+				{
+					transactionId: "t",
+					shoppingItemId: "s",
+					ingredientName: "冷凍うどん",
+					stockUnitCode: "g",
+					stockUnitLabel: "g",
+					trackingMode: "estimated",
+					inputQuantity,
+					inputUnitCode: "count",
+					stockQuantityPerInputUnit: gramsPerUnit,
+				},
+				{
+					inventoryItemResolver: {
+						resolveOrCreateInventoryItem: vi.fn().mockResolvedValue({
+							ingredientId: "i",
+							inventoryItemId: "inv",
+							name: "冷凍うどん",
+							stockUnitCode: "count",
+							stockUnitLabel: "個",
+							trackingMode: "estimated",
+						}),
+					},
+					inventoryAdjustmentRepository: { applyAdjustment },
+				},
+			);
+
+		await buy(5, 200);
+		await buy(6, 110);
+
+		expect(applyAdjustment).toHaveBeenNthCalledWith(
+			1,
+			expect.objectContaining({
+				inputQuantity: 5,
+				inputUnitCode: "count",
+				stockQuantityPerInputUnit: 1,
+				lot: {
+					purchaseUnit: { label: "個", quantity: 200, quantityUnitLabel: "g" },
+				},
+			}),
+		);
+		expect(applyAdjustment).toHaveBeenNthCalledWith(
+			2,
+			expect.objectContaining({
+				inputQuantity: 6,
+				stockQuantityPerInputUnit: 1,
+				lot: {
+					purchaseUnit: { label: "個", quantity: 110, quantityUnitLabel: "g" },
+				},
+			}),
+		);
 	});
 });

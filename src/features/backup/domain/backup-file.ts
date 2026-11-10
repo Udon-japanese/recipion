@@ -59,6 +59,17 @@ export const backupLotSchema = v.object({
 	expiresOn: v.nullable(dateString),
 	expiryKind: v.nullable(v.picklist(["use-by", "best-before", "none"])),
 	expirySource: v.nullable(v.picklist(["entered", "estimated"])),
+	// このロットを入れたときの換算（1玉＝40g など）。
+	purchaseUnit: v.optional(
+		v.nullable(
+			v.object({
+				label: v.pipe(requiredText, v.maxLength(10)),
+				quantity: v.pipe(v.number(), v.finite(), v.gtValue(0)),
+				quantityUnitLabel: v.pipe(requiredText, v.maxLength(10)),
+			}),
+		),
+		null,
+	),
 });
 
 export type BackupLot = v.InferOutput<typeof backupLotSchema>;

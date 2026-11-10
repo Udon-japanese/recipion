@@ -137,6 +137,16 @@ function toInventoryLot(row: typeof inventoryLot.$inferSelect): InventoryLot {
 			["entered", "estimated"],
 			"期限の出所",
 		),
+		purchaseUnit:
+			row.purchaseUnitLabel !== null &&
+			row.purchaseUnitQuantity !== null &&
+			row.purchaseUnitQuantityLabel !== null
+				? {
+						label: row.purchaseUnitLabel,
+						quantity: Number(row.purchaseUnitQuantity),
+						quantityUnitLabel: row.purchaseUnitQuantityLabel,
+					}
+				: null,
 		createdAt: row.createdAt.toISOString(),
 	};
 }
@@ -778,6 +788,12 @@ export function createDrizzleInventoryRepository(
 								expiresOn: conditions.expiresOn,
 								expiryKind: conditions.expiryKind,
 								expirySource: conditions.expirySource,
+								purchaseUnitLabel: conditions.purchaseUnit?.label ?? null,
+								purchaseUnitQuantity: conditions.purchaseUnit
+									? toNumeric(conditions.purchaseUnit.quantity)
+									: null,
+								purchaseUnitQuantityLabel:
+									conditions.purchaseUnit?.quantityUnitLabel ?? null,
 							})
 							.returning();
 

@@ -124,6 +124,7 @@ describe("planInventoryReplace", () => {
 							expiresOn: null,
 							expiryKind: null,
 							expirySource: null,
+							purchaseUnit: null,
 						},
 					],
 				}),

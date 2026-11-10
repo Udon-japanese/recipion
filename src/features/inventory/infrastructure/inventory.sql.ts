@@ -104,6 +104,14 @@ export const inventoryLot = pgTable(
 		expiresOn: date("expires_on", { mode: "string" }),
 		expiryKind: text("expiry_kind"),
 		expirySource: text("expiry_source"),
+		// このロットを入れたときの換算：買った単位1つ＝いくつ（例：1玉＝40g、1個＝110g、1パック＝5個）。
+		// 買った単位の呼び名・量・量の単位（g・ml・個など）の3つとも空（換算なし）か、3つとも入っているか。
+		purchaseUnitLabel: text("purchase_unit_label"),
+		purchaseUnitQuantity: numeric("purchase_unit_quantity", {
+			precision: 18,
+			scale: 6,
+		}),
+		purchaseUnitQuantityLabel: text("purchase_unit_quantity_label"),
 		createdAt: timestamp("created_at", {
 			withTimezone: true,
 		})
@@ -140,6 +148,10 @@ export const inventoryLot = pgTable(
 		check(
 			"inventory_lot_expiry_source_valid",
 			sql`${table.expirySource} is null or ${table.expirySource} in ('entered', 'estimated')`,
+		),
+		check(
+			"inventory_lot_purchase_unit_valid",
+			sql`(${table.purchaseUnitLabel} is null and ${table.purchaseUnitQuantity} is null and ${table.purchaseUnitQuantityLabel} is null) or (${table.purchaseUnitLabel} is not null and ${table.purchaseUnitQuantity} > 0 and ${table.purchaseUnitQuantityLabel} is not null)`,
 		),
 	],
 );

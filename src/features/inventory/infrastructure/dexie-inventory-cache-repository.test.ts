@@ -112,6 +112,7 @@ describe("dexieInventoryCacheRepository", () => {
 			expiresOn: null,
 			expiryKind: null,
 			expirySource: null,
+			purchaseUnit: null,
 			createdAt: "2026-09-23T00:00:00.000Z",
 		} as const;
 
