@@ -93,12 +93,16 @@ export function AdjustControls({
 					<span className={styles.unitSuffix}>{item.stockUnitLabel}</span>
 				}
 				presetButtons={presets}
+				placeholder={
+					item.stockUnitCode === "count"
+						? "使う量・足す量（例：1）"
+						: "使う量・足す量（例：50）"
+				}
 				hideUnitFractionButtons
 			/>
 
 			<div className={styles.primaryActions}>
 				<Button
-					variant="secondary"
 					fullWidth
 					status={decreaseStatus}
 					disabled={readOnly || available === 0 || isIncreasing}
@@ -114,6 +118,7 @@ export function AdjustControls({
 					使った
 				</Button>
 				<Button
+					variant="secondary"
 					fullWidth
 					status={increaseStatus}
 					disabled={readOnly || isDecreasing}

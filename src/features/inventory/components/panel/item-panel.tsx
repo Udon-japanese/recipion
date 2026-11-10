@@ -503,13 +503,12 @@ export function ItemPanel({
 												className={styles.lotButton}
 												aria-label={`${lotLabel(lot)}を直す`}
 												aria-expanded={isEditing}
+												data-editing={isEditing || undefined}
 												onClick={guard(() => toggleLotEditor(lot.id))}
 											>
 												<span className={styles.lotSummary}>{summary}</span>
-												<Icon
-													name={isEditing ? "chevron-down" : "chevron-right"}
-													size={20}
-												/>
+												{/* 内容は、行の下ではなく、別の欄（PC は横、スマホは本体の差し替え）に出るので、右向きの矢印のまま。直している行は、背景で示す。 */}
+												<Icon name="chevron-right" size={20} />
 											</button>
 										) : (
 											<div className={styles.lotSummary}>{summary}</div>

@@ -144,6 +144,17 @@ export function LotEditor({
 			{canAdjust ? <p className={styles.amount}>{amountText}</p> : null}
 
 			{canAdjust ? (
+				<h3 className={styles.sectionTitle}>
+					この入れた分の量を増やす・減らす
+				</h3>
+			) : null}
+			{canAdjust ? (
+				<p className={styles.sectionNote}>
+					「使った」「買い足した」を押すと、すぐ在庫に反映されます。
+				</p>
+			) : null}
+
+			{canAdjust ? (
 				<AdjustControls
 					item={item}
 					label={`${label}の使った量・買い足した量`}
@@ -158,7 +169,11 @@ export function LotEditor({
 			) : null}
 
 			{canEditExpiry ? (
-				<>
+				<div className={styles.savedSection}>
+					<h3 className={styles.sectionTitle}>期限・保存方法・換算</h3>
+					<p className={styles.sectionNote}>
+						直したら「保存」を押すと、反映されます。
+					</p>
 					<ExpiryFields
 						value={expiry}
 						onChange={setExpiry}
@@ -212,7 +227,7 @@ export function LotEditor({
 							保存
 						</Button>
 					</div>
-				</>
+				</div>
 			) : null}
 		</div>
 	);

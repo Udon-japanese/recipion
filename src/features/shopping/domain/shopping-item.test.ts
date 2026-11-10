@@ -149,6 +149,12 @@ describe("createShoppingItem", () => {
 		).toThrow("数量は0より大きい数にしてください");
 	});
 
+	it("数値でない数量（空欄を読めなかった NaN）は、英語の検証文ではなく、日本語で断る", () => {
+		expect(() =>
+			createShoppingItem({ name: "牛乳", quantity: Number.NaN }),
+		).toThrow("数量を確認してください");
+	});
+
 	it("在庫換算情報を保持する", () => {
 		const item = createShoppingItem({
 			name: "牛乳",

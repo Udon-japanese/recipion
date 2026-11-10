@@ -27,3 +27,16 @@ export const fractionButtons = style({
 	flexWrap: "wrap",
 	gap: 8,
 });
+
+// 「+50」など、入力の量に足すボタンの行（「今ある分」など、量をそのまま入れるボタンと分ける）。
+export const addButtons = style({
+	display: "flex",
+	flexWrap: "wrap",
+	alignItems: "center",
+	gap: 8,
+});
+
+export const addLabel = style({
+	color: "var(--color-text-muted)",
+	fontSize: "var(--font-size-sm)",
+});

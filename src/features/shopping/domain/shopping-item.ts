@@ -62,7 +62,7 @@ export const inventoryConversionSchema = v.object({
 		v.minLength(1, "在庫の表示単位を入力してください"),
 	),
 	stockQuantityPerInputUnit: v.pipe(
-		v.number(),
+		v.number("在庫に入れる量を確認してください（例：300）"),
 		v.finite("換算数量には有限の数値を指定してください"),
 		v.gtValue(0, "1単位あたりの在庫数量は0より大きくしてください"),
 	),
@@ -80,7 +80,7 @@ export const createShoppingItemInputSchema = v.object({
 	),
 	quantity: v.optional(
 		v.pipe(
-			v.number(),
+			v.number("数量を確認してください（例：2、1/2）"),
 			v.finite("数量には有限の数値を指定してください"),
 			v.gtValue(0, "数量は0より大きい数にしてください"),
 		),
@@ -105,7 +105,7 @@ export const updateShoppingItemInputSchema = v.object({
 		v.minLength(1, "商品名を入力してください"),
 	),
 	quantity: v.pipe(
-		v.number(),
+		v.number("数量を確認してください（例：2、1/2）"),
 		v.finite("数量には有限の数値を指定してください"),
 		v.gtValue(0, "数量は0より大きい数にしてください"),
 	),
