@@ -59,6 +59,7 @@ export const exportBackupInventoryServerFn = createServerFn({
 			expiresOn: lot.expiresOn,
 			expiryKind: lot.expiryKind,
 			expirySource: lot.expirySource,
+			purchaseUnit: lot.purchaseUnit,
 		})),
 	}));
 });

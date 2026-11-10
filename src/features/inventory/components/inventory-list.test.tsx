@@ -47,6 +47,7 @@ function createLot(
 		expiresOn: null,
 		expiryKind: null,
 		expirySource: null,
+		purchaseUnit: null,
 		createdAt: "2026-10-01T00:00:00.000Z",
 		...overrides,
 	};
@@ -788,6 +789,42 @@ describe("InventoryList", () => {
 		expect(amount).toHaveValue("1");
 	});
 
+	it("内訳の行に、そのロットの換算（1玉＝40g）を出す。換算が違うロットは、それぞれの値を出す", async () => {
+		const user = userEvent.setup();
+
+		renderList([
+			stocked({
+				inventoryItemId: "9a3e5b64-1c2f-4d0e-8f43-0a6b7c8d9e10",
+				name: "うどん",
+				quantity: 310,
+				stockUnitCode: "g",
+				stockUnitLabel: "g",
+				lots: [
+					createLot({
+						id: "udon-a",
+						quantity: 200,
+						purchaseUnit: { label: "玉", quantity: 40, quantityUnitLabel: "g" },
+					}),
+					createLot({
+						id: "udon-b",
+						quantity: 110,
+						acquiredOn: "2026-10-02",
+						purchaseUnit: {
+							label: "玉",
+							quantity: 110 / 6,
+							quantityUnitLabel: "g",
+						},
+					}),
+				],
+			}),
+		]);
+
+		const dialog = await openPanel(user, "うどん");
+
+		expect(within(dialog).getByText("1玉＝40g")).toBeInTheDocument();
+		expect(within(dialog).getByText("1玉＝18g")).toBeInTheDocument();
+	});
+
 	it("通信できず保存済みの在庫を見ているときは、案内を出し、書き換える操作は理由を出して実行しない", async () => {
 		const user = userEvent.setup();
 		const adjustInventoryItem = vi.fn();
@@ -854,6 +891,7 @@ describe("InventoryList", () => {
 							expiresOn: "2026-10-20",
 							expiryKind: "best-before",
 							expirySource: "entered",
+							purchaseUnit: null,
 						}),
 						createLot({
 							id: "early",
@@ -862,6 +900,7 @@ describe("InventoryList", () => {
 							expiresOn: "2026-10-10",
 							expiryKind: "use-by",
 							expirySource: "estimated",
+							purchaseUnit: null,
 						}),
 					],
 				},

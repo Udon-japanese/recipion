@@ -1,4 +1,5 @@
 import { UserFacingError } from "#/errors/user-facing-error";
+import { formatStockAmount } from "#/features/quantity/domain/format-quantity";
 import type { InventoryTrackingMode } from "./apply-inventory-adjustment";
 
 // 在庫は、買った（追加した）単位ごとの「ロット」で持つ。食材の数量は、ロットの数量の合計。
@@ -11,6 +12,15 @@ export type InventoryExpiryKind = "use-by" | "best-before" | "none";
 // entered: ユーザーが入力した日付。estimated: 買った日と日数から出した目安（「約」と表示する）。
 export type InventoryExpirySource = "entered" | "estimated";
 
+// このロットを入れたときの換算：買った単位1つ＝いくつ。例：1玉＝40g、1個＝110g、1パック＝5個。
+// ロットごとに持つ（同じ食材・同じ単位でも、買ったものによって中身が違うため）。量の単位は、在庫の単位とは限らない
+// （在庫が個の食材に「1個＝110g」と書いたときは、g）。
+export type InventoryLotPurchaseUnit = {
+	label: string;
+	quantity: number;
+	quantityUnitLabel: string;
+};
+
 export type InventoryLot = {
 	id: string;
 	quantity: number;
@@ -21,12 +31,18 @@ export type InventoryLot = {
 	expiresOn: string | null;
 	expiryKind: InventoryExpiryKind | null;
 	expirySource: InventoryExpirySource | null;
+	purchaseUnit: InventoryLotPurchaseUnit | null;
 	createdAt: string;
 };
 
 export type InventoryLotConditions = Pick<
 	InventoryLot,
-	"acquiredOn" | "storage" | "expiresOn" | "expiryKind" | "expirySource"
+	| "acquiredOn"
+	| "storage"
+	| "expiresOn"
+	| "expiryKind"
+	| "expirySource"
+	| "purchaseUnit"
 >;
 
 // 追加するときの、ロットの条件の入力（すべて任意）。省略した項目は、既定値になる。
@@ -36,6 +52,7 @@ export type InventoryLotInput = {
 	expiresOn?: string | null;
 	expiryKind?: InventoryExpiryKind | null;
 	expirySource?: InventoryExpirySource | null;
+	purchaseUnit?: InventoryLotPurchaseUnit | null;
 };
 
 export type InventoryLotAllocation = {
@@ -98,9 +115,73 @@ export function sortLotsForConsumption(
 	return [...lots].sort(compareLotsForConsumption);
 }
 
+// 重さ・体積そのものの単位。これで買ったものは、買った単位の換算を持たない（量がそのまま在庫になる）。
+const plainInputUnitCodes: ReadonlySet<string> = new Set([
+	"g",
+	"kg",
+	"ml",
+	"l",
+	"cc",
+]);
+
+/**
+ * 買った単位と換算から、ロットに残す換算を決める。
+ * - 玉・袋・パック・個などの単位で、1単位が何g・何個などかを持つものだけ。g・ml・kg・l そのもので買ったときは、なし。
+ * - 「1個＝1個」のように、同じ単位で同じ量になる自明な換算も、なし。
+ * - "count"（個数の総称）は、「個」と表す。
+ */
+export function toPurchaseUnit(input: {
+	inputUnitCode: string;
+	quantity: number;
+	quantityUnitLabel: string;
+}): InventoryLotPurchaseUnit | null {
+	const label =
+		input.inputUnitCode.trim() === "count" ? "個" : input.inputUnitCode.trim();
+	const quantityUnitLabel = input.quantityUnitLabel.trim();
+
+	if (
+		label === "" ||
+		quantityUnitLabel === "" ||
+		plainInputUnitCodes.has(label.toLocaleLowerCase("ja-JP")) ||
+		!(input.quantity > 0) ||
+		!Number.isFinite(input.quantity) ||
+		(input.quantity === 1 && label === quantityUnitLabel)
+	) {
+		return null;
+	}
+
+	return {
+		label,
+		quantity: roundQuantity(input.quantity),
+		quantityUnitLabel,
+	};
+}
+
+// 換算の表示（例：1玉＝40g）。量は、g・ml なら読みやすく丸め、個数などは分数で。
+export function describePurchaseUnit(unit: InventoryLotPurchaseUnit): string {
+	const code =
+		unit.quantityUnitLabel === "g" || unit.quantityUnitLabel === "ml"
+			? unit.quantityUnitLabel
+			: "count";
+
+	return `1${unit.label}＝${formatStockAmount(unit.quantity, code)}${unit.quantityUnitLabel}`;
+}
+
+function isSamePurchaseUnit(
+	a: InventoryLotPurchaseUnit | null,
+	b: InventoryLotPurchaseUnit | null,
+): boolean {
+	return a === null || b === null
+		? a === b
+		: a.label === b.label &&
+				a.quantity === b.quantity &&
+				a.quantityUnitLabel === b.quantityUnitLabel;
+}
+
 /**
  * 追加するとき、同じ条件のロットがあれば、そこへ合体する。
- * 条件：保存方法、期限の日付・種類・出所が同じ。期限がないロットは、買った日も同じ（同じ日に買ったものだけ）。
+ * 条件：保存方法、期限の日付・種類・出所、買った単位の換算が同じ。期限がないロットは、買った日も同じ（同じ日に買ったものだけ）。
+ * 換算が違うもの（5玉200g と 6玉110g など）は、別のロットにする（換算を上書きしない）。
  */
 export function findMergeableLot(
 	lots: readonly InventoryLot[],
@@ -112,6 +193,7 @@ export function findMergeableLot(
 			lot.expiresOn === conditions.expiresOn &&
 			lot.expiryKind === conditions.expiryKind &&
 			lot.expirySource === conditions.expirySource &&
+			isSamePurchaseUnit(lot.purchaseUnit, conditions.purchaseUnit) &&
 			(conditions.expiresOn !== null ||
 				lot.acquiredOn === conditions.acquiredOn),
 	);
@@ -257,5 +339,6 @@ export function resolveLotConditions(
 					: null,
 		expirySource:
 			expiresOn !== null ? (input?.expirySource ?? "entered") : null,
+		purchaseUnit: input?.purchaseUnit ?? null,
 	};
 }

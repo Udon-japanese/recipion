@@ -1,0 +1,4 @@
+ALTER TABLE "inventory_lot" ADD COLUMN "purchase_unit_label" text;--> statement-breakpoint
+ALTER TABLE "inventory_lot" ADD COLUMN "purchase_unit_quantity" numeric(18, 6);--> statement-breakpoint
+ALTER TABLE "inventory_lot" ADD COLUMN "purchase_unit_quantity_label" text;--> statement-breakpoint
+ALTER TABLE "inventory_lot" ADD CONSTRAINT "inventory_lot_purchase_unit_valid" CHECK (("inventory_lot"."purchase_unit_label" is null and "inventory_lot"."purchase_unit_quantity" is null and "inventory_lot"."purchase_unit_quantity_label" is null) or ("inventory_lot"."purchase_unit_label" is not null and "inventory_lot"."purchase_unit_quantity" > 0 and "inventory_lot"."purchase_unit_quantity_label" is not null));

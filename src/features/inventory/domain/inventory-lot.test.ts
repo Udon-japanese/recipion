@@ -3,6 +3,7 @@ import {
 	addDays,
 	allocateDecrease,
 	daysBetween,
+	describePurchaseUnit,
 	findMergeableLot,
 	type InventoryLot,
 	isValidDateString,
@@ -10,6 +11,7 @@ import {
 	sortLotsForConsumption,
 	sumLotQuantities,
 	toDateString,
+	toPurchaseUnit,
 	validateManualAllocations,
 } from "./inventory-lot";
 
@@ -21,6 +23,7 @@ function lot(overrides: Partial<InventoryLot> & { id: string }): InventoryLot {
 		expiresOn: null,
 		expiryKind: null,
 		expirySource: null,
+		purchaseUnit: null,
 		createdAt: "2026-10-01T00:00:00.000Z",
 		...overrides,
 	};
@@ -51,6 +54,7 @@ describe("findMergeableLot（合体の条件）", () => {
 		expiresOn: "2026-10-10",
 		expiryKind: "use-by",
 		expirySource: "entered",
+		purchaseUnit: null,
 	});
 
 	it("保存方法・期限・種類・出所が同じなら、買った日が違っても合体する", () => {
@@ -61,6 +65,7 @@ describe("findMergeableLot（合体の条件）", () => {
 				expiresOn: "2026-10-10",
 				expiryKind: "use-by",
 				expirySource: "entered",
+				purchaseUnit: null,
 			})?.id,
 		).toBe("a");
 	});
@@ -72,6 +77,7 @@ describe("findMergeableLot（合体の条件）", () => {
 			expiresOn: "2026-10-10",
 			expiryKind: "use-by",
 			expirySource: "entered",
+			purchaseUnit: null,
 		} as const;
 
 		for (const changed of [
@@ -91,6 +97,7 @@ describe("findMergeableLot（合体の条件）", () => {
 			expiresOn: null,
 			expiryKind: null,
 			expirySource: null,
+			purchaseUnit: null,
 		} as const;
 
 		expect(
@@ -236,6 +243,7 @@ describe("resolveLotConditions", () => {
 			expiresOn: null,
 			expiryKind: null,
 			expirySource: null,
+			purchaseUnit: null,
 		});
 	});
 
@@ -251,6 +259,7 @@ describe("resolveLotConditions", () => {
 			expiresOn: "2026-10-10",
 			expiryKind: "use-by",
 			expirySource: "entered",
+			purchaseUnit: null,
 		});
 	});
 
@@ -273,6 +282,116 @@ describe("resolveLotConditions", () => {
 		expect(resolveLotConditions({ expiryKind: "none" }, today)).toMatchObject({
 			expiryKind: "none",
 			expirySource: null,
+			purchaseUnit: null,
 		});
+	});
+});
+
+describe("toPurchaseUnit（ロットに残す換算）", () => {
+	it("玉・袋・個などの単位は、呼び名・1つの量・量の単位を残す。count は「個」と表す", () => {
+		expect(
+			toPurchaseUnit({
+				inputUnitCode: "玉",
+				quantity: 40,
+				quantityUnitLabel: "g",
+			}),
+		).toEqual({ label: "玉", quantity: 40, quantityUnitLabel: "g" });
+		expect(
+			toPurchaseUnit({
+				inputUnitCode: "count",
+				quantity: 110,
+				quantityUnitLabel: "g",
+			}),
+		).toEqual({ label: "個", quantity: 110, quantityUnitLabel: "g" });
+		expect(
+			toPurchaseUnit({
+				inputUnitCode: "袋",
+				quantity: 18.333333333,
+				quantityUnitLabel: "g",
+			})?.quantity,
+		).toBe(18.333333);
+	});
+
+	it("g・kg などそのもので買ったときや、同じ単位で同じ量の自明な換算や、読めない換算は、残さない", () => {
+		for (const input of [
+			{ inputUnitCode: "g", quantity: 1, quantityUnitLabel: "g" },
+			{ inputUnitCode: "kg", quantity: 1000, quantityUnitLabel: "g" },
+			{ inputUnitCode: "count", quantity: 1, quantityUnitLabel: "個" },
+			{ inputUnitCode: "玉", quantity: 0, quantityUnitLabel: "g" },
+			{ inputUnitCode: "  ", quantity: 40, quantityUnitLabel: "g" },
+		]) {
+			expect(toPurchaseUnit(input)).toBeNull();
+		}
+	});
+
+	it("describePurchaseUnit は、1玉＝40g のように表す", () => {
+		expect(
+			describePurchaseUnit({
+				label: "個",
+				quantity: 110,
+				quantityUnitLabel: "g",
+			}),
+		).toBe("1個＝110g");
+		expect(
+			describePurchaseUnit({
+				label: "パック",
+				quantity: 2.5,
+				quantityUnitLabel: "個",
+			}),
+		).toBe("1パック＝2 1/2個");
+	});
+});
+
+describe("換算が違うロットは合体しない（5玉200g と 6玉110g）", () => {
+	const conditions = {
+		acquiredOn: "2026-10-01",
+		storage: null,
+		expiresOn: null,
+		expiryKind: null,
+		expirySource: null,
+	};
+	const udon = lot({
+		id: "udon",
+		purchaseUnit: { label: "玉", quantity: 40, quantityUnitLabel: "g" },
+	});
+
+	it("同じ換算なら合体し、違う換算・換算なしなら別のロットにする", () => {
+		expect(
+			findMergeableLot([udon], {
+				...conditions,
+				purchaseUnit: { label: "玉", quantity: 40, quantityUnitLabel: "g" },
+			})?.id,
+		).toBe("udon");
+		expect(
+			findMergeableLot([udon], {
+				...conditions,
+				purchaseUnit: {
+					label: "玉",
+					quantity: 110 / 6,
+					quantityUnitLabel: "g",
+				},
+			}),
+		).toBeUndefined();
+		expect(
+			findMergeableLot([udon], { ...conditions, purchaseUnit: null }),
+		).toBeUndefined();
+		expect(
+			findMergeableLot([lot({ id: "plain" })], {
+				...conditions,
+				purchaseUnit: { label: "玉", quantity: 40, quantityUnitLabel: "g" },
+			}),
+		).toBeUndefined();
+	});
+
+	it("resolveLotConditions は、入力の換算を条件に入れる", () => {
+		expect(
+			resolveLotConditions(
+				{ purchaseUnit: { label: "玉", quantity: 40, quantityUnitLabel: "g" } },
+				"2026-10-01",
+			).purchaseUnit,
+		).toEqual({ label: "玉", quantity: 40, quantityUnitLabel: "g" });
+		expect(
+			resolveLotConditions(undefined, "2026-10-01").purchaseUnit,
+		).toBeNull();
 	});
 });
