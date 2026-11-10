@@ -54,5 +54,15 @@ export function buildShoppingData() {
 				usedAt: now.getTime(),
 			},
 		],
+		itemMemories: [
+			{
+				nameKey: "卵",
+				quantity: 2,
+				unitLabel: "パック",
+				categoryId: "eggs" as const,
+				categoryAssignment: "manual" as const,
+				usedAt: now.getTime(),
+			},
+		],
 	};
 }

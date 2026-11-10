@@ -114,6 +114,17 @@ async function readRecord(
 
 			return { kind, id, deleted: false, data };
 		}
+		case "itemMemory": {
+			const row = await database.scopedShoppingItemMemories.get([
+				ownerScope,
+				id,
+			]);
+
+			if (!row) return deleted;
+			const { ownerScope: _ownerScope, ...data } = row;
+
+			return { kind, id, deleted: false, data };
+		}
 	}
 }
 
@@ -185,6 +196,19 @@ async function applyRecord(
 				});
 			}
 			return;
+		case "itemMemory":
+			if (record.deleted) {
+				await database.scopedShoppingItemMemories.delete([
+					ownerScope,
+					record.id,
+				]);
+			} else {
+				await database.scopedShoppingItemMemories.put({
+					...record.data,
+					...owner,
+				});
+			}
+			return;
 	}
 }
 
@@ -192,7 +216,7 @@ function outboxKey(entry: { kind: string; id: string }) {
 	return `${entry.kind}\u0000${entry.id}`;
 }
 
-// サーバーの行（消していないもの）を、5つの表の形にまとめる。
+// サーバーの行（消していないもの）を、6つの表の形にまとめる。
 function toMemoData(records: readonly ShoppingSyncRecord[]): ShoppingMemoData {
 	const data: ShoppingMemoData = {
 		items: [],
@@ -200,6 +224,7 @@ function toMemoData(records: readonly ShoppingSyncRecord[]): ShoppingMemoData {
 		branches: [],
 		storeDefaults: [],
 		conversionMemories: [],
+		itemMemories: [],
 	};
 
 	for (const record of records) {
@@ -220,6 +245,9 @@ function toMemoData(records: readonly ShoppingSyncRecord[]): ShoppingMemoData {
 				break;
 			case "conversionMemory":
 				data.conversionMemories.push(record.data);
+				break;
+			case "itemMemory":
+				data.itemMemories.push(record.data);
 				break;
 		}
 	}
@@ -263,6 +291,10 @@ function entriesOf(
 		...data.conversionMemories.map((row) => ({
 			kind: "conversionMemory" as const,
 			id: row.key,
+		})),
+		...data.itemMemories.map((row) => ({
+			kind: "itemMemory" as const,
+			id: row.nameKey,
 		})),
 	];
 

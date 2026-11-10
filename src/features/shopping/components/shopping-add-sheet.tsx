@@ -1,10 +1,20 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useButtonAction } from "#/components/button/use-button-action";
 import { CornerSheet } from "#/components/corner-sheet/corner-sheet";
 import { Icon } from "#/components/icon/icon";
-import { formatQuantityForUnit } from "#/features/quantity/domain/format-quantity";
+import {
+	formatQuantity,
+	formatQuantityForUnit,
+} from "#/features/quantity/domain/format-quantity";
 import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
+import type { ShoppingConversionDefaults } from "../domain/shopping-conversion-default";
 import type { CreateShoppingItemInput } from "../domain/shopping-item";
+import {
+	findShoppingItemMemory,
+	listRememberedShoppingChoices,
+	type ShoppingItemMemories,
+} from "../domain/shopping-item-memory";
+import { inferShoppingCategory } from "../domain/shopping-item-suggestion";
 import type { ShoppingStore } from "../domain/shopping-store";
 import * as styles from "./shopping-add-sheet.css";
 import {
@@ -22,7 +32,13 @@ type ShoppingAddSheetProps = {
 	defaultStoreIdFor: (itemName: string) => string | null;
 	onCreateStore: (name: string) => Promise<ShoppingStore | null>;
 	onClose: () => void;
+	// 覚えた買い方（名前を入れたら、数量・単位・換算・カテゴリを埋める）。
+	itemMemories?: ShoppingItemMemories;
+	conversionDefaults?: ShoppingConversionDefaults;
 };
+
+const noItemMemories: ShoppingItemMemories = {};
+const noConversionDefaults: ShoppingConversionDefaults = {};
 
 const emptyDraft: ShoppingItemDraft = {
 	name: "",
@@ -44,11 +60,16 @@ export function ShoppingAddSheet({
 	defaultStoreIdFor,
 	onCreateStore,
 	onClose,
+	itemMemories = noItemMemories,
+	conversionDefaults = noConversionDefaults,
 }: ShoppingAddSheetProps) {
 	const formRef = useRef<HTMLFormElement>(null);
 	const [draft, setDraft] = useState<ShoppingItemDraft>(emptyDraft);
 	// 店を自分で選んだら、名前の入力で「いつも買う店」を入れ直さない。
 	const [isStoreChosen, setIsStoreChosen] = useState(false);
+	// 数量・単位・カテゴリを自分で決めたら、名前の入力で、覚えた買い方を入れ直さない。
+	const [isAmountChosen, setIsAmountChosen] = useState(false);
+	const [isCategoryChosen, setIsCategoryChosen] = useState(false);
 	// 前回の店（名前に「いつも買う店」がないときに、続ける）。
 	const [carriedStoreId, setCarriedStoreId] = useState<string | null>(null);
 	// 「追加」の状態（処理中・追加しました・失敗）。追加しても閉じないので、完了も見せる。
@@ -57,6 +78,15 @@ export function ShoppingAddSheet({
 	const [isNameMissing, setIsNameMissing] = useState(false);
 	// 入れたもの（このシートを開いてから）。
 	const [added, setAdded] = useState<string[]>([]);
+	const rememberedChoices = useMemo(
+		() =>
+			listRememberedShoppingChoices(
+				draft.name,
+				itemMemories,
+				conversionDefaults,
+			),
+		[draft.name, itemMemories, conversionDefaults],
+	);
 
 	function focusNameField() {
 		formRef.current
@@ -69,6 +99,44 @@ export function ShoppingAddSheet({
 	useEffect(() => {
 		focusNameField();
 	}, [added.length]);
+
+	// 自分で決めていない欄を、覚えた買い方で埋める（覚えていなければ、初期の形とカタログの推定）。
+	// 数量・単位・換算：いちばん新しい候補（前回の買い方 → その食材のほかの換算の記憶）。
+	// カテゴリ：前回のカテゴリ → カタログからの推定。
+	function fillFromMemory(next: ShoppingItemDraft): ShoppingItemDraft {
+		const [latest] = listRememberedShoppingChoices(
+			next.name,
+			itemMemories,
+			conversionDefaults,
+		);
+		const memory = findShoppingItemMemory(itemMemories, next.name);
+		const inferredCategoryId = inferShoppingCategory(next.name);
+
+		return {
+			...next,
+			...(isAmountChosen
+				? {}
+				: latest
+					? {
+							quantity: formatQuantity(latest.quantity, { grouping: false }),
+							unitLabel: latest.unitLabel ?? "",
+							inventoryConversion: latest.inventoryConversion,
+						}
+					: {
+							quantity: emptyDraft.quantity,
+							unitLabel: emptyDraft.unitLabel,
+							inventoryConversion: null,
+						}),
+			...(isCategoryChosen
+				? {}
+				: memory
+					? {
+							categoryId: memory.categoryId ?? "",
+							isCategoryManual: memory.categoryAssignment === "manual",
+						}
+					: { categoryId: inferredCategoryId ?? "", isCategoryManual: false }),
+		};
+	}
 
 	async function handleSubmit() {
 		if (draft.name.trim() === "") {
@@ -103,6 +171,8 @@ export function ShoppingAddSheet({
 				// 続けて入れられるように、空に戻す（店は、前回のまま）。名前の欄へは、上の effect で戻る。
 				setDraft({ ...emptyDraft, storeId: draft.storeId });
 				setIsStoreChosen(false);
+				setIsAmountChosen(false);
+				setIsCategoryChosen(false);
 			}
 
 			return isAdded;
@@ -153,17 +223,22 @@ export function ShoppingAddSheet({
 					namePlaceholder="卵、牛乳など"
 					stores={stores}
 					onCreateStore={onCreateStore}
+					rememberedChoices={rememberedChoices}
 					onNameChange={(next) => {
 						setIsNameMissing(false);
 
 						// 店を自分で選んでいなければ、「いつも買う店」（なければ、前回の店）を入れる。
-						return isStoreChosen
+						const withStore = isStoreChosen
 							? next
 							: {
 									...next,
 									storeId: defaultStoreIdFor(next.name) ?? carriedStoreId,
 								};
+
+						return fillFromMemory(withStore);
 					}}
+					onAmountChange={() => setIsAmountChosen(true)}
+					onCategoryChange={() => setIsCategoryChosen(true)}
 					onStoreChange={(storeId) => {
 						setIsStoreChosen(true);
 						setCarriedStoreId(storeId);

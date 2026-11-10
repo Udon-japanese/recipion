@@ -49,6 +49,7 @@ describe("adoptGuestShoppingMemo", () => {
 			branches: [],
 			storeDefaults: [],
 			conversionMemories: [],
+			itemMemories: [],
 		});
 		await expect(account.items.list()).resolves.toMatchObject([
 			{ name: "卵", storeId: accountStore.id },

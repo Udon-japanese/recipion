@@ -82,6 +82,7 @@ export function RecipeToShoppingPicker({
 		ownerScope,
 		loadInventoryItems,
 		shoppingRepository: context.repository,
+		loadShoppingMemories: context.loadShoppingMemories,
 		destination: context.destination,
 		dictionary,
 		onApplied: () => {

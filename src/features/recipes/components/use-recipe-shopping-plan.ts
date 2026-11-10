@@ -5,6 +5,7 @@ import type { InventoryPurchaseOwnerScope } from "#/features/inventory/applicati
 import type { InventoryListItem } from "#/features/inventory/application/inventory-query-repository";
 import type { ShoppingRepository } from "#/features/shopping/application/shopping-repository";
 import type { ShoppingItem } from "#/features/shopping/domain/shopping-item";
+import type { ShoppingMemories } from "#/features/shopping/domain/shopping-item-memory";
 import { useStorageItem } from "#/local-storage/use-storage-item";
 import {
 	buildShoppingChanges,
@@ -27,14 +28,20 @@ import {
 	flattenRecipeIngredients,
 	planShoppingFromRecipe,
 	type RecipeShoppingRow,
+	type ShoppingAmountMode,
 	withRangeUpperBound,
 } from "../domain/plan-shopping-from-recipe";
 import type { RecipeEditorIngredientNode } from "../domain/recipe-editor-document";
 import type { RecipeLinkView } from "../domain/recipe-links";
 import { scaleRecipeNeed } from "../domain/scale-recipe-need";
+import { shoppingAmountModeItem } from "../infrastructure/shopping-amount-mode-storage";
 import { standInModeItem } from "../infrastructure/stand-in-mode-storage";
 
 const noLinkViews: readonly RecipeLinkView[] = [];
+const noMemories: ShoppingMemories = {
+	itemMemories: {},
+	conversionDefaults: {},
+};
 const noLinkedSections: LinkedShoppingSections = {
 	sections: [],
 	madeUses: [],
@@ -55,6 +62,8 @@ type UseRecipeShoppingPlanOptions = {
 	// ログインしているとき、在庫の一覧を取得する（ゲストでは、呼ばない）。
 	loadInventoryItems?: () => Promise<InventoryListItem[]>;
 	shoppingRepository: ShoppingRepository;
+	// 買い物メモの記憶（いつもの買い方・換算）を読む。省略は、記憶なし（レシピの量で入れる）。
+	loadShoppingMemories?: () => Promise<ShoppingMemories>;
 	// 入れ先。省略は通常のメモ。条件つきのメモの側にも入れられる。
 	destination?: ShoppingDestination;
 	// 入れたあとに呼ぶ（買い物メモの画面が、一覧を読み直す）。
@@ -79,6 +88,7 @@ export function useRecipeShoppingPlan({
 	ownerScope,
 	loadInventoryItems,
 	shoppingRepository,
+	loadShoppingMemories,
 	destination,
 	onApplied,
 	autoStartKey = null,
@@ -95,6 +105,8 @@ export function useRecipeShoppingPlan({
 	);
 	const [memoItems, setMemoItems] = useState<ShoppingItem[]>([]);
 	const [duplicateMode, setDuplicateMode] = useState<DuplicateMode>("max");
+	const [memories, setMemories] = useState<ShoppingMemories>(noMemories);
+	const [amountMode, setAmountMode] = useStorageItem(shoppingAmountModeItem);
 	// ユーザーが、初期のチェックを変えた行（食材の ID → チェックの有無）。
 	const [checkedOverrides, setCheckedOverrides] = useState<
 		Record<string, boolean>
@@ -164,6 +176,8 @@ export function useRecipeShoppingPlan({
 				duplicateMode,
 				standInMode,
 				dictionary,
+				amountMode,
+				itemMemories: memories.itemMemories,
 			}),
 		[
 			needs,
@@ -172,6 +186,8 @@ export function useRecipeShoppingPlan({
 			duplicateMode,
 			standInMode,
 			dictionary,
+			amountMode,
+			memories,
 		],
 	);
 
@@ -215,6 +231,15 @@ export function useRecipeShoppingPlan({
 				setMemoItems(await loadMemoItems());
 			} catch {
 				setErrorMessage("買い物メモを読み込めませんでした");
+			}
+
+			// 記憶を読めなくても、レシピの量で入れられる（エラーは出さない）。
+			if (loadShoppingMemories) {
+				try {
+					setMemories(await loadShoppingMemories());
+				} catch {
+					setMemories(noMemories);
+				}
 			}
 
 			let loadedStock: InventoryListItem[] | null = null;
@@ -262,6 +287,7 @@ export function useRecipeShoppingPlan({
 			loadInventoryItems,
 			loadLinkedRecipe,
 			loadMemoItems,
+			loadShoppingMemories,
 			missingLinkNames,
 			ownerScope,
 			ratio,
@@ -300,7 +326,7 @@ export function useRecipeShoppingPlan({
 			selectedNeedIds,
 			memoItems,
 			undefined,
-			{ destination, highestSortOrder },
+			{ destination, highestSortOrder, memories },
 		);
 
 		if (changes.created.length === 0 && changes.updated.length === 0) {
@@ -350,6 +376,11 @@ export function useRecipeShoppingPlan({
 	function changeDuplicateMode(mode: DuplicateMode) {
 		setAppliedCount(null);
 		setDuplicateMode(mode);
+	}
+
+	function changeAmountMode(mode: ShoppingAmountMode) {
+		setAppliedCount(null);
+		setAmountMode(mode);
 	}
 
 	function setChecked(row: RecipeShoppingRow, checked: boolean) {
@@ -459,6 +490,8 @@ export function useRecipeShoppingPlan({
 		appliedCount,
 		duplicateMode,
 		setDuplicateMode: changeDuplicateMode,
+		amountMode,
+		setAmountMode: changeAmountMode,
 		isLoading,
 		isApplying,
 		// 「ある」で在庫に登録している。

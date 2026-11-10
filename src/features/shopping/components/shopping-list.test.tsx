@@ -1,6 +1,6 @@
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ToastViewport } from "#/components/toast/toast-viewport";
 import { notifyPurchaseSyncStarted } from "#/features/inventory/application/purchase-sync-events";
 import {
@@ -9,8 +9,17 @@ import {
 } from "#/features/inventory/domain/inventory-lot";
 import { buildShoppingItem } from "#/test/builders/build-shopping-item";
 import { createFakeShoppingRepository } from "#/test/fakes/fake-shopping-repository";
+import { getLocalDatabase } from "../../../local-db/database";
 import type { ShoppingItem } from "../domain/shopping-item";
 import { ShoppingList } from "./shopping-list";
+
+// 追加した項目は、端末の記憶（いつもの買い方・換算）に入る。前のテストの記憶を持ち越さない。
+beforeEach(async () => {
+	const database = getLocalDatabase();
+
+	await database.scopedShoppingItemMemories.clear();
+	await database.scopedShoppingConversionMemories.clear();
+});
 
 const storedItem: ShoppingItem = buildShoppingItem({
 	quantity: 6,
@@ -214,7 +223,10 @@ describe("ShoppingList", () => {
 			}),
 		).toBeInTheDocument();
 
-		expect(screen.getByLabelText("買うもの")).toHaveValue("");
+		// 入力が空に戻るのは、保存と記憶（いつも買う店・いつもの買い方）を書き終えてから。
+		await waitFor(() =>
+			expect(screen.getByLabelText("買うもの")).toHaveValue(""),
+		);
 		expect(screen.getByLabelText("数量")).toHaveValue("1");
 		expect(screen.getByLabelText("単位")).toHaveValue("");
 		expect(screen.getByText("未設定")).toBeInTheDocument();

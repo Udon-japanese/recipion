@@ -13,6 +13,7 @@ import { describeAmount } from "../domain/merge-recipe-needs";
 import type {
 	DuplicateMode,
 	RecipeShoppingRow,
+	ShoppingAmountMode,
 } from "../domain/plan-shopping-from-recipe";
 import * as styles from "./recipe-shopping-rows.css";
 import type { useRecipeShoppingPlan } from "./use-recipe-shopping-plan";
@@ -23,6 +24,18 @@ const duplicateModeOptions: readonly { value: DuplicateMode; label: string }[] =
 		{ value: "sum", label: "合算する" },
 		{ value: "skip", label: "追加しない" },
 	];
+
+const amountModeOptions: readonly {
+	value: ShoppingAmountMode;
+	label: string;
+}[] = [
+	{ value: "usual", label: "いつもの量（前に入れた・買った量）" },
+	{ value: "recipe", label: "レシピの量" },
+];
+
+function describeMemoAmount(amount: RecipeShoppingRow["amount"]): string {
+	return `${formatQuantityForUnit(amount.quantity, amount.unitLabel)}${amount.unitLabel ?? ""}`;
+}
 
 function describeStock(row: RecipeShoppingRow): {
 	text: string;
@@ -84,7 +97,7 @@ function describeStockBase(row: RecipeShoppingRow): {
 
 	if (judgment.shortage !== null) {
 		return {
-			text: `あと ${formatQuantityForUnit(judgment.shortage, row.amount.unitLabel)}${row.amount.unitLabel ?? ""}`,
+			text: `あと ${formatQuantityForUnit(judgment.shortage, row.recipeAmount.unitLabel)}${row.recipeAmount.unitLabel ?? ""}`,
 			isShort: true,
 		};
 	}
@@ -182,6 +195,14 @@ export function RecipeShoppingRows({
 			))}
 
 			<RadioList
+				legend="入れる量"
+				name="recipe-shopping-amount"
+				options={amountModeOptions}
+				value={plan.amountMode}
+				onChange={plan.setAmountMode}
+			/>
+
+			<RadioList
 				legend="メモに同じものがあるとき"
 				name="recipe-shopping-duplicate"
 				options={duplicateModeOptions}
@@ -253,6 +274,12 @@ export function RecipeShoppingRows({
 									>
 										{stock.text}
 									</span>
+
+									{row.isUsualAmount ? (
+										<span className={styles.status}>
+											{`いつもの量：${describeMemoAmount(row.amount)}`}
+										</span>
+									) : null}
 
 									{row.need.range ? (
 										<span className={styles.status}>

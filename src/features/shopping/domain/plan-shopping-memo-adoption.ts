@@ -4,6 +4,7 @@ import type {
 } from "#/local-db/database";
 import type { ShoppingBranch } from "./shopping-branch";
 import type { ShoppingItem } from "./shopping-item";
+import type { ShoppingItemMemory } from "./shopping-item-memory";
 import type { ShoppingStore } from "./shopping-store";
 
 export type ShoppingMemoData = {
@@ -12,6 +13,7 @@ export type ShoppingMemoData = {
 	branches: ShoppingBranch[];
 	storeDefaults: ShoppingStoreDefault[];
 	conversionMemories: ShoppingConversionMemoryRecord[];
+	itemMemories: ShoppingItemMemory[];
 };
 
 // アカウントに足す行（ゲストの行は、すべて消す）。
@@ -31,7 +33,7 @@ function storeNameKey(name: string): string {
 // ログインする前（ゲスト）の買い物メモを、アカウントのメモに移すときの、足す行。
 // - 店：同じ名前の店がアカウントにあれば、そちらにまとめる（項目・いつも買う店の店も付け替える）。なければ、後ろに足す。
 // - 項目・条件つきのメモ：アカウントのメモの後ろに、ゲストの並びのまま足す。
-// - いつも買う店・換算の記憶：同じ食材（×単位）がアカウントにあれば、アカウントの方を残す。
+// - いつも買う店・換算の記憶・いつもの買い方：同じ食材（×単位）がアカウントにあれば、アカウントの方を残す。
 export function planShoppingMemoAdoption(
 	guest: ShoppingMemoData,
 	account: ShoppingMemoData,
@@ -65,6 +67,9 @@ export function planShoppingMemoAdoption(
 	const accountMemoryKeys = new Set(
 		account.conversionMemories.map((memory) => memory.key),
 	);
+	const accountItemMemoryKeys = new Set(
+		account.itemMemories.map((memory) => memory.nameKey),
+	);
 
 	return {
 		items: [...guest.items]
@@ -89,6 +94,9 @@ export function planShoppingMemoAdoption(
 			})),
 		conversionMemories: guest.conversionMemories.filter(
 			(memory) => !accountMemoryKeys.has(memory.key),
+		),
+		itemMemories: guest.itemMemories.filter(
+			(memory) => !accountItemMemoryKeys.has(memory.nameKey),
 		),
 		mergedStoreCount: storeIdMap.size,
 	};

@@ -95,6 +95,50 @@ describe("applyConversionDefaults：単位のない行", () => {
 	});
 });
 
+describe("applyConversionDefaults：いつもの買い方", () => {
+	const usual = {
+		[toConversionDefaultKey("牛乳") ?? ""]: {
+			nameKey: toConversionDefaultKey("牛乳") ?? "",
+			quantity: 2,
+			unitLabel: "本",
+			categoryId: null,
+			categoryAssignment: null,
+			usedAt: 1,
+		},
+	};
+
+	it.each([
+		{
+			title: "数量も単位も書いていない行は、前回の数量・単位と、その単位の換算",
+			text: "牛乳",
+			expected: [["牛乳", 2, "本", 900]],
+		},
+		{
+			title: "単位のない数字は、書いた数量のまま、前回の単位",
+			text: "牛乳 3",
+			expected: [["牛乳", 3, "本", 900]],
+		},
+		{
+			title: "単位を書いた行は、いつもの買い方を使わない",
+			text: "牛乳 1パック",
+			expected: [["牛乳", 1, "パック", undefined]],
+		},
+	])("$title", ({ text, expected }) => {
+		expect(
+			applyConversionDefaults(
+				parseShoppingMemo(text, []),
+				entry("牛乳", milk),
+				usual,
+			).map((line) => [
+				line.name,
+				line.quantity,
+				line.unitLabel,
+				line.inventoryConversion?.stockQuantityPerInputUnit,
+			]),
+		).toEqual(expected);
+	});
+});
+
 describe("applyConversionDefaults：単位を書いた行", () => {
 	it("その単位の記憶があれば、記憶の換算を付ける（数量はそのまま）", () => {
 		expect(apply("牛乳 2本", entry("牛乳", milk))).toEqual([

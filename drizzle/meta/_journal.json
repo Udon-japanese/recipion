@@ -127,6 +127,13 @@
       "when": 1794132450755,
       "tag": "0017_inventory_item_art",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1794233469767,
+      "tag": "0018_shopping_item_memory",
+      "breakpoints": true
     }
   ]
 }

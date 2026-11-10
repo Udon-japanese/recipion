@@ -6,6 +6,7 @@ import {
 } from "./plan-shopping-memo-adoption";
 import { createShoppingBranch } from "./shopping-branch";
 import { createShoppingItem, type ShoppingItem } from "./shopping-item";
+import type { ShoppingItemMemory } from "./shopping-item-memory";
 import { createShoppingStore } from "./shopping-store";
 
 const now = new Date("2026-11-07T00:00:00.000Z");
@@ -17,6 +18,17 @@ const conversion = {
 	trackingMode: "exact" as const,
 };
 
+function itemMemory(nameKey: string, usedAt: number): ShoppingItemMemory {
+	return {
+		nameKey,
+		quantity: 1,
+		unitLabel: null,
+		categoryId: null,
+		categoryAssignment: null,
+		usedAt,
+	};
+}
+
 function item(id: string, input: Partial<ShoppingItem> = {}): ShoppingItem {
 	return { ...createShoppingItem({ name: id }, now), id, ...input };
 }
@@ -27,6 +39,7 @@ const empty: ShoppingMemoData = {
 	branches: [],
 	storeDefaults: [],
 	conversionMemories: [],
+	itemMemories: [],
 };
 
 describe("planShoppingMemoAdoption", () => {
@@ -51,6 +64,7 @@ describe("planShoppingMemoAdoption", () => {
 				usedAt: 1,
 			},
 		],
+		itemMemories: [itemMemory("卵", 1)],
 	};
 	const guest: ShoppingMemoData = {
 		items: [
@@ -88,6 +102,7 @@ describe("planShoppingMemoAdoption", () => {
 				usedAt: 2,
 			},
 		],
+		itemMemories: [itemMemory("卵", 2), itemMemory("牛乳", 2)],
 	};
 	const adoption = planShoppingMemoAdoption(guest, account);
 
@@ -110,12 +125,15 @@ describe("planShoppingMemoAdoption", () => {
 		expect(adoption.branches).toEqual([{ ...guest.branches[0], sortOrder: 3 }]);
 	});
 
-	it("いつも買う店・換算の記憶は、アカウントにある食材はアカウントの方を残す", () => {
+	it("いつも買う店・換算の記憶・いつもの買い方は、アカウントにある食材はアカウントの方を残す", () => {
 		expect(adoption.storeDefaults).toEqual([
 			{ nameKey: "牛乳", storeId: "a-store" },
 		]);
 		expect(adoption.conversionMemories.map((memory) => memory.key)).toEqual([
 			"牛乳\t本",
+		]);
+		expect(adoption.itemMemories.map((memory) => memory.nameKey)).toEqual([
+			"牛乳",
 		]);
 	});
 });

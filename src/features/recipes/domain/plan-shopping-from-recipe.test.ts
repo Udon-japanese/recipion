@@ -596,3 +596,82 @@ describe("planShoppingFromRecipe（管理しない材料）", () => {
 		});
 	});
 });
+
+describe("planShoppingFromRecipe（入れる量：いつもの量）", () => {
+	// 醤油は、前回 1本で入れた。卵は、覚えていない。
+	const itemMemories = {
+		醤油: {
+			nameKey: "醤油",
+			quantity: 1,
+			unitLabel: "本",
+			categoryId: null,
+			categoryAssignment: null,
+			usedAt: 1,
+		},
+	};
+
+	it.each([
+		{
+			title:
+				"いつもの量：覚えている食材は、前回の数量・単位（大さじでも、1本）",
+			amountMode: "usual" as const,
+			needs: [need("醤油", 2, "大さじ"), need("卵", 2, "個")],
+			memoItems: [],
+			expected: [
+				["醤油", 1, "本", true, "add"],
+				["卵", 2, "個", false, "add"],
+			],
+		},
+		{
+			title: "レシピの量：覚えていても、レシピの量（大さじは、単位なしの1）",
+			amountMode: "recipe" as const,
+			needs: [need("醤油", 2, "大さじ")],
+			memoItems: [],
+			expected: [["醤油", 1, null, false, "add"]],
+		},
+		{
+			title:
+				"いつもの量でも、メモにある同じ食材は、同じ扱い（多い方に合わせる）で比べる",
+			amountMode: "usual" as const,
+			needs: [need("醤油", 2, "大さじ")],
+			memoItems: [{ id: "m", name: "醤油", quantity: 1, unitLabel: "本" }],
+			expected: [["醤油", 1, "本", true, "keep"]],
+		},
+	])("$title", ({ amountMode, needs, memoItems, expected }) => {
+		expect(
+			plan({
+				needs,
+				memoItems,
+				amountMode,
+				itemMemories,
+				stockItems: null,
+			}).map((row) => [
+				row.need.name,
+				row.amount.quantity,
+				row.amount.unitLabel,
+				row.isUsualAmount,
+				row.plan,
+			]),
+		).toEqual(expected);
+	});
+
+	it("足りない分は、いつもの量とは別に、レシピから決まる量として残す", () => {
+		const [row] = plan({
+			needs: [need("醤油", 300, "ml")],
+			stockItems: [
+				{
+					name: "醤油",
+					quantity: 100,
+					stockUnitCode: "ml",
+					stockUnitLabel: "ml",
+					trackingMode: "estimated",
+				},
+			],
+			amountMode: "usual",
+			itemMemories,
+		});
+
+		expect(row?.amount).toEqual({ quantity: 1, unitLabel: "本" });
+		expect(row?.recipeAmount).toEqual({ quantity: 200, unitLabel: "ml" });
+	});
+});

@@ -13,7 +13,7 @@ import {
 
 import { user } from "#/integrations/better-auth/auth.sql";
 
-// 買い物メモの同期。1行が、項目・店・条件つきメモ・いつも買う店・換算の記憶のどれか1つ（中身は data）。
+// 買い物メモの同期。1行が、項目・店・条件つきメモ・いつも買う店・換算の記憶・いつもの買い方のどれか1つ（中身は data）。
 // 行どうしの参照（項目→店など）は、端末の中のメモと同じく、外部キーにしない（順番に届かなくても、書ける）。
 // 消した行は、deleted にして残す（ほかの端末に、消したことを伝える）。
 // version：そのユーザーの中で、書くたびに増える番号。端末は、受け取り済みの番号より新しい行を受け取る。
@@ -40,7 +40,7 @@ export const shoppingRecord = pgTable(
 		index("shopping_record_user_version_idx").on(table.userId, table.version),
 		check(
 			"shopping_record_kind_valid",
-			sql`${table.kind} in ('item', 'store', 'branch', 'storeDefault', 'conversionMemory')`,
+			sql`${table.kind} in ('item', 'store', 'branch', 'storeDefault', 'conversionMemory', 'itemMemory')`,
 		),
 		check(
 			"shopping_record_data_present",

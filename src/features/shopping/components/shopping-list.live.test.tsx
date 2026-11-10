@@ -12,6 +12,7 @@ const dexieShoppingRepository = createDexieShoppingRepository("guest");
 beforeEach(async () => {
 	const database = getLocalDatabase();
 
+	await database.scopedShoppingItemMemories.clear();
 	await database.shoppingItems.clear();
 	await database.shoppingBranches.clear();
 	await database.shoppingStores.clear();

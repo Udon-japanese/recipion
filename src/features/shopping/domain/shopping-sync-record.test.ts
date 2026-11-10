@@ -17,6 +17,22 @@ describe("parseShoppingSyncRecord", () => {
 				data: { nameKey: "卵", storeId: "store-1" },
 			},
 		],
+		[
+			"いつもの買い方",
+			{
+				kind: "itemMemory",
+				id: "卵",
+				deleted: false,
+				data: {
+					nameKey: "卵",
+					quantity: 2,
+					unitLabel: "パック",
+					categoryId: "eggs",
+					categoryAssignment: "manual",
+					usedAt: 1,
+				},
+			},
+		],
 	])("正しい形の行は、そのまま読める（%s）", (_label, input) => {
 		expect(parseShoppingSyncRecord(input)).toEqual(input);
 	});
@@ -34,6 +50,22 @@ describe("parseShoppingSyncRecord", () => {
 				id: item.id,
 				deleted: false,
 				data: { ...item, quantity: 0 },
+			},
+		],
+		[
+			"いつもの買い方の行の ID が、食材名のキーと違う",
+			{
+				kind: "itemMemory",
+				id: "牛乳",
+				deleted: false,
+				data: {
+					nameKey: "卵",
+					quantity: 2,
+					unitLabel: "パック",
+					categoryId: null,
+					categoryAssignment: null,
+					usedAt: 1,
+				},
 			},
 		],
 		[

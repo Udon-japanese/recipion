@@ -12,6 +12,10 @@ import {
 import { findInventoryItemByName } from "#/features/inventory/domain/build-expiry-prefill";
 import type { InventoryTrackingMode } from "#/features/inventory/domain/inventory-tracking-mode";
 import type { InventoryUnitCode } from "#/features/inventory/domain/inventory-unit";
+import {
+	findShoppingItemMemory,
+	type ShoppingItemMemories,
+} from "#/features/shopping/domain/shopping-item-memory";
 import { findStandInCandidates, type StandInMode } from "./find-stand-ins";
 import {
 	type IngredientStock,
@@ -66,6 +70,10 @@ export type RecipeShoppingMemoItem = {
 // 買い物メモに、同じ食材がすでにあるときの扱い。
 export type DuplicateMode = "max" | "sum" | "skip";
 
+// メモに入れる量：いつもの量（覚えた、前回の数量・単位）／レシピの量（足りない分、またはレシピの量）。
+export const shoppingAmountModes = ["usual", "recipe"] as const;
+export type ShoppingAmountMode = (typeof shoppingAmountModes)[number];
+
 export type RecipeShoppingStock =
 	// 在庫の情報がない（ログインしていない）。必要なものとして扱う。
 	| { kind: "unknown" }
@@ -96,8 +104,12 @@ export type RecipeShoppingStandIn = {
 export type RecipeShoppingRow = {
 	need: RecipeShoppingNeed;
 	stock: RecipeShoppingStock;
-	// 買い物メモに入れる量（足りない分。比べられないときは、レシピの量）。
+	// 買い物メモに入れる量（いつもの量で入れるときは、その量。それ以外は recipeAmount と同じ）。
 	amount: { quantity: number; unitLabel: string | null };
+	// レシピから決まる量（足りない分。比べられないときは、レシピの量）。
+	recipeAmount: { quantity: number; unitLabel: string | null };
+	// amount が、いつもの量か。
+	isUsualAmount: boolean;
 	existing: RecipeShoppingMemoItem | null;
 	// add: 新しい項目を作る / update: メモの項目の数量を変える / keep: メモのまま（変更なし）。
 	plan: "add" | "update" | "keep";
@@ -229,6 +241,9 @@ export type PlanShoppingFromRecipeInput = {
 	standInMode?: StandInMode;
 	// ユーザーの食材辞書（自分で足した呼び名でも、在庫・メモの同じ食材に当てる）。ゲストは省略。
 	dictionary?: IngredientDictionary;
+	// 入れる量（省略は recipe）。usual は、いつもの買い方を覚えている食材だけ、その量にする。
+	amountMode?: ShoppingAmountMode;
+	itemMemories?: ShoppingItemMemories;
 };
 
 function toIngredientStock(item: RecipeShoppingStockItem): IngredientStock {
@@ -306,6 +321,8 @@ export function planShoppingFromRecipe(
 				need,
 				stock: { kind: "unmanaged" },
 				amount,
+				recipeAmount: amount,
+				isUsualAmount: false,
 				existing: null,
 				plan: "keep",
 				keepReason: "unmanaged",
@@ -341,7 +358,7 @@ export function planShoppingFromRecipe(
 			stock.kind === "unknown" || stock.judgment.status === "short";
 
 		// 足りない分が分かるときは、その量（在庫の単位）。それ以外は、レシピの量。
-		const amount =
+		const recipeAmount =
 			stock.kind === "judged" &&
 			stock.judgment.status === "short" &&
 			stock.judgment.shortage !== null &&
@@ -351,6 +368,20 @@ export function planShoppingFromRecipe(
 						unitLabel: stockItem.stockUnitLabel,
 					}
 				: toMemoAmount(need);
+		// いつもの量で入れるときは、覚えた前回の数量・単位（覚えていなければ、レシピの量）。
+		const memory =
+			input.amountMode === "usual" && input.itemMemories
+				? (findShoppingItemMemory(input.itemMemories, need.name) ??
+					findShoppingItemMemory(input.itemMemories, matchName))
+				: undefined;
+		const amount = memory
+			? { quantity: memory.quantity, unitLabel: memory.unitLabel }
+			: recipeAmount;
+		const amounts = {
+			amount,
+			recipeAmount,
+			isUsualAmount: memory !== undefined,
+		};
 
 		// 同じ食材の行が複数あれば、追加する量と同じ単位の行を相手にする（なければ、最初の行）。
 		// 比べるのは、その1行だけ（ほかの行は変えず、行をまとめることもしない）。
@@ -371,7 +402,7 @@ export function planShoppingFromRecipe(
 			return {
 				need,
 				stock,
-				amount,
+				...amounts,
 				existing: null,
 				plan: "add" as const,
 				keepReason: null,
@@ -385,7 +416,7 @@ export function planShoppingFromRecipe(
 		return {
 			need,
 			stock,
-			amount,
+			...amounts,
 			existing,
 			...resolved,
 			// すでにメモにあるものは、変更があるときだけ、初期でチェックする。

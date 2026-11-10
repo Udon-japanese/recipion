@@ -5,9 +5,11 @@ import {
 	type ShoppingBranch,
 } from "#/features/shopping/domain/shopping-branch";
 import type { ShoppingItem } from "#/features/shopping/domain/shopping-item";
+import type { ShoppingItemMemory } from "#/features/shopping/domain/shopping-item-memory";
 import {
 	shoppingBranchSchema,
 	shoppingConversionMemorySchema,
+	shoppingItemMemorySchema,
 	shoppingItemSchema,
 	shoppingRecordLimits,
 	shoppingStoreDefaultSchema,
@@ -26,7 +28,7 @@ import type {
 // 在庫とレシピのバックアップ（backup-file.ts。サーバーのもの）とは、別のファイルにする。
 // 読めるのは、いまの版だけ（古い版の読み替えはしない）。
 export const shoppingBackupFormat = "recipion-shopping";
-export const shoppingBackupVersion = 1;
+export const shoppingBackupVersion = 2;
 
 export const shoppingBackupLimits = {
 	maxFileBytes: 5 * 1024 * 1024,
@@ -35,6 +37,7 @@ export const shoppingBackupLimits = {
 	maxBranches: maxShoppingBranchCount,
 	maxStoreDefaults: shoppingRecordLimits.maxStoreDefaults,
 	maxConversionMemories: shoppingRecordLimits.maxConversionMemories,
+	maxItemMemories: shoppingRecordLimits.maxItemMemories,
 	maxNameLength: shoppingRecordLimits.maxNameLength,
 } as const;
 
@@ -49,6 +52,7 @@ export type ShoppingBackupData = {
 	branches: ShoppingBranch[];
 	storeDefaults: ShoppingStoreDefault[];
 	conversionMemories: ShoppingConversionMemoryRecord[];
+	itemMemories: ShoppingItemMemory[];
 };
 
 export type ShoppingBackupFile = ShoppingBackupData & {
@@ -87,6 +91,10 @@ const fileSchema = v.object({
 		v.array(shoppingConversionMemorySchema),
 		v.maxLength(shoppingBackupLimits.maxConversionMemories),
 	),
+	itemMemories: v.pipe(
+		v.array(shoppingItemMemorySchema),
+		v.maxLength(shoppingBackupLimits.maxItemMemories),
+	),
 });
 
 function hasDuplicate(values: readonly string[]): boolean {
@@ -101,7 +109,8 @@ function findReferenceProblem(data: ShoppingBackupData): string | null {
 		hasDuplicate(data.stores.map((store) => store.id)) ||
 		hasDuplicate(data.branches.map((branch) => branch.id)) ||
 		hasDuplicate(data.storeDefaults.map((entry) => entry.nameKey)) ||
-		hasDuplicate(data.conversionMemories.map((memory) => memory.key))
+		hasDuplicate(data.conversionMemories.map((memory) => memory.key)) ||
+		hasDuplicate(data.itemMemories.map((memory) => memory.nameKey))
 	) {
 		return "ファイルの中で、ID が重複しています";
 	}
@@ -191,6 +200,7 @@ export function createShoppingBackupFile(
 		branches: [...data.branches],
 		storeDefaults: [...data.storeDefaults],
 		conversionMemories: [...data.conversionMemories],
+		itemMemories: [...data.itemMemories],
 	};
 }
 

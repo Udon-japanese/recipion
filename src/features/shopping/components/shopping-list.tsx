@@ -22,6 +22,7 @@ import type { InventoryPurchaseOwnerScope } from "#/features/inventory/applicati
 import { useStorageItem } from "#/local-storage/use-storage-item";
 import type { ShoppingBranchRepository } from "../application/shopping-branch-repository";
 import type { ShoppingConversionDefaultRepository } from "../application/shopping-conversion-default-repository";
+import type { ShoppingItemMemoryRepository } from "../application/shopping-item-memory-repository";
 import type { ShoppingRepository } from "../application/shopping-repository";
 import type { ShoppingStoreRepository } from "../application/shopping-store-repository";
 import type { ParsedShoppingMemoLine } from "../domain/parse-shopping-memo";
@@ -30,11 +31,17 @@ import {
 	type ShoppingBranchSide,
 } from "../domain/shopping-branch";
 import { describeConversionDefault } from "../domain/shopping-conversion-default";
-import { type ShoppingItem, toggleShoppingItem } from "../domain/shopping-item";
+import {
+	type CreateShoppingItemInput,
+	type ShoppingItem,
+	toggleShoppingItem,
+} from "../domain/shopping-item";
+import { findShoppingItemMemory } from "../domain/shopping-item-memory";
 import { inferShoppingCategory } from "../domain/shopping-item-suggestion";
 import { groupShoppingByStore } from "../domain/shopping-store";
 import { useShoppingBranches } from "../hooks/use-shopping-branches";
 import { useShoppingConversionDefaults } from "../hooks/use-shopping-conversion-defaults";
+import { useShoppingItemMemories } from "../hooks/use-shopping-item-memories";
 import { useShoppingItems } from "../hooks/use-shopping-items";
 import {
 	type ConfirmPurchases,
@@ -78,6 +85,7 @@ type ShoppingListProps = {
 	repository?: ShoppingRepository;
 	storeRepository?: ShoppingStoreRepository;
 	conversionDefaultRepository?: ShoppingConversionDefaultRepository;
+	itemMemoryRepository?: ShoppingItemMemoryRepository;
 	branchRepository?: ShoppingBranchRepository;
 	confirmPurchases?: ConfirmPurchases;
 	syncPurchases?: SyncPurchases;
@@ -109,7 +117,15 @@ export function ShoppingList({
 		dexieRepositories.conversionDefaults;
 	const branchRepository =
 		injected.branchRepository ?? dexieRepositories.branches;
-	const shopping = useShoppingItems(repository);
+	const itemMemoryRepository =
+		injected.itemMemoryRepository ?? dexieRepositories.itemMemories;
+	const itemMemoryState = useShoppingItemMemories({
+		repository: itemMemoryRepository,
+	});
+	// 追加した・直した項目は、その食材のいつもの買い方として覚える（購入確定でも、覚え直す）。
+	const shopping = useShoppingItems(repository, {
+		onItemsSaved: (saved) => void itemMemoryState.rememberItems(saved),
+	});
 	const { items, isLoading, isReordering, errorMessage, setErrorMessage } =
 		shopping;
 	// 読み込みに時間がかかるときだけ、画面の上のお知らせで伝える。
@@ -206,6 +222,8 @@ export function ShoppingList({
 			for (const purchasedItem of purchasedItemsById.values()) {
 				shopping.replaceItem(purchasedItem);
 			}
+
+			void itemMemoryState.rememberItems([...purchasedItemsById.values()]);
 		},
 		saveConversion: shopping.changeItem,
 		conversionMemory: conversionState,
@@ -256,6 +274,24 @@ export function ShoppingList({
 		);
 	}
 
+	// 追加のシートで換算を決めた（チップで選んだ）ときは、その食材×単位の換算の記憶にする（最後に使った換算になる）。
+	async function rememberChosenConversion(input: CreateShoppingItemInput) {
+		if (input.inventoryConversion) {
+			await conversionState.remember(input.name, {
+				unitLabel: input.unitLabel || null,
+				inventoryConversion: input.inventoryConversion,
+			});
+		}
+	}
+
+	// レシピから入れるときに使う、いまの記憶。
+	function loadShoppingMemories() {
+		return Promise.resolve({
+			itemMemories: itemMemoryState.memories,
+			conversionDefaults: conversionState.defaults,
+		});
+	}
+
 	// 「まとめて追加」で確認した行を、順に追加する（途中で失敗したら、そこで止める）。店を指定した行は、食材ごとの「いつも買う店」にも覚える。
 	// destination を渡すと、条件つきのメモの、その側に入れる。
 	async function addMemoLines(
@@ -265,11 +301,21 @@ export function ShoppingList({
 		let added = 0;
 
 		for (const line of lines) {
-			// カテゴリは、食材のカタログから推定する（追加フォームと同じ。決められなければ、未設定）。
-			const categoryId = inferShoppingCategory(line.name);
+			// カテゴリは、前回のカテゴリ → 食材のカタログからの推定（追加フォームと同じ。決められなければ、未設定）。
+			const memory = findShoppingItemMemory(
+				itemMemoryState.memories,
+				line.name,
+			);
+			const categoryId = memory
+				? memory.categoryId
+				: inferShoppingCategory(line.name);
 			const ok = await shopping.addItem({
 				categoryId,
-				categoryAssignment: categoryId ? "automatic" : null,
+				categoryAssignment: memory
+					? memory.categoryAssignment
+					: categoryId
+						? "automatic"
+						: null,
 				name: line.name,
 				quantity: line.quantity,
 				unitLabel: line.unitLabel,
@@ -298,6 +344,7 @@ export function ShoppingList({
 		items: shopping.allItems,
 		stores,
 		conversionDefaults: conversionState.defaults,
+		itemMemories: itemMemoryState.memories,
 		defaultStoreIdFor: storeState.defaultStoreIdFor,
 		onCreateStore: storeState.addStore,
 		onRemoveBranch: branchState.removeBranch,
@@ -311,6 +358,7 @@ export function ShoppingList({
 
 			if (added) {
 				await storeState.rememberStore(input.name, input.storeId ?? null);
+				await rememberChosenConversion(input);
 			}
 
 			return added;
@@ -478,6 +526,8 @@ export function ShoppingList({
 					title="買うものを入れる"
 					errorMessage={errorMessage}
 					stores={stores}
+					itemMemories={itemMemoryState.memories}
+					conversionDefaults={conversionState.defaults}
 					defaultStoreIdFor={storeState.defaultStoreIdFor}
 					onCreateStore={storeState.addStore}
 					onClose={() => setIsAddingItem(false)}
@@ -486,6 +536,7 @@ export function ShoppingList({
 
 						if (added) {
 							await storeState.rememberStore(input.name, input.storeId ?? null);
+							await rememberChosenConversion(input);
 						}
 
 						return added;
@@ -538,6 +589,7 @@ export function ShoppingList({
 					open={bulkAdd.open}
 					stores={stores}
 					conversionDefaults={conversionState.defaults}
+					itemMemories={itemMemoryState.memories}
 					onClose={() => setIsBulkAdding(false)}
 					onAdd={addMemoLines}
 					onCreateStore={storeState.addStore}
@@ -547,6 +599,7 @@ export function ShoppingList({
 			{renderRecipePicker && recipePicker.value
 				? renderRecipePicker({
 						repository,
+						loadShoppingMemories,
 						open: recipePicker.open,
 						onClose: () => setIsPickingRecipe(false),
 						onApplied: () => void reloadItems(),

@@ -81,6 +81,7 @@ describe("findShoppingSyncLimitProblem", () => {
 		branch: 1,
 		storeDefault: 1,
 		conversionMemory: 1,
+		itemMemory: 1,
 	};
 	const liveStore = (id: string): ShoppingSyncRecord => ({
 		kind: "store",
