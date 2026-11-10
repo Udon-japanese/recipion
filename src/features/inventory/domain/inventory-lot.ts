@@ -128,15 +128,16 @@ const plainInputUnitCodes: ReadonlySet<string> = new Set([
  * 買った単位と換算から、ロットに残す換算を決める。
  * - 玉・袋・パック・個などの単位で、1単位が何g・何個などかを持つものだけ。g・ml・kg・l そのもので買ったときは、なし。
  * - 「1個＝1個」のように、同じ単位で同じ量になる自明な換算も、なし。
- * - "count"（個数の総称）は、「個」と表す。
+ * - "count"（個数の総称）は「個」、"unit"（買い物メモで単位を書かなかった印）は「つ」と表す。
+ *   単位のない「1つ＝1個」は、自明なので、なし。
  */
 export function toPurchaseUnit(input: {
 	inputUnitCode: string;
 	quantity: number;
 	quantityUnitLabel: string;
 }): InventoryLotPurchaseUnit | null {
-	const label =
-		input.inputUnitCode.trim() === "count" ? "個" : input.inputUnitCode.trim();
+	const code = input.inputUnitCode.trim();
+	const label = code === "count" ? "個" : code === "unit" ? "つ" : code;
 	const quantityUnitLabel = input.quantityUnitLabel.trim();
 
 	if (
@@ -145,7 +146,7 @@ export function toPurchaseUnit(input: {
 		plainInputUnitCodes.has(label.toLocaleLowerCase("ja-JP")) ||
 		!(input.quantity > 0) ||
 		!Number.isFinite(input.quantity) ||
-		(input.quantity === 1 && label === quantityUnitLabel)
+		(input.quantity === 1 && (label === quantityUnitLabel || label === "つ"))
 	) {
 		return null;
 	}
@@ -167,7 +168,7 @@ export function describePurchaseUnit(unit: InventoryLotPurchaseUnit): string {
 	return `1${unit.label}＝${formatStockAmount(unit.quantity, code)}${unit.quantityUnitLabel}`;
 }
 
-function isSamePurchaseUnit(
+export function isSamePurchaseUnit(
 	a: InventoryLotPurchaseUnit | null,
 	b: InventoryLotPurchaseUnit | null,
 ): boolean {

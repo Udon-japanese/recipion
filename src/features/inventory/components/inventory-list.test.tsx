@@ -957,6 +957,64 @@ describe("InventoryList", () => {
 			);
 		});
 
+		it("内訳の換算（1個＝110g）を直して保存すると、換算だけを送る。直していなければ、送らない", async () => {
+			const user = userEvent.setup();
+			const updateInventoryLot = vi.fn().mockResolvedValue({
+				inventoryItemId: eggItem.inventoryItemId,
+				quantity: 5,
+				lots: eggItem.lots,
+				defaultExpiryKind: null,
+				defaultStorage: null,
+			});
+
+			renderList([eggItem], { updateInventoryLot });
+
+			const dialog = await openPanel(user, "卵");
+
+			await user.click(
+				within(dialog).getByRole("button", { name: "10/1に入れた分を直す" }),
+			);
+			await user.click(screen.getByRole("button", { name: /^換算/u }));
+			await user.type(
+				screen.getByLabelText("10/1に入れた分の換算の、1つあたりの量"),
+				"55",
+			);
+			await user.click(screen.getByRole("button", { name: "保存" }));
+
+			await waitFor(() =>
+				expect(updateInventoryLot).toHaveBeenCalledWith(
+					expect.objectContaining({
+						lotId: lotA,
+						purchaseUnit: { label: "個", quantity: 55, quantityUnitLabel: "g" },
+					}),
+				),
+			);
+		});
+
+		it("内訳の換算の量が読めないときは、送らずに理由を出す", async () => {
+			const user = userEvent.setup();
+			const updateInventoryLot = vi.fn();
+
+			renderList([eggItem], { updateInventoryLot });
+
+			const dialog = await openPanel(user, "卵");
+
+			await user.click(
+				within(dialog).getByRole("button", { name: "10/1に入れた分を直す" }),
+			);
+			await user.click(screen.getByRole("button", { name: /^換算/u }));
+			await user.type(
+				screen.getByLabelText("10/1に入れた分の換算の、1つあたりの量"),
+				"abc",
+			);
+			await user.click(screen.getByRole("button", { name: "保存" }));
+
+			expect(await screen.findByRole("alert")).toHaveTextContent(
+				"1つあたりの量を確認してください",
+			);
+			expect(updateInventoryLot).not.toHaveBeenCalled();
+		});
+
 		it("何も直さずに「保存」を押すと、送らずに閉じる。「やめる」でも、送らない", async () => {
 			const user = userEvent.setup();
 			const updateInventoryLot = vi.fn();

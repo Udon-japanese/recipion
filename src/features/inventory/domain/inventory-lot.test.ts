@@ -317,11 +317,23 @@ describe("toPurchaseUnit（ロットに残す換算）", () => {
 			{ inputUnitCode: "g", quantity: 1, quantityUnitLabel: "g" },
 			{ inputUnitCode: "kg", quantity: 1000, quantityUnitLabel: "g" },
 			{ inputUnitCode: "count", quantity: 1, quantityUnitLabel: "個" },
+			// 単位を書かなかった印（"unit"）の「1つ＝1個」は、使わない換算。
+			{ inputUnitCode: "unit", quantity: 1, quantityUnitLabel: "個" },
 			{ inputUnitCode: "玉", quantity: 0, quantityUnitLabel: "g" },
 			{ inputUnitCode: "  ", quantity: 40, quantityUnitLabel: "g" },
 		]) {
 			expect(toPurchaseUnit(input)).toBeNull();
 		}
+	});
+
+	it("単位を書かなかった印（unit）で、1つが何gかを決めたときは、「つ」と表す", () => {
+		expect(
+			toPurchaseUnit({
+				inputUnitCode: "unit",
+				quantity: 300,
+				quantityUnitLabel: "g",
+			}),
+		).toEqual({ label: "つ", quantity: 300, quantityUnitLabel: "g" });
 	});
 
 	it("describePurchaseUnit は、1玉＝40g のように表す", () => {

@@ -39,6 +39,8 @@ import {
 	type InventoryLot,
 	sortLotsForConsumption,
 } from "../../domain/inventory-lot";
+import { collectPurchaseUnitCandidates } from "../../domain/purchase-unit-draft";
+import type { PurchaseUnitMemory } from "../../hooks/use-purchase-unit-memory";
 import {
 	trackingModeHints,
 	trackingModeOptions,
@@ -60,6 +62,8 @@ type ItemPanelProps = {
 	zone: InventoryZoneId;
 	mode: ItemPanelMode;
 	actions: InventoryActions;
+	// 買い物メモの換算の記憶（換算の候補と、決めた換算の保存先）。
+	purchaseUnitMemory?: PurchaseUnitMemory;
 	// 通信できず、保存済みの在庫を見ているとき。書き換える操作は、押すと理由を出す。
 	readOnly: boolean;
 	// 浮いたパネルが寄り添う、一覧の行（data-tile-key）。
@@ -107,6 +111,7 @@ export function ItemPanel({
 	zone,
 	mode,
 	actions,
+	purchaseUnitMemory,
 	readOnly,
 	anchorTileKey,
 	anchorPlacement = "overlap",
@@ -649,6 +654,14 @@ export function ItemPanel({
 		}
 	}
 
+	// 換算の候補：この食材のほかのロットの換算（新しい順）→ 買い物メモの記憶。
+	const purchaseUnitCandidates = collectPurchaseUnitCandidates([
+		...[...item.lots]
+			.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+			.map((lot) => lot.purchaseUnit),
+		...(purchaseUnitMemory?.candidates(item.name) ?? []),
+	]);
+
 	// 編集の失敗は、編集の側に出す（スマホでは、本体が隠れているため）。
 	const lotEditor = editingLot ? (
 		<>
@@ -663,10 +676,24 @@ export function ItemPanel({
 				readOnly={readOnly}
 				canAdjust={!isPresence && Boolean(actions.adjustInventoryItem)}
 				canEditExpiry={Boolean(actions.updateInventoryLot)}
+				purchaseUnitCandidates={purchaseUnitCandidates}
 				onAdjust={(operation, quantityText) =>
 					panel.run.adjustLot(editingLot, operation, quantityText)
 				}
-				onSave={(edits) => panel.run.saveLotEdits(editingLot, edits)}
+				onSave={async (edits) => {
+					const done = await panel.run.saveLotEdits(editingLot, edits);
+
+					// 決めた換算は、買い物メモの候補にもなるよう、覚える。
+					if (done && edits.purchaseUnit) {
+						void purchaseUnitMemory?.remember(
+							item.name,
+							edits.purchaseUnit,
+							item.trackingMode,
+						);
+					}
+
+					return done;
+				}}
 				onClose={closeLotEditor}
 			/>
 		</>

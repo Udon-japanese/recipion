@@ -5,8 +5,16 @@ import { Toggle } from "#/components/toggle/toggle";
 import { initialQuantityInput } from "#/features/quantity/domain/quantity-buttons";
 import type { InventoryListItem } from "../../application/inventory-query-repository";
 import type { InventoryOperation } from "../../domain/apply-inventory-adjustment";
-import type { InventoryLot } from "../../domain/inventory-lot";
+import type {
+	InventoryLot,
+	InventoryLotPurchaseUnit,
+} from "../../domain/inventory-lot";
+import {
+	parsePurchaseUnitDraft,
+	toPurchaseUnitDraft,
+} from "../../domain/purchase-unit-draft";
 import { ExpiryFields, type ExpiryFieldsValue } from "../expiry-fields";
+import { PurchaseUnitField } from "../purchase-unit-field";
 import { AdjustControls } from "./adjust-controls";
 import * as styles from "./item-panel.css";
 import { lotExpiryValue } from "./use-item-panel";
@@ -14,6 +22,8 @@ import { lotExpiryValue } from "./use-item-panel";
 export type LotEdits = {
 	expiry: ExpiryFieldsValue;
 	saveAsDefault: boolean;
+	// このロットの換算（1個＝110g など）。なしは null。
+	purchaseUnit: InventoryLotPurchaseUnit | null;
 };
 
 type LotEditorProps = {
@@ -27,8 +37,10 @@ type LotEditorProps = {
 	readOnly: boolean;
 	// 量を増減できるか（有無だけの食材は、量を持たない）。
 	canAdjust: boolean;
-	// 期限・保存方法を直せるか。
+	// 期限・保存方法・換算を直せるか。
 	canEditExpiry: boolean;
+	// 換算の候補（ほかのロットの換算・買い物メモの記憶）。
+	purchaseUnitCandidates: readonly InventoryLotPurchaseUnit[];
 	// 「使った」「買い足した」：この入れた分だけを増減する。成功したら true。
 	onAdjust: (
 		operation: InventoryOperation,
@@ -51,6 +63,7 @@ export function LotEditor({
 	readOnly,
 	canAdjust,
 	canEditExpiry,
+	purchaseUnitCandidates,
 	onAdjust,
 	onSave,
 	onClose,
@@ -61,6 +74,15 @@ export function LotEditor({
 	);
 	const [expiry, setExpiry] = useState(initialExpiry);
 	const [saveAsDefault, setSaveAsDefault] = useState(false);
+	const initialPurchaseUnit = toPurchaseUnitDraft(
+		lot.purchaseUnit,
+		item.stockUnitLabel,
+	);
+	const [purchaseUnitDraft, setPurchaseUnitDraft] =
+		useState(initialPurchaseUnit);
+	const [purchaseUnitError, setPurchaseUnitError] = useState<string | null>(
+		null,
+	);
 	const save = useButtonAction();
 	const decrease = useButtonAction();
 	const increase = useButtonAction();
@@ -82,8 +104,23 @@ export function LotEditor({
 	}
 
 	async function saveExpiry() {
+		let purchaseUnit: InventoryLotPurchaseUnit | null;
+
+		try {
+			purchaseUnit = parsePurchaseUnitDraft(purchaseUnitDraft);
+			setPurchaseUnitError(null);
+		} catch (error) {
+			setPurchaseUnitError(
+				error instanceof Error ? error.message : "換算を確認してください",
+			);
+
+			return;
+		}
+
 		const isChanged =
-			saveAsDefault || JSON.stringify(expiry) !== JSON.stringify(initialExpiry);
+			saveAsDefault ||
+			JSON.stringify(expiry) !== JSON.stringify(initialExpiry) ||
+			JSON.stringify(purchaseUnitDraft) !== JSON.stringify(initialPurchaseUnit);
 
 		if (!isChanged) {
 			onClose();
@@ -92,7 +129,7 @@ export function LotEditor({
 		}
 
 		await save.run(async () => {
-			const done = await onSave({ expiry, saveAsDefault });
+			const done = await onSave({ expiry, saveAsDefault, purchaseUnit });
 
 			if (done) {
 				onClose();
@@ -140,6 +177,22 @@ export function LotEditor({
 							</div>
 						}
 					/>
+
+					<PurchaseUnitField
+						draft={purchaseUnitDraft}
+						onChange={setPurchaseUnitDraft}
+						candidates={purchaseUnitCandidates}
+						quantityUnitOptions={["g", "ml", item.stockUnitLabel]}
+						isLabelEditable
+						disabled={save.isPending}
+						itemName={label}
+					/>
+
+					{purchaseUnitError ? (
+						<p role="alert" className={styles.hint}>
+							{purchaseUnitError}
+						</p>
+					) : null}
 
 					<div className={styles.lotEditorActions}>
 						<Button

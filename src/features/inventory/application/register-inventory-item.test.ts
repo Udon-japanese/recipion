@@ -176,4 +176,46 @@ describe("parseRegisterInventoryItemInput", () => {
 			parseRegisterInventoryItemInput({ ...valid, transactionId: "x" }),
 		).toThrow();
 	});
+
+	it("ロットの換算（1個＝110g）は、そのまま初期数量のロットに渡す", async () => {
+		const { dependencies, applyAdjustment } = createDependencies();
+		const input = parseRegisterInventoryItemInput({
+			transactionId,
+			ingredientName: "冷凍うどん",
+			stockUnitCode: "count",
+			stockUnitLabel: "個",
+			initialQuantity: 6,
+			lot: {
+				purchaseUnit: { label: "個", quantity: 110, quantityUnitLabel: "g" },
+			},
+		});
+
+		await registerInventoryItem(input, dependencies);
+
+		expect(applyAdjustment).toHaveBeenCalledWith(
+			expect.objectContaining({
+				lot: {
+					purchaseUnit: { label: "個", quantity: 110, quantityUnitLabel: "g" },
+				},
+			}),
+		);
+	});
+
+	it("換算の量が0以下・単位が空なら、入力として受け付けない", () => {
+		for (const purchaseUnit of [
+			{ label: "個", quantity: 0, quantityUnitLabel: "g" },
+			{ label: "個", quantity: 110, quantityUnitLabel: " " },
+		]) {
+			expect(() =>
+				parseRegisterInventoryItemInput({
+					transactionId,
+					ingredientName: "冷凍うどん",
+					stockUnitCode: "count",
+					stockUnitLabel: "個",
+					initialQuantity: 6,
+					lot: { purchaseUnit },
+				}),
+			).toThrow();
+		}
+	});
 });

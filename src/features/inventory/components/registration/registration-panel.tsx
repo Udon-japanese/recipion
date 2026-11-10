@@ -10,6 +10,7 @@ import { IngredientSuggestionHint } from "#/features/ingredients/components/ingr
 import { QuantityInput } from "#/features/quantity/components/quantity-input";
 import { formatQuantity } from "#/features/quantity/domain/format-quantity";
 import { ExpiryFields } from "../expiry-fields";
+import { PurchaseUnitField } from "../purchase-unit-field";
 import {
 	trackingModeLabels,
 	trackingModeOptions,
@@ -127,6 +128,18 @@ function RegistrationForm({
 						/>
 					)}
 				</Field>
+			) : null}
+
+			{!isPresence && registration.canSetPurchaseUnit ? (
+				<PurchaseUnitField
+					draft={registration.purchaseUnitDraft}
+					onChange={registration.setPurchaseUnitDraft}
+					candidates={registration.purchaseUnitCandidates}
+					quantityUnitOptions={["g", "ml"]}
+					isLabelEditable={false}
+					disabled={registration.isSubmitting}
+					itemName={ingredientName.trim() || "食材"}
+				/>
 			) : null}
 
 			{!isPresence && registration.presets.length > 0 ? (

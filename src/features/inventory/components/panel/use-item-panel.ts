@@ -13,7 +13,12 @@ import { createManualInventoryAdjustment } from "../../application/create-manual
 import type { InventoryListItem } from "../../application/inventory-query-repository";
 import type { ChangeInventoryTrackingModeCommand } from "../../application/inventory-tracking-mode-repository";
 import type { InventoryOperation } from "../../domain/apply-inventory-adjustment";
-import { type InventoryLot, toDateString } from "../../domain/inventory-lot";
+import {
+	type InventoryLot,
+	type InventoryLotPurchaseUnit,
+	isSamePurchaseUnit,
+	toDateString,
+} from "../../domain/inventory-lot";
 import type { InventoryTrackingMode } from "../../domain/inventory-tracking-mode";
 import { rememberAmount } from "../../infrastructure/amount-memory-storage";
 import { recordExpiryHint } from "../../infrastructure/expiry-hints-storage";
@@ -291,6 +296,7 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 		edits: {
 			expiry: ExpiryFieldsValue;
 			saveAsDefault: boolean;
+			purchaseUnit: InventoryLotPurchaseUnit | null;
 		},
 	): Promise<boolean> {
 		const { updateInventoryLot } = actions;
@@ -313,6 +319,10 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 				expiryKind: expiry.expiryKind === "" ? null : expiry.expiryKind,
 				storage: expiry.storage === "" ? null : expiry.storage,
 				saveAsIngredientDefault: edits.saveAsDefault,
+				// 換算は、直したときだけ送る（送らなければ、そのまま）。
+				...(isSamePurchaseUnit(lot.purchaseUnit, edits.purchaseUnit)
+					? {}
+					: { purchaseUnit: edits.purchaseUnit }),
 			});
 
 			onUpdate(item.inventoryItemId, {
