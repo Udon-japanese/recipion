@@ -31,6 +31,51 @@ const buttonsByUnit: Record<string, readonly QuantityButton[]> = {
 	ml: [50, 100, 200, 500].map((amount) => ({ kind: "add", amount })),
 };
 
+/** 端数のボタン（1/2 など）を持つ単位か。在庫の画面では、これらの単位に「今ある量の割合」のボタンを出す。 */
+export function hasFractionButtons(
+	unitLabel: string | null | undefined,
+): boolean {
+	return getQuantityButtons(unitLabel).some((button) => button.kind === "set");
+}
+
+const shareRatios = [
+	{ label: "半分", ratio: 1 / 2 },
+	{ label: "1/3", ratio: 1 / 3 },
+	{ label: "1/4", ratio: 1 / 4 },
+] as const;
+
+export type ShareQuantityPreset = {
+	label: string;
+	value: string;
+	ariaLabel: string;
+};
+
+/**
+ * いまある量の「半分・1/3・1/4」の量のボタン。
+ * - 端数のボタンを持つ単位（玉・個・本など）だけ。在庫が 0 以下のときは、なし。
+ * - 割り切れず、きれいな分数（2・3・4・8分の1）にならない量（3.5個の 1/3 など）は、そのボタンだけ出さない。
+ */
+export function getShareQuantityPresets(
+	available: number,
+	unitLabel: string | null | undefined,
+): ShareQuantityPreset[] {
+	if (!(available > 0) || !hasFractionButtons(unitLabel)) {
+		return [];
+	}
+
+	return shareRatios.flatMap(({ label, ratio }) => {
+		const value = formatQuantity(available * ratio, {
+			grouping: false,
+			allowFractions: true,
+		});
+
+		// 分数にできなかった量は、小数（1.166667 など）で返ってくる。
+		return parseQuantityInput(value) !== null && !value.includes(".")
+			? [{ label, value, ariaLabel: `今ある分の${label}（${value}）にする` }]
+			: [];
+	});
+}
+
 /**
  * 単位に合わせた、数量のボタン。枚・袋・パック・缶など、端数にしない単位や、知らない単位は、ボタンなし。
  * 単位が空のときも、ボタンなし。

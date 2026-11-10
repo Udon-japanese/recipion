@@ -3,6 +3,7 @@ import {
 	applyQuantityButton,
 	describeQuantityButton,
 	getQuantityButtons,
+	getShareQuantityPresets,
 	initialQuantityInput,
 } from "./quantity-buttons";
 
@@ -59,4 +60,39 @@ describe("initialQuantityInput", () => {
 			expect(initialQuantityInput(unit)).toBe(expected);
 		},
 	);
+});
+
+describe("getShareQuantityPresets", () => {
+	const describePresets = (available: number, unit: string | null) =>
+		getShareQuantityPresets(available, unit).map(
+			(preset) => `${preset.label}=${preset.value}`,
+		);
+
+	it("端数を使う単位は、いまある量の半分・1/3・1/4 を、分数で返す", () => {
+		expect(describePresets(3, "玉")).toEqual([
+			"半分=1 1/2",
+			"1/3=1",
+			"1/4=3/4",
+		]);
+		expect(describePresets(10, "個")).toEqual([
+			"半分=5",
+			"1/3=3 1/3",
+			"1/4=2 1/2",
+		]);
+	});
+
+	it("在庫が 0 以下なら、出さない", () => {
+		expect(describePresets(0, "玉")).toEqual([]);
+		expect(describePresets(-1, "玉")).toEqual([]);
+	});
+
+	it("きれいな分数にならない量は、そのボタンだけ出さない（3.5個の 1/3 など）", () => {
+		expect(describePresets(3.5, "個")).toEqual(["半分=1 3/4", "1/4=7/8"]);
+	});
+
+	it("g・ml や、端数にしない単位・知らない単位は、出さない", () => {
+		for (const unit of ["g", "ml", "袋", "枚", "", null]) {
+			expect(describePresets(6, unit)).toEqual([]);
+		}
+	});
 });

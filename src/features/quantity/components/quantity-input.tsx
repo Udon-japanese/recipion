@@ -26,6 +26,9 @@ type QuantityInputProps = {
 	// 単位のボタンの前に置く、決まった値のボタン（在庫の「今ある分」・前に打った量など）。単位にボタンがなくても出す。
 	// 同じ値になる単位のボタン（1/2 など）は、重ねて出さない。
 	presetButtons?: readonly QuantityPresetButton[];
+	// true のとき、単位の端数のボタン（1/2・1/3 など）を出さない（presetButtons で、別の端数を出すとき）。
+	// g・ml の足すボタンは、これに関わらず出す。
+	hideUnitFractionButtons?: boolean;
 };
 
 export type QuantityPresetButton = {
@@ -49,6 +52,7 @@ export function QuantityInput({
 	unitLabel,
 	trailing,
 	presetButtons = [],
+	hideUnitFractionButtons = false,
 }: QuantityInputProps) {
 	const presetValues = new Set(
 		presetButtons.map((preset) => parseQuantityInput(preset.value)),
@@ -56,7 +60,8 @@ export function QuantityInput({
 	const buttons = getQuantityButtons(unitLabel).filter(
 		(button) =>
 			button.kind !== "set" ||
-			!presetValues.has(parseQuantityInput(button.value)),
+			(!hideUnitFractionButtons &&
+				!presetValues.has(parseQuantityInput(button.value))),
 	);
 	const parsed = parseQuantityInput(value);
 	// 小数・整数のままのときは、確認の表示は要らない。
