@@ -1531,6 +1531,17 @@ export function createDrizzleInventoryRepository(
 						expiresOn: conditions.expiresOn,
 						expiryKind: conditions.expiryKind,
 						expirySource: conditions.expirySource,
+						// 換算は、渡されたときだけ変える（量は、変えない）。
+						...(command.purchaseUnit === undefined
+							? {}
+							: {
+									purchaseUnitLabel: command.purchaseUnit?.label ?? null,
+									purchaseUnitQuantity: command.purchaseUnit
+										? toNumeric(command.purchaseUnit.quantity)
+										: null,
+									purchaseUnitQuantityLabel:
+										command.purchaseUnit?.quantityUnitLabel ?? null,
+								}),
 					})
 					.where(
 						and(

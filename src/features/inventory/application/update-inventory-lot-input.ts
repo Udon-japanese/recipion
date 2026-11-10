@@ -2,6 +2,7 @@ import * as v from "valibot";
 import {
 	dateStringSchema,
 	expiryKindSchema,
+	purchaseUnitSchema,
 	storageSchema,
 } from "./inventory-lot-input";
 import type { UpdateInventoryLotCommand } from "./inventory-lot-repository";
@@ -13,6 +14,8 @@ const updateInventoryLotInputSchema = v.object({
 	expiryKind: v.nullable(expiryKindSchema),
 	storage: v.nullable(storageSchema),
 	saveAsIngredientDefault: v.optional(v.boolean(), false),
+	// ロットの換算。省略は、そのまま。null は、換算を消す。
+	purchaseUnit: v.optional(v.nullable(purchaseUnitSchema)),
 });
 
 export function parseUpdateInventoryLotInput(

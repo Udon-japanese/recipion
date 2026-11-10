@@ -530,7 +530,11 @@ export function ShoppingList({
 					conversionDefaults={conversionState.defaults}
 					defaultStoreIdFor={storeState.defaultStoreIdFor}
 					onCreateStore={storeState.addStore}
-					onClose={() => setIsAddingItem(false)}
+					onClose={() => {
+						// 追加の途中の失敗の文は、閉じたあとの画面に残さない。
+						setErrorMessage(null);
+						setIsAddingItem(false);
+					}}
 					onAdd={async (input) => {
 						const added = await shopping.addItem(input);
 

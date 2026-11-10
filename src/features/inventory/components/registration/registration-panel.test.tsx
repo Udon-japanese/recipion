@@ -94,6 +94,80 @@ describe("InventoryRegistrationPanel", () => {
 		expect(screen.getByLabelText("食材名")).toHaveValue("");
 	});
 
+	it("個数の食材は、換算の行（1個＝110g）を決めて登録でき、候補から選べ、買い物メモの記憶にも覚える", async () => {
+		const user = userEvent.setup();
+		const registerInventoryItem = vi.fn().mockResolvedValue({});
+		const remember = vi.fn().mockResolvedValue(undefined);
+
+		render(
+			<Harness
+				registerInventoryItem={registerInventoryItem}
+				onRegistered={() => {}}
+				purchaseUnitMemory={{ candidates: () => [], remember }}
+				lookupLotPurchaseUnits={() => [
+					{ label: "個", quantity: 200, quantityUnitLabel: "g" },
+					{ label: "パック", quantity: 3, quantityUnitLabel: "個" },
+				]}
+			/>,
+		);
+
+		await user.type(screen.getByLabelText("食材名"), "冷凍うどん");
+		await user.type(screen.getByLabelText(/^数量/u), "6");
+		await user.click(screen.getByRole("button", { name: /^換算/u }));
+
+		// 候補は、在庫の単位（個）と同じ呼び名のものだけ。
+		expect(screen.getByRole("button", { name: "1個＝200g" })).toBeVisible();
+		expect(screen.queryByRole("button", { name: "1パック＝3個" })).toBeNull();
+
+		await user.type(
+			screen.getByLabelText("冷凍うどんの換算の、1つあたりの量"),
+			"110",
+		);
+		await user.click(screen.getByRole("button", { name: "追加" }));
+
+		await waitFor(() =>
+			expect(registerInventoryItem).toHaveBeenCalledWith(
+				expect.objectContaining({
+					initialQuantity: 6,
+					// 冷凍うどんは、期限の目安（冷凍）も入る。
+					lot: expect.objectContaining({
+						purchaseUnit: {
+							label: "個",
+							quantity: 110,
+							quantityUnitLabel: "g",
+						},
+					}),
+				}),
+			),
+		);
+		expect(remember).toHaveBeenCalledWith(
+			"冷凍うどん",
+			{ label: "個", quantity: 110, quantityUnitLabel: "g" },
+			expect.any(String),
+		);
+	});
+
+	it("換算を決めないときは、ロットに換算を付けない。重さの食材（在庫の単位が g）には、換算の行を出さない", async () => {
+		const user = userEvent.setup();
+		const registerInventoryItem = vi.fn().mockResolvedValue({});
+
+		render(
+			<Harness
+				registerInventoryItem={registerInventoryItem}
+				onRegistered={() => {}}
+			/>,
+		);
+
+		await user.type(screen.getByLabelText("食材名"), "卵");
+		await user.click(screen.getByRole("button", { name: "追加" }));
+		await waitFor(() => expect(registerInventoryItem).toHaveBeenCalled());
+		expect(registerInventoryItem.mock.calls[0]?.[0].lot).toEqual({});
+
+		await user.type(screen.getByLabelText("食材名"), "鶏もも肉");
+
+		expect(screen.queryByRole("button", { name: /^換算/u })).toBeNull();
+	});
+
 	it("数量が空欄なら、食材だけを登録する（初期数量0）", async () => {
 		const user = userEvent.setup();
 		const registerInventoryItem = vi.fn().mockResolvedValue({});

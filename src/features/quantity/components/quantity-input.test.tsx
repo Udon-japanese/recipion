@@ -74,6 +74,22 @@ describe("QuantityInput", () => {
 		).toEqual(["1/4", "1/3", "1/2", "3/4"]);
 	});
 
+	it("足すボタン（g・ml）には「入力に足す」の見出しを付け、量をそのまま入れるボタン（今ある分・端数）とは分ける", () => {
+		const { unmount } = render(
+			<Harness
+				unitLabel="g"
+				presetButtons={[{ label: "今ある分", value: "300" }]}
+			/>,
+		);
+
+		expect(screen.getByText("入力に足す")).toBeInTheDocument();
+		unmount();
+
+		render(<Harness unitLabel="玉" />);
+
+		expect(screen.queryByText("入力に足す")).toBeNull();
+	});
+
 	it("g のボタンは、いまの値に足す（+50 を2回で 100）", async () => {
 		const user = userEvent.setup();
 

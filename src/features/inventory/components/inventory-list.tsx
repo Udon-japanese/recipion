@@ -19,6 +19,7 @@ import {
 } from "#/components/toast/toast-store";
 import { useMediaQuery } from "#/components/use-media-query";
 import { MASCOT_DISPLAY_NAME } from "#/config/app";
+import { normalizeIngredientName } from "#/features/ingredients/domain/normalize-ingredient-name";
 import { useStorageItem } from "#/local-storage/use-storage-item";
 import type { InventoryPurchaseOwnerScope } from "../application/inventory-purchase-outbox";
 import type { InventoryListItem } from "../application/inventory-query-repository";
@@ -31,7 +32,11 @@ import {
 	type InventoryTile as InventoryTileModel,
 	type InventoryZoneId,
 } from "../domain/inventory-fridge";
-import { toDateString } from "../domain/inventory-lot";
+import {
+	type InventoryLotPurchaseUnit,
+	toDateString,
+} from "../domain/inventory-lot";
+import { usePurchaseUnitMemory } from "../hooks/use-purchase-unit-memory";
 import {
 	type InventoryView,
 	inventoryGroupByStorage,
@@ -121,6 +126,27 @@ export function InventoryList({
 		setIsRegisteredButStale(false);
 	}
 	const [isRegistrationOpen, setIsRegistrationOpen] = useState(false);
+	// 買い物メモの換算の記憶。換算の候補と、決めた換算の保存先（買い物メモと共有）。
+	const purchaseUnitMemory = usePurchaseUnitMemory(ownerScope);
+
+	// すでにある同じ食材の、ロットの換算（新しい順）。登録の候補になる。
+	function lookupLotPurchaseUnits(
+		ingredientName: string,
+	): InventoryLotPurchaseUnit[] {
+		// 食材名が空のときは、正規化できない（候補もなし）。
+		if (ingredientName.trim() === "") {
+			return [];
+		}
+
+		const key = normalizeIngredientName(ingredientName);
+		const item = items.find(
+			(candidate) => normalizeIngredientName(candidate.name) === key,
+		);
+
+		return [...(item?.lots ?? [])]
+			.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+			.flatMap((lot) => lot.purchaseUnit ?? []);
+	}
 	// 最後に選んだ表示（読み込み中の見た目も、これに合わせる）。この画面はサーバーで描かないので、最初の描画から保存した値になる。
 	const [view, setView] = useStorageItem(inventoryViewStorage);
 	const [night] = useState(() => isNight(new Date()));
@@ -661,6 +687,7 @@ export function InventoryList({
 					zone={shownSelection.value.zone}
 					mode={panelMode}
 					actions={actions}
+					purchaseUnitMemory={purchaseUnitMemory}
 					anchorTileKey={shownSelection.value.tileKey}
 					anchorPlacement={view === "scene" ? "beside" : "overlap"}
 					readOnly={isOffline}
@@ -681,6 +708,8 @@ export function InventoryList({
 						(view !== "scene" || sceneHasFloorRoom)
 					}
 					fabOnScene={view === "scene"}
+					purchaseUnitMemory={purchaseUnitMemory}
+					lookupLotPurchaseUnits={lookupLotPurchaseUnits}
 				/>
 			) : null}
 		</section>

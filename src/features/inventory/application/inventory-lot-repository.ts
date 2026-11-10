@@ -2,6 +2,7 @@ import type {
 	InventoryExpiryKind,
 	InventoryExpirySource,
 	InventoryLot,
+	InventoryLotPurchaseUnit,
 	InventoryStorage,
 } from "../domain/inventory-lot";
 
@@ -15,6 +16,8 @@ export type UpdateInventoryLotCommand = {
 	storage: InventoryStorage | null;
 	// true のとき、この期限の種類と保存方法を、食材の初期値にも保存する。
 	saveAsIngredientDefault: boolean;
+	// ロットの換算（1個＝110g など）。省略は、そのまま。null は、換算を消す。
+	purchaseUnit?: InventoryLotPurchaseUnit | null;
 };
 
 export type UpdateInventoryLotResult = {

@@ -23,8 +23,18 @@ import {
 	type IngredientExpiryDefaults,
 } from "../../domain/build-expiry-prefill";
 import type { ExpiryEstimateLevel } from "../../domain/estimate-lot-expiry";
-import { toDateString } from "../../domain/inventory-lot";
+import {
+	type InventoryLotPurchaseUnit,
+	toDateString,
+} from "../../domain/inventory-lot";
 import { inventoryTrackingModeSchema } from "../../domain/inventory-tracking-mode";
+import {
+	collectPurchaseUnitCandidates,
+	emptyPurchaseUnitDraft,
+	type PurchaseUnitDraft,
+	parsePurchaseUnitDraft,
+} from "../../domain/purchase-unit-draft";
+import type { PurchaseUnitMemory } from "../../hooks/use-purchase-unit-memory";
 import {
 	getLearnedRemainingDays,
 	recordExpiryHint,
@@ -57,6 +67,12 @@ type UseInventoryRegistrationOptions = {
 	lookupIngredientDefaults?: (
 		ingredientName: string,
 	) => IngredientExpiryDefaults | null;
+	// 買い物メモの換算の記憶（候補と、決めた換算を覚える先）。
+	purchaseUnitMemory?: PurchaseUnitMemory;
+	// すでにある同じ食材の、ロットの換算（新しい順）。候補になる。
+	lookupLotPurchaseUnits?: (
+		ingredientName: string,
+	) => readonly InventoryLotPurchaseUnit[];
 };
 
 function readInventoryItemId(result: unknown): string | null {
@@ -82,6 +98,8 @@ export function useInventoryRegistration({
 	onRegistered,
 	expiryEstimateLevel = "reliable",
 	lookupIngredientDefaults,
+	purchaseUnitMemory,
+	lookupLotPurchaseUnits,
 }: UseInventoryRegistrationOptions) {
 	const [ingredientName, setIngredientName] = useState("");
 	// 在庫の単位の選択（"g:g" の形。マスタにない食材は、"custom"＝自分で入力した呼び名の個数）。
@@ -90,6 +108,10 @@ export function useInventoryRegistration({
 	const [trackingMode, setTrackingMode] =
 		useState<InventoryTrackingMode>("estimated");
 	const [initialQuantity, setInitialQuantity] = useState("");
+	// 個数の食材の、「1個＝110g」の換算（量が空なら、なし）。呼び名は、在庫の単位。
+	const [purchaseUnitDraft, setPurchaseUnitDraft] = useState<PurchaseUnitDraft>(
+		() => emptyPurchaseUnitDraft("個"),
+	);
 	const [expiry, setExpiry] = useState<ExpiryFieldsValue>(emptyExpiryFields);
 	// ユーザーが期限の欄を触ったら、食材名を変えても、目安で上書きしない。
 	const [isExpiryTouched, setIsExpiryTouched] = useState(false);
@@ -176,6 +198,19 @@ export function useInventoryRegistration({
 			: (unitOptions.find((option) => toUnitValue(option) === unitChoice) ??
 				unitOptions[0] ?? { stockUnitCode: "g", stockUnitLabel: "g" });
 
+	// 換算を決められるのは、在庫の単位が個数のとき（1個が何gか）。呼び名は、在庫の単位に固定。
+	const canSetPurchaseUnit = stockUnit.stockUnitCode === "count";
+	const fixedPurchaseUnitDraft: PurchaseUnitDraft = {
+		...purchaseUnitDraft,
+		label: stockUnit.stockUnitLabel,
+	};
+	const purchaseUnitCandidates = canSetPurchaseUnit
+		? collectPurchaseUnitCandidates([
+				...(lookupLotPurchaseUnits?.(ingredientName) ?? []),
+				...(purchaseUnitMemory?.candidates(ingredientName) ?? []),
+			]).filter((unit) => unit.label === stockUnit.stockUnitLabel)
+		: [];
+
 	// markAsAvailable が true のときは、数量を入れず、「ある」（有無だけ）で登録する（塩・醤油など）。
 	async function submit(markAsAvailable: boolean) {
 		if (isSubmitting) {
@@ -202,8 +237,13 @@ export function useInventoryRegistration({
 		}
 
 		let input: RegisterInventoryItemInput;
+		let purchaseUnit: InventoryLotPurchaseUnit | null = null;
 
 		try {
+			purchaseUnit =
+				markAsAvailable || !canSetPurchaseUnit
+					? null
+					: parsePurchaseUnitDraft(fixedPurchaseUnitDraft);
 			input = parseRegisterInventoryItemInput({
 				transactionId: crypto.randomUUID(),
 				ingredientName,
@@ -216,7 +256,10 @@ export function useInventoryRegistration({
 						? 0
 						: (parseQuantityInput(initialQuantity) ?? Number.NaN),
 				markAsAvailable,
-				lot: toLotInput(expiry),
+				lot: {
+					...toLotInput(expiry),
+					...(purchaseUnit ? { purchaseUnit } : {}),
+				},
 			});
 		} catch (error) {
 			setErrorMessage(describeError(error, "入力内容を確認してください"));
@@ -236,6 +279,15 @@ export function useInventoryRegistration({
 			// 食材名・数量・期限は空に戻す。管理方法と、期限の自動入力の設定は、そのまま（続けて登録しやすいように）。
 			setIngredientName("");
 			setInitialQuantity("");
+			setPurchaseUnitDraft(emptyPurchaseUnitDraft("個"));
+			// 決めた換算は、買い物メモの候補にもなるよう、覚える。
+			if (purchaseUnit) {
+				void purchaseUnitMemory?.remember(
+					input.ingredientName,
+					purchaseUnit,
+					input.trackingMode,
+				);
+			}
 			// 入力した期限（目安ではないもの）は、次の目安のために、覚える。
 			if (expiry.expirySource === "entered" && expiry.expiresOn !== "") {
 				recordExpiryHint({
@@ -289,6 +341,10 @@ export function useInventoryRegistration({
 		changeTrackingMode,
 		initialQuantity,
 		setInitialQuantity,
+		canSetPurchaseUnit,
+		purchaseUnitDraft: fixedPurchaseUnitDraft,
+		setPurchaseUnitDraft,
+		purchaseUnitCandidates,
 		presets,
 		expiry,
 		changeExpiry,

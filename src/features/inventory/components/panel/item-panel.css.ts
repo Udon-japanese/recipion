@@ -61,6 +61,7 @@ export const lotButton = style({
 	cursor: "pointer",
 	selectors: {
 		"&:hover": { background: "var(--color-surface-muted)" },
+		'&[data-editing="true"]': { background: "var(--color-surface-muted)" },
 		"&:focus-visible": {
 			outline: "3px solid var(--color-focus)",
 			outlineOffset: -3,
@@ -219,4 +220,26 @@ export const artBadge = style({
 	background: "var(--color-surface)",
 	border: "1px solid var(--color-border)",
 	color: "var(--color-text)",
+});
+
+// 内訳の編集の、まとまりの見出し（「すぐ反映」と「保存で反映」を分ける）。
+export const sectionTitle = style({
+	margin: 0,
+	fontSize: "var(--font-size-sm)",
+	fontWeight: "var(--font-weight-bold)",
+	lineHeight: "var(--line-height-tight)",
+});
+
+export const sectionNote = style({
+	margin: 0,
+	color: "var(--color-text-muted)",
+	fontSize: "var(--font-size-xs)",
+	lineHeight: "var(--line-height-normal)",
+});
+
+export const savedSection = style({
+	display: "grid",
+	gap: 12,
+	paddingTop: 12,
+	borderTop: "1px solid var(--color-border)",
 });

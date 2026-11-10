@@ -132,7 +132,7 @@ function DesktopDateField({
 	onChange,
 	today,
 	disabled,
-	placeholder = "2026/11/02",
+	placeholder = "年/月/日（例：11/2）",
 	...aria
 }: DateFieldProps) {
 	const [text, setText] = useState(formatDisplayDate(value));

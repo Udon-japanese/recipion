@@ -63,6 +63,8 @@ export function QuantityInput({
 			(!hideUnitFractionButtons &&
 				!presetValues.has(parseQuantityInput(button.value))),
 	);
+	const setButtons = buttons.filter((button) => button.kind === "set");
+	const addButtons = buttons.filter((button) => button.kind === "add");
 	const parsed = parseQuantityInput(value);
 	// 小数・整数のままのときは、確認の表示は要らない。
 	const isPlainNumber = /^\s*[\d.]+\s*$/u.test(value);
@@ -97,7 +99,7 @@ export function QuantityInput({
 				<span className={styles.hint}>= {parsed}</span>
 			) : null}
 
-			{buttons.length > 0 || presetButtons.length > 0 ? (
+			{setButtons.length > 0 || presetButtons.length > 0 ? (
 				<div className={styles.fractionButtons}>
 					{presetButtons.map((preset) => (
 						<Chip
@@ -110,7 +112,24 @@ export function QuantityInput({
 							{preset.label}
 						</Chip>
 					))}
-					{buttons.map((button) => (
+					{setButtons.map((button) => (
+						<Chip
+							key={describeQuantityButton(button)}
+							size="qty"
+							disabled={disabled}
+							aria-label={describeQuantityButtonForAssistiveTech(button)}
+							onClick={() => onChange(applyQuantityButton(value, button))}
+						>
+							{describeQuantityButton(button)}
+						</Chip>
+					))}
+				</div>
+			) : null}
+
+			{addButtons.length > 0 ? (
+				<div className={styles.addButtons}>
+					<span className={styles.addLabel}>入力に足す</span>
+					{addButtons.map((button) => (
 						<Chip
 							key={describeQuantityButton(button)}
 							size="qty"

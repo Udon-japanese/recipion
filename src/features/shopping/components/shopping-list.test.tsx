@@ -309,6 +309,29 @@ describe("ShoppingList", () => {
 		expect(repository.items).toEqual([]);
 	});
 
+	it("数量を空にして追加しようとすると、日本語で理由を出し、シートを閉じたあとの画面には残さない", async () => {
+		const user = userEvent.setup();
+		const repository = createFakeShoppingRepository();
+
+		render(<ShoppingList repository={repository} />);
+
+		await screen.findByText("買うものはまだありません。");
+		await user.click(screen.getByRole("button", { name: "買うものを入れる" }));
+		await user.type(screen.getByLabelText("買うもの"), "牛乳");
+		await user.clear(screen.getByLabelText("数量"));
+		await user.click(screen.getByRole("button", { name: "追加" }));
+
+		const alert = await screen.findByRole("alert");
+
+		expect(alert).toHaveTextContent("数量を確認してください");
+		expect(alert).not.toHaveTextContent("Invalid type");
+
+		await user.click(screen.getByRole("button", { name: "閉じる" }));
+
+		expect(screen.queryByRole("alert")).toBeNull();
+		expect(repository.items).toEqual([]);
+	});
+
 	it("商品名に応じた数量プリセットを選択できる", async () => {
 		const user = userEvent.setup();
 		const repository = createFakeShoppingRepository();
