@@ -10,6 +10,7 @@ import type {
 	ShoppingItem,
 	ShoppingItemInventoryConversion,
 } from "../features/shopping/domain/shopping-item";
+import type { ShoppingItemMemory } from "../features/shopping/domain/shopping-item-memory";
 import type { ShoppingStore } from "../features/shopping/domain/shopping-store";
 import type {
 	ShoppingRecordKind,
@@ -43,6 +44,7 @@ export type ShoppingBranchRecord = Owned<ShoppingBranch>;
 export type ShoppingStoreDefaultRecord = Owned<ShoppingStoreDefault>;
 export type ScopedShoppingConversionMemoryRecord =
 	Owned<ShoppingConversionMemoryRecord>;
+export type ShoppingItemMemoryRecord = Owned<ShoppingItemMemory>;
 
 // ログインした人の買い物メモの、サーバーから受け取り済みの版（初めて同期するまでは、行がない）。
 export type ShoppingSyncStateRecord = {
@@ -75,6 +77,11 @@ export class LocalDatabase extends Dexie {
 	// 主キーは [持ち主, 食材×単位のキー]。
 	scopedShoppingConversionMemories!: Table<
 		ScopedShoppingConversionMemoryRecord,
+		[string, string]
+	>;
+	// 主キーは [持ち主, 食材名のキー]。
+	scopedShoppingItemMemories!: Table<
+		ShoppingItemMemoryRecord,
 		[string, string]
 	>;
 	ingredientDictionaries!: Table<IngredientDictionarySnapshot, string>;
@@ -162,6 +169,10 @@ export class LocalDatabase extends Dexie {
 			shoppingSyncOutbox: "[ownerScope+kind+id], ownerScope",
 			shoppingSyncStates: "ownerScope",
 			shoppingSyncVersions: "[ownerScope+kind+id], ownerScope",
+		});
+		// 食材ごとの、いつもの買い方（前回の数量・単位・カテゴリ）。
+		this.version(7).stores({
+			scopedShoppingItemMemories: "[ownerScope+nameKey], ownerScope",
 		});
 
 		// 買い物メモの行を書いたら、同じトランザクションで、送る印を付ける。

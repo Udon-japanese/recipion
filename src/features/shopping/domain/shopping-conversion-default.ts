@@ -6,6 +6,7 @@ import { normalizeIngredientName } from "#/features/ingredients/domain/normalize
 import { toInputUnitCode } from "./infer-inventory-conversion";
 import type { ParsedShoppingMemoLine } from "./parse-shopping-memo";
 import type { ShoppingItemInventoryConversion } from "./shopping-item";
+import type { ShoppingItemMemories } from "./shopping-item-memory";
 
 // ユーザーが決めた在庫換算の記憶（食材×買う単位ごとに1つ）。
 // 買う単位の呼び名（例：本）と、その1単位が在庫でいくつか（例：1本＝1000ml）の組。
@@ -132,15 +133,38 @@ export function catalogUsualConversion(
 
 /**
  * 読み取った行に、記憶とカタログの既定を当てはめる。
- * - 単位のない行（数量なし、または単位のない数字）：①食材のいつもの単位の記憶 → ②カタログの一般的な売られ方
+ * - 単位のない行（数量なし、または単位のない数字）：⓪いつもの買い方（前回の単位と、その単位の換算の記憶。
+ *   数量を書いていなければ、前回の数量も）→ ①食材のいつもの単位の記憶 → ②カタログの一般的な売られ方
  *   （量を追わない食材は、その単位で1つ）→ ③そのまま。数量は、書いたとおり（「牛乳 2」→ 2本）。
  * - 単位を書いた行：その単位の記憶があれば、記憶の換算を付ける。なければ、そのまま。
  */
 export function applyConversionDefaults(
 	lines: readonly ParsedShoppingMemoLine[],
 	defaults: ShoppingConversionDefaults,
+	itemMemories: ShoppingItemMemories = {},
 ): ParsedShoppingMemoLine[] {
 	return lines.map((line) => {
+		const nameKey = line.unitless ? toConversionDefaultKey(line.name) : null;
+		const memory = nameKey ? itemMemories[nameKey] : undefined;
+
+		if (memory) {
+			const conversion = findConversionDefault(
+				defaults,
+				line.name,
+				memory.unitLabel,
+			);
+
+			return {
+				...line,
+				// 数量も単位も書いていない行（unitLabel が null）は、前回の数量。
+				quantity: line.unitLabel === null ? memory.quantity : line.quantity,
+				unitLabel: memory.unitLabel,
+				...(conversion
+					? { inventoryConversion: conversion.inventoryConversion }
+					: {}),
+			};
+		}
+
 		if (line.unitless) {
 			const fill =
 				findUsualConversionDefault(defaults, line.name) ??

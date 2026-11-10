@@ -11,6 +11,7 @@ import { ShoppingList } from "./shopping-list";
 beforeEach(async () => {
 	const database = getLocalDatabase();
 
+	await database.scopedShoppingItemMemories.clear();
 	await database.shoppingStores.clear();
 	await database.scopedShoppingStoreDefaults.clear();
 });

@@ -39,6 +39,7 @@ import {
 	applyConversionDefaults,
 	type ShoppingConversionDefaults,
 } from "../domain/shopping-conversion-default";
+import type { ShoppingItemMemories } from "../domain/shopping-item-memory";
 import type { ShoppingStore } from "../domain/shopping-store";
 import * as styles from "./shopping-page.css";
 
@@ -50,6 +51,8 @@ type ShoppingBulkAddProps = {
 	stores: readonly ShoppingStore[];
 	// 食材ごとの、在庫換算の記憶。数量のない行に、記憶の単位を補う。
 	conversionDefaults?: ShoppingConversionDefaults;
+	// 食材ごとの、いつもの買い方。単位のない行に、前回の単位（数量がなければ、前回の数量）を補う。
+	itemMemories?: ShoppingItemMemories;
 	onClose: () => void;
 	// 読み取った行を、一覧に追加する。追加できた件数を返す（途中で失敗したら、そこまで）。
 	onAdd: (lines: readonly ParsedShoppingMemoLine[]) => Promise<number>;
@@ -58,6 +61,7 @@ type ShoppingBulkAddProps = {
 };
 
 const noConversionDefaults: ShoppingConversionDefaults = {};
+const noItemMemories: ShoppingItemMemories = {};
 
 function formatQuantity(line: ParsedShoppingMemoLine): string | null {
 	if (line.unitLabel === null && line.quantity === 1) {
@@ -74,6 +78,7 @@ export function ShoppingBulkAdd({
 	title = "まとめて追加",
 	stores,
 	conversionDefaults = noConversionDefaults,
+	itemMemories = noItemMemories,
 	onClose,
 	onAdd,
 	onCreateStore,
@@ -110,8 +115,9 @@ export function ShoppingBulkAdd({
 			applyConversionDefaults(
 				parseShoppingMemo(text, stores),
 				conversionDefaults,
+				itemMemories,
 			),
-		[text, stores, conversionDefaults],
+		[text, stores, conversionDefaults, itemMemories],
 	);
 	// 自分の食材辞書（画面が渡したもの。ゲスト・テストは undefined で、カタログだけ）。
 	const dictionary = useIngredientDictionaryContext();

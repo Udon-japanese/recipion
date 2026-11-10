@@ -23,7 +23,15 @@ import { upsertById } from "../domain/upsert-by-id";
 
 // 買い物メモの項目の読み込みと、追加・更新・削除・並び替え。
 // 操作は、保存に成功したあとで画面の状態に反映する。失敗したときは、エラーの文を出して false を返す。
-export function useShoppingItems(repository: ShoppingRepository) {
+type UseShoppingItemsOptions = {
+	// 項目を追加した・直したあとに呼ぶ（食材ごとの、いつもの買い方を覚える）。
+	onItemsSaved?: (items: readonly ShoppingItem[]) => void;
+};
+
+export function useShoppingItems(
+	repository: ShoppingRepository,
+	{ onItemsSaved }: UseShoppingItemsOptions = {},
+) {
 	// 分岐型のメモの中の項目も含む、すべての項目。
 	const [allItems, setItems] = useState<ShoppingItem[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
@@ -132,6 +140,7 @@ export function useShoppingItems(repository: ShoppingRepository) {
 
 			await repository.save(item);
 			setItems((currentItems) => upsertById(currentItems, item));
+			onItemsSaved?.([item]);
 		});
 	}
 
@@ -152,8 +161,17 @@ export function useShoppingItems(repository: ShoppingRepository) {
 		return changedItem;
 	}
 
-	function updateItem(item: ShoppingItem, input: UpdateShoppingItemInput) {
-		return changeItem(() => updateShoppingItem(item, input));
+	async function updateItem(
+		item: ShoppingItem,
+		input: UpdateShoppingItemInput,
+	) {
+		const updated = await changeItem(() => updateShoppingItem(item, input));
+
+		if (updated) {
+			onItemsSaved?.([updated]);
+		}
+
+		return updated;
 	}
 
 	// 店が消えたとき、画面の項目の店を「どこでも」に戻す（保存は、店の削除の側で済んでいる）。

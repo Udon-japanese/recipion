@@ -23,6 +23,7 @@ import type {
 	ShoppingItem,
 	UpdateShoppingItemInput,
 } from "../domain/shopping-item";
+import type { ShoppingItemMemories } from "../domain/shopping-item-memory";
 import type { ShoppingStore } from "../domain/shopping-store";
 import type { RenderRecipePicker } from "./recipe-picker-slot";
 import { ShoppingAddSheet } from "./shopping-add-sheet";
@@ -45,6 +46,8 @@ export type ShoppingBranchCardsContext = {
 	stores: readonly ShoppingStore[];
 	// 食材ごとの、在庫換算の記憶（「まとめて追加」で、数量のない行に単位を補う）。
 	conversionDefaults?: ShoppingConversionDefaults;
+	// 食材ごとの、いつもの買い方（追加のシート・「まとめて追加」で、数量・単位・カテゴリを埋める）。
+	itemMemories?: ShoppingItemMemories;
 	defaultStoreIdFor: (itemName: string) => string | null;
 	onCreateStore: (name: string) => Promise<ShoppingStore | null>;
 	onRemoveBranch: (branch: ShoppingBranch) => Promise<boolean>;
@@ -235,6 +238,11 @@ export function ShoppingBranchCards({
 			{pickedSide && context.renderRecipePicker && context.repository
 				? context.renderRecipePicker({
 						repository: context.repository,
+						loadShoppingMemories: () =>
+							Promise.resolve({
+								itemMemories: context.itemMemories ?? {},
+								conversionDefaults: context.conversionDefaults ?? {},
+							}),
 						destination: {
 							branchId: pickedSide.branch.id,
 							side: pickedSide.side,
@@ -254,6 +262,8 @@ export function ShoppingBranchCards({
 				<ShoppingAddSheet
 					title={addTitle}
 					stores={context.stores}
+					itemMemories={context.itemMemories}
+					conversionDefaults={context.conversionDefaults}
 					defaultStoreIdFor={context.defaultStoreIdFor}
 					onCreateStore={context.onCreateStore}
 					onAdd={(input) =>
@@ -269,6 +279,7 @@ export function ShoppingBranchCards({
 					title={`${sideAddTitle(bulkSide.branch, bulkSide.side)}にまとめて追加`}
 					stores={context.stores}
 					conversionDefaults={context.conversionDefaults}
+					itemMemories={context.itemMemories}
 					onClose={() => setBulkTarget(null)}
 					onAdd={(lines) =>
 						context.onAddItems(bulkSide.branch, bulkSide.side, lines)

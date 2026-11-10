@@ -47,8 +47,8 @@ describe("parseShoppingBackupFile", () => {
 		},
 		{
 			title: "違う版",
-			change: (file) => ({ ...file, version: 2 }),
-			message: "この版のファイルは読めません（版 2）",
+			change: (file) => ({ ...file, version: 1 }),
+			message: "この版のファイルは読めません（版 1）",
 		},
 		{
 			title: "購入済みの項目",

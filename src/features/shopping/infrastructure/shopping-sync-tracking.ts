@@ -32,6 +32,7 @@ const trackedTables: Record<
 		kind: "conversionMemory",
 		idField: "key",
 	},
+	scopedShoppingItemMemories: { kind: "itemMemory", idField: "nameKey" },
 };
 
 // 印を付けないトランザクション（サーバーから受け取った行を当てるとき。送り返さない）。

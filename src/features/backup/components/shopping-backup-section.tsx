@@ -242,7 +242,8 @@ export function ShoppingBackupSection({
 							{describeContents(preview)}
 							、いつも買う店{formatCount(preview.storeDefaults.length)}
 							件、在庫への換算
-							{formatCount(preview.conversionMemories.length)}件
+							{formatCount(preview.conversionMemories.length)}
+							件、いつもの買い方{formatCount(preview.itemMemories.length)}件
 						</p>
 						<Note tone="warn">
 							いまの買い物メモ（購入済みの項目も含めて）は消えて、この内容になります。取り消せません。

@@ -34,6 +34,7 @@ function renderAdoption(ownerScope: "guest" | `user:${string}` = "user:a") {
 		branches: [],
 		storeDefaults: [],
 		conversionMemories: [],
+		itemMemories: [],
 		mergedStoreCount: 0,
 	}));
 

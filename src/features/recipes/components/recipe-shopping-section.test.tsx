@@ -1,7 +1,7 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { IngredientDictionary } from "#/features/ingredients/domain/ingredient-dictionary";
 import type { InventoryListItem } from "#/features/inventory/application/inventory-query-repository";
 import { createShoppingItem } from "#/features/shopping/domain/shopping-item";
@@ -66,7 +66,55 @@ async function openPanel(user: ReturnType<typeof userEvent.setup>) {
 	return screen.findByRole("dialog", { name: "買い物メモに入れる" });
 }
 
+// 「入れる量」の選択は、端末に覚える。テストごとに戻す。
+afterEach(() => {
+	localStorage.clear();
+});
+
 describe("RecipeShoppingSection", () => {
+	it("入れる量は、いつもの量（覚えている食材だけ）と、レシピの量を選べる", async () => {
+		const user = userEvent.setup();
+		const repository = createFakeShoppingRepository();
+
+		render(
+			<RecipeShoppingSection
+				ingredients={ingredients}
+				ownerScope="user:user-id"
+				loadInventoryItems={async () => []}
+				shoppingRepository={repository}
+				loadShoppingMemories={async () => ({
+					itemMemories: {
+						卵: {
+							nameKey: "卵",
+							quantity: 1,
+							unitLabel: "パック",
+							categoryId: null,
+							categoryAssignment: null,
+							usedAt: 1,
+						},
+					},
+					conversionDefaults: {},
+				})}
+			/>,
+		);
+
+		const panel = within(await openPanel(user));
+
+		expect(await panel.findByText("いつもの量：1パック")).toBeInTheDocument();
+
+		await user.click(panel.getByRole("radio", { name: "レシピの量" }));
+
+		expect(panel.queryByText("いつもの量：1パック")).toBeNull();
+		await user.click(
+			panel.getByRole("button", { name: "選んだものを入れる（3件）" }),
+		);
+		await waitFor(() => expect(repository.items).toHaveLength(3));
+		expect(repository.items.find((item) => item.name === "卵")).toMatchObject({
+			quantity: 2,
+			unitLabel: "個",
+		});
+	});
+
 	it("量を変えているときは、その量で数え、入れる量を知らせる（レシピの量のままなら、知らせない）", async () => {
 		const user = userEvent.setup();
 		const repository = createFakeShoppingRepository();

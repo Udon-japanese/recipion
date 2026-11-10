@@ -8,7 +8,7 @@ import {
 import { getLocalDatabase } from "#/local-db/database";
 import type { ShoppingBackupData } from "../domain/shopping-backup-file";
 
-// その持ち主の買い物メモの5つの表を、そのまま読む（購入済みを除くのは、ファイルを作るとき）。
+// その持ち主の買い物メモの6つの表を、そのまま読む（購入済みを除くのは、ファイルを作るとき）。
 export function readShoppingData(ownerScope: InventoryPurchaseOwnerScope) {
 	return readOwnedShoppingData(ownerScope);
 }

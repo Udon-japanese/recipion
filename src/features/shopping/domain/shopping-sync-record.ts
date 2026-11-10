@@ -2,6 +2,7 @@ import * as v from "valibot";
 import {
 	shoppingBranchSchema,
 	shoppingConversionMemorySchema,
+	shoppingItemMemorySchema,
 	shoppingItemSchema,
 	shoppingRecordLimits,
 	shoppingStoreDefaultSchema,
@@ -9,13 +10,14 @@ import {
 } from "./shopping-record-schemas";
 
 // サーバーと同期する、買い物メモの行の種類。行の ID は、項目・店・条件つきメモは id、
-// いつも買う店は食材名のキー（nameKey）、換算の記憶は食材×単位のキー（key）。
+// いつも買う店・いつもの買い方は食材名のキー（nameKey）、換算の記憶は食材×単位のキー（key）。
 export const shoppingRecordKinds = [
 	"item",
 	"store",
 	"branch",
 	"storeDefault",
 	"conversionMemory",
+	"itemMemory",
 ] as const;
 
 export type ShoppingRecordKind = (typeof shoppingRecordKinds)[number];
@@ -42,6 +44,7 @@ const dataSchemas = {
 	branch: shoppingBranchSchema,
 	storeDefault: shoppingStoreDefaultSchema,
 	conversionMemory: shoppingConversionMemorySchema,
+	itemMemory: shoppingItemMemorySchema,
 } as const;
 
 type ShoppingRecordData = {
@@ -61,6 +64,7 @@ export function shoppingRecordIdOf(
 ): string {
 	switch (record.kind) {
 		case "storeDefault":
+		case "itemMemory":
 			return record.data.nameKey;
 		case "conversionMemory":
 			return record.data.key;
@@ -147,6 +151,13 @@ function parseLiveRecord(
 				id,
 				deleted: false,
 				data: v.parse(dataSchemas.conversionMemory, data),
+			};
+		case "itemMemory":
+			return {
+				kind,
+				id,
+				deleted: false,
+				data: v.parse(dataSchemas.itemMemory, data),
 			};
 	}
 }

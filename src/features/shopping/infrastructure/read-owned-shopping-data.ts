@@ -15,10 +15,11 @@ export function shoppingMemoTables(database: LocalDatabase) {
 		database.shoppingBranches,
 		database.scopedShoppingStoreDefaults,
 		database.scopedShoppingConversionMemories,
+		database.scopedShoppingItemMemories,
 	];
 }
 
-// その持ち主の買い物メモの5つの表を、そのまま読む（1つの読み出しのトランザクション。ほかのトランザクションの中でも呼べる）。
+// その持ち主の買い物メモの6つの表を、そのまま読む（1つの読み出しのトランザクション。ほかのトランザクションの中でも呼べる）。
 export async function readOwnedShoppingData(
 	ownerScope: InventoryPurchaseOwnerScope,
 	database: LocalDatabase = getLocalDatabase(),
@@ -26,29 +27,39 @@ export async function readOwnedShoppingData(
 	const [lower, upper] = ownerSortRange(ownerScope);
 
 	return database.transaction("r", shoppingMemoTables(database), async () => {
-		const [items, stores, branches, storeDefaults, conversionMemories] =
-			await Promise.all([
-				database.shoppingItems
-					.where("[ownerScope+sortOrder]")
-					.between(lower, upper, true, true)
-					.toArray(),
-				database.shoppingStores
-					.where("[ownerScope+sortOrder]")
-					.between(lower, upper, true, true)
-					.toArray(),
-				database.shoppingBranches
-					.where("[ownerScope+sortOrder]")
-					.between(lower, upper, true, true)
-					.toArray(),
-				database.scopedShoppingStoreDefaults
-					.where("ownerScope")
-					.equals(ownerScope)
-					.toArray(),
-				database.scopedShoppingConversionMemories
-					.where("ownerScope")
-					.equals(ownerScope)
-					.toArray(),
-			]);
+		const [
+			items,
+			stores,
+			branches,
+			storeDefaults,
+			conversionMemories,
+			itemMemories,
+		] = await Promise.all([
+			database.shoppingItems
+				.where("[ownerScope+sortOrder]")
+				.between(lower, upper, true, true)
+				.toArray(),
+			database.shoppingStores
+				.where("[ownerScope+sortOrder]")
+				.between(lower, upper, true, true)
+				.toArray(),
+			database.shoppingBranches
+				.where("[ownerScope+sortOrder]")
+				.between(lower, upper, true, true)
+				.toArray(),
+			database.scopedShoppingStoreDefaults
+				.where("ownerScope")
+				.equals(ownerScope)
+				.toArray(),
+			database.scopedShoppingConversionMemories
+				.where("ownerScope")
+				.equals(ownerScope)
+				.toArray(),
+			database.scopedShoppingItemMemories
+				.where("ownerScope")
+				.equals(ownerScope)
+				.toArray(),
+		]);
 
 		return {
 			items: items.map(toShoppingItem),
@@ -59,6 +70,9 @@ export async function readOwnedShoppingData(
 				storeId,
 			})),
 			conversionMemories: conversionMemories.map(
+				({ ownerScope: _ownerScope, ...memory }) => memory,
+			),
+			itemMemories: itemMemories.map(
 				({ ownerScope: _ownerScope, ...memory }) => memory,
 			),
 		};
@@ -100,6 +114,9 @@ export async function addOwnedShoppingData(
 		),
 		database.scopedShoppingConversionMemories.bulkAdd(
 			data.conversionMemories.map((memory) => ({ ...memory, ...owner })),
+		),
+		database.scopedShoppingItemMemories.bulkAdd(
+			data.itemMemories.map((memory) => ({ ...memory, ...owner })),
 		),
 	]);
 }

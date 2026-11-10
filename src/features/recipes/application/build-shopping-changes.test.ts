@@ -119,3 +119,55 @@ describe("buildShoppingChanges", () => {
 		]);
 	});
 });
+
+describe("buildShoppingChanges（覚えた買い方）", () => {
+	const memories = {
+		itemMemories: {
+			醤油: {
+				nameKey: "醤油",
+				quantity: 1,
+				unitLabel: "本",
+				categoryId: "snacks" as const,
+				categoryAssignment: "manual" as const,
+				usedAt: 1,
+			},
+		},
+		conversionDefaults: {
+			"醤油\t本": {
+				nameKey: "醤油",
+				unitLabel: "本",
+				inventoryConversion: {
+					inputUnitCode: "本",
+					stockUnitCode: "ml" as const,
+					stockUnitLabel: "ml",
+					stockQuantityPerInputUnit: 500,
+					trackingMode: "estimated" as const,
+				},
+				usedAt: 1,
+			},
+		},
+	};
+
+	it("新しい項目に、前回のカテゴリと、その単位の換算の記憶を付ける", () => {
+		const rows = planShoppingFromRecipe({
+			needs: [need("醤油", 2, "大さじ")],
+			stockItems: null,
+			memoItems: [],
+			duplicateMode: "max",
+			amountMode: "usual",
+			itemMemories: memories.itemMemories,
+		});
+		const [created] = buildShoppingChanges(rows, new Set(["醤油"]), [], now, {
+			memories,
+		}).created;
+
+		expect(created).toMatchObject({
+			name: "醤油",
+			quantity: 1,
+			unitLabel: "本",
+			categoryId: "snacks",
+			categoryAssignment: "manual",
+			inventoryConversion: { stockQuantityPerInputUnit: 500 },
+		});
+	});
+});

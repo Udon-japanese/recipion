@@ -242,7 +242,7 @@ export function markShoppingItemAsPurchased(
 }
 
 export function getShoppingItemConvertedQuantityLabel(
-	item: ShoppingItem,
+	item: Pick<ShoppingItem, "quantity" | "inventoryConversion">,
 ): string | null {
 	const conversion = item.inventoryConversion;
 

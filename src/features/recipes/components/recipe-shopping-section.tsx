@@ -6,7 +6,9 @@ import type { IngredientDictionary } from "#/features/ingredients/domain/ingredi
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import type { InventoryListItem } from "#/features/inventory/application/inventory-query-repository";
 import type { ShoppingRepository } from "#/features/shopping/application/shopping-repository";
+import type { ShoppingMemories } from "#/features/shopping/domain/shopping-item-memory";
 import { createDexieShoppingRepository } from "#/features/shopping/infrastructure/dexie-shopping-repository";
+import { readShoppingMemories } from "#/features/shopping/infrastructure/read-shopping-memories";
 import type { RecipeDetail } from "../application/recipe-repository";
 import type { RecipeEditorIngredientNode } from "../domain/recipe-editor-document";
 import type { RecipeLinkView } from "../domain/recipe-links";
@@ -28,6 +30,8 @@ type RecipeShoppingSectionProps = {
 	// ログインしているとき、在庫の一覧を取得する（ゲストでは、呼ばない）。
 	loadInventoryItems?: () => Promise<InventoryListItem[]>;
 	shoppingRepository?: ShoppingRepository;
+	// 買い物メモの記憶（いつもの量・カテゴリ・換算）を読む。省略は、その人の端末の記憶（shoppingRepository も省略したとき）。
+	loadShoppingMemories?: () => Promise<ShoppingMemories>;
 	// 「ある」を押したとき、その食材を、在庫に「ある」で登録する（塩・醤油など）。
 	registerAvailable?: (ingredientName: string) => Promise<void>;
 	// 材料を「管理しない材料」にする（水など）。ゲストは省略。
@@ -49,6 +53,7 @@ export function RecipeShoppingSection({
 	ownerScope,
 	loadInventoryItems,
 	shoppingRepository: injectedShoppingRepository,
+	loadShoppingMemories: injectedLoadShoppingMemories,
 	registerAvailable,
 	markUnmanaged,
 	ratio = 1,
@@ -63,6 +68,15 @@ export function RecipeShoppingSection({
 			createDexieShoppingRepository(ownerScope ?? "guest"),
 		[injectedShoppingRepository, ownerScope],
 	);
+	// 記憶は、メモと同じ保存先のもの（メモの保存先を渡されたときは、記憶も渡されたものだけを使う）。
+	const loadShoppingMemories = useMemo(
+		() =>
+			injectedLoadShoppingMemories ??
+			(injectedShoppingRepository
+				? undefined
+				: () => readShoppingMemories(ownerScope ?? "guest")),
+		[injectedLoadShoppingMemories, injectedShoppingRepository, ownerScope],
+	);
 	const plan = useRecipeShoppingPlan({
 		ingredients,
 		linkViews,
@@ -70,6 +84,7 @@ export function RecipeShoppingSection({
 		ownerScope,
 		loadInventoryItems,
 		shoppingRepository,
+		loadShoppingMemories,
 		ratio,
 		dictionary,
 	});

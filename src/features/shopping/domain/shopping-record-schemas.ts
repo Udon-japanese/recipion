@@ -13,17 +13,19 @@ import {
 	type ShoppingCategoryId,
 } from "./shopping-category";
 import { inventoryConversionSchema, type ShoppingItem } from "./shopping-item";
+import type { ShoppingItemMemory } from "./shopping-item-memory";
 import {
 	maxShoppingStoreNameLength,
 	type ShoppingStore,
 } from "./shopping-store";
 
-// 買い物メモの5つの表の行の形（ファイルの書き出し・読み込みと、サーバーとの同期で共通に使う）。
+// 買い物メモの6つの表の行の形（ファイルの書き出し・読み込みと、サーバーとの同期で共通に使う）。
 export const shoppingRecordLimits = {
 	// 1人の買い物メモの行の数（ファイルの読み込みと、サーバーとの同期で共通。店・条件つきメモは、画面の上限と同じ）。
 	maxItems: 2000,
 	maxStoreDefaults: 2000,
 	maxConversionMemories: 2000,
+	maxItemMemories: 2000,
 	maxIdLength: 100,
 	maxNameLength: 100,
 	maxConversionMemoryKeyLength: 300,
@@ -61,18 +63,25 @@ const unitLabelSchema = v.nullable(
 	v.pipe(v.string(), v.maxLength(shoppingRecordLimits.maxNameLength)),
 );
 
+const categoryIdSchema = v.nullable(
+	v.custom<ShoppingCategoryId>(
+		(input) => typeof input === "string" && isShoppingCategoryId(input),
+	),
+);
+const categoryAssignmentSchema = v.nullable(
+	v.picklist(["automatic", "manual"]),
+);
+const usedAtSchema = v.pipe(v.number(), v.finite(), v.minValue(0));
+const quantitySchema = v.pipe(v.number(), v.finite(), v.gtValue(0));
+
 export const shoppingItemSchema = v.object({
 	id: idSchema,
 	name: nameSchema(shoppingRecordLimits.maxNameLength),
-	quantity: v.pipe(v.number(), v.finite(), v.gtValue(0)),
+	quantity: quantitySchema,
 	unitLabel: unitLabelSchema,
 	inventoryConversion: v.nullable(inventoryConversionSchema),
-	categoryId: v.nullable(
-		v.custom<ShoppingCategoryId>(
-			(input) => typeof input === "string" && isShoppingCategoryId(input),
-		),
-	),
-	categoryAssignment: v.nullable(v.picklist(["automatic", "manual"])),
+	categoryId: categoryIdSchema,
+	categoryAssignment: categoryAssignmentSchema,
 	storeId: v.nullable(idSchema),
 	branchId: v.nullable(idSchema),
 	branchSide: v.nullable(v.picklist(["condition", "then", "else"])),
@@ -96,5 +105,14 @@ export const shoppingConversionMemorySchema = v.object({
 	nameKey: nameSchema(shoppingRecordLimits.maxNameLength),
 	unitLabel: unitLabelSchema,
 	inventoryConversion: inventoryConversionSchema,
-	usedAt: v.pipe(v.number(), v.finite(), v.minValue(0)),
+	usedAt: usedAtSchema,
 }) satisfies v.GenericSchema<unknown, ShoppingConversionMemoryRecord>;
+
+export const shoppingItemMemorySchema = v.object({
+	nameKey: nameSchema(shoppingRecordLimits.maxNameLength),
+	quantity: quantitySchema,
+	unitLabel: unitLabelSchema,
+	categoryId: categoryIdSchema,
+	categoryAssignment: categoryAssignmentSchema,
+	usedAt: usedAtSchema,
+}) satisfies v.GenericSchema<unknown, ShoppingItemMemory>;

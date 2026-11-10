@@ -117,6 +117,7 @@ export const shoppingSyncRowLimits: Record<ShoppingRecordKind, number> = {
 	branch: maxShoppingBranchCount,
 	storeDefault: shoppingRecordLimits.maxStoreDefaults,
 	conversionMemory: shoppingRecordLimits.maxConversionMemories,
+	itemMemory: shoppingRecordLimits.maxItemMemories,
 };
 
 const rowKindLabels: Record<ShoppingRecordKind, string> = {
@@ -125,6 +126,7 @@ const rowKindLabels: Record<ShoppingRecordKind, string> = {
 	branch: "条件つきメモ",
 	storeDefault: "いつも買う店",
 	conversionMemory: "在庫への換算",
+	itemMemory: "いつもの買い方",
 };
 
 // 当てる行（writes）で、上限を超える種類があれば、利用者に見せる文を返す（なければ null）。

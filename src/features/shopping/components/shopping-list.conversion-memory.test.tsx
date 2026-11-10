@@ -1,9 +1,10 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildShoppingItem } from "#/test/builders/build-shopping-item";
 import { createFakeShoppingConversionDefaultRepository } from "#/test/fakes/fake-shopping-conversion-default-repository";
 import { createFakeShoppingRepository } from "#/test/fakes/fake-shopping-repository";
+import { getLocalDatabase } from "../../../local-db/database";
 import {
 	type ShoppingConversionDefault,
 	type ShoppingConversionDefaults,
@@ -12,6 +13,11 @@ import {
 } from "../domain/shopping-conversion-default";
 import type { ShoppingItem } from "../domain/shopping-item";
 import { ShoppingList } from "./shopping-list";
+
+// 追加した項目は、端末のいつもの買い方に入る。前のテストの記憶を持ち越さない。
+beforeEach(async () => {
+	await getLocalDatabase().scopedShoppingItemMemories.clear();
+});
 
 afterEach(() => {
 	localStorage.clear();

@@ -1,6 +1,7 @@
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import { createDexieShoppingBranchRepository } from "./dexie-shopping-branch-repository";
 import { createDexieShoppingConversionDefaultRepository } from "./dexie-shopping-conversion-default-repository";
+import { createDexieShoppingItemMemoryRepository } from "./dexie-shopping-item-memory-repository";
 import { createDexieShoppingRepository } from "./dexie-shopping-repository";
 import { createDexieShoppingStoreRepository } from "./dexie-shopping-store-repository";
 
@@ -14,5 +15,6 @@ export function createDexieShoppingRepositories(
 		branches: createDexieShoppingBranchRepository(ownerScope),
 		conversionDefaults:
 			createDexieShoppingConversionDefaultRepository(ownerScope),
+		itemMemories: createDexieShoppingItemMemoryRepository(ownerScope),
 	};
 }

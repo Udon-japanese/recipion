@@ -2,12 +2,14 @@ import { useState } from "react";
 import { Button } from "#/components/button/button";
 import { Chip } from "#/components/chip/chip";
 import { formatQuantity } from "#/features/quantity/domain/format-quantity";
+import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
 import {
 	isShoppingCategoryId,
 	type ShoppingCategoryId,
 	shoppingCategories,
 } from "../domain/shopping-category";
 import type { ShoppingItemInventoryConversion } from "../domain/shopping-item";
+import type { RememberedShoppingChoice } from "../domain/shopping-item-memory";
 import {
 	getShoppingItemPresets,
 	inferShoppingCategory,
@@ -45,7 +47,38 @@ type ShoppingItemSheetFieldsProps = {
 	// 名前を変えたとき・店を選んだときに、ほかの欄も変えたいとき（追加の「いつも買う店」など）。
 	onNameChange?: (next: ShoppingItemDraft) => ShoppingItemDraft;
 	onStoreChange?: (storeId: string | null) => void;
+	// 数量・単位・換算を、自分で決めたとき（入力・チップ）。
+	onAmountChange?: () => void;
+	// カテゴリを、自分で選んだとき。
+	onCategoryChange?: () => void;
+	// 覚えた買い方の候補（新しい順）。よく使う数量の前に並べる。
+	rememberedChoices?: readonly RememberedShoppingChoice[];
 };
+
+function isSameConversion(
+	a: ShoppingItemInventoryConversion | null,
+	b: ShoppingItemInventoryConversion | null,
+): boolean {
+	return (
+		a?.inputUnitCode === b?.inputUnitCode &&
+		a?.stockUnitCode === b?.stockUnitCode &&
+		a?.stockQuantityPerInputUnit === b?.stockQuantityPerInputUnit &&
+		a?.trackingMode === b?.trackingMode
+	);
+}
+
+function isRememberedChoiceSelected(
+	choice: RememberedShoppingChoice,
+	value: ShoppingItemDraft,
+): boolean {
+	return (
+		parseQuantityInput(value.quantity) === choice.quantity &&
+		value.unitLabel === (choice.unitLabel ?? "") &&
+		isSameConversion(value.inventoryConversion, choice.inventoryConversion)
+	);
+}
+
+const noChoices: readonly RememberedShoppingChoice[] = [];
 
 // 数量の単位の候補がないとき（食材のよく使う数量が、ないとき）に並べる、よく使う単位。
 const commonUnits = ["個", "本", "パック", "袋", "g"] as const;
@@ -61,9 +94,25 @@ export function ShoppingItemSheetFields({
 	onCreateStore,
 	onNameChange,
 	onStoreChange,
+	onAmountChange,
+	onCategoryChange,
+	rememberedChoices = noChoices,
 }: ShoppingItemSheetFieldsProps) {
 	const [isChangingCategory, setIsChangingCategory] = useState(false);
-	const presets = getShoppingItemPresets(value.name);
+	const allPresets = getShoppingItemPresets(value.name);
+	// 覚えた候補と同じプリセットは、並べない。
+	const presets = allPresets.filter(
+		(preset) =>
+			!rememberedChoices.some(
+				(choice) =>
+					choice.quantity === preset.quantity &&
+					(choice.unitLabel ?? "") === preset.unitLabel &&
+					isSameConversion(
+						choice.inventoryConversion,
+						preset.inventoryConversion,
+					),
+			),
+	);
 	const categoryLabel = shoppingCategories.find(
 		(category) => category.id === value.categoryId,
 	)?.label;
@@ -94,27 +143,54 @@ export function ShoppingItemSheetFields({
 
 			<ShoppingQuantityUnitFields
 				quantity={value.quantity}
-				onQuantityChange={(quantity) => onChange({ ...value, quantity })}
+				onQuantityChange={(quantity) => {
+					onChange({ ...value, quantity });
+					onAmountChange?.();
+				}}
 				unitLabel={value.unitLabel}
-				onUnitChange={(unitLabel) =>
-					onChange({ ...value, unitLabel, inventoryConversion: null })
-				}
+				onUnitChange={(unitLabel) => {
+					onChange({ ...value, unitLabel, inventoryConversion: null });
+					onAmountChange?.();
+				}}
 				quantityName="quantity"
 				unitName="unitLabel"
 			/>
 
 			<fieldset className={styles.group}>
 				<legend className={styles.groupLabel}>
-					{presets.length > 0 ? "よく使う数量" : "よく使う単位"}
+					{rememberedChoices.length > 0
+						? "前の買い方・よく使う数量"
+						: allPresets.length > 0
+							? "よく使う数量"
+							: "よく使う単位"}
 				</legend>
 
 				<div className={styles.chips}>
-					{presets.length > 0
+					{rememberedChoices.map((choice) => (
+						<Chip
+							pressed={isRememberedChoiceSelected(choice, value)}
+							key={`remembered-${choice.label}`}
+							onClick={() => {
+								onChange({
+									...value,
+									quantity: formatQuantity(choice.quantity, {
+										grouping: false,
+									}),
+									unitLabel: choice.unitLabel ?? "",
+									inventoryConversion: choice.inventoryConversion,
+								});
+								onAmountChange?.();
+							}}
+						>
+							{choice.label}
+						</Chip>
+					))}
+					{allPresets.length > 0
 						? presets.map((preset) => (
 								<Chip
 									pressed={isShoppingItemPresetSelected(preset, value)}
 									key={preset.label}
-									onClick={() =>
+									onClick={() => {
 										onChange({
 											...value,
 											quantity: formatQuantity(preset.quantity, {
@@ -122,8 +198,9 @@ export function ShoppingItemSheetFields({
 											}),
 											unitLabel: preset.unitLabel,
 											inventoryConversion: preset.inventoryConversion,
-										})
-									}
+										});
+										onAmountChange?.();
+									}}
 								>
 									{preset.label}
 								</Chip>
@@ -132,13 +209,14 @@ export function ShoppingItemSheetFields({
 								<Chip
 									pressed={value.unitLabel === unit}
 									key={unit}
-									onClick={() =>
+									onClick={() => {
 										onChange({
 											...value,
 											unitLabel: unit,
 											inventoryConversion: null,
-										})
-									}
+										});
+										onAmountChange?.();
+									}}
 								>
 									{unit}
 								</Chip>
@@ -178,13 +256,14 @@ export function ShoppingItemSheetFields({
 					label="カテゴリ"
 					name="categoryId"
 					value={value.categoryId}
-					onChange={(categoryId) =>
+					onChange={(categoryId) => {
 						onChange({
 							...value,
 							categoryId: isShoppingCategoryId(categoryId) ? categoryId : "",
 							isCategoryManual: true,
-						})
-					}
+						});
+						onCategoryChange?.();
+					}}
 				/>
 			) : null}
 		</>

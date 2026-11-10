@@ -1,0 +1,2 @@
+ALTER TABLE "shopping_record" DROP CONSTRAINT "shopping_record_kind_valid";--> statement-breakpoint
+ALTER TABLE "shopping_record" ADD CONSTRAINT "shopping_record_kind_valid" CHECK ("shopping_record"."kind" in ('item', 'store', 'branch', 'storeDefault', 'conversionMemory', 'itemMemory'));
