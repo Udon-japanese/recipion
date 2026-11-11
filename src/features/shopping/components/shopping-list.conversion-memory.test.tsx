@@ -110,6 +110,8 @@ describe("ShoppingList の在庫換算の記憶", () => {
 			findRemembered(conversionDefaultRepository.defaults, 1),
 		).toMatchObject({
 			unitLabel: "個",
+			// 買った数量も覚える（「前の買い方」のチップの数量）。
+			quantity: 6,
 			inventoryConversion: sixPackConversion,
 		});
 		expect(screen.queryByRole("alertdialog")).toBeNull();

@@ -20,8 +20,14 @@ export type ShoppingConversionDefault = {
 	inventoryConversion: ShoppingItemInventoryConversion;
 };
 
+// 覚える中身。quantity は、その換算で最後に買った数量（「前の買い方」のチップの数量）。
+// 在庫の画面で決めた換算は、買う数量がないので、持たない（チップは1つ分で出す）。
+export type ShoppingConversionMemoryValue = ShoppingConversionDefault & {
+	quantity?: number;
+};
+
 // 記憶1件。usedAt は最後に使った時刻（ミリ秒）。食材のいつもの単位は、最後に使った単位。
-export type ShoppingConversionEntry = ShoppingConversionDefault & {
+export type ShoppingConversionEntry = ShoppingConversionMemoryValue & {
 	nameKey: string;
 	usedAt: number;
 };
@@ -102,13 +108,13 @@ export type ConversionMemoryUpdate = {
 
 /**
  * 換算を覚えるときの、書く記憶と消す記憶を決める。食材名が空なら、覚えない（null）。
- * - 同じ食材・単位・換算の記憶があれば、使った時刻だけを新しくする。なければ、新しい鍵で足す。
+ * - 同じ食材・単位・換算の記憶があれば、数量と使った時刻を新しくする（数量がなければ、覚えた数量のまま）。なければ、新しい鍵で足す。
  * - その食材の記憶が上限を超えたら、使った時刻の古いものから消す（単位をまたいで数える）。
  */
 export function planConversionMemoryUpdate(
 	defaults: ShoppingConversionDefaults,
 	itemName: string,
-	value: ShoppingConversionDefault,
+	value: ShoppingConversionMemoryValue,
 	{ now, createKey }: { now: number; createKey: () => string },
 ): ConversionMemoryUpdate | null {
 	const nameKey = toConversionDefaultKey(itemName);
@@ -124,7 +130,14 @@ export function planConversionMemoryUpdate(
 		isSameConversionDefault(entry, value),
 	);
 	const key = same?.[0] ?? createKey();
-	const entry: ShoppingConversionEntry = { ...value, nameKey, usedAt: now };
+	const quantity = value.quantity ?? same?.[1].quantity;
+	const entry: ShoppingConversionEntry = {
+		unitLabel: value.unitLabel,
+		inventoryConversion: value.inventoryConversion,
+		...(quantity === undefined ? {} : { quantity }),
+		nameKey,
+		usedAt: now,
+	};
 	const removedKeys = sameItem
 		.filter(([otherKey]) => otherKey !== key)
 		.sort(([, a], [, b]) => b.usedAt - a.usedAt)

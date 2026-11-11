@@ -15,8 +15,8 @@ import {
 	type ShoppingBranchSide,
 } from "../domain/shopping-branch";
 import type {
-	ShoppingConversionDefault,
 	ShoppingConversionDefaults,
+	ShoppingConversionMemoryValue,
 } from "../domain/shopping-conversion-default";
 import type {
 	CreateShoppingItemInput,
@@ -82,7 +82,7 @@ export type ShoppingBranchCardsContext = {
 	// 条件の材料の換算を、自分で直したとき（その食材×単位の記憶を更新する）。
 	onRememberConversion?: (
 		itemName: string,
-		value: ShoppingConversionDefault,
+		value: ShoppingConversionMemoryValue,
 	) => Promise<void>;
 	// 「レシピから入れる」の部品（ログイン中だけ渡される）。
 	renderRecipePicker?: RenderRecipePicker;
@@ -329,6 +329,7 @@ export function ShoppingBranchCards({
 							if (isConversionEdited && updated.inventoryConversion) {
 								await context.onRememberConversion?.(updated.name, {
 									unitLabel: updated.unitLabel,
+									quantity: updated.quantity,
 									inventoryConversion: updated.inventoryConversion,
 								});
 							}

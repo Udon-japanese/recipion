@@ -32,6 +32,8 @@ export type ShoppingConversionMemoryRecord = {
 	// 買う単位の呼び名（例：本）。単位なしで決めたときは null。
 	unitLabel: string | null;
 	inventoryConversion: ShoppingItemInventoryConversion;
+	// その換算で最後に買った数量。在庫の画面で決めた換算は、持たない。
+	quantity?: number;
 	usedAt: number;
 };
 
