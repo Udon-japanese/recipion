@@ -292,6 +292,34 @@ describe("planConversionMemoryUpdate", () => {
 		});
 	});
 
+	it.each([
+		{
+			title: "同じ換算を、数量つきで覚え直すと、数量も新しくする",
+			quantity: 5,
+			expected: 5,
+		},
+		{
+			title:
+				"数量のない覚え直し（在庫の画面で決めた換算）では、覚えた数量のまま",
+			quantity: undefined,
+			expected: 3,
+		},
+	])("$title", ({ quantity, expected }) => {
+		const update = planConversionMemoryUpdate(
+			{ a: { ...perUnit(200), quantity: 3, nameKey: udon, usedAt: 1 } },
+			"冷凍うどん",
+			{ ...perUnit(200), ...(quantity === undefined ? {} : { quantity }) },
+			options,
+		);
+
+		expect(update?.entry).toEqual({
+			...perUnit(200),
+			quantity: expected,
+			nameKey: udon,
+			usedAt: 100,
+		});
+	});
+
 	it("同じ単位でも換算が違えば、新しい鍵で足す。食材ごとに2件を超えたら、古いものから消す", () => {
 		const update = planConversionMemoryUpdate(
 			{

@@ -30,7 +30,10 @@ import {
 } from "../domain/amount-draft";
 import type { ShoppingItemInventoryConfiguration } from "../domain/conversion-draft";
 import { needsConversionQuestion } from "../domain/infer-inventory-conversion";
-import type { ShoppingConversionDefault } from "../domain/shopping-conversion-default";
+import type {
+	ShoppingConversionDefault,
+	ShoppingConversionMemoryValue,
+} from "../domain/shopping-conversion-default";
 import {
 	isInventoryTrackedShoppingItem,
 	type ShoppingItem,
@@ -68,7 +71,7 @@ type UseShoppingPurchaseOptions = {
 		) => ShoppingConversionDefault | undefined;
 		remember: (
 			itemName: string,
-			value: ShoppingConversionDefault,
+			value: ShoppingConversionMemoryValue,
 		) => Promise<void>;
 	};
 };
@@ -296,6 +299,7 @@ export function useShoppingPurchase({
 					// 決めた換算は、次から同じ食材の候補・初期値にするため、覚える（記憶と違っても、別の1件として残る）。
 					await conversionMemory.remember(item.name, {
 						unitLabel: configuration.unitLabel,
+						quantity: configuration.quantity,
 						inventoryConversion: configuration.inventoryConversion,
 					});
 				}

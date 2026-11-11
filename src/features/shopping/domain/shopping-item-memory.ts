@@ -100,7 +100,7 @@ function choiceLabel(
 /**
  * 食材の、覚えた買い方の候補（新しい順。最大2つ）。
  * - 先頭は、いつもの買い方（前回の数量・単位と、その単位の換算の記憶。なければ、食材と単位からの推定）。
- * - 続けて、その食材のほかの換算の記憶（同じ単位で換算が違うものも含む。最後に使った順。数量は1）。
+ * - 続けて、その食材のほかの換算の記憶（同じ単位で換算が違うものも含む。最後に使った順。数量は、その換算で最後に買った数量。なければ1）。
  */
 export function listRememberedShoppingChoices(
 	itemName: string,
@@ -144,9 +144,11 @@ export function listRememberedShoppingChoices(
 			break;
 		}
 
+		const quantity = entry.quantity ?? 1;
+
 		choices.push({
-			label: choiceLabel(1, entry.unitLabel, entry.inventoryConversion),
-			quantity: 1,
+			label: choiceLabel(quantity, entry.unitLabel, entry.inventoryConversion),
+			quantity,
 			unitLabel: entry.unitLabel,
 			inventoryConversion: entry.inventoryConversion,
 		});

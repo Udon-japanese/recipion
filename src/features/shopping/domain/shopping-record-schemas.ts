@@ -105,6 +105,7 @@ export const shoppingConversionMemorySchema = v.object({
 	nameKey: nameSchema(shoppingRecordLimits.maxNameLength),
 	unitLabel: unitLabelSchema,
 	inventoryConversion: inventoryConversionSchema,
+	quantity: v.optional(quantitySchema),
 	usedAt: usedAtSchema,
 }) satisfies v.GenericSchema<unknown, ShoppingConversionMemoryRecord>;
 

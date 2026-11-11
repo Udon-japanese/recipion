@@ -39,6 +39,19 @@ function conversion(
 	};
 }
 
+// 換算の記憶に、その換算で最後に買った数量を付ける。
+function withQuantity(
+	defaults: ShoppingConversionDefaults,
+	quantity: number,
+): ShoppingConversionDefaults {
+	return Object.fromEntries(
+		Object.entries(defaults).map(([key, entry]) => [
+			key,
+			{ ...entry, quantity },
+		]),
+	);
+}
+
 function memory(
 	quantity: number,
 	unitLabel: string | null,
@@ -70,6 +83,17 @@ describe("listRememberedShoppingChoices", () => {
 				...conversion("袋", 500, 4),
 			},
 			expected: ["2パック（600g）", "1袋（500g）"],
+		},
+		{
+			title:
+				"ほかの換算の記憶は、その換算で最後に買った数量で出す（数量のない記憶は1）",
+			name: "鶏もも肉",
+			memories: memory(2, "パック"),
+			conversions: {
+				...conversion("パック", 300, 5),
+				...withQuantity(conversion("袋", 500, 4), 3),
+			},
+			expected: ["2パック（600g）", "3袋（1,500g）"],
 		},
 		{
 			title:

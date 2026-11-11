@@ -278,6 +278,7 @@ export function ShoppingList({
 		if (input.inventoryConversion) {
 			await conversionState.remember(input.name, {
 				unitLabel: input.unitLabel || null,
+				quantity: input.quantity,
 				inventoryConversion: input.inventoryConversion,
 			});
 		}
@@ -566,6 +567,7 @@ export function ShoppingList({
 							if (isConversionEdited && updated.inventoryConversion) {
 								await conversionState.remember(updated.name, {
 									unitLabel: updated.unitLabel,
+									quantity: updated.quantity,
 									inventoryConversion: updated.inventoryConversion,
 								});
 							}

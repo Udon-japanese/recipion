@@ -5,6 +5,7 @@ import {
 	planConversionMemoryUpdate,
 	type ShoppingConversionDefault,
 	type ShoppingConversionDefaults,
+	type ShoppingConversionMemoryValue,
 } from "../domain/shopping-conversion-default";
 
 type UseShoppingConversionDefaultsOptions = {
@@ -56,7 +57,10 @@ export function useShoppingConversionDefaults({
 
 	// 記憶する。同じ中身があれば使った時刻だけを新しくし、食材ごとの上限を超えた古い記憶は消す。
 	// 覚えた時刻が、食材のいつもの単位を決める。
-	async function remember(itemName: string, value: ShoppingConversionDefault) {
+	async function remember(
+		itemName: string,
+		value: ShoppingConversionMemoryValue,
+	) {
 		const update = planConversionMemoryUpdate(
 			defaultsRef.current,
 			itemName,
