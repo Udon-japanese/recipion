@@ -11,7 +11,12 @@ function Harness() {
 	return (
 		// 候補が上に出ても、画面からはみ出さない余白。
 		<div style={{ paddingTop: 320 }}>
-			<IngredientNameInput id="name" value={value} onChange={setValue} />
+			<IngredientNameInput
+				id="name"
+				value={value}
+				onChange={setValue}
+				compositionStrategy="end-then-replace"
+			/>
 		</div>
 	);
 }
@@ -39,12 +44,14 @@ it("変換中は、カタログの名前と完全に一致しても、候補が�
 	}
 });
 
-it("PC の変換中は、変換候補と重ならないよう、候補を入力欄の上に出し、確定したら下に戻す", async () => {
+it("PC の変換中は、変換候補と重ならないよう、候補を入力欄の上に出す。確定の直後は上のまま（クリックが外れない）、続けて打つと下に戻す", async () => {
 	// PC の幅（768px 以上）で確かめる。
 	await page.viewport(1024, 768);
 	await render(<Harness />);
 
 	const input = document.querySelector("input") as HTMLInputElement;
+	const listTop = () =>
+		document.querySelector('[role="listbox"]')?.getBoundingClientRect().top;
 
 	input.focus();
 
@@ -66,15 +73,16 @@ it("PC の変換中は、変換候補と重ならないよう、候補を入力�
 
 	await cdp().send("Input.insertText", { text: "にん" });
 
-	await expect
-		.poll(() => {
-			const current = document.querySelector('[role="listbox"]');
+	// 確定で一覧が動くと、その直後のクリックが、動いた先に当たる。
+	expect(list.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+		input.getBoundingClientRect().top,
+	);
 
-			return current
-				? current.getBoundingClientRect().top >=
-						input.getBoundingClientRect().bottom
-				: true;
-		})
+	await cdp().send("Input.insertText", { text: "じ" });
+
+	await expect.poll(() => input.value).toBe("にんじ");
+	await expect
+		.poll(() => (listTop() ?? 0) >= input.getBoundingClientRect().bottom)
 		.toBe(true);
 });
 
@@ -85,7 +93,12 @@ function ClippedHarness({ paddingTop }: { paddingTop: number }) {
 	return (
 		<div style={{ paddingTop }}>
 			<div style={{ height: 80, overflow: "hidden" }}>
-				<IngredientNameInput id="name" value={value} onChange={setValue} />
+				<IngredientNameInput
+					id="name"
+					value={value}
+					onChange={setValue}
+					compositionStrategy="end-then-replace"
+				/>
 			</div>
 		</div>
 	);
@@ -347,6 +360,141 @@ it("Safari の順番（変換のあとに Tab が届く）でも、変換する�
 
 	expect(tab.defaultPrevented).toBe(true);
 	await expect.poll(() => nameInput().value).toBe(first);
+});
+
+// 変換中に、候補をマウスで押す（入力欄からフォーカスを外さない）。変換を確定させてから置き換え、確定した文字を重ねない。
+it("変換中に候補をクリックしても、変換中の文字が重ならず、候補の名前だけになる", async () => {
+	await page.viewport(1024, 768);
+	await render(<KeyHarness compositionStrategy="end-then-replace" />);
+	nameInput().focus();
+	await composeText("にん");
+
+	const [, second] = optionTexts();
+	const option = [
+		...document.querySelectorAll<HTMLElement>(
+			'[role="listbox"] [role="option"]',
+		),
+	][1];
+
+	await userEvent.click(option as HTMLElement);
+
+	await expect.poll(() => nameInput().value).toBe(second);
+	await expect.poll(() => document.activeElement).toBe(nameInput());
+
+	// 変換が残っていれば、ここで確定した文字が足される。
+	nameInput().blur();
+	nameInput().focus();
+
+	expect(nameInput().value).toBe(second);
+});
+
+// Mac の Chrome：文節を選んだまま（「に」を選び「ん」が残る）クリックすると、IME が先に確定させ、数十ミリ秒あとにクリックが届く。
+// 確定の直後に一覧が動くと、クリックが外れる（実機の記録）。確定の直後は動かさない。
+it("文節を選んだままの変換が確定した直後は、一覧を動かさず、そこをクリックすると候補に決まる", async () => {
+	await page.viewport(1024, 768);
+	await render(<KeyHarness compositionStrategy="end-then-replace" />);
+	nameInput().focus();
+	await composeText("にん");
+	await cdp().send("Input.imeSetComposition", {
+		text: "にん",
+		selectionStart: 0,
+		selectionEnd: 1,
+	});
+
+	const list = () =>
+		document.querySelector('[role="listbox"]')?.getBoundingClientRect();
+	const before = list()?.top;
+	const [first] = optionTexts();
+
+	// IME が、クリックで確定させる。
+	await cdp().send("Input.insertText", { text: "にん" });
+
+	expect(list()?.top).toBe(before);
+
+	await userEvent.click(
+		document.querySelector('[role="listbox"] [role="option"]') as HTMLElement,
+	);
+
+	await expect.poll(() => nameInput().value).toBe(first);
+});
+
+it("キー（Enter）で変換を確定したときは、すぐ、一覧を通常の位置（入力欄の下）に戻す", async () => {
+	await page.viewport(1024, 768);
+	await render(<KeyHarness compositionStrategy="end-then-replace" />);
+	nameInput().focus();
+	await composeText("にん");
+
+	// 変換中の Enter（IME が受けて、確定させる）。
+	composingKey({ key: "Enter", code: "Enter" });
+	await cdp().send("Input.insertText", { text: "にん" });
+
+	await expect
+		.poll(
+			() =>
+				(document.querySelector('[role="listbox"]')?.getBoundingClientRect()
+					.top ?? 0) >= nameInput().getBoundingClientRect().bottom,
+			{ timeout: 200 },
+		)
+		.toBe(true);
+});
+
+// Mac の Chrome：文節に区切って変換している途中（「冷凍」を選んだまま「う」が残る）に Tab で決めると、
+// フォーカスを戻したときに、IME が、確定した文字を insertText でもう一度入れる（実機の記録）。その入力を取り除く。
+it("変換中に Tab で決めたあと、IME が確定した文字をもう一度入れても、重ならない", async () => {
+	await page.viewport(1024, 768);
+	await render(<KeyHarness compositionStrategy="end-then-replace" />);
+	nameInput().focus();
+	await composeText("にん");
+
+	const [first] = optionTexts();
+
+	composingKey({ key: "Tab", code: "Tab" });
+
+	await expect.poll(() => nameInput().value).toBe(first);
+	await expect.poll(() => document.activeElement).toBe(nameInput());
+
+	// フォーカスを戻した直後に、IME が入れ直す文字。
+	await cdp().send("Input.insertText", { text: "にん" });
+
+	expect(nameInput().value).toBe(first);
+});
+
+it("候補は、8件で切らずに、近い順にすべて出す", async () => {
+	await page.viewport(1024, 768);
+	await render(<KeyHarness />);
+	nameInput().focus();
+	await userEvent.keyboard("に");
+
+	await expect.poll(() => optionTexts().length).toBeGreaterThan(8);
+});
+
+it("矢印で選んだ候補が、一覧の見える範囲の外にあれば、見える位置までスクロールする", async () => {
+	await page.viewport(1024, 768);
+	await render(<KeyHarness />);
+	nameInput().focus();
+	await userEvent.keyboard("に");
+	await expect.poll(() => optionTexts().length).toBeGreaterThan(8);
+
+	const count = optionTexts().length;
+
+	// いちばん下の候補まで動かす。
+	await userEvent.keyboard("{ArrowDown}".repeat(count));
+	await expect.poll(selectedOptionText).toBe(optionTexts()[count - 1]);
+
+	const list = document.querySelector('[role="listbox"]') as HTMLElement;
+	const selected = document.querySelector(
+		'[role="listbox"] [aria-selected="true"]',
+	) as HTMLElement;
+
+	await expect
+		.poll(
+			() =>
+				selected.getBoundingClientRect().bottom <=
+					list.getBoundingClientRect().bottom + 1 &&
+				selected.getBoundingClientRect().top >=
+					list.getBoundingClientRect().top - 1,
+		)
+		.toBe(true);
 });
 
 function hintText() {

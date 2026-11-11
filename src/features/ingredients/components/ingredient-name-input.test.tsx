@@ -2,11 +2,18 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
+import type { CompositionStrategy } from "#/ime/choose-composition-strategy";
 import { buildDictionary } from "#/test/builders/build-ingredient-dictionary";
 import { IngredientDictionaryProvider } from "./ingredient-dictionary-context";
 import { IngredientNameInput } from "./ingredient-name-input";
 
-function Harness({ onSelectEntry }: { onSelectEntry?: (id: string) => void }) {
+function Harness({
+	onSelectEntry,
+	compositionStrategy,
+}: {
+	onSelectEntry?: (id: string) => void;
+	compositionStrategy?: CompositionStrategy;
+}) {
 	const [value, setValue] = useState("");
 
 	return (
@@ -17,6 +24,7 @@ function Harness({ onSelectEntry }: { onSelectEntry?: (id: string) => void }) {
 				value={value}
 				onChange={setValue}
 				onSelectEntry={(entry) => onSelectEntry?.(entry.id)}
+				compositionStrategy={compositionStrategy}
 			/>
 		</>
 	);
@@ -99,7 +107,7 @@ describe("IngredientNameInput", () => {
 	});
 
 	it("変換中は、カタログの名前と完全に一致していても、候補に出す。確定したら、出さない", async () => {
-		render(<Harness />);
+		render(<Harness compositionStrategy="end-then-replace" />);
 
 		const input = screen.getByLabelText("食材名");
 
@@ -120,6 +128,22 @@ describe("IngredientNameInput", () => {
 
 		expect(screen.queryByRole("listbox")).toBeNull();
 		expect(input).toHaveValue("にんにく");
+	});
+
+	it("変換中に候補を出さない環境（iPhone など）は、変換中は候補を出さず、確定したら出す", async () => {
+		render(<Harness compositionStrategy="wait-for-confirmation" />);
+
+		const input = screen.getByLabelText("食材名");
+
+		fireEvent.focus(input);
+		fireEvent.compositionStart(input);
+		fireEvent.change(input, { target: { value: "にん" } });
+
+		expect(screen.queryByRole("listbox", { hidden: true })).toBeNull();
+
+		fireEvent.compositionEnd(input);
+
+		expect(await screen.findByRole("listbox")).toBeInTheDocument();
 	});
 
 	it("Escape で候補を閉じる", async () => {

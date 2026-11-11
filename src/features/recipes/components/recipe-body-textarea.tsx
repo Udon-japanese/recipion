@@ -106,7 +106,7 @@ export function RecipeBodyTextarea({
 	const [isFocused, setIsFocused] = useState(false);
 	// 変換中（IME）の補完。レシピの本文と、買い物メモの「まとめて追加」で共通。
 	const composing = useCompositionCompletion<RecipeTextCompletion>({
-		textareaRef,
+		fieldRef: textareaRef,
 		strategy: compositionStrategy,
 		apply: applyDuringComposition,
 		onCompositionEnd: ({ before, after }) =>
@@ -662,16 +662,16 @@ export function RecipeBodyTextarea({
 						return;
 					}
 
-					// 変換中は、変換を確定させてから置き換える。
-					if (composing.isActive()) {
-						void composing.accept(completion, index, { text: value, caret });
-					} else {
-						accept(index);
-					}
+					composing.acceptChosen(
+						completion,
+						index,
+						{ text: value, caret },
+						() => accept(index),
+					);
 				}}
 				notice={otherNotice}
 				// 変換中・確定の直後は、IME の窓（文字の下に出る）を避けて、カーソルの上に出す。
-				prefer={composing.prefersAbove(value, caret) ? "above" : "below"}
+				prefer={composing.prefersAbove(value) ? "above" : "below"}
 				hint={<CompletionHint isComposing={composing.isComposing} />}
 			/>
 		</div>
