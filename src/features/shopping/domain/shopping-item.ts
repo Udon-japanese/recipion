@@ -3,6 +3,10 @@ import type { InventoryTrackingMode } from "#/features/inventory/domain/apply-in
 import { inventoryTrackingModeSchema } from "#/features/inventory/domain/inventory-tracking-mode";
 import type { InventoryUnitCode } from "#/features/inventory/domain/inventory-unit";
 import { formatStockAmountWithUnit } from "#/features/quantity/domain/format-quantity";
+import {
+	findMeasureUnit,
+	largerMeasureFactor,
+} from "#/features/quantity/domain/measure-units";
 import { inferInventoryConversion } from "./infer-inventory-conversion";
 import type { ShoppingBranchRole } from "./shopping-branch";
 import {
@@ -241,7 +245,7 @@ export function markShoppingItemAsPurchased(
 	};
 }
 
-// 買う単位と在庫の単位が同じで、1対1の換算（1g＝1g、1個＝1個）。換算として書くまでもない。
+// 買う単位と在庫の単位が同じで、1対1の換算（1g＝1g、1個＝1個）。
 export function isSameUnitConversion(
 	conversion: ShoppingItemInventoryConversion,
 ): boolean {
@@ -249,6 +253,30 @@ export function isSameUnitConversion(
 		conversion.inputUnitCode === conversion.stockUnitCode &&
 		conversion.stockQuantityPerInputUnit === 1
 	);
+}
+
+// 換算として書くまでもない換算：同じ単位の1対1か、重さ・体積の単位どうしの決まった倍率（1kg＝1000g、1L＝1000ml）。
+export function isSelfEvidentConversion(
+	conversion: ShoppingItemInventoryConversion,
+): boolean {
+	if (isSameUnitConversion(conversion)) {
+		return true;
+	}
+
+	const input = findMeasureUnit(conversion.inputUnitCode);
+	const stock = findMeasureUnit(conversion.stockUnitCode);
+
+	return (
+		input !== null &&
+		stock !== null &&
+		input.kind === stock.kind &&
+		conversion.stockQuantityPerInputUnit ===
+			measureUnitSize(input) / measureUnitSize(stock)
+	);
+}
+
+function measureUnitSize(unit: { isLarger: boolean }): number {
+	return unit.isLarger ? largerMeasureFactor : 1;
 }
 
 export function getShoppingItemConvertedQuantityLabel(
@@ -261,7 +289,7 @@ export function getShoppingItemConvertedQuantityLabel(
 		return null;
 	}
 
-	if (isSameUnitConversion(conversion)) {
+	if (isSelfEvidentConversion(conversion)) {
 		return null;
 	}
 

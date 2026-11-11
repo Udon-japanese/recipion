@@ -398,6 +398,29 @@ describe("getShoppingItemConvertedQuantityLabel", () => {
 		expect(getShoppingItemConvertedQuantityLabel(item)).toBeNull();
 	});
 
+	it.each([
+		["kg", "kg", "g", 1000],
+		["L", "l", "ml", 1000],
+	] as const)(
+		"%s で買って、在庫の g・ml に決まった倍率で入る場合も、書くまでもないので表示しない",
+		(unitLabel, inputUnitCode, stockUnitCode, perUnit) => {
+			const item = createShoppingItem({
+				name: "謎の商品",
+				quantity: 1250,
+				unitLabel,
+				inventoryConversion: {
+					inputUnitCode,
+					stockUnitCode,
+					stockUnitLabel: stockUnitCode,
+					stockQuantityPerInputUnit: perUnit,
+					trackingMode: "estimated",
+				},
+			});
+
+			expect(getShoppingItemConvertedQuantityLabel(item)).toBeNull();
+		},
+	);
+
 	it("換算情報がない場合は表示しない", () => {
 		const item = createShoppingItem({
 			name: "謎の商品",
