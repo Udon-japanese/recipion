@@ -1,6 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import { toConversionDefaultKey } from "../domain/shopping-conversion-default";
 import type { CreateShoppingItemInput } from "../domain/shopping-item";
 import { ShoppingAddSheet } from "./shopping-add-sheet";
 
@@ -143,6 +144,102 @@ describe("ShoppingAddSheet", () => {
 
 		expect(await screen.findByText(/牛乳 1/)).toBeInTheDocument();
 		expect(onAdd).toHaveBeenCalledTimes(1);
+	});
+
+	it("名前を入れると在庫での換算を見せ、「変える」で直した換算で追加する。追加したら、換算の入力も閉じる", async () => {
+		const user = userEvent.setup();
+		const { onAdd } = setup();
+
+		expect(screen.queryByText("在庫では")).toBeNull();
+
+		await user.type(screen.getByLabelText("買うもの"), "合い挽き肉");
+		await user.clear(screen.getByLabelText("単位"));
+		await user.type(screen.getByLabelText("単位"), "パック");
+
+		const row = screen.getByText("在庫では").parentElement;
+
+		if (!row) {
+			throw new Error("換算の行がない");
+		}
+
+		await user.click(within(row).getByRole("button"));
+
+		const amount = screen.getByLabelText("合い挽き肉の1パックあたりの数");
+
+		await user.clear(amount);
+		await user.type(amount, "250{Enter}");
+
+		expect(onAdd).toHaveBeenCalledWith(
+			expect.objectContaining({
+				name: "合い挽き肉",
+				inventoryConversion: expect.objectContaining({
+					stockUnitCode: "g",
+					stockQuantityPerInputUnit: 250,
+				}),
+			}),
+		);
+		expect(await screen.findByText(/合い挽き肉 1パック/)).toBeInTheDocument();
+		expect(screen.queryByLabelText("合い挽き肉の1パックあたりの数")).toBeNull();
+	});
+
+	it("単位を決めるまでは、よく使う数量があっても、よく使う単位を並べる。決めたら消え、数量の端数・足すボタンは出さない", async () => {
+		const user = userEvent.setup();
+
+		setup();
+
+		await user.type(screen.getByLabelText("買うもの"), "牛乳");
+
+		for (const unit of ["個", "本", "パック", "袋", "g"]) {
+			expect(screen.getByRole("button", { name: unit })).toBeInTheDocument();
+		}
+
+		await user.click(screen.getByRole("button", { name: "g" }));
+
+		expect(screen.getByLabelText("単位")).toHaveValue("g");
+		expect(screen.queryByRole("button", { name: "袋" })).toBeNull();
+		expect(screen.queryByRole("button", { name: "50を足す" })).toBeNull();
+
+		await user.clear(screen.getByLabelText("単位"));
+		await user.type(screen.getByLabelText("単位"), "本");
+
+		expect(screen.queryByRole("button", { name: "1/3にする" })).toBeNull();
+	});
+
+	it("よく使う単位のうち、覚えた買い方（換算の記憶）のチップにある単位は、並べない", async () => {
+		const user = userEvent.setup();
+
+		render(
+			<ShoppingAddSheet
+				title="買うものを入れる"
+				stores={stores}
+				defaultStoreIdFor={() => null}
+				onCreateStore={async () => null}
+				onAdd={vi.fn(async () => true)}
+				onClose={vi.fn()}
+				conversionDefaults={{
+					"udon-110": {
+						nameKey: toConversionDefaultKey("冷凍うどん") ?? "",
+						unitLabel: "個",
+						inventoryConversion: {
+							inputUnitCode: "count",
+							stockUnitCode: "count",
+							stockUnitLabel: "個",
+							stockQuantityPerInputUnit: 1,
+							trackingMode: "exact",
+						},
+						usedAt: 1,
+					},
+				}}
+			/>,
+		);
+
+		await user.type(screen.getByLabelText("買うもの"), "冷凍うどん");
+		// 名前で埋まった単位を消すと、よく使う単位が並ぶ。
+		await user.clear(screen.getByLabelText("単位"));
+
+		expect(screen.getByRole("button", { name: "1個" })).toBeInTheDocument();
+		expect(screen.queryByRole("button", { name: "個" })).toBeNull();
+		expect(screen.getByRole("button", { name: "本" })).toBeInTheDocument();
 	});
 
 	it("知らない名前には「もしかして」を出し、［〇〇にする］で名前を置き換える", async () => {

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { toConversionMemoryKey } from "#/test/builders/conversion-memory-key";
 import {
 	type ShoppingConversionDefault,
 	type ShoppingConversionDefaults,
 	toConversionDefaultKey,
-	toConversionMemoryKey,
 } from "./shopping-conversion-default";
 import {
 	listRememberedShoppingChoices,
@@ -16,6 +16,7 @@ function conversion(
 	perUnit: number,
 	usedAt: number,
 	name = "鶏もも肉",
+	key?: string,
 ): ShoppingConversionDefaults {
 	const nameKey = toConversionDefaultKey(name) ?? "";
 	const value: ShoppingConversionDefault = {
@@ -30,7 +31,11 @@ function conversion(
 	};
 
 	return {
-		[toConversionMemoryKey(nameKey, unitLabel)]: { ...value, nameKey, usedAt },
+		[key ?? toConversionMemoryKey(nameKey, unitLabel)]: {
+			...value,
+			nameKey,
+			usedAt,
+		},
 	};
 }
 
@@ -56,17 +61,26 @@ function memory(
 describe("listRememberedShoppingChoices", () => {
 	it.each([
 		{
-			title:
-				"前回の買い方を先頭に、ほかの単位の換算の記憶を新しい順に、3つまで",
+			title: "前回の買い方を先頭に、ほかの換算の記憶を新しい順に、2つまで",
 			name: "鶏もも肉",
 			memories: memory(2, "パック"),
 			conversions: {
 				...conversion("パック", 300, 5),
 				...conversion("枚", 250, 1),
 				...conversion("袋", 500, 4),
-				...conversion("kg", 1000, 3),
 			},
-			expected: ["2パック（600g）", "1袋（500g）", "1kg（1,000g）"],
+			expected: ["2パック（600g）", "1袋（500g）"],
+		},
+		{
+			title:
+				"同じ単位で換算が違う記憶も、別の候補として並ぶ（前回の単位は、いちばん新しい換算）",
+			name: "冷凍うどん",
+			memories: memory(5, "個", "冷凍うどん"),
+			conversions: {
+				...conversion("個", 200, 2, "冷凍うどん", "a"),
+				...conversion("個", 110, 3, "冷凍うどん", "b"),
+			},
+			expected: ["5個（550g）", "1個（200g）"],
 		},
 		{
 			title: "前回の買い方がなければ、換算の記憶だけ（数量は1）",

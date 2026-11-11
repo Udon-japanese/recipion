@@ -5,11 +5,15 @@ import {
 import { normalizeIngredientName } from "#/features/ingredients/domain/normalize-ingredient-name";
 import { toInputUnitCode } from "./infer-inventory-conversion";
 import type { ParsedShoppingMemoLine } from "./parse-shopping-memo";
-import type { ShoppingItemInventoryConversion } from "./shopping-item";
+import {
+	isSameUnitConversion,
+	type ShoppingItemInventoryConversion,
+} from "./shopping-item";
 import type { ShoppingItemMemories } from "./shopping-item-memory";
 
-// ユーザーが決めた在庫換算の記憶（食材×買う単位ごとに1つ）。
+// ユーザーが決めた在庫換算の記憶（食材×買う単位×換算ごとに1件。食材ごとに最大 maxConversionMemoriesPerItem 件）。
 // 買う単位の呼び名（例：本）と、その1単位が在庫でいくつか（例：1本＝1000ml）の組。
+// 同じ単位でも、換算が違えば別の1件（1個＝200g と 1個＝110g）。1件を見分けるのは中身で、鍵は ID（意味を持たない）。
 export type ShoppingConversionDefault = {
 	// 単位なしで決めたときは null。
 	unitLabel: string | null;
@@ -22,7 +26,7 @@ export type ShoppingConversionEntry = ShoppingConversionDefault & {
 	usedAt: number;
 };
 
-// 記憶のキー（食材名のキー＋単位のキー）→ 記憶。
+// 記憶の鍵（ID）→ 記憶。
 export type ShoppingConversionDefaults = Record<
 	string,
 	ShoppingConversionEntry
@@ -39,15 +43,10 @@ function normalizeUnit(unit: string | null): string | null {
 	return normalized ? normalized : null;
 }
 
-// 記憶のキー（食材×単位）。
-export function toConversionMemoryKey(
-	nameKey: string,
-	unitLabel: string | null,
-): string {
-	return `${nameKey}\t${normalizeUnit(unitLabel) ?? ""}`;
-}
+// 食材ごとに残す記憶の数（「前の買い方」のチップと同じ数）。
+export const maxConversionMemoriesPerItem = 2;
 
-// 2つの記憶が、同じ内容か（上書きを確認するかどうかの判定に使う）。
+// 2つの記憶が、同じ内容か（同じなら、使った時刻だけを新しくする）。
 export function isSameConversionDefault(
 	left: ShoppingConversionDefault,
 	right: ShoppingConversionDefault,
@@ -65,7 +64,7 @@ export function isSameConversionDefault(
 	);
 }
 
-// 食材名と単位に対する記憶（なければ undefined）。
+// 食材名と単位に対する記憶（その単位で、いちばん新しく使ったもの。なければ undefined）。
 export function findConversionDefault(
 	defaults: ShoppingConversionDefaults,
 	itemName: string,
@@ -73,9 +72,66 @@ export function findConversionDefault(
 ): ShoppingConversionEntry | undefined {
 	const nameKey = toConversionDefaultKey(itemName);
 
-	return nameKey
-		? defaults[toConversionMemoryKey(nameKey, unitLabel)]
-		: undefined;
+	if (!nameKey) {
+		return undefined;
+	}
+
+	const unit = normalizeUnit(unitLabel);
+	let latest: ShoppingConversionEntry | undefined;
+
+	for (const entry of Object.values(defaults)) {
+		if (
+			entry.nameKey === nameKey &&
+			normalizeUnit(entry.unitLabel) === unit &&
+			(!latest || entry.usedAt > latest.usedAt)
+		) {
+			latest = entry;
+		}
+	}
+
+	return latest;
+}
+
+export type ConversionMemoryUpdate = {
+	// 書く記憶（同じ中身があれば、その鍵のまま、使った時刻を新しくしたもの）。
+	key: string;
+	entry: ShoppingConversionEntry;
+	// 消す記憶の鍵（その食材の記憶が、上限を超えた分。使った時刻の古いものから）。
+	removedKeys: string[];
+};
+
+/**
+ * 換算を覚えるときの、書く記憶と消す記憶を決める。食材名が空なら、覚えない（null）。
+ * - 同じ食材・単位・換算の記憶があれば、使った時刻だけを新しくする。なければ、新しい鍵で足す。
+ * - その食材の記憶が上限を超えたら、使った時刻の古いものから消す（単位をまたいで数える）。
+ */
+export function planConversionMemoryUpdate(
+	defaults: ShoppingConversionDefaults,
+	itemName: string,
+	value: ShoppingConversionDefault,
+	{ now, createKey }: { now: number; createKey: () => string },
+): ConversionMemoryUpdate | null {
+	const nameKey = toConversionDefaultKey(itemName);
+
+	if (!nameKey) {
+		return null;
+	}
+
+	const sameItem = Object.entries(defaults).filter(
+		([, entry]) => entry.nameKey === nameKey,
+	);
+	const same = sameItem.find(([, entry]) =>
+		isSameConversionDefault(entry, value),
+	);
+	const key = same?.[0] ?? createKey();
+	const entry: ShoppingConversionEntry = { ...value, nameKey, usedAt: now };
+	const removedKeys = sameItem
+		.filter(([otherKey]) => otherKey !== key)
+		.sort(([, a], [, b]) => b.usedAt - a.usedAt)
+		.slice(maxConversionMemoriesPerItem - 1)
+		.map(([otherKey]) => otherKey);
+
+	return { key, entry, removedKeys };
 }
 
 // 食材のいつもの単位の記憶（その食材で、最後に使った単位）。
@@ -191,7 +247,7 @@ export function applyConversionDefaults(
 	});
 }
 
-// 記憶の内容を、人が読む形にする（例：1本＝1000ml。目安の換算は「約」を付ける）。
+// 記憶の内容を、人が読む形にする（例：1本＝1000ml。目安の換算は「約」を付ける。同じ単位の1対1は「gのまま」）。
 export function describeConversionDefault(
 	value: ShoppingConversionDefault,
 ): string {
@@ -199,6 +255,10 @@ export function describeConversionDefault(
 
 	if (conversion.trackingMode === "presence") {
 		return "有無だけで管理";
+	}
+
+	if (isSameUnitConversion(conversion)) {
+		return `${conversion.stockUnitLabel}のまま`;
 	}
 
 	const approx = conversion.isApproximate ? "約" : "";

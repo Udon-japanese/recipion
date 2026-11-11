@@ -1,8 +1,5 @@
 import type { ShoppingConversionDefaultRepository } from "#/features/shopping/application/shopping-conversion-default-repository";
-import {
-	type ShoppingConversionDefaults,
-	toConversionMemoryKey,
-} from "#/features/shopping/domain/shopping-conversion-default";
+import type { ShoppingConversionDefaults } from "#/features/shopping/domain/shopping-conversion-default";
 
 export type FakeShoppingConversionDefaultRepository =
 	ShoppingConversionDefaultRepository & {
@@ -23,11 +20,13 @@ export function createFakeShoppingConversionDefaultRepository(
 		async list() {
 			return { ...stored };
 		},
-		async set(entry) {
-			stored = {
-				...stored,
-				[toConversionMemoryKey(entry.nameKey, entry.unitLabel)]: entry,
-			};
+		async set(key, entry) {
+			stored = { ...stored, [key]: entry };
+		},
+		async remove(keys) {
+			stored = Object.fromEntries(
+				Object.entries(stored).filter(([key]) => !keys.includes(key)),
+			);
 		},
 	};
 }

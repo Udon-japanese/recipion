@@ -38,8 +38,10 @@ export const Route = createRootRoute({
 				charSet: "utf-8",
 			},
 			{
+				// cover：画面の端（Android のジェスチャーナビゲーション・iPhone のホームバーの領域）まで、ページで描く。
+				// 端の余白は、各部品が env(safe-area-inset-*) で取る（下のナビ・上のヘッダー・シートなど）。
 				name: "viewport",
-				content: "width=device-width, initial-scale=1",
+				content: "width=device-width, initial-scale=1, viewport-fit=cover",
 			},
 			// 他人のレシピは、ログインした人だけが見られるため、検索エンジンに載せない。
 			{

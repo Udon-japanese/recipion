@@ -24,6 +24,32 @@ const volumeUnitMilliliters: Record<string, number> = {
 	カップ: 200,
 };
 
+// 買うときに使う、重さ・体積の単位（大さじ・カップなど、料理の計量の単位は含めない）。
+const purchaseVolumeUnits: ReadonlySet<string> = new Set(["ml", "cc", "l"]);
+
+/**
+ * 重さ・体積の単位（g・kg・ml・cc・l）で買ったときの、在庫の単位（g か ml）と、1単位あたりの量（1kg＝1000g）。
+ * 食材によらず決まる。ほかの単位なら null。
+ */
+export function toMeasuredStockUnit(
+	unitLabel: string,
+): { stockUnitCode: "g" | "ml"; perUnit: number } | null {
+	const unit = unitLabel.trim().toLocaleLowerCase("ja-JP");
+	const grams = massUnitGrams[unit];
+
+	if (grams !== undefined) {
+		return { stockUnitCode: "g", perUnit: grams };
+	}
+
+	const milliliters = purchaseVolumeUnits.has(unit)
+		? volumeUnitMilliliters[unit]
+		: undefined;
+
+	return milliliters === undefined
+		? null
+		: { stockUnitCode: "ml", perUnit: milliliters };
+}
+
 function toBaseQuantity(
 	quantity: number,
 	unitLabel: string | null,

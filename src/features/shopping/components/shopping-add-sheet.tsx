@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useButtonAction } from "#/components/button/use-button-action";
 import { CornerSheet } from "#/components/corner-sheet/corner-sheet";
 import { Icon } from "#/components/icon/icon";
@@ -7,8 +7,12 @@ import {
 	formatQuantityForUnit,
 } from "#/features/quantity/domain/format-quantity";
 import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
+import { describeAmountDraftError } from "../domain/amount-draft";
 import type { ShoppingConversionDefaults } from "../domain/shopping-conversion-default";
-import type { CreateShoppingItemInput } from "../domain/shopping-item";
+import type {
+	CreateShoppingItemInput,
+	ShoppingItem,
+} from "../domain/shopping-item";
 import {
 	findShoppingItemMemory,
 	listRememberedShoppingChoices,
@@ -17,6 +21,11 @@ import {
 import { inferShoppingCategory } from "../domain/shopping-item-suggestion";
 import type { ShoppingStore } from "../domain/shopping-store";
 import * as styles from "./shopping-add-sheet.css";
+import {
+	type ConversionEdit,
+	resolveEditedConversion,
+	ShoppingConversionField,
+} from "./shopping-conversion-field";
 import {
 	type ShoppingItemDraft,
 	ShoppingItemSheetFields,
@@ -50,6 +59,30 @@ const emptyDraft: ShoppingItemDraft = {
 	storeId: null,
 };
 
+// 入力中の内容で見た項目（換算の入力は、いまの名前・単位・数量に対して聞く。まだ保存していないので、ID などは仮）。
+function previewItem(id: string, draft: ShoppingItemDraft): ShoppingItem {
+	return {
+		id,
+		name: draft.name.trim(),
+		quantity: parseQuantityInput(draft.quantity) ?? 1,
+		unitLabel: draft.unitLabel.trim() || null,
+		inventoryConversion: draft.inventoryConversion,
+		categoryId: draft.categoryId || null,
+		categoryAssignment: draft.categoryId
+			? draft.isCategoryManual
+				? "manual"
+				: "automatic"
+			: null,
+		storeId: draft.storeId,
+		branchId: null,
+		branchSide: null,
+		status: "pending",
+		sortOrder: 0,
+		createdAt: "",
+		updatedAt: "",
+	};
+}
+
 // 買い物メモへ、1つずつ（続けて）入れる。画面の上のカード＋下の角のボタン。
 // 追加しても閉じず、入力は空に戻る。店は、前回のまま続ける（店ごとに回って買うときに楽）。
 export function ShoppingAddSheet({
@@ -64,7 +97,16 @@ export function ShoppingAddSheet({
 	conversionDefaults = noConversionDefaults,
 }: ShoppingAddSheetProps) {
 	const formRef = useRef<HTMLFormElement>(null);
+	const previewId = useId();
 	const [draft, setDraft] = useState<ShoppingItemDraft>(emptyDraft);
+	// 換算の入力（「変える」を押すまでは null。編集のシートと同じ）。
+	const [conversionEdit, setConversionEdit] = useState<ConversionEdit | null>(
+		null,
+	);
+	const [conversionError, setConversionError] = useState<string>();
+	const preview = previewItem(previewId, draft);
+	// 日用品は、在庫に入れないので、換算を聞かない。名前がまだなければ、聞く相手がいない。
+	const isTracked = draft.categoryId !== "household" && preview.name !== "";
 	// 店を自分で選んだら、名前の入力で「いつも買う店」を入れ直さない。
 	const [isStoreChosen, setIsStoreChosen] = useState(false);
 	// 数量・単位・カテゴリを自分で決めたら、名前の入力で、覚えた買い方を入れ直さない。
@@ -146,13 +188,31 @@ export function ShoppingAddSheet({
 			return;
 		}
 
+		let inventoryConversion = draft.inventoryConversion;
+
+		if (isTracked) {
+			try {
+				inventoryConversion =
+					resolveEditedConversion(preview, conversionEdit) ??
+					inventoryConversion;
+			} catch (error) {
+				// 閉じていても、直した入力が読めないときは、開いて、理由を見せる。
+				setConversionError(describeAmountDraftError(error));
+				setConversionEdit((current) =>
+					current ? { ...current, isOpen: true } : current,
+				);
+
+				return;
+			}
+		}
+
 		await submitAction.run(async () => {
 			const parsedQuantity = parseQuantityInput(draft.quantity);
 			const isAdded = await onAdd({
 				name: draft.name,
 				quantity: parsedQuantity ?? Number.NaN,
 				unitLabel: draft.unitLabel,
-				inventoryConversion: draft.inventoryConversion,
+				inventoryConversion,
 				categoryId: draft.categoryId || null,
 				categoryAssignment: draft.categoryId
 					? draft.isCategoryManual
@@ -170,6 +230,8 @@ export function ShoppingAddSheet({
 				setCarriedStoreId(draft.storeId);
 				// 続けて入れられるように、空に戻す（店は、前回のまま）。名前の欄へは、上の effect で戻る。
 				setDraft({ ...emptyDraft, storeId: draft.storeId });
+				setConversionEdit(null);
+				setConversionError(undefined);
 				setIsStoreChosen(false);
 				setIsAmountChosen(false);
 				setIsCategoryChosen(false);
@@ -217,7 +279,18 @@ export function ShoppingAddSheet({
 					// 追加したら、欄の開閉（カテゴリを選ぶ欄など）も、はじめの形に戻す。
 					key={added.length}
 					value={draft}
-					onChange={setDraft}
+					onChange={(next) => {
+						// チップ・覚えた買い方で換算が入ったら、直しかけの換算の入力より、そちらを使う。
+						if (
+							next.inventoryConversion !== null &&
+							next.inventoryConversion !== draft.inventoryConversion
+						) {
+							setConversionEdit(null);
+							setConversionError(undefined);
+						}
+
+						setDraft(next);
+					}}
 					nameLabel="買うもの"
 					hideNameLabel
 					namePlaceholder="卵、牛乳など"
@@ -244,6 +317,23 @@ export function ShoppingAddSheet({
 						setCarriedStoreId(storeId);
 					}}
 				/>
+
+				{isTracked ? (
+					<ShoppingConversionField
+						item={preview}
+						edit={conversionEdit}
+						onEditChange={(next) => {
+							setConversionEdit(next);
+							setConversionError(undefined);
+							// 換算を自分で決めたら、名前を直しても、覚えた買い方で入れ直さない。
+							if (next.isEdited) {
+								setIsAmountChosen(true);
+							}
+						}}
+						error={conversionError}
+						disabled={isSubmitting}
+					/>
+				) : null}
 
 				{added.length > 0 ? (
 					<output className={styles.added}>

@@ -98,7 +98,7 @@ export function ShoppingBulkAdd({
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
 	// 変換中（IME）の補完。レシピの本文と共通。
 	const composing = useCompositionCompletion<ShoppingMemoCompletion>({
-		textareaRef,
+		fieldRef: textareaRef,
 		apply: applyDuringComposition,
 		onCompositionEnd: ({ before, after }) =>
 			history.record(before, after, "other"),
@@ -353,7 +353,7 @@ export function ShoppingBulkAdd({
 				layout={layout}
 				open={isMenuOpen}
 				// 変換中・確定の直後は、IME の窓（文字の下に出る）を避けて、カーソルの上に出す。
-				prefer={composing.prefersAbove(text, caret) ? "above" : "below"}
+				prefer={composing.prefersAbove(text) ? "above" : "below"}
 				caret={caret}
 				items={
 					completion
@@ -366,9 +366,11 @@ export function ShoppingBulkAdd({
 				}
 				activeIndex={activeIndex}
 				onAccept={(index) =>
-					completion && composing.isActive()
-						? void composing.accept(completion, index, { text, caret })
-						: acceptCompletion(index)
+					completion
+						? composing.acceptChosen(completion, index, { text, caret }, () =>
+								acceptCompletion(index),
+							)
+						: undefined
 				}
 				hint={<CompletionHint isComposing={composing.isComposing} />}
 			/>

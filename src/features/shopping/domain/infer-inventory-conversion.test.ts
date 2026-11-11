@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { inferInventoryConversion } from "./infer-inventory-conversion";
+import {
+	inferInventoryConversion,
+	needsConversionQuestion,
+} from "./infer-inventory-conversion";
 
 // [食材名, 単位, 期待する換算（入力単位のコード, 在庫の単位, 1単位あたりの在庫数量）、または null]
 const cases: [string, string | null, [string, string, number] | null][] = [
@@ -28,6 +31,12 @@ const cases: [string, string | null, [string, string, number] | null][] = [
 	["玉ねぎ", "パック", null],
 	["謎の食材", "個", null],
 	["謎の食材", null, null],
+	["謎の食材", "大さじ", null],
+	// カタログにない食材でも、重さ・体積の単位で買えば、その単位で在庫に入れる（聞くまでもない）
+	["謎の食材", "g", ["g", "g", 1]],
+	["謎の食材", "kg", ["kg", "g", 1000]],
+	["謎の食材", "ml", ["ml", "ml", 1]],
+	["謎の食材", "L", ["l", "ml", 1000]],
 ];
 
 describe("inferInventoryConversion", () => {
@@ -59,4 +68,22 @@ describe("inferInventoryConversion", () => {
 			"presence",
 		);
 	});
+});
+
+describe("needsConversionQuestion", () => {
+	it.each([
+		{ name: "謎の食材", unitLabel: "g", expected: false },
+		{ name: "謎の食材", unitLabel: "l", expected: false },
+		{ name: "玉ねぎ", unitLabel: "g", expected: false },
+		// 単位なし・袋は、決められても聞く（1個か1パックか、分からない）
+		{ name: "卵", unitLabel: null, expected: true },
+		{ name: "謎の食材", unitLabel: "袋", expected: true },
+	])(
+		"換算が未設定の $name（$unitLabel）は、聞く：$expected",
+		({ name, unitLabel, expected }) => {
+			expect(
+				needsConversionQuestion({ name, unitLabel, inventoryConversion: null }),
+			).toBe(expected);
+		},
+	);
 });

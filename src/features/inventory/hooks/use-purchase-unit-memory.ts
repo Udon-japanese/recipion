@@ -30,6 +30,7 @@ export type PurchaseUnitMemory = {
 const emptyRepository: ShoppingConversionDefaultRepository = {
 	list: async () => ({}),
 	set: async () => {},
+	remove: async () => {},
 };
 
 function toStockUnitCode(unitLabel: string): "count" | "g" | "ml" {

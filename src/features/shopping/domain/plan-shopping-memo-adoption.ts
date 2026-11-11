@@ -64,8 +64,9 @@ export function planShoppingMemoAdoption(
 	const accountDefaultKeys = new Set(
 		account.storeDefaults.map((entry) => entry.nameKey),
 	);
-	const accountMemoryKeys = new Set(
-		account.conversionMemories.map((memory) => memory.key),
+	// 換算の記憶は、食材ごとに、アカウントの方を残す（食材ごとの件数の上限を超えないように）。
+	const accountMemoryNameKeys = new Set(
+		account.conversionMemories.map((memory) => memory.nameKey),
 	);
 	const accountItemMemoryKeys = new Set(
 		account.itemMemories.map((memory) => memory.nameKey),
@@ -93,7 +94,7 @@ export function planShoppingMemoAdoption(
 				storeId: remapStoreId(entry.storeId) ?? entry.storeId,
 			})),
 		conversionMemories: guest.conversionMemories.filter(
-			(memory) => !accountMemoryKeys.has(memory.key),
+			(memory) => !accountMemoryNameKeys.has(memory.nameKey),
 		),
 		itemMemories: guest.itemMemories.filter(
 			(memory) => !accountItemMemoryKeys.has(memory.nameKey),

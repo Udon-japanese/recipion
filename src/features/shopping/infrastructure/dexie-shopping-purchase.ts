@@ -2,7 +2,7 @@ import type { InventoryPurchaseOwnerScope } from "#/features/inventory/applicati
 import type { InventoryLotInput } from "#/features/inventory/domain/inventory-lot";
 import { getLocalDatabase, type LocalDatabase } from "#/local-db/database";
 import { prepareShoppingItemPurchase } from "../application/prepare-shopping-item-purchase";
-import { inferInventoryConversion } from "../domain/infer-inventory-conversion";
+import { resolveInventoryConversion } from "../domain/infer-inventory-conversion";
 import {
 	isInventoryTrackedShoppingItem,
 	markShoppingItemAsPurchased,
@@ -59,17 +59,10 @@ export async function confirmCheckedShoppingItemsPurchase(
 			// 換算が未設定の項目（以前に入れたものなど）は、食材と単位から決められれば、決める。
 			const trackedItems = checkedItems
 				.filter(isInventoryTrackedShoppingItem)
-				.map((item) =>
-					item.inventoryConversion
-						? item
-						: {
-								...item,
-								inventoryConversion: inferInventoryConversion(
-									item.name,
-									item.unitLabel,
-								),
-							},
-				);
+				.map((item) => ({
+					...item,
+					inventoryConversion: resolveInventoryConversion(item),
+				}));
 			const untrackedItems = checkedItems.filter(
 				(item) => !isInventoryTrackedShoppingItem(item),
 			);
