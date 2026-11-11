@@ -1,9 +1,15 @@
-import { convertToStockQuantity } from "#/features/ingredients/domain/convert-to-stock-quantity";
+import {
+	convertToStockQuantity,
+	toMeasuredStockUnit,
+} from "#/features/ingredients/domain/convert-to-stock-quantity";
 import {
 	findIngredientCatalogEntry,
 	getDefaultStockUnitLabel,
 } from "#/features/ingredients/domain/ingredient-catalog";
-import type { ShoppingItemInventoryConversion } from "./shopping-item";
+import type {
+	ShoppingItem,
+	ShoppingItemInventoryConversion,
+} from "./shopping-item";
 
 // 在庫の単位が個数の食材で、数えるときの単位として、そのまま 1 つ 1 つに換算してよいもの。
 // 「袋」「パック」などは、食材ごとに中身の数が違うので、数量プリセットがある場合だけ換算する。
@@ -40,7 +46,8 @@ export function toInputUnitCode(unit: string): string {
  * 3. 単位が在庫の単位と同じなら、そのまま（1:1）。
  * 4. それ以外は、カタログの重さ・密度で、1単位が在庫の単位でいくつか計算できるとき。
  *
- * 食材がカタログになければ、決めない（購入確定のときに、設定してもらう）。
+ * 食材がカタログになければ、単位が重さ・体積（g・kg・ml・l）のときだけ、その単位で在庫に入れる（1kg＝1000g。聞くまでもない）。
+ * ほかの単位は決めない（購入確定のときに、設定してもらう）。
  */
 export function inferInventoryConversion(
 	name: string,
@@ -49,7 +56,17 @@ export function inferInventoryConversion(
 	const entry = findIngredientCatalogEntry(name);
 
 	if (!entry) {
-		return null;
+		const measured = unitLabel ? toMeasuredStockUnit(unitLabel) : null;
+
+		return measured
+			? {
+					inputUnitCode: toInputUnitCode(unitLabel?.trim() ?? ""),
+					stockUnitCode: measured.stockUnitCode,
+					stockUnitLabel: getDefaultStockUnitLabel(measured.stockUnitCode),
+					stockQuantityPerInputUnit: measured.perUnit,
+					trackingMode: "estimated",
+				}
+			: null;
 	}
 
 	const unit = unitLabel?.trim() || null;
@@ -113,4 +130,29 @@ export function inferInventoryConversion(
 	);
 
 	return perUnit === null ? null : conversion(toInputUnitCode(unit), perUnit);
+}
+
+// 項目の換算。未設定（以前に入れたもの・名前を直したものなど）なら、食材と単位から決める。決められなければ null（購入確定のときに聞く）。
+export function resolveInventoryConversion(
+	item: Pick<ShoppingItem, "name" | "unitLabel" | "inventoryConversion">,
+): ShoppingItemInventoryConversion | null {
+	return (
+		item.inventoryConversion ??
+		inferInventoryConversion(item.name, item.unitLabel)
+	);
+}
+
+// 購入確定の前に、在庫に入れる量を聞くか。換算が未設定でも、重さ・体積の単位（g・kg・ml・l）で買い、換算が決められるなら、聞かない。
+// 単位なし・袋などは、決められても聞く（「1」が1個か1パックかは、聞かないと分からない）。
+export function needsConversionQuestion(
+	item: Pick<ShoppingItem, "name" | "unitLabel" | "inventoryConversion">,
+): boolean {
+	if (item.inventoryConversion) {
+		return false;
+	}
+
+	const isMeasured =
+		item.unitLabel !== null && toMeasuredStockUnit(item.unitLabel) !== null;
+
+	return !isMeasured || resolveInventoryConversion(item) === null;
 }

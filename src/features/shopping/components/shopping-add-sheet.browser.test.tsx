@@ -1,10 +1,12 @@
 import { expect, it } from "vitest";
 import { cdp, page } from "vitest/browser";
 import { render } from "vitest-browser-react";
+import { emulateMacChrome } from "#/test/emulate-mac-chrome";
 import { ShoppingAddSheet } from "./shopping-add-sheet";
 
 // 実際のブラウザの変換（IME）のイベントで、追加シートの食材名の候補を確かめる。
 it("変換中は、カタログの名前と完全に一致しても、候補が出たままになる（買い物メモの追加シート）", async () => {
+	await emulateMacChrome();
 	await render(
 		<ShoppingAddSheet
 			title="買うものを入れる"

@@ -30,7 +30,6 @@ import {
 	getShoppingBranchConditionItem,
 	type ShoppingBranchSide,
 } from "../domain/shopping-branch";
-import { describeConversionDefault } from "../domain/shopping-conversion-default";
 import {
 	type CreateShoppingItemInput,
 	type ShoppingItem,
@@ -609,24 +608,6 @@ export function ShoppingList({
 						onApplied: () => void reloadItems(),
 					})
 				: null}
-
-			{purchase.overwriteRequest ? (
-				<ConfirmDialog
-					open
-					title={`${purchase.overwriteRequest.itemName}のいつもの換算を変えますか`}
-					cancelLabel="今回だけ"
-					confirmLabel="変える"
-					pending={purchase.isConfirmingPurchase}
-					onCancel={() => void purchase.answerConversionOverwrite("once")}
-					onConfirm={() => void purchase.answerConversionOverwrite("replace")}
-				>
-					いつもの換算は「
-					{describeConversionDefault(purchase.overwriteRequest.previous)}
-					」です。今回の設定は「
-					{describeConversionDefault(purchase.overwriteRequest.next)}
-					」です。
-				</ConfirmDialog>
-			) : null}
 
 			<ConfirmDialog
 				open={purchase.isAskingPurchase}

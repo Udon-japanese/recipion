@@ -2,13 +2,11 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { buildShoppingItem } from "#/test/builders/build-shopping-item";
+import { toConversionMemoryKey } from "#/test/builders/conversion-memory-key";
 import { createFakeShoppingConversionDefaultRepository } from "#/test/fakes/fake-shopping-conversion-default-repository";
 import { createFakeShoppingItemMemoryRepository } from "#/test/fakes/fake-shopping-item-memory-repository";
 import { createFakeShoppingRepository } from "#/test/fakes/fake-shopping-repository";
-import {
-	toConversionDefaultKey,
-	toConversionMemoryKey,
-} from "../domain/shopping-conversion-default";
+import { toConversionDefaultKey } from "../domain/shopping-conversion-default";
 import { ShoppingList } from "./shopping-list";
 
 const nameKey = toConversionDefaultKey("卵") ?? "";

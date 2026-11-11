@@ -25,7 +25,8 @@ export type IngredientSuggestion = {
 export function searchIngredientNames(
 	query: string,
 	dictionary?: IngredientDictionary,
-	limit = 8,
+	// 返す数の上限（省くと、すべて）。
+	limit = Number.POSITIVE_INFINITY,
 ): IngredientSuggestion[] {
 	const foldedQuery = foldIngredientSearchText(query);
 

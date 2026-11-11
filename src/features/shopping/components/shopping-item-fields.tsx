@@ -65,7 +65,7 @@ type QuantityUnitFieldsProps = {
 	unitName?: string;
 };
 
-// 数量と単位（数量の下に、単位に合わせた押しボタン）。
+// 数量と単位。買い物メモでは、数量の端数・足すボタン（1/2・+50 など）は出さない（買う量は、よく使う数量・単位のチップで選ぶ）。
 export function ShoppingQuantityUnitFields({
 	quantity,
 	onQuantityChange,
@@ -85,7 +85,6 @@ export function ShoppingQuantityUnitFields({
 							name={quantityName}
 							value={quantity}
 							onChange={onQuantityChange}
-							unitLabel={unitLabel}
 						/>
 					)}
 				</Field>

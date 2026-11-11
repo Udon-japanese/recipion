@@ -5,7 +5,7 @@ import { thinScrollbar } from "./scrollbar.css";
 // メニュー（30）・確認のダイアログ（30）より、上。
 const layer = 40;
 
-// PC の縦の一覧の、白い丸角のカード（メニューと同じ）。食材名の入力の一覧も、これを使う。
+// PC の縦の一覧の、白い丸角のカード（メニューと同じ）。
 export const popupFrame = style({
 	position: "fixed",
 	zIndex: layer,
@@ -23,6 +23,7 @@ export const popupFrame = style({
 // PC：カーソルの近くに出す、縦の一覧。
 export const popup = style([
 	popupFrame,
+	{ boxSizing: "border-box" },
 	{ minWidth: 180, maxWidth: "min(360px, 90vw)" },
 ]);
 
@@ -67,6 +68,14 @@ export const popupItem = style({
 		'&[aria-current="true"]': activeItem,
 		'&[aria-selected="true"]': activeItem,
 	},
+});
+
+// 候補の名前（入力欄に合わせた幅で、長い名前は、省いて1行に収める）。
+export const itemLabel = style({
+	minWidth: 0,
+	overflow: "hidden",
+	textOverflow: "ellipsis",
+	whiteSpace: "nowrap",
 });
 
 export const popupHint = style({

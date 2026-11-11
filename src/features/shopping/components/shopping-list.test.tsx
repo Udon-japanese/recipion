@@ -71,29 +71,6 @@ describe("ShoppingList", () => {
 		expect(await screen.findByText("1/3本（333g）")).toBeInTheDocument();
 	});
 
-	it("数量のボタンは、入力した単位に合わせて変わる（本は 1/3、g は +50）", async () => {
-		const user = userEvent.setup();
-
-		render(<ShoppingList repository={createFakeShoppingRepository()} />);
-
-		await screen.findByText("買うものはまだありません。");
-		await user.click(screen.getByRole("button", { name: "買うものを入れる" }));
-		await user.type(screen.getByLabelText("単位"), "本");
-		await user.click(screen.getByRole("button", { name: "1/3にする" }));
-
-		expect(screen.getByLabelText("数量")).toHaveValue("1/3");
-		expect(screen.queryByRole("button", { name: "50を足す" })).toBeNull();
-
-		await user.clear(screen.getByLabelText("単位"));
-		await user.type(screen.getByLabelText("単位"), "g");
-		await user.clear(screen.getByLabelText("数量"));
-		await user.click(screen.getByRole("button", { name: "50を足す" }));
-		await user.click(screen.getByRole("button", { name: "100を足す" }));
-
-		expect(screen.getByLabelText("数量")).toHaveValue("150");
-		expect(screen.queryByRole("button", { name: "1/3にする" })).toBeNull();
-	});
-
 	it("チェックしたものがないときは、「購入を確定」を出さない。チェックすると、出る", async () => {
 		const user = userEvent.setup();
 		const repository = createFakeShoppingRepository([storedItem]);
@@ -515,6 +492,17 @@ describe("ShoppingList", () => {
 		});
 	});
 
+	// 追加のシートの「カテゴリ　〇〇　［変える］」の行。
+	function categoryRow() {
+		const row = screen.getAllByText("カテゴリ")[0]?.parentElement;
+
+		if (!row) {
+			throw new Error("カテゴリの行がない");
+		}
+
+		return row;
+	}
+
 	it("商品名からカテゴリを自動選択する", async () => {
 		const user = userEvent.setup();
 		const repository = createFakeShoppingRepository();
@@ -525,8 +513,8 @@ describe("ShoppingList", () => {
 		await user.click(screen.getByRole("button", { name: "買うものを入れる" }));
 		await user.type(screen.getByLabelText("買うもの"), "タマゴ");
 
-		// 名前から、カテゴリが自動で決まる。
-		expect(screen.getByText("自動")).toBeInTheDocument();
+		// 名前から、カテゴリが自動で決まる（換算の行にも「自動」があるので、カテゴリの行で見る）。
+		expect(categoryRow()).toHaveTextContent("自動");
 
 		await user.click(
 			screen.getByRole("button", {
@@ -558,7 +546,7 @@ describe("ShoppingList", () => {
 		await user.type(screen.getByLabelText("買うもの"), "卵");
 
 		expect(screen.getByLabelText("カテゴリ")).toHaveValue("pantry");
-		expect(screen.queryByText("自動")).toBeNull();
+		expect(categoryRow()).not.toHaveTextContent("自動");
 	});
 
 	it("買い物項目を標準的な売り場順に並べる", async () => {
@@ -918,6 +906,37 @@ describe("ShoppingList", () => {
 			}),
 		).toBeInTheDocument();
 		expect(confirmPurchases).not.toHaveBeenCalled();
+	});
+
+	it("在庫換算が未設定でも、g・kg・ml・l で買う商品は、量を聞かない（その単位のまま在庫に入る）", async () => {
+		const user = userEvent.setup();
+
+		const checkedItem: ShoppingItem = {
+			...storedItem,
+			name: "謎の商品",
+			quantity: 100,
+			unitLabel: "g",
+			status: "checked",
+			inventoryConversion: null,
+		};
+
+		render(
+			<ShoppingList
+				repository={createFakeShoppingRepository([checkedItem])}
+				confirmPurchases={vi.fn()}
+			/>,
+		);
+
+		await user.click(
+			await screen.findByRole("button", { name: "購入を確定（1件）" }),
+		);
+
+		expect(
+			await screen.findByRole("alertdialog", { name: "購入を確定しますか" }),
+		).toBeInTheDocument();
+		expect(
+			screen.queryByRole("heading", { name: "在庫に入れる量を教えてください" }),
+		).toBeNull();
 	});
 
 	it("ログイン済みなら購入確定後に在庫同期を試す", async () => {

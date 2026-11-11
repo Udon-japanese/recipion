@@ -241,6 +241,16 @@ export function markShoppingItemAsPurchased(
 	};
 }
 
+// 買う単位と在庫の単位が同じで、1対1の換算（1g＝1g、1個＝1個）。換算として書くまでもない。
+export function isSameUnitConversion(
+	conversion: ShoppingItemInventoryConversion,
+): boolean {
+	return (
+		conversion.inputUnitCode === conversion.stockUnitCode &&
+		conversion.stockQuantityPerInputUnit === 1
+	);
+}
+
 export function getShoppingItemConvertedQuantityLabel(
 	item: Pick<ShoppingItem, "quantity" | "inventoryConversion">,
 ): string | null {
@@ -251,11 +261,7 @@ export function getShoppingItemConvertedQuantityLabel(
 		return null;
 	}
 
-	const isSameUnit =
-		conversion.inputUnitCode === conversion.stockUnitCode &&
-		conversion.stockQuantityPerInputUnit === 1;
-
-	if (isSameUnit) {
+	if (isSameUnitConversion(conversion)) {
 		return null;
 	}
 

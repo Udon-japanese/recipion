@@ -4,8 +4,10 @@ import type {
 } from "../domain/shopping-conversion-default";
 
 export interface ShoppingConversionDefaultRepository {
-	// 記憶のキー（食材×単位）→ 記憶。
+	// 記憶の鍵（ID）→ 記憶。
 	list(): Promise<ShoppingConversionDefaults>;
-	// 同じ食材×単位の記憶は、置き換える。
-	set(entry: ShoppingConversionEntry): Promise<void>;
+	// その鍵の記憶を書く（同じ鍵があれば、置き換える）。
+	set(key: string, entry: ShoppingConversionEntry): Promise<void>;
+	// その鍵の記憶を消す。
+	remove(keys: readonly string[]): Promise<void>;
 }

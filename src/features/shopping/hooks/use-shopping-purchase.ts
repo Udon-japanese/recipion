@@ -29,10 +29,8 @@ import {
 	initialAmountDraft,
 } from "../domain/amount-draft";
 import type { ShoppingItemInventoryConfiguration } from "../domain/conversion-draft";
-import {
-	isSameConversionDefault,
-	type ShoppingConversionDefault,
-} from "../domain/shopping-conversion-default";
+import { needsConversionQuestion } from "../domain/infer-inventory-conversion";
+import type { ShoppingConversionDefault } from "../domain/shopping-conversion-default";
 import {
 	isInventoryTrackedShoppingItem,
 	type ShoppingItem,
@@ -73,13 +71,6 @@ type UseShoppingPurchaseOptions = {
 			value: ShoppingConversionDefault,
 		) => Promise<void>;
 	};
-};
-
-// 記憶と違う換算を設定したときの、確認（「変える」か「今回だけ」）。
-export type ConversionOverwriteRequest = {
-	itemName: string;
-	previous: ShoppingConversionDefault;
-	next: ShoppingConversionDefault;
 };
 
 // チェック済みの購入確定の流れ（期限の確認 → 確定 → 在庫換算の設定 → 在庫への反映）。
@@ -142,12 +133,6 @@ export function useShoppingPurchase({
 		[setErrorMessage],
 	);
 	const [isSavingConversion, setIsSavingConversion] = useState(false);
-	// 記憶と違う換算を設定したとき、答えを待つあいだ（複数あるときは、1件ずつ聞く）。
-	const [overwriteQueue, setOverwriteQueue] = useState<
-		ConversionOverwriteRequest[]
-	>([]);
-	const overwriteRequest = overwriteQueue[0] ?? null;
-
 	// 購入確定の確認画面で、換算が足りない商品の、入力途中の換算（商品の ID ごと）と、その誤り。
 	const [conversionDrafts, setAmountDrafts] = useState<
 		Record<string, AmountDraft>
@@ -219,9 +204,8 @@ export function useShoppingPurchase({
 		setErrorMessage(null);
 		setConversionErrors({});
 
-		const missingItems = checkedTrackedItems.filter(
-			(item) => !item.inventoryConversion,
-		);
+		// 換算が未設定の項目に、量を聞く（g・kg・ml・l で買うものは、聞かずに、確定のときにその単位で入る）。
+		const missingItems = checkedTrackedItems.filter(needsConversionQuestion);
 		const drafts = Object.fromEntries(
 			missingItems.map((item) => [item.id, initialAmountDraft(item)]),
 		);
@@ -287,8 +271,6 @@ export function useShoppingPurchase({
 			return;
 		}
 
-		const overwrites: ConversionOverwriteRequest[] = [];
-
 		if (configurations.length > 0) {
 			setIsSavingConversion(true);
 
@@ -311,21 +293,11 @@ export function useShoppingPurchase({
 						return;
 					}
 
-					// 決めた換算は、次から同じ食材の初期値にするため、覚える。記憶と違うときは、あとで聞く。
-					const next: ShoppingConversionDefault = {
+					// 決めた換算は、次から同じ食材の候補・初期値にするため、覚える（記憶と違っても、別の1件として残る）。
+					await conversionMemory.remember(item.name, {
 						unitLabel: configuration.unitLabel,
 						inventoryConversion: configuration.inventoryConversion,
-					};
-					const previous = conversionMemory.lookup(
-						item.name,
-						configuration.unitLabel,
-					);
-
-					if (!previous) {
-						await conversionMemory.remember(item.name, next);
-					} else if (!isSameConversionDefault(previous, next)) {
-						overwrites.push({ itemName: item.name, previous, next });
-					}
+					});
 				}
 			} finally {
 				setIsSavingConversion(false);
@@ -336,12 +308,6 @@ export function useShoppingPurchase({
 		setIsReviewingConversion(false);
 		setReviewItems([]);
 		setAmountDrafts({});
-
-		if (overwrites.length > 0) {
-			setOverwriteQueue(overwrites);
-
-			return;
-		}
 
 		await confirm();
 	}
@@ -402,25 +368,6 @@ export function useShoppingPurchase({
 		}
 	}
 
-	// 記憶と違う換算の確認への答え。「変える」なら記憶を置き換える。残りがなければ、購入確定を続ける。
-	async function answerConversionOverwrite(choice: "replace" | "once") {
-		const request = overwriteRequest;
-
-		if (!request) {
-			return;
-		}
-
-		setOverwriteQueue((queue) => queue.slice(1));
-
-		if (choice === "replace") {
-			await conversionMemory.remember(request.itemName, request.next);
-		}
-
-		if (overwriteQueue.length <= 1) {
-			await confirm();
-		}
-	}
-
 	return {
 		checkedItemCount,
 		checkedTrackedItems,
@@ -444,7 +391,5 @@ export function useShoppingPurchase({
 			setAmountDrafts((current) => ({ ...current, [itemId]: draft })),
 		requestPurchase,
 		confirmWithConversions,
-		overwriteRequest,
-		answerConversionOverwrite,
 	};
 }

@@ -1,9 +1,8 @@
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import { getLocalDatabase } from "../../../local-db/database";
 import type { ShoppingConversionDefaultRepository } from "../application/shopping-conversion-default-repository";
-import { toConversionMemoryKey } from "../domain/shopping-conversion-default";
 
-// その持ち主の、食材×単位ごとの在庫換算の記憶。
+// その持ち主の、在庫換算の記憶（食材×単位×換算ごと）。
 export function createDexieShoppingConversionDefaultRepository(
 	ownerScope: InventoryPurchaseOwnerScope,
 ): ShoppingConversionDefaultRepository {
@@ -22,12 +21,18 @@ export function createDexieShoppingConversionDefaultRepository(
 			);
 		},
 
-		async set(entry) {
+		async set(key, entry) {
 			await getLocalDatabase().scopedShoppingConversionMemories.put({
 				ownerScope,
-				key: toConversionMemoryKey(entry.nameKey, entry.unitLabel),
+				key,
 				...entry,
 			});
+		},
+
+		async remove(keys) {
+			await getLocalDatabase().scopedShoppingConversionMemories.bulkDelete(
+				keys.map((key): [string, string] => [ownerScope, key]),
+			);
 		},
 	};
 }
