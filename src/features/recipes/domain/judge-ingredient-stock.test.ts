@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { InventoryLot } from "#/features/inventory/domain/inventory-lot";
 import { judgeIngredientStock } from "./judge-ingredient-stock";
 
 describe("judgeIngredientStock", () => {
@@ -102,5 +103,51 @@ describe("judgeIngredientStock", () => {
 		expect(
 			judgeIngredientStock(need, { quantity: 1, stockUnitCode: "count" }),
 		).toEqual({ status: "enough", basis: "presence" });
+	});
+});
+
+describe("judgeIngredientStock（ロットの換算）", () => {
+	function udonLot(id: string, quantity: number): InventoryLot {
+		return {
+			id,
+			quantity,
+			acquiredOn: "2026-11-01",
+			storage: "freezer",
+			expiresOn: null,
+			expiryKind: null,
+			expirySource: null,
+			purchaseUnit: { label: "個", quantity: 110, quantityUnitLabel: "g" },
+			createdAt: `2026-11-01T00:00:00.000Z-${id}`,
+		};
+	}
+
+	const need = { name: "冷凍うどん", quantity: 400, unitLabel: "g" };
+
+	it("カタログ（1玉＝200g）では足りる3個でも、1個＝110gなら 330g で足りず、不足を切り上げて1個", () => {
+		expect(
+			judgeIngredientStock(need, {
+				quantity: 3,
+				stockUnitCode: "count",
+				stockUnitLabel: "個",
+				lots: [udonLot("a", 3)],
+			}),
+		).toEqual({
+			status: "short",
+			basis: "compared",
+			shortage: 1,
+			isRegistered: true,
+			hasStock: true,
+		});
+	});
+
+	it("1個＝110gが4個（440g）なら、足りている", () => {
+		expect(
+			judgeIngredientStock(need, {
+				quantity: 4,
+				stockUnitCode: "count",
+				stockUnitLabel: "個",
+				lots: [udonLot("a", 4)],
+			}),
+		).toEqual({ status: "enough", basis: "compared" });
 	});
 });

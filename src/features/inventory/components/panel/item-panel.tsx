@@ -39,13 +39,21 @@ import {
 	type InventoryLot,
 	sortLotsForConsumption,
 } from "../../domain/inventory-lot";
+import {
+	lotQuantityInUnit,
+	lotsQuantityInUnit,
+} from "../../domain/lot-unit-decrease";
 import { collectPurchaseUnitCandidates } from "../../domain/purchase-unit-draft";
 import type { PurchaseUnitMemory } from "../../hooks/use-purchase-unit-memory";
 import {
 	trackingModeHints,
 	trackingModeOptions,
 } from "../tracking-mode-options";
-import { AdjustControls } from "./adjust-controls";
+import {
+	AdjustControls,
+	formatAmountInUnit,
+	resolveAmountUnit,
+} from "./adjust-controls";
 import type { InventoryActions } from "./inventory-actions";
 import { ItemArtField } from "./item-art-field";
 import * as styles from "./item-panel.css";
@@ -128,6 +136,14 @@ export function ItemPanel({
 	const [isFlashing, setIsFlashing] = useState(false);
 	// 内訳のうち、その場で直している行。
 	const [editingLotId, setEditingLotId] = useState<string | null>(null);
+	// 量を打つ単位（在庫の単位か、ロットの換算の単位）。在庫の単位でないあいだは、量の表示に、その単位の目安を添える。
+	const [chosenAmountUnit, setAmountUnit] = useState(item.stockUnitLabel);
+	const amountUnit = resolveAmountUnit(chosenAmountUnit, item.lots, item);
+	const isOtherAmountUnit = amountUnit !== item.stockUnitLabel;
+	const inAmountUnit = (quantity: number | null) =>
+		isOtherAmountUnit && quantity !== null
+			? `（${formatAmountInUnit(quantity, amountUnit)}）`
+			: "";
 	// PC：入れた分の編集を、本体の横に出す位置（開くときに決める）。
 	const mainPanelRef = useRef<FloatingPanelHandle>(null);
 	const editorPanelRef = useRef<FloatingPanelHandle>(null);
@@ -401,6 +417,7 @@ export function ItemPanel({
 					) : (
 						<p className={styles.amount} data-flash={isFlashing || undefined}>
 							{formatQuantityText(item, item.quantity)}
+							{inAmountUnit(lotsQuantityInUnit(item.lots, amountUnit, item))}
 						</p>
 					)}
 				</div>
@@ -429,12 +446,14 @@ export function ItemPanel({
 						label={`${item.name}の使った量・買い足した量`}
 						available={item.quantity}
 						lots={item.lots}
+						unit={amountUnit}
+						onUnitChange={setAmountUnit}
 						quantity={panel.adjustForm.quantity}
 						onQuantityChange={panel.adjustForm.setQuantity}
 						readOnly={readOnly}
-						onRun={(operation, unitLabel) =>
+						onRun={(operation, options) =>
 							runAdjust(operation, () =>
-								panel.run.adjustItem(operation, unitLabel),
+								panel.run.adjustItem(operation, options),
 							)
 						}
 						decreaseStatus={decrease.status}
@@ -469,6 +488,9 @@ export function ItemPanel({
 											{isPresence ? null : (
 												<span className={styles.lotAmount}>
 													{formatQuantityText(item, lot.quantity)}
+													{inAmountUnit(
+														lotQuantityInUnit(lot, amountUnit, item),
+													)}
 												</span>
 											)}
 										</span>
@@ -679,8 +701,8 @@ export function ItemPanel({
 				canAdjust={!isPresence && Boolean(actions.adjustInventoryItem)}
 				canEditExpiry={Boolean(actions.updateInventoryLot)}
 				purchaseUnitCandidates={purchaseUnitCandidates}
-				onAdjust={(operation, quantityText, unitLabel) =>
-					panel.run.adjustLot(editingLot, operation, quantityText, unitLabel)
+				onAdjust={(operation, quantityText, options) =>
+					panel.run.adjustLot(editingLot, operation, quantityText, options)
 				}
 				onSave={async (edits) => {
 					const done = await panel.run.saveLotEdits(editingLot, edits);

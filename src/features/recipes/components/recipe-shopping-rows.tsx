@@ -276,8 +276,20 @@ export function RecipeShoppingRows({
 									</span>
 
 									{row.isUsualAmount ? (
-										<span className={styles.status}>
-											{`いつもの量：${describeMemoAmount(row.amount)}`}
+										<span
+											className={
+												row.usualShortfall === null
+													? styles.status
+													: styles.shortStatus
+											}
+										>
+											{row.usualShortfall === null
+												? `いつもの量：${describeMemoAmount(row.amount)}`
+												: `いつもの量：${describeMemoAmount(row.amount)}では、あと ${formatQuantityForUnit(
+														// 細かい端数は、小数第1位に切り上げて見せる（0.181818個 → 0.2個）。
+														Math.ceil(row.usualShortfall * 10 - 1e-9) / 10,
+														row.recipeAmount.unitLabel,
+													)}${row.recipeAmount.unitLabel ?? ""}足りません`}
 										</span>
 									) : null}
 

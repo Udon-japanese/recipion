@@ -4,6 +4,8 @@ import {
 	type IngredientStockUnitCode,
 } from "#/features/ingredients/domain/ingredient-catalog";
 import type { AlternateAmount } from "#/features/ingredients/domain/parse-ingredient-line";
+import type { InventoryLot } from "#/features/inventory/domain/inventory-lot";
+import { planLotUnitDecrease } from "#/features/inventory/domain/lot-unit-decrease";
 
 export type RecipeIngredientNeed = {
 	name: string;
@@ -21,6 +23,8 @@ export type IngredientStock = {
 	stockUnitLabel?: string;
 	// 有無だけ（ある／ない）で管理している食材。量は比べず、在庫があれば、足りているとする。
 	isPresenceOnly?: boolean;
+	// 在庫のあるロット。換算（1個＝110g など）があれば、それで量る。省略は、ロットの換算を使わない。
+	lots?: readonly InventoryLot[];
 };
 
 export type IngredientStockJudgment =
@@ -47,6 +51,8 @@ export type IngredientStockJudgment =
  * - 比べられないとき（「少々」「適量」、換算できない単位など）：在庫が0より多ければ足りている。
  *   在庫が0、または登録がなければ不足。
  * - 有無だけで管理している食材（塩・醤油・油など）：量にかかわらず、在庫があれば足りている。
+ * - ロットに換算（1個＝110g など）があれば、期限の早いロットから、それぞれの換算で量る（planLotUnitDecrease）。
+ *   そのときの不足は、個数の在庫なら切り上げる（買うのは、まるごとの数のため。設定の端数は、引くときだけ）。
  */
 export function judgeIngredientStock(
 	need: RecipeIngredientNeed,
@@ -55,7 +61,7 @@ export function judgeIngredientStock(
 	const hasStock = stock !== null && stock.quantity > 0;
 	const isPresenceOnly = stock?.isPresenceOnly === true;
 
-	const requiredQuantity =
+	const catalogRequired =
 		stock !== null && need.quantity !== null && !isPresenceOnly
 			? convertAmountToStockQuantity(
 					need,
@@ -63,6 +69,38 @@ export function judgeIngredientStock(
 					findIngredientCatalogEntry(need.name),
 				)
 			: null;
+	const lotDecrease =
+		stock !== null && need.quantity !== null && !isPresenceOnly
+			? planLotUnitDecrease({
+					lots: stock.lots ?? [],
+					amount: need,
+					stock: {
+						stockUnitCode: stock.stockUnitCode,
+						stockUnitLabel: stock.stockUnitLabel ?? "",
+					},
+					rounding: "exact",
+					fallbackRequired: catalogRequired,
+				})
+			: null;
+
+	if (stock !== null && lotDecrease) {
+		if (!lotDecrease.isShort) {
+			return { status: "enough", basis: "compared" };
+		}
+
+		const shortage = Number((lotDecrease.required - stock.quantity).toFixed(6));
+
+		return {
+			status: "short",
+			basis: "compared",
+			shortage:
+				stock.stockUnitCode === "count" ? Math.ceil(shortage - 1e-9) : shortage,
+			isRegistered: true,
+			hasStock: stock.quantity > 0,
+		};
+	}
+
+	const requiredQuantity = catalogRequired;
 
 	if (stock === null || requiredQuantity === null) {
 		return hasStock

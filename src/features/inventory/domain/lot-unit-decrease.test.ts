@@ -3,6 +3,8 @@ import type { InventoryLot, InventoryLotPurchaseUnit } from "./inventory-lot";
 import {
 	convertLotUnitAmount,
 	listLotAmountUnits,
+	lotQuantityInUnit,
+	lotsQuantityInUnit,
 	planLotUnitDecrease,
 	remainingLotsAfter,
 } from "./lot-unit-decrease";
@@ -322,6 +324,43 @@ describe("convertLotUnitAmount", () => {
 			convertLotUnitAmount(
 				[lot("a", 1, null)],
 				{ quantity: 220, unitLabel: "g" },
+				countStock,
+			),
+		).toBeNull();
+	});
+});
+
+describe("lotQuantityInUnit・lotsQuantityInUnit", () => {
+	const perBall = { label: "玉", quantity: 200, quantityUnitLabel: "g" };
+	const gramStock = { stockUnitCode: "g", stockUnitLabel: "g" } as const;
+
+	it("在庫が個で 1個＝110g なら、3個を 330g で表す", () => {
+		expect(lotQuantityInUnit(lot("a", 3, each110g), "g", countStock)).toBe(330);
+	});
+
+	it("在庫が g で 1玉＝200g なら、600g を 3玉で表す", () => {
+		expect(lotQuantityInUnit(lot("a", 600, perBall), "玉", gramStock)).toBe(3);
+	});
+
+	it("換算のないロット・単位の違う換算は null", () => {
+		expect(lotQuantityInUnit(lot("a", 3, null), "g", countStock)).toBeNull();
+		expect(
+			lotQuantityInUnit(lot("a", 3, each110g), "ml", countStock),
+		).toBeNull();
+	});
+
+	it("合計は、全部のロットを直せるときだけ（0のロットは数えない）", () => {
+		expect(
+			lotsQuantityInUnit(
+				[lot("a", 3, each110g), lot("b", 1, each100g), lot("c", 0, null)],
+				"g",
+				countStock,
+			),
+		).toBe(430);
+		expect(
+			lotsQuantityInUnit(
+				[lot("a", 3, each110g), lot("b", 1, null)],
+				"g",
 				countStock,
 			),
 		).toBeNull();

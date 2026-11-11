@@ -33,6 +33,9 @@ export type ItemPanelView =
 	| { name: "rename" }
 	| { name: "tracking" };
 
+// 「使った」「買い足した」の打ち方：打った単位（省略は在庫の単位）と、打った量を覚えるか（省略は覚える）。
+export type AdjustOptions = { unitLabel?: string; remember?: boolean };
+
 const quantityError = "数量を確認してください（例：2、0.5、1/2）";
 
 export function toOptionValue(option: StockUnitOption): string {
@@ -212,12 +215,15 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 	// ---- 実行 ----
 	// 「使った」「買い足した」。lot を渡すと、その入れた分だけを増減する（入れた分の編集）。
 	// unitLabel が在庫の単位でなければ（1個＝110g の g など）、ロットの換算で、在庫の単位に直して引く。
-	// 成功したら、打った量を、打った単位のまま、次のチップのために覚える。
+	// 成功したら、打った量を、打った単位のまま、次のチップのために覚える（remember が false なら、覚えない）。
 	async function adjust(
 		operation: InventoryOperation,
 		quantityText: string,
-		lot?: InventoryLot,
-		unitLabel: string = item.stockUnitLabel,
+		{
+			lot,
+			unitLabel = item.stockUnitLabel,
+			remember = true,
+		}: AdjustOptions & { lot?: InventoryLot } = {},
 	): Promise<boolean> {
 		const { adjustInventoryItem } = actions;
 
@@ -265,23 +271,27 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 				quantity: result.quantity,
 				lots: result.lots,
 			});
-			rememberAmount({
-				ingredientName: item.name,
-				stockUnitLabel: unitLabel,
-				amount: typed,
-			});
+			if (remember) {
+				rememberAmount({
+					ingredientName: item.name,
+					stockUnitLabel: unitLabel,
+					amount: typed,
+				});
+			}
 		});
 	}
 
 	// パネルの本体の量の欄。成功したら、次の入力のために、はじめの値に戻す。
 	async function adjustItem(
 		operation: InventoryOperation,
-		unitLabel: string = item.stockUnitLabel,
+		options: AdjustOptions = {},
 	): Promise<boolean> {
-		const done = await adjust(operation, adjustQuantity, undefined, unitLabel);
+		const done = await adjust(operation, adjustQuantity, options);
 
 		if (done) {
-			setAdjustQuantity(initialQuantityInput(unitLabel));
+			setAdjustQuantity(
+				initialQuantityInput(options.unitLabel ?? item.stockUnitLabel),
+			);
 		}
 
 		return done;
@@ -553,8 +563,8 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 				lot: InventoryLot,
 				operation: InventoryOperation,
 				quantityText: string,
-				unitLabel?: string,
-			) => adjust(operation, quantityText, lot, unitLabel),
+				options: AdjustOptions = {},
+			) => adjust(operation, quantityText, { ...options, lot }),
 			togglePresence,
 			saveLotEdits,
 			changeUnit,

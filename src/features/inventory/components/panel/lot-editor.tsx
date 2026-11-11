@@ -9,15 +9,20 @@ import type {
 	InventoryLot,
 	InventoryLotPurchaseUnit,
 } from "../../domain/inventory-lot";
+import { lotQuantityInUnit } from "../../domain/lot-unit-decrease";
 import {
 	parsePurchaseUnitDraft,
 	toPurchaseUnitDraft,
 } from "../../domain/purchase-unit-draft";
 import { ExpiryFields, type ExpiryFieldsValue } from "../expiry-fields";
 import { PurchaseUnitField } from "../purchase-unit-field";
-import { AdjustControls } from "./adjust-controls";
+import {
+	AdjustControls,
+	formatAmountInUnit,
+	resolveAmountUnit,
+} from "./adjust-controls";
 import * as styles from "./item-panel.css";
-import { lotExpiryValue } from "./use-item-panel";
+import { type AdjustOptions, lotExpiryValue } from "./use-item-panel";
 
 export type LotEdits = {
 	expiry: ExpiryFieldsValue;
@@ -45,7 +50,7 @@ type LotEditorProps = {
 	onAdjust: (
 		operation: InventoryOperation,
 		quantityText: string,
-		unitLabel: string,
+		options: AdjustOptions,
 	) => Promise<boolean>;
 	// 期限などを保存する。成功したら true。
 	onSave: (edits: LotEdits) => Promise<boolean>;
@@ -73,6 +78,11 @@ export function LotEditor({
 	const [quantityText, setQuantityText] = useState(() =>
 		initialQuantityInput(item.stockUnitLabel),
 	);
+	// 量を打つ単位。在庫の単位でないあいだは、この入れた分の量に、その単位の目安を添える。
+	const [chosenUnit, setUnit] = useState(item.stockUnitLabel);
+	const unit = resolveAmountUnit(chosenUnit, [lot], item);
+	const lotInUnit =
+		unit === item.stockUnitLabel ? null : lotQuantityInUnit(lot, unit, item);
 	const [expiry, setExpiry] = useState(initialExpiry);
 	const [saveAsDefault, setSaveAsDefault] = useState(false);
 	const initialPurchaseUnit = toPurchaseUnitDraft(
@@ -88,16 +98,19 @@ export function LotEditor({
 	const decrease = useButtonAction();
 	const increase = useButtonAction();
 
-	function runAdjust(operation: InventoryOperation, unitLabel: string) {
+	function runAdjust(
+		operation: InventoryOperation,
+		options: { unitLabel: string; remember: boolean },
+	) {
 		if (decrease.isPending || increase.isPending) {
 			return;
 		}
 
 		void (operation === "decrease" ? decrease : increase).run(async () => {
-			const done = await onAdjust(operation, quantityText, unitLabel);
+			const done = await onAdjust(operation, quantityText, options);
 
 			if (done) {
-				setQuantityText(initialQuantityInput(unitLabel));
+				setQuantityText(initialQuantityInput(options.unitLabel));
 			}
 
 			return done;
@@ -142,7 +155,14 @@ export function LotEditor({
 
 	return (
 		<div className={styles.lotEditor}>
-			{canAdjust ? <p className={styles.amount}>{amountText}</p> : null}
+			{canAdjust ? (
+				<p className={styles.amount}>
+					{amountText}
+					{lotInUnit === null
+						? null
+						: `（${formatAmountInUnit(lotInUnit, unit)}）`}
+				</p>
+			) : null}
 
 			{canAdjust ? (
 				<h3 className={styles.sectionTitle}>
@@ -161,6 +181,8 @@ export function LotEditor({
 					label={`${label}の使った量・買い足した量`}
 					available={lot.quantity}
 					lots={[lot]}
+					unit={unit}
+					onUnitChange={setUnit}
 					quantity={quantityText}
 					onQuantityChange={setQuantityText}
 					readOnly={readOnly}
