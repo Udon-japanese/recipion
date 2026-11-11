@@ -22,6 +22,7 @@ import {
 import { useExpiryEstimateLevel } from "#/features/inventory/hooks/use-expiry-estimate-level";
 import { useIngredientExpiryDefaults } from "#/features/inventory/hooks/use-ingredient-expiry-defaults";
 import { getLearnedRemainingDays } from "#/features/inventory/infrastructure/expiry-hints-storage";
+import { preferMeasureUnit } from "#/features/quantity/infrastructure/measure-unit-preference-storage";
 import {
 	type AmountDraft,
 	buildAmountConfiguration,
@@ -210,7 +211,10 @@ export function useShoppingPurchase({
 		// 換算が未設定の項目に、量を聞く（g・kg・ml・l で買うものは、聞かずに、確定のときにその単位で入る）。
 		const missingItems = checkedTrackedItems.filter(needsConversionQuestion);
 		const drafts = Object.fromEntries(
-			missingItems.map((item) => [item.id, initialAmountDraft(item)]),
+			missingItems.map((item) => [
+				item.id,
+				initialAmountDraft(item, (unit) => preferMeasureUnit(item.name, unit)),
+			]),
 		);
 
 		setReviewItems(missingItems);
@@ -339,7 +343,12 @@ export function useShoppingPurchase({
 				setReviewItems(result.items);
 				setAmountDrafts(
 					Object.fromEntries(
-						result.items.map((item) => [item.id, initialAmountDraft(item)]),
+						result.items.map((item) => [
+							item.id,
+							initialAmountDraft(item, (unit) =>
+								preferMeasureUnit(item.name, unit),
+							),
+						]),
 					),
 				);
 				setConversionErrors({});

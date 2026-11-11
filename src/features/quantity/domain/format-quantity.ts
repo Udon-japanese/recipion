@@ -1,3 +1,5 @@
+import { largerMeasureFactor, largerMeasureUnit } from "./measure-units";
+
 const fractionDenominators = [2, 3, 4, 8] as const;
 
 const groupedFormatter = new Intl.NumberFormat("ja-JP", {
@@ -96,14 +98,6 @@ export function formatStockAmount(
 	});
 }
 
-// 表示で、大きい量に使う単位（g → kg、ml・cc → L）。保存・計算・入力欄の単位は、変えない。
-const largerDisplayUnits: Record<string, string> = {
-	g: "kg",
-	ml: "L",
-	cc: "L",
-};
-const largerDisplayUnitFactor = 1000;
-
 // 大きい単位での数の書き方。元の単位の書き方（小数6桁まで）を 1000 で割っても、桁を失わないよう、9桁まで。
 const largerUnitFormatters = {
 	grouped: new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 9 }),
@@ -133,16 +127,14 @@ export function formatAmounts(
 	formatQuantityText: (quantity: number) => string,
 	options: { grouping?: boolean } = {},
 ): AmountDisplay {
-	const largerUnit = unitLabel
-		? largerDisplayUnits[unitLabel.normalize("NFKC").toLocaleLowerCase("ja-JP")]
-		: undefined;
+	// 表示で、大きい量に使う単位（g → kg、ml・cc → L）。保存・計算・入力欄の単位は、変えない。
+	const largerUnit = largerMeasureUnit(unitLabel);
 	const canSwitch =
 		largerUnit !== undefined &&
 		quantities.length > 0 &&
 		quantities.every(
 			(quantity) =>
-				Number.isFinite(quantity) &&
-				Math.abs(quantity) >= largerDisplayUnitFactor,
+				Number.isFinite(quantity) && Math.abs(quantity) >= largerMeasureFactor,
 		);
 
 	if (!canSwitch) {
@@ -156,7 +148,7 @@ export function formatAmounts(
 
 	return {
 		texts: quantities.map((quantity) =>
-			formatter.format(quantity / largerDisplayUnitFactor),
+			formatter.format(quantity / largerMeasureFactor),
 		),
 		unitLabel: largerUnit,
 	};

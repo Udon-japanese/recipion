@@ -9,6 +9,7 @@ import type {
 	ShoppingItem,
 	UpdateShoppingItemInput,
 } from "../domain/shopping-item";
+import type { ShoppingMemories } from "../domain/shopping-item-memory";
 import type { ShoppingStore } from "../domain/shopping-store";
 import * as styles from "./shopping-add-sheet.css";
 import {
@@ -34,6 +35,8 @@ type ShoppingItemEditSheetProps = {
 	errorMessage?: string | null;
 	stores: readonly ShoppingStore[];
 	onCreateStore: (name: string) => Promise<ShoppingStore | null>;
+	// いつもの買い方・換算の記憶（単位のチップを、食材ごとに並べる）。
+	memories: ShoppingMemories;
 };
 
 function draftFromItem(item: ShoppingItem): ShoppingItemDraft {
@@ -73,6 +76,7 @@ export function ShoppingItemEditSheet({
 	onSave,
 	onClose,
 	errorMessage = null,
+	memories,
 	stores,
 	onCreateStore,
 }: ShoppingItemEditSheetProps) {
@@ -194,6 +198,7 @@ export function ShoppingItemEditSheet({
 					nameLabel="商品名"
 					stores={stores}
 					onCreateStore={onCreateStore}
+					memories={memories}
 				/>
 
 				{isTracked ? (

@@ -11,12 +11,22 @@ import {
 	formatQuantity,
 	formatStockAmountWithUnit,
 } from "#/features/quantity/domain/format-quantity";
+import {
+	findMeasureUnit,
+	largerMeasureFactor,
+	toBaseMeasureUnit,
+	toggleMeasureUnit,
+} from "#/features/quantity/domain/measure-units";
 import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
 import {
 	formatQuantityInput,
 	getShareQuantityPresets,
 	initialQuantityInput,
 } from "#/features/quantity/domain/quantity-buttons";
+import {
+	preferMeasureUnit,
+	rememberMeasureUnit,
+} from "#/features/quantity/infrastructure/measure-unit-preference-storage";
 import type { InventoryListItem } from "../../application/inventory-query-repository";
 import type { InventoryOperation } from "../../domain/apply-inventory-adjustment";
 import type { InventoryLot } from "../../domain/inventory-lot";
@@ -61,13 +71,19 @@ export function formatAmountInUnit(quantity: number, unit: string): string {
 	);
 }
 
-/** 選んだ量の単位を、ロットの換算で使える単位にする（換算のロットがなくなっていたら、在庫の単位）。 */
+/**
+ * 選んだ量の単位を、使える単位にする（在庫の単位か、ロットの換算の単位。g・ml なら kg・L でもよい）。
+ * 換算のロットがなくなっていたら、在庫の単位。
+ */
 export function resolveAmountUnit(
 	chosen: string,
 	lots: readonly InventoryLot[],
 	item: Pick<InventoryListItem, "stockUnitCode" | "stockUnitLabel">,
 ): string {
-	return listLotAmountUnits(lots, item).includes(chosen)
+	const base = toBaseMeasureUnit(chosen);
+
+	return base === item.stockUnitLabel ||
+		listLotAmountUnits(lots, item).includes(base)
 		? chosen
 		: item.stockUnitLabel;
 }
@@ -96,12 +112,17 @@ export function AdjustControls({
 	const lotUnits = listLotAmountUnits(lots, item);
 	// 今ある分・割合のチップで入れた量（そのまま押したら、覚えない）。
 	const [fixedChipValue, setFixedChipValue] = useState<string | null>(null);
-	const isStockUnit = unit === item.stockUnitLabel;
+	// kg・L は、g・ml と同じ単位として扱う（打った量を、1000 倍して引く）。
+	const baseUnit = toBaseMeasureUnit(unit);
+	const isStockUnit = baseUnit === item.stockUnitLabel;
+	const unitScale = findMeasureUnit(unit)?.isLarger ? largerMeasureFactor : 1;
 	const unitCode = isStockUnit
 		? item.stockUnitCode
-		: unit === "g" || unit === "ml"
-			? unit
+		: baseUnit === "g" || baseUnit === "ml"
+			? baseUnit
 			: "count";
+	// 押すと g ⇄ kg・ml ⇄ L（打った数は、そのまま）。
+	const toggledUnit = toggleMeasureUnit(unit);
 	const remembered: QuantityPresetButton[] = readRememberedAmounts(
 		item.name,
 		unit,
@@ -120,7 +141,12 @@ export function AdjustControls({
 	const shares = getShareQuantityPresets(available, item.stockUnitLabel);
 	const wholeAndShares: QuantityPresetButton[] = [
 		...(available > 0
-			? [{ label: "今ある分", value: formatQuantityInput(available) }]
+			? [
+					{
+						label: "今ある分",
+						value: formatQuantityInput(available / unitScale),
+					},
+				]
 			: []),
 		...shares,
 	].map((preset) => ({
@@ -154,7 +180,23 @@ export function AdjustControls({
 				value={quantity}
 				onChange={onQuantityChange}
 				unitLabel={unit}
-				trailing={<span className={styles.unitSuffix}>{unit}</span>}
+				trailing={
+					toggledUnit ? (
+						<Button
+							variant="ghost"
+							size="sm"
+							aria-label={`量の単位を${toggledUnit}にする（いまは${unit}）`}
+							onClick={() => {
+								rememberMeasureUnit(item.name, toggledUnit);
+								onUnitChange(toggledUnit);
+							}}
+						>
+							{unit}
+						</Button>
+					) : (
+						<span className={styles.unitSuffix}>{unit}</span>
+					)
+				}
 				presetButtons={presets}
 				placeholder={
 					!isStockUnit
@@ -173,10 +215,13 @@ export function AdjustControls({
 						value: option,
 						label: option,
 					}))}
-					value={unit}
+					value={baseUnit}
 					onChange={(next) => {
-						onUnitChange(next);
-						onQuantityChange(initialQuantityInput(next));
+						// g・ml は、その食材で最後に選んだ方（kg・L）で打つ。
+						const preferred = preferMeasureUnit(item.name, next);
+
+						onUnitChange(preferred);
+						onQuantityChange(initialQuantityInput(preferred));
 					}}
 				/>
 			) : null}

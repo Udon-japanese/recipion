@@ -1,6 +1,7 @@
 import { Chip, ChipGroup } from "#/components/chip/chip";
 import { SelectBox, TextInput } from "#/components/field/field";
 import { Menu } from "#/components/menu/menu";
+import { rememberMeasureUnit } from "#/features/quantity/infrastructure/measure-unit-preference-storage";
 import {
 	type AmountDraft,
 	applyAmountPreset,
@@ -99,13 +100,15 @@ export function PurchaseRowQuantity({
 								aria-label={`${item.name}の在庫で使う単位`}
 								value={draft.unit}
 								disabled={disabled || unitOptions.length === 1}
-								onChange={(event) =>
+								onChange={(event) => {
+									// g・kg などは、次に聞くときの既定にする（この端末だけ）。
+									rememberMeasureUnit(item.name, event.target.value);
 									onChange({
 										...draft,
 										unit: event.target.value,
 										preset: undefined,
-									})
-								}
+									});
+								}}
 							>
 								{unitOptions.map((option) => (
 									<option value={option.value} key={option.value}>

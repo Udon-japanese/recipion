@@ -1,21 +1,33 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "#/components/button/button";
 import { Chip } from "#/components/chip/chip";
 import { formatQuantity } from "#/features/quantity/domain/format-quantity";
+import { toggleMeasureUnit } from "#/features/quantity/domain/measure-units";
 import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
+import {
+	preferMeasureUnit,
+	rememberMeasureUnit,
+} from "#/features/quantity/infrastructure/measure-unit-preference-storage";
 import {
 	isShoppingCategoryId,
 	type ShoppingCategoryId,
 	shoppingCategories,
 } from "../domain/shopping-category";
 import type { ShoppingItemInventoryConversion } from "../domain/shopping-item";
-import type { RememberedShoppingChoice } from "../domain/shopping-item-memory";
+import type {
+	RememberedShoppingChoice,
+	ShoppingMemories,
+} from "../domain/shopping-item-memory";
 import {
 	getShoppingItemPresets,
 	inferShoppingCategory,
 	isShoppingItemPresetSelected,
 } from "../domain/shopping-item-suggestion";
 import type { ShoppingStore } from "../domain/shopping-store";
+import {
+	listShoppingUnitChips,
+	toUnitChipKey,
+} from "../domain/shopping-unit-chips";
 import * as styles from "./shopping-add-sheet.css";
 import {
 	ShoppingCategoryField,
@@ -53,6 +65,8 @@ type ShoppingItemSheetFieldsProps = {
 	onCategoryChange?: () => void;
 	// 覚えた買い方の候補（新しい順）。よく使う数量の前に並べる。
 	rememberedChoices?: readonly RememberedShoppingChoice[];
+	// いつもの買い方・換算の記憶（単位のチップを、食材ごとに並べる）。
+	memories: ShoppingMemories;
 };
 
 function isSameConversion(
@@ -80,9 +94,6 @@ function isRememberedChoiceSelected(
 
 const noChoices: readonly RememberedShoppingChoice[] = [];
 
-// 単位を決めるまで並べる、よく使う単位。
-const commonUnits = ["個", "本", "パック", "袋", "g"] as const;
-
 // 買い物メモの 1 項目の欄（名前・数量と単位・よく使う数量・店・カテゴリ）。追加と編集のシートで共通。
 export function ShoppingItemSheetFields({
 	value,
@@ -97,6 +108,7 @@ export function ShoppingItemSheetFields({
 	onAmountChange,
 	onCategoryChange,
 	rememberedChoices = noChoices,
+	memories,
 }: ShoppingItemSheetFieldsProps) {
 	const [isChangingCategory, setIsChangingCategory] = useState(false);
 	const allPresets = getShoppingItemPresets(value.name);
@@ -113,15 +125,50 @@ export function ShoppingItemSheetFields({
 					),
 			),
 	);
-	// 単位を、入力かチップで決めたか（決めるまでは、よく使う単位を並べる）。
+	// 単位を、入力かチップで決めたか。
 	const isUnitChosen = value.unitLabel.trim() !== "";
-	// よく使う単位のうち、覚えた買い方（換算の記憶）のチップにある単位は、並べない（同じ単位を2度出さない）。
-	const units = isUnitChosen
-		? []
-		: commonUnits.filter(
-				(unit) =>
-					!rememberedChoices.some((choice) => choice.unitLabel === unit),
-			);
+	const chosenKey = isUnitChosen ? toUnitChipKey(value.unitLabel) : null;
+	// 単位のチップのうち、覚えた買い方（換算の記憶）のチップにある単位は、並べない（同じ単位を2度出さない）。
+	const unitChips = useMemo(
+		() =>
+			listShoppingUnitChips({
+				itemName: value.name,
+				itemMemories: memories.itemMemories,
+				conversionDefaults: memories.conversionDefaults,
+				preferMeasureUnit: (unit) => preferMeasureUnit(value.name, unit),
+			}),
+		[value.name, memories],
+	);
+	const candidateUnits = unitChips.filter(
+		(unit) =>
+			!rememberedChoices.some(
+				(choice) =>
+					choice.unitLabel !== null &&
+					toUnitChipKey(choice.unitLabel) === toUnitChipKey(unit),
+			),
+	);
+	// 決めるまでは並べる。決めたあとも、選んだ単位が並びにあれば残す（g ⇄ kg を押せるように）。
+	const units =
+		chosenKey === null ||
+		candidateUnits.some((unit) => toUnitChipKey(unit) === chosenKey)
+			? candidateUnits
+			: [];
+
+	function chooseUnit(unit: string) {
+		const isChosen = chosenKey !== null && toUnitChipKey(unit) === chosenKey;
+		// 選んでいる重さ・体積のチップを、もう一度押したら、g ⇄ kg・ml ⇄ L（打った数は、そのまま）。
+		const next = isChosen
+			? (toggleMeasureUnit(value.unitLabel) ?? value.unitLabel)
+			: unit;
+
+		if (next === value.unitLabel) {
+			return;
+		}
+
+		rememberMeasureUnit(value.name, next);
+		onChange({ ...value, unitLabel: next, inventoryConversion: null });
+		onAmountChange?.();
+	}
 	const categoryLabel = shoppingCategories.find(
 		(category) => category.id === value.categoryId,
 	)?.label;
@@ -216,23 +263,20 @@ export function ShoppingItemSheetFields({
 								{preset.label}
 							</Chip>
 						))}
-						{/* 単位を決めるまでは、よく使う単位を、いつも並べる。 */}
-						{units.map((unit) => (
-							<Chip
-								pressed={false}
-								key={`unit-${unit}`}
-								onClick={() => {
-									onChange({
-										...value,
-										unitLabel: unit,
-										inventoryConversion: null,
-									});
-									onAmountChange?.();
-								}}
-							>
-								{unit}
-							</Chip>
-						))}
+						{units.map((unit) => {
+							const isChosen = toUnitChipKey(unit) === chosenKey;
+
+							return (
+								<Chip
+									pressed={isChosen}
+									key={`unit-${toUnitChipKey(unit)}`}
+									onClick={() => chooseUnit(unit)}
+								>
+									{/* 選んでいるチップは、選んだ単位の文字（g を選んだあとに押すと kg）。 */}
+									{isChosen ? value.unitLabel.trim() : unit}
+								</Chip>
+							);
+						})}
 					</div>
 				</fieldset>
 			) : null}

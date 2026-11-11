@@ -16,7 +16,17 @@ import {
 	toStockUnitValue,
 } from "#/features/ingredients/domain/list-stock-unit-options";
 import { formatAmountForUnit } from "#/features/quantity/domain/format-quantity";
+import {
+	findMeasureUnit,
+	largerMeasureUnit,
+	toBaseMeasureAmount,
+	toBaseMeasureUnit,
+} from "#/features/quantity/domain/measure-units";
 import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
+import {
+	preferMeasureUnit,
+	rememberMeasureUnit,
+} from "#/features/quantity/infrastructure/measure-unit-preference-storage";
 import {
 	parseRegisterInventoryItemInput,
 	type RegisterInventoryItemInput,
@@ -48,6 +58,19 @@ import {
 	emptyExpiryFields,
 	toLotInput,
 } from "../expiry-fields";
+
+// 「g:kg」「ml:L」の選択を、在庫の単位の選択（g:g）と、量を打つ単位（kg）に分ける。ほかの選択は、そのまま。
+function splitLargerChoice(choice: string): {
+	baseChoice: string;
+	inputUnit: string | null;
+} {
+	const [code, label] = choice.split(":");
+	const measure = findMeasureUnit(label);
+
+	return code && label && measure?.isLarger
+		? { baseChoice: `${code}:${toBaseMeasureUnit(label)}`, inputUnit: label }
+		: { baseChoice: choice, inputUnit: null };
+}
 
 export type RegisteredInfo = {
 	// 登録した食材（サーバーが答えたときだけ）。追加した食材のタイルに、輪を出すために使う。
@@ -156,13 +179,20 @@ export function useInventoryRegistration({
 			setUnitChoice(
 				toStockUnitValue({
 					stockUnitCode: entry.stockUnitCode,
-					stockUnitLabel: getDefaultStockUnitLabel(entry.stockUnitCode),
+					// g・ml の食材は、最後に選んだ方（kg・L）で打てるようにする。
+					stockUnitLabel: preferMeasureUnit(
+						value,
+						getDefaultStockUnitLabel(entry.stockUnitCode),
+					),
 				}),
 			);
 			setTrackingMode(entry.defaultTrackingMode);
 		} else if (
 			unitChoice !== customStockUnitValue &&
-			!nextOptions.some((option) => toStockUnitValue(option) === unitChoice)
+			!nextOptions.some(
+				(option) =>
+					toStockUnitValue(option) === splitLargerChoice(unitChoice).baseChoice,
+			)
 		) {
 			setUnitChoice(
 				toStockUnitValue(
@@ -171,8 +201,31 @@ export function useInventoryRegistration({
 			);
 		}
 
+		// 換算の量の単位も、まだ打っていなければ、最後に選んだ方（g か kg）にする。
+		setPurchaseUnitDraft((draft) =>
+			draft.quantityText.trim() === ""
+				? {
+						...draft,
+						quantityUnitLabel: preferMeasureUnit(
+							value,
+							toBaseMeasureUnit(draft.quantityUnitLabel),
+						),
+					}
+				: draft,
+		);
+
 		// カタログにある食材の、買うときの数量（数量ボタン）。
 		setPresets(entry?.presets ?? []);
+	}
+
+	// 単位の選択を変える。g・kg などは、次の既定にする（この端末だけ）。
+	function chooseUnit(value: string) {
+		setUnitChoice(value);
+		const [, label] = value.split(":");
+
+		if (label) {
+			rememberMeasureUnit(ingredientName, label);
+		}
 	}
 
 	function changeTrackingMode(value: string) {
@@ -187,12 +240,37 @@ export function useInventoryRegistration({
 	// マスタにある単位だけを、選べる。マスタにない食材は、自分で呼び名を入力することもできる（空なら「個」）。
 	const allowsCustomUnit = allowsCustomStockUnit(ingredientName);
 	const unitOptions = listStockUnitOptions(ingredientName);
+	// 「g:kg」のような選択は、在庫の単位は g のまま、量を kg で打つ。
+	const { baseChoice, inputUnit } = splitLargerChoice(unitChoice);
 	const stockUnit: StockUnitOption = resolveStockUnitChoice(
 		ingredientName,
-		unitChoice,
+		baseChoice,
 		customUnitLabel.trim() || "個",
 	) ??
 		unitOptions[0] ?? { stockUnitCode: "g", stockUnitLabel: "g" };
+	// 量の欄の単位（kg で打つなら kg）。
+	const inputUnitLabel =
+		inputUnit && baseChoice === toStockUnitValue(stockUnit)
+			? inputUnit
+			: stockUnit.stockUnitLabel;
+	// 選択の欄の候補。g・ml のすぐ後ろに、kg・L を並べる。
+	const unitSelectOptions = unitOptions.flatMap((option) => {
+		const larger = largerMeasureUnit(option.stockUnitLabel);
+		const base = {
+			value: toStockUnitValue(option),
+			label: option.stockUnitLabel,
+		};
+
+		return larger
+			? [base, { value: `${option.stockUnitCode}:${larger}`, label: larger }]
+			: [base];
+	});
+	const unitSelectValue =
+		unitChoice === customStockUnitValue
+			? customStockUnitValue
+			: inputUnitLabel === stockUnit.stockUnitLabel
+				? toStockUnitValue(stockUnit)
+				: `${stockUnit.stockUnitCode}:${inputUnitLabel}`;
 
 	// 換算を決められるのは、在庫の単位が個数のとき（1個が何gか）。呼び名は、在庫の単位に固定。
 	const canSetPurchaseUnit = stockUnit.stockUnitCode === "count";
@@ -247,10 +325,14 @@ export function useInventoryRegistration({
 				stockUnitLabel: stockUnit.stockUnitLabel,
 				trackingMode,
 				// 空欄は、数量なしで食材だけを登録する。
+				// kg・L で打った量は、在庫の単位（g・ml）にする。
 				initialQuantity:
 					markAsAvailable || initialQuantity.trim() === ""
 						? 0
-						: (parseQuantityInput(initialQuantity) ?? Number.NaN),
+						: toBaseMeasureAmount({
+								quantity: parseQuantityInput(initialQuantity) ?? Number.NaN,
+								unitLabel: inputUnitLabel,
+							}).quantity,
 				markAsAvailable,
 				lot: {
 					...toLotInput(expiry),
@@ -327,10 +409,12 @@ export function useInventoryRegistration({
 		ingredientName,
 		changeName,
 		unitChoice,
-		setUnitChoice,
+		chooseUnit,
+		unitSelectOptions,
+		unitSelectValue,
+		inputUnitLabel,
 		customUnitLabel,
 		setCustomUnitLabel,
-		unitOptions,
 		stockUnit,
 		allowsCustomUnit,
 		trackingMode,

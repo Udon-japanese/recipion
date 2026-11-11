@@ -1,5 +1,4 @@
-import { findIngredientCatalogEntry } from "#/features/ingredients/domain/ingredient-catalog";
-import { normalizeIngredientName } from "#/features/ingredients/domain/normalize-ingredient-name";
+import { toIngredientMemoryKey } from "#/features/ingredients/domain/ingredient-catalog";
 import { storageKeys } from "#/local-storage/keys";
 import {
 	defineStorageItem,
@@ -14,12 +13,7 @@ const maxHintsPerIngredient = 5;
 type HintsByKey = Record<string, number[]>;
 
 // 同じ食材の別名（「しょうゆ」「醤油」）を、同じキーにする。
-function toKey(ingredientName: string): string {
-	return (
-		findIngredientCatalogEntry(ingredientName)?.id ??
-		normalizeIngredientName(ingredientName)
-	);
-}
+const toKey = toIngredientMemoryKey;
 
 // 保存された文字列を、日数の一覧にする。形が違う項目は、捨てる（数値以外の日数も、捨てる）。
 function parseHints(raw: string): HintsByKey | undefined {

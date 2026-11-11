@@ -1,6 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { toConversionDefaultKey } from "../domain/shopping-conversion-default";
 import type { CreateShoppingItemInput } from "../domain/shopping-item";
 import { ShoppingAddSheet } from "./shopping-add-sheet";
@@ -19,6 +19,11 @@ const stores = [
 		createdAt: "2026-10-01T00:00:00.000Z",
 	},
 ];
+
+// 単位のチップで選んだ g・kg は、端末に覚える。前のテストの記憶を持ち越さない。
+afterEach(() => {
+	localStorage.clear();
+});
 
 function setup() {
 	const onAdd = vi.fn(async (_input: CreateShoppingItemInput) => true);
@@ -182,12 +187,12 @@ describe("ShoppingAddSheet", () => {
 		expect(screen.queryByLabelText("合い挽き肉の1パックあたりの数")).toBeNull();
 	});
 
-	it("単位を決めるまでは、よく使う数量があっても、よく使う単位を並べる。決めたら消え、数量の端数・足すボタンは出さない", async () => {
+	it("記憶もカタログもない食材は、固定の単位を並べる。選んだ単位が並びにあれば残し、もう一度押すと g ⇄ kg。並びにない単位を書いたら消す。数量の端数・足すボタンは出さない", async () => {
 		const user = userEvent.setup();
 
 		setup();
 
-		await user.type(screen.getByLabelText("買うもの"), "牛乳");
+		await user.type(screen.getByLabelText("買うもの"), "謎の食材");
 
 		for (const unit of ["個", "本", "パック", "袋", "g"]) {
 			expect(screen.getByRole("button", { name: unit })).toBeInTheDocument();
@@ -196,12 +201,33 @@ describe("ShoppingAddSheet", () => {
 		await user.click(screen.getByRole("button", { name: "g" }));
 
 		expect(screen.getByLabelText("単位")).toHaveValue("g");
-		expect(screen.queryByRole("button", { name: "袋" })).toBeNull();
+		expect(screen.getByRole("button", { name: "g" })).toHaveAttribute(
+			"aria-pressed",
+			"true",
+		);
+		expect(screen.getByRole("button", { name: "袋" })).toBeInTheDocument();
 		expect(screen.queryByRole("button", { name: "50を足す" })).toBeNull();
+
+		await user.type(screen.getByLabelText("数量"), "{Backspace}1.5");
+		await user.click(screen.getByRole("button", { name: "g" }));
+
+		// 打った数は、そのまま。単位だけ kg になる。
+		expect(screen.getByLabelText("単位")).toHaveValue("kg");
+		expect(screen.getByLabelText("数量")).toHaveValue("1.5");
+		expect(screen.getByRole("button", { name: "kg" })).toHaveAttribute(
+			"aria-pressed",
+			"true",
+		);
+
+		await user.clear(screen.getByLabelText("単位"));
+		await user.type(screen.getByLabelText("単位"), "缶");
+
+		expect(screen.queryByRole("button", { name: "袋" })).toBeNull();
 
 		await user.clear(screen.getByLabelText("単位"));
 		await user.type(screen.getByLabelText("単位"), "本");
 
+		expect(screen.getByRole("button", { name: "袋" })).toBeInTheDocument();
 		expect(screen.queryByRole("button", { name: "1/3にする" })).toBeNull();
 	});
 

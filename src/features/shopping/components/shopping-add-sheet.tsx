@@ -120,6 +120,10 @@ export function ShoppingAddSheet({
 	const [isNameMissing, setIsNameMissing] = useState(false);
 	// 入れたもの（このシートを開いてから）。
 	const [added, setAdded] = useState<string[]>([]);
+	const memories = useMemo(
+		() => ({ itemMemories, conversionDefaults }),
+		[itemMemories, conversionDefaults],
+	);
 	const rememberedChoices = useMemo(
 		() =>
 			listRememberedShoppingChoices(
@@ -297,6 +301,7 @@ export function ShoppingAddSheet({
 					stores={stores}
 					onCreateStore={onCreateStore}
 					rememberedChoices={rememberedChoices}
+					memories={memories}
 					onNameChange={(next) => {
 						setIsNameMissing(false);
 

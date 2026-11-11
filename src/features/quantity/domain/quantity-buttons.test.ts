@@ -18,10 +18,12 @@ const cases: [unit: string | null | undefined, expected: string[]][] = [
 	["g", ["+10", "+50", "+100", "+200", "+500"]],
 	["G", ["+10", "+50", "+100", "+200", "+500"]],
 	["ml", ["+50", "+100", "+200", "+500"]],
+	// kg・L は、小さい量を足す
+	["kg", ["+0.1", "+0.5", "+1"]],
+	["L", ["+0.1", "+0.5", "+1"]],
 	// 端数にしない単位、知らない単位、空
 	["枚", []],
 	["袋", []],
-	["kg", []],
 	["", []],
 	[null, []],
 	[undefined, []],
@@ -44,6 +46,10 @@ describe("applyQuantityButton", () => {
 			"1500",
 		);
 		expect(applyQuantityButton("abc", { kind: "add", amount: 50 })).toBe("50");
+		// kg の小さい量を足しても、割り算の誤差（0.30000000000000004）を出さない
+		expect(applyQuantityButton("0.2", { kind: "add", amount: 0.1 })).toBe(
+			"0.3",
+		);
 	});
 });
 
@@ -51,6 +57,7 @@ describe("initialQuantityInput", () => {
 	it.each([
 		["g", ""],
 		["ml", ""],
+		["kg", ""],
 		["個", "1"],
 		["枚", "1"],
 		[null, "1"],
