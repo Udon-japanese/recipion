@@ -1,7 +1,9 @@
 import { type KeyboardEvent, type ReactNode, useRef } from "react";
 import { useMediaQuery } from "#/components/use-media-query";
 import { ExpiryEstimateSetting } from "#/features/inventory/components/expiry-estimate-setting";
+import { LotRoundingSetting } from "#/features/inventory/components/lot-rounding-setting";
 import { useExpiryEstimateLevel } from "#/features/inventory/hooks/use-expiry-estimate-level";
+import { lotRoundingItem } from "#/features/inventory/infrastructure/lot-rounding-storage";
 import { InstallEntry } from "#/features/pwa/components/install-entry";
 import { StandInModeSetting } from "#/features/recipes/components/stand-in-mode-setting";
 import { standInModeItem } from "#/features/recipes/infrastructure/stand-in-mode-storage";
@@ -144,6 +146,7 @@ function InventorySettings() {
 	const [expiryEstimateLevel, setExpiryEstimateLevel] =
 		useExpiryEstimateLevel();
 	const [standInMode, setStandInMode] = useStorageItem(standInModeItem);
+	const [lotRounding, setLotRounding] = useStorageItem(lotRoundingItem);
 
 	return (
 		<section className={styles.section} aria-labelledby="settings-inventory">
@@ -157,6 +160,7 @@ function InventorySettings() {
 				onChange={setExpiryEstimateLevel}
 			/>
 			<StandInModeSetting mode={standInMode} onChange={setStandInMode} />
+			<LotRoundingSetting rounding={lotRounding} onChange={setLotRounding} />
 		</section>
 	);
 }

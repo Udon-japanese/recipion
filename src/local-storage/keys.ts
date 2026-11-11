@@ -23,6 +23,8 @@ export const storageKeys = {
 	inventoryAmountMemory: "inventory-amount-memory",
 	// 在庫：冷凍野菜を、生の野菜の代わりに使うか（auto / ask / off）。
 	standInMode: "stand-in-mode",
+	// 在庫：ロットの換算（1個＝110g など）で引くとき、端数を切り上げるか（up / exact）。
+	lotRounding: "lot-rounding",
 	// レシピ→買い物メモ：入れる量（usual：いつもの量 / recipe：レシピの量）。
 	recipeShoppingAmountMode: "recipe-shopping-amount-mode",
 	// 買い物メモ：この端末で、いまログインしている人（オフラインでログイン状態を確かめられないとき、その人のメモを見せる。ログアウトで消す）。

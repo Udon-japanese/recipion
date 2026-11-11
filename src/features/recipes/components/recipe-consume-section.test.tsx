@@ -787,3 +787,46 @@ describe("RecipeConsumeSection", () => {
 		});
 	});
 });
+
+describe("RecipeConsumeSection（ロットの換算）", () => {
+	it("1個＝110gのロットから、200gを切り上げて2個引き、内訳を見せる", async () => {
+		const user = userEvent.setup();
+		const { consume } = setup({
+			ingredients: [ingredient("i1", "冷凍うどん", 200, "g")],
+			loadInventoryItems: async () => [
+				buildInventoryListItem({
+					inventoryItemId: "inv-udon",
+					name: "冷凍うどん",
+					quantity: 5,
+					lots: [
+						{
+							id: "lot-1",
+							quantity: 5,
+							acquiredOn: "2026-11-01",
+							storage: "freezer",
+							expiresOn: null,
+							expiryKind: null,
+							expirySource: null,
+							purchaseUnit: {
+								label: "個",
+								quantity: 110,
+								quantityUnitLabel: "g",
+							},
+							createdAt: "2026-11-01T00:00:00.000Z",
+						},
+					],
+				}),
+			],
+		});
+
+		await user.click(screen.getByRole("button", { name: /つくった/u }));
+
+		await screen.findByText("在庫から1件を引きました");
+		expect(consume.mock.calls[0]?.[0].entries).toMatchObject([
+			{ inventoryItemId: "inv-udon", quantity: 2 },
+		]);
+		expect(screen.getByRole("list", { name: "引いたもの" })).toHaveTextContent(
+			"1個＝110gを2個（切り上げ）",
+		);
+	});
+});

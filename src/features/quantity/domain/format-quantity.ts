@@ -71,15 +71,19 @@ export function formatQuantityForUnit(
 }
 
 /**
- * 在庫の単位での数量を、読みやすく丸めて表す。個数は分数（1/3）、g・ml は丸める
- * （10 以上は整数、それ未満は小数第1位まで。333.333g → 333g）。
+ * 在庫の単位での数量を、読みやすく丸めて表す。個数は分数（1/3）、分数にならなければ小数第1位まで（1.818182個 → 1.8個）。
+ * g・ml は丸める（10 以上は整数、それ未満は小数第1位まで。333.333g → 333g）。
  */
 export function formatStockAmount(
 	value: number,
 	stockUnitCode: "count" | "g" | "ml",
 ): string {
 	if (stockUnitCode === "count") {
-		return formatQuantity(value);
+		const text = formatQuantity(value);
+
+		return text.includes(".")
+			? formatQuantity(Math.round(value * 10) / 10, { allowFractions: false })
+			: text;
 	}
 
 	const rounded = value >= 10 ? Math.round(value) : Math.round(value * 10) / 10;

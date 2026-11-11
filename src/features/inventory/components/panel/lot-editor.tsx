@@ -45,6 +45,7 @@ type LotEditorProps = {
 	onAdjust: (
 		operation: InventoryOperation,
 		quantityText: string,
+		unitLabel: string,
 	) => Promise<boolean>;
 	// 期限などを保存する。成功したら true。
 	onSave: (edits: LotEdits) => Promise<boolean>;
@@ -87,16 +88,16 @@ export function LotEditor({
 	const decrease = useButtonAction();
 	const increase = useButtonAction();
 
-	function runAdjust(operation: InventoryOperation) {
+	function runAdjust(operation: InventoryOperation, unitLabel: string) {
 		if (decrease.isPending || increase.isPending) {
 			return;
 		}
 
 		void (operation === "decrease" ? decrease : increase).run(async () => {
-			const done = await onAdjust(operation, quantityText);
+			const done = await onAdjust(operation, quantityText, unitLabel);
 
 			if (done) {
-				setQuantityText(initialQuantityInput(item.stockUnitLabel));
+				setQuantityText(initialQuantityInput(unitLabel));
 			}
 
 			return done;
@@ -159,6 +160,7 @@ export function LotEditor({
 					item={item}
 					label={`${label}の使った量・買い足した量`}
 					available={lot.quantity}
+					lots={[lot]}
 					quantity={quantityText}
 					onQuantityChange={setQuantityText}
 					readOnly={readOnly}
