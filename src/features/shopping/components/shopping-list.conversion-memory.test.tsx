@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildShoppingItem } from "#/test/builders/build-shopping-item";
+import { toConversionMemoryKey } from "#/test/builders/conversion-memory-key";
 import { createFakeShoppingConversionDefaultRepository } from "#/test/fakes/fake-shopping-conversion-default-repository";
 import { createFakeShoppingRepository } from "#/test/fakes/fake-shopping-repository";
 import { getLocalDatabase } from "../../../local-db/database";
@@ -9,7 +10,6 @@ import {
 	type ShoppingConversionDefault,
 	type ShoppingConversionDefaults,
 	toConversionDefaultKey,
-	toConversionMemoryKey,
 } from "../domain/shopping-conversion-default";
 import type { ShoppingItem } from "../domain/shopping-item";
 import { ShoppingList } from "./shopping-list";
@@ -24,7 +24,15 @@ afterEach(() => {
 });
 
 const nameKey = toConversionDefaultKey("たまご") ?? "";
-const key = toConversionMemoryKey(nameKey, "個");
+
+// 覚えた記憶のうち、その換算のもの（鍵は ID なので、中身で探す）。
+function findRemembered(defaults: ShoppingConversionDefaults, perUnit: number) {
+	return Object.values(defaults).find(
+		(entry) =>
+			entry.unitLabel === "個" &&
+			entry.inventoryConversion.stockQuantityPerInputUnit === perUnit,
+	);
+}
 
 // 記憶1件（食材×単位）の入れ物。
 function remembered(
@@ -98,7 +106,9 @@ describe("ShoppingList の在庫換算の記憶", () => {
 			await setUpAndChooseSixPack();
 
 		await waitFor(() => expect(confirmPurchases).toHaveBeenCalledTimes(1));
-		expect(conversionDefaultRepository.defaults[key]).toMatchObject({
+		expect(
+			findRemembered(conversionDefaultRepository.defaults, 1),
+		).toMatchObject({
 			unitLabel: "個",
 			inventoryConversion: sixPackConversion,
 		});
@@ -126,35 +136,45 @@ describe("ShoppingList の在庫換算の記憶", () => {
 		},
 	};
 
-	it("記憶と違う換算なら、変えるかを聞く。「今回だけ」なら、記憶は変えずに購入確定を続ける", async () => {
-		const { user, conversionDefaultRepository, confirmPurchases } =
+	it("記憶と違う換算でも聞かずに、別の1件として覚え、購入確定を続ける（前の換算も残る）", async () => {
+		const { conversionDefaultRepository, confirmPurchases } =
 			await setUpAndChooseSixPack(remembered(different));
 
-		const dialog = await screen.findByRole("alertdialog");
-
-		expect(dialog.textContent).toContain("たまごのいつもの換算を変えますか");
-		expect(dialog.textContent).toContain("1個＝2個");
-		expect(dialog.textContent).toContain("1個＝1個");
-		// 答えるまで、購入確定は、やり直さない。
-		expect(confirmPurchases).not.toHaveBeenCalled();
-
-		await user.click(screen.getByRole("button", { name: "今回だけ" }));
-
 		await waitFor(() => expect(confirmPurchases).toHaveBeenCalledTimes(1));
-		expect(conversionDefaultRepository.defaults[key]).toMatchObject(different);
+		expect(screen.queryByRole("alertdialog")).toBeNull();
+		expect(
+			findRemembered(conversionDefaultRepository.defaults, 1),
+		).toBeDefined();
+		expect(
+			findRemembered(conversionDefaultRepository.defaults, 2),
+		).toBeDefined();
 	});
 
-	it("「変える」なら、記憶を置き換えて、購入確定を続ける", async () => {
-		const { user, conversionDefaultRepository, confirmPurchases } =
-			await setUpAndChooseSixPack(remembered(different));
-
-		await user.click(await screen.findByRole("button", { name: "変える" }));
+	it("食材ごとの記憶は2件まで。超えたら、使った時刻の古いものから消す（単位をまたいで数える）", async () => {
+		const packConversion = {
+			...sixPackConversion,
+			inputUnitCode: "パック",
+			stockQuantityPerInputUnit: 10,
+		};
+		const { conversionDefaultRepository, confirmPurchases } =
+			await setUpAndChooseSixPack({
+				old: { ...different, nameKey, usedAt: 1 },
+				newer: {
+					unitLabel: "パック",
+					inventoryConversion: packConversion,
+					nameKey,
+					usedAt: 2,
+				},
+			});
 
 		await waitFor(() => expect(confirmPurchases).toHaveBeenCalledTimes(1));
-		expect(conversionDefaultRepository.defaults[key]).toMatchObject({
-			unitLabel: "個",
-			inventoryConversion: sixPackConversion,
-		});
+
+		const defaults = conversionDefaultRepository.defaults;
+
+		expect(Object.keys(defaults)).toHaveLength(2);
+		expect(defaults.old).toBeUndefined();
+		expect(defaults.newer).toBeDefined();
+		expect(findRemembered(defaults, 1)).toBeDefined();
 	});
 
 	it("違う単位の記憶は、別に覚える（聞かない）", async () => {
@@ -176,7 +196,7 @@ describe("ShoppingList の在庫換算の記憶", () => {
 		expect(Object.keys(conversionDefaultRepository.defaults)).toHaveLength(2);
 	});
 
-	it("編集のシートで換算を直すと、聞かずに、その食材×単位の記憶を更新する", async () => {
+	it("編集のシートで換算を直すと、聞かずに、直した換算を新しい記憶として覚える", async () => {
 		const user = userEvent.setup();
 		const packItem: ShoppingItem = buildShoppingItem({
 			name: "たまご",
@@ -226,9 +246,8 @@ describe("ShoppingList の在庫換算の記憶", () => {
 
 		await waitFor(() =>
 			expect(
-				conversionDefaultRepository.defaults[key]?.inventoryConversion
-					.stockQuantityPerInputUnit,
-			).toBe(1),
+				findRemembered(conversionDefaultRepository.defaults, 1),
+			).toBeDefined(),
 		);
 		expect(screen.queryByRole("alertdialog")).toBeNull();
 		expect(

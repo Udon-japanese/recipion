@@ -1,15 +1,17 @@
 import { describe, expect, it } from "vitest";
+import { toConversionMemoryKey } from "#/test/builders/conversion-memory-key";
 import { parseShoppingMemo } from "./parse-shopping-memo";
 import {
 	applyConversionDefaults,
 	catalogUsualConversion,
 	describeConversionDefault,
+	findConversionDefault,
 	findUsualConversionDefault,
 	isSameConversionDefault,
+	planConversionMemoryUpdate,
 	type ShoppingConversionDefault,
 	type ShoppingConversionDefaults,
 	toConversionDefaultKey,
-	toConversionMemoryKey,
 } from "./shopping-conversion-default";
 
 function entry(
@@ -215,6 +217,27 @@ describe("describeConversionDefault", () => {
 			}),
 		).toBe("1パック＝約250g");
 	});
+
+	it.each([
+		{ unitLabel: "g", code: "g", label: "g", expected: "gのまま" },
+		{ unitLabel: "個", code: "count", label: "個", expected: "個のまま" },
+	] as const)(
+		"買う単位と在庫の単位が同じ1対1（1$unitLabel＝1$label）は、換算として書かない",
+		({ unitLabel, code, label, expected }) => {
+			expect(
+				describeConversionDefault({
+					unitLabel,
+					inventoryConversion: {
+						inputUnitCode: code,
+						stockUnitCode: code,
+						stockUnitLabel: label,
+						stockQuantityPerInputUnit: 1,
+						trackingMode: "exact",
+					},
+				}),
+			).toBe(expected);
+		},
+	);
 });
 
 describe("isSameConversionDefault", () => {
@@ -237,5 +260,83 @@ describe("isSameConversionDefault", () => {
 		expect(
 			isSameConversionDefault(milk, { ...milk, unitLabel: "パック" }),
 		).toBe(false);
+	});
+});
+
+describe("planConversionMemoryUpdate", () => {
+	const udon = toConversionDefaultKey("冷凍うどん") ?? "";
+	const perUnit = (grams: number): ShoppingConversionDefault => ({
+		unitLabel: "個",
+		inventoryConversion: {
+			inputUnitCode: "count",
+			stockUnitCode: "g",
+			stockUnitLabel: "g",
+			stockQuantityPerInputUnit: grams,
+			trackingMode: "estimated",
+		},
+	});
+	const options = { now: 100, createKey: () => "new" };
+
+	it("同じ食材・単位・換算があれば、その鍵のまま、使った時刻だけを新しくする", () => {
+		const update = planConversionMemoryUpdate(
+			{ a: { ...perUnit(200), nameKey: udon, usedAt: 1 } },
+			"冷凍うどん",
+			perUnit(200),
+			options,
+		);
+
+		expect(update).toEqual({
+			key: "a",
+			entry: { ...perUnit(200), nameKey: udon, usedAt: 100 },
+			removedKeys: [],
+		});
+	});
+
+	it("同じ単位でも換算が違えば、新しい鍵で足す。食材ごとに2件を超えたら、古いものから消す", () => {
+		const update = planConversionMemoryUpdate(
+			{
+				a: { ...perUnit(200), nameKey: udon, usedAt: 1 },
+				b: { ...perUnit(150), unitLabel: "袋", nameKey: udon, usedAt: 2 },
+				other: { ...perUnit(50), nameKey: "ほかの食材", usedAt: 0 },
+			},
+			"冷凍うどん",
+			perUnit(110),
+			options,
+		);
+
+		expect(update?.key).toBe("new");
+		expect(update?.removedKeys).toEqual(["a"]);
+	});
+
+	it("名前が空なら、覚えない", () => {
+		expect(
+			planConversionMemoryUpdate({}, " ", perUnit(200), options),
+		).toBeNull();
+	});
+});
+
+describe("findConversionDefault", () => {
+	it("同じ単位の記憶が複数あれば、いちばん新しく使ったものを選ぶ", () => {
+		const nameKey = toConversionDefaultKey("冷凍うどん") ?? "";
+		const entry = (grams: number, usedAt: number) => ({
+			unitLabel: "個",
+			inventoryConversion: {
+				inputUnitCode: "count",
+				stockUnitCode: "g" as const,
+				stockUnitLabel: "g",
+				stockQuantityPerInputUnit: grams,
+				trackingMode: "estimated" as const,
+			},
+			nameKey,
+			usedAt,
+		});
+
+		expect(
+			findConversionDefault(
+				{ a: entry(200, 1), b: entry(110, 3), c: entry(150, 2) },
+				"冷凍うどん",
+				"個",
+			)?.inventoryConversion.stockQuantityPerInputUnit,
+		).toBe(110);
 	});
 });

@@ -1,9 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import {
-	toConversionDefaultKey,
-	toConversionMemoryKey,
-} from "../domain/shopping-conversion-default";
+import { toConversionMemoryKey } from "#/test/builders/conversion-memory-key";
+import { toConversionDefaultKey } from "../domain/shopping-conversion-default";
 import { ShoppingBulkAdd } from "./shopping-bulk-add";
 
 // 変換中の補完の方式は、環境ごとに決まる。ここでは、Mac の Chrome（変換を確定させてから置き換える）にする。

@@ -94,6 +94,14 @@ describe("planShoppingMemoAdoption", () => {
 				inventoryConversion: { ...conversion, stockQuantityPerInputUnit: 6 },
 				usedAt: 2,
 			},
+			// アカウントにない単位でも、食材（卵）がアカウントにあれば、移さない（食材ごとの件数の上限を守る）。
+			{
+				key: "g-egg-count",
+				nameKey: "卵",
+				unitLabel: "個",
+				inventoryConversion: conversion,
+				usedAt: 3,
+			},
 			{
 				key: "牛乳\t本",
 				nameKey: "牛乳",
@@ -125,7 +133,7 @@ describe("planShoppingMemoAdoption", () => {
 		expect(adoption.branches).toEqual([{ ...guest.branches[0], sortOrder: 3 }]);
 	});
 
-	it("いつも買う店・換算の記憶・いつもの買い方は、アカウントにある食材はアカウントの方を残す", () => {
+	it("いつも買う店・換算の記憶・いつもの買い方は、アカウントにある食材はアカウントの方を残す（換算の記憶は、単位が違っても食材ごと）", () => {
 		expect(adoption.storeDefaults).toEqual([
 			{ nameKey: "牛乳", storeId: "a-store" },
 		]);

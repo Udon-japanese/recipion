@@ -80,7 +80,7 @@ function isRememberedChoiceSelected(
 
 const noChoices: readonly RememberedShoppingChoice[] = [];
 
-// 数量の単位の候補がないとき（食材のよく使う数量が、ないとき）に並べる、よく使う単位。
+// 単位を決めるまで並べる、よく使う単位。
 const commonUnits = ["個", "本", "パック", "袋", "g"] as const;
 
 // 買い物メモの 1 項目の欄（名前・数量と単位・よく使う数量・店・カテゴリ）。追加と編集のシートで共通。
@@ -113,6 +113,15 @@ export function ShoppingItemSheetFields({
 					),
 			),
 	);
+	// 単位を、入力かチップで決めたか（決めるまでは、よく使う単位を並べる）。
+	const isUnitChosen = value.unitLabel.trim() !== "";
+	// よく使う単位のうち、覚えた買い方（換算の記憶）のチップにある単位は、並べない（同じ単位を2度出さない）。
+	const units = isUnitChosen
+		? []
+		: commonUnits.filter(
+				(unit) =>
+					!rememberedChoices.some((choice) => choice.unitLabel === unit),
+			);
 	const categoryLabel = shoppingCategories.find(
 		(category) => category.id === value.categoryId,
 	)?.label;
@@ -156,73 +165,77 @@ export function ShoppingItemSheetFields({
 				unitName="unitLabel"
 			/>
 
-			<fieldset className={styles.group}>
-				<legend className={styles.groupLabel}>
-					{rememberedChoices.length > 0
-						? "前の買い方・よく使う数量"
-						: allPresets.length > 0
-							? "よく使う数量"
-							: "よく使う単位"}
-				</legend>
+			{rememberedChoices.length > 0 ||
+			presets.length > 0 ||
+			units.length > 0 ? (
+				<fieldset className={styles.group}>
+					<legend className={styles.groupLabel}>
+						{rememberedChoices.length > 0
+							? "前の買い方・よく使う数量"
+							: presets.length > 0
+								? "よく使う数量"
+								: "よく使う単位"}
+					</legend>
 
-				<div className={styles.chips}>
-					{rememberedChoices.map((choice) => (
-						<Chip
-							pressed={isRememberedChoiceSelected(choice, value)}
-							key={`remembered-${choice.label}`}
-							onClick={() => {
-								onChange({
-									...value,
-									quantity: formatQuantity(choice.quantity, {
-										grouping: false,
-									}),
-									unitLabel: choice.unitLabel ?? "",
-									inventoryConversion: choice.inventoryConversion,
-								});
-								onAmountChange?.();
-							}}
-						>
-							{choice.label}
-						</Chip>
-					))}
-					{allPresets.length > 0
-						? presets.map((preset) => (
-								<Chip
-									pressed={isShoppingItemPresetSelected(preset, value)}
-									key={preset.label}
-									onClick={() => {
-										onChange({
-											...value,
-											quantity: formatQuantity(preset.quantity, {
-												grouping: false,
-											}),
-											unitLabel: preset.unitLabel,
-											inventoryConversion: preset.inventoryConversion,
-										});
-										onAmountChange?.();
-									}}
-								>
-									{preset.label}
-								</Chip>
-							))
-						: commonUnits.map((unit) => (
-								<Chip
-									pressed={value.unitLabel === unit}
-									key={unit}
-									onClick={() => {
-										onChange({
-											...value,
-											unitLabel: unit,
-											inventoryConversion: null,
-										});
-										onAmountChange?.();
-									}}
-								>
-									{unit}
-								</Chip>
-							))}
-				</div>
-			</fieldset>
+					<div className={styles.chips}>
+						{rememberedChoices.map((choice) => (
+							<Chip
+								pressed={isRememberedChoiceSelected(choice, value)}
+								key={`remembered-${choice.label}`}
+								onClick={() => {
+									onChange({
+										...value,
+										quantity: formatQuantity(choice.quantity, {
+											grouping: false,
+										}),
+										unitLabel: choice.unitLabel ?? "",
+										inventoryConversion: choice.inventoryConversion,
+									});
+									onAmountChange?.();
+								}}
+							>
+								{choice.label}
+							</Chip>
+						))}
+						{presets.map((preset) => (
+							<Chip
+								pressed={isShoppingItemPresetSelected(preset, value)}
+								key={preset.label}
+								onClick={() => {
+									onChange({
+										...value,
+										quantity: formatQuantity(preset.quantity, {
+											grouping: false,
+										}),
+										unitLabel: preset.unitLabel,
+										inventoryConversion: preset.inventoryConversion,
+									});
+									onAmountChange?.();
+								}}
+							>
+								{preset.label}
+							</Chip>
+						))}
+						{/* 単位を決めるまでは、よく使う単位を、いつも並べる。 */}
+						{units.map((unit) => (
+							<Chip
+								pressed={false}
+								key={`unit-${unit}`}
+								onClick={() => {
+									onChange({
+										...value,
+										unitLabel: unit,
+										inventoryConversion: null,
+									});
+									onAmountChange?.();
+								}}
+							>
+								{unit}
+							</Chip>
+						))}
+					</div>
+				</fieldset>
+			) : null}
 
 			<ShoppingStoreChips
 				stores={stores}
