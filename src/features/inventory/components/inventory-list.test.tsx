@@ -25,6 +25,7 @@ import {
 	type InventoryLot,
 	toDateString,
 } from "../domain/inventory-lot";
+import { rememberAmount } from "../infrastructure/amount-memory-storage";
 import {
 	inventoryGroupByStorage,
 	inventoryHideEmptyStorage,
@@ -806,6 +807,39 @@ describe("InventoryList", () => {
 				expect.objectContaining({ inputQuantity: 2, operation: "decrease" }),
 			),
 		);
+	});
+
+	it("チップは、今ある分 → 半分 → 1/3 → 1/4 → 前に打った量の順。同じ量の「前に打った量」は出さない", async () => {
+		const user = userEvent.setup();
+
+		rememberAmount({ ingredientName: "卵", stockUnitLabel: "個", amount: 6 });
+		rememberAmount({ ingredientName: "卵", stockUnitLabel: "個", amount: 10 });
+
+		renderList(
+			[
+				stocked({
+					inventoryItemId: "3b9e1c2a-7d4f-4e8a-9c1b-5f6a7e8d9c20",
+					name: "卵",
+					quantity: 20,
+					stockUnitCode: "count",
+					stockUnitLabel: "個",
+				}),
+			],
+			{ adjustInventoryItem: vi.fn() },
+		);
+
+		const dialog = await openPanel(user, "卵");
+		const chips = within(dialog)
+			.getAllByRole("button", { name: /^(今ある分|前に打った量)/u })
+			.map((button) => button.getAttribute("aria-label") ?? button.textContent);
+
+		expect(chips).toEqual([
+			"今ある分",
+			"今ある分の半分（10）にする",
+			"今ある分の1/3（6 2/3）にする",
+			"今ある分の1/4（5）にする",
+			"前に打った量：6個にする",
+		]);
 	});
 
 	it("個数の食材は、固定の端数ではなく、今ある量の半分・1/3・1/4 のボタンを出し、押すとその量が入る", async () => {

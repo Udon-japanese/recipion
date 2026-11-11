@@ -86,21 +86,24 @@ export function AdjustControls({
 			ariaLabel: `前に打った量：${text}${unit}にする`,
 		};
 	});
-	const rememberedValues = new Set(
-		remembered.map((preset) => parseQuantityInput(preset.value)),
-	);
-	// 前に打った量と同じ量になる割合のボタンは、重ねて出さない。
-	const shares = getShareQuantityPresets(available, item.stockUnitLabel).filter(
-		(preset) => !rememberedValues.has(parseQuantityInput(preset.value)),
+	const shares = getShareQuantityPresets(available, item.stockUnitLabel);
+	const wholeAndShares: QuantityPresetButton[] = [
+		...(available > 0
+			? [{ label: "今ある分", value: formatQuantityInput(available) }]
+			: []),
+		...shares,
+	];
+	const fixedValues = new Set(
+		wholeAndShares.map((preset) => parseQuantityInput(preset.value)),
 	);
 	// 今ある分・割合は、在庫の単位のときだけ（換算の単位では、ロットごとに量が違うため）。
+	// 並びは、今ある分 → 半分 → 1/3 → 1/4 → 前に打った量で固定。同じ量になる「前に打った量」は、重ねて出さない。
 	const presets: QuantityPresetButton[] = isStockUnit
 		? [
-				...(available > 0
-					? [{ label: "今ある分", value: formatQuantityInput(available) }]
-					: []),
-				...shares,
-				...remembered,
+				...wholeAndShares,
+				...remembered.filter(
+					(preset) => !fixedValues.has(parseQuantityInput(preset.value)),
+				),
 			]
 		: remembered;
 
