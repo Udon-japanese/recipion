@@ -231,7 +231,7 @@ describe("ShoppingAddSheet", () => {
 		expect(screen.queryByRole("button", { name: "1/3にする" })).toBeNull();
 	});
 
-	it("よく使う単位のうち、覚えた買い方（換算の記憶）のチップにある単位は、並べない", async () => {
+	it("単位のチップは、前の買い方と別の行に、同じ単位があっても並べ、単位だけを選べる", async () => {
 		const user = userEvent.setup();
 
 		render(
@@ -260,12 +260,29 @@ describe("ShoppingAddSheet", () => {
 		);
 
 		await user.type(screen.getByLabelText("買うもの"), "冷凍うどん");
-		// 名前で埋まった単位を消すと、よく使う単位が並ぶ。
-		await user.clear(screen.getByLabelText("単位"));
 
-		expect(screen.getByRole("button", { name: "1個" })).toBeInTheDocument();
-		expect(screen.queryByRole("button", { name: "個" })).toBeNull();
-		expect(screen.getByRole("button", { name: "本" })).toBeInTheDocument();
+		const remembered = screen.getByRole("group", {
+			name: "前の買い方・よく使う数量",
+		});
+		const units = screen.getByRole("group", { name: "よく使う単位" });
+
+		expect(
+			within(remembered).getByRole("button", { name: "1個" }),
+		).toBeInTheDocument();
+		// 名前で埋まった「個」は、単位の行でも押した状態。
+		expect(within(units).getByRole("button", { name: "個" })).toHaveAttribute(
+			"aria-pressed",
+			"true",
+		);
+		expect(within(remembered).queryByRole("button", { name: "個" })).toBeNull();
+
+		await user.clear(screen.getByLabelText("数量"));
+		await user.type(screen.getByLabelText("数量"), "3");
+		await user.click(within(units).getByRole("button", { name: "本" }));
+
+		// 打った数はそのまま、単位だけが変わる。
+		expect(screen.getByLabelText("数量")).toHaveValue("3");
+		expect(screen.getByLabelText("単位")).toHaveValue("本");
 	});
 
 	it("知らない名前には「もしかして」を出し、［〇〇にする］で名前を置き換える", async () => {
