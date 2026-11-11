@@ -3,8 +3,8 @@ import { useButtonAction } from "#/components/button/use-button-action";
 import { CornerSheet } from "#/components/corner-sheet/corner-sheet";
 import { Icon } from "#/components/icon/icon";
 import {
+	formatAmountForUnit,
 	formatQuantity,
-	formatQuantityForUnit,
 } from "#/features/quantity/domain/format-quantity";
 import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
 import { describeAmountDraftError } from "../domain/amount-draft";
@@ -225,7 +225,7 @@ export function ShoppingAddSheet({
 			if (isAdded) {
 				setAdded((current) => [
 					...current,
-					`${draft.name.trim()} ${formatQuantityForUnit(parsedQuantity ?? 1, draft.unitLabel || null)}${draft.unitLabel}`,
+					`${draft.name.trim()} ${formatAmountForUnit(parsedQuantity ?? 1, draft.unitLabel || null)}`,
 				]);
 				setCarriedStoreId(draft.storeId);
 				// 続けて入れられるように、空に戻す（店は、前回のまま）。名前の欄へは、上の effect で戻る。

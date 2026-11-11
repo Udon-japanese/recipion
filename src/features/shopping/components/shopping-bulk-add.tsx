@@ -18,6 +18,7 @@ import { Sheet } from "#/components/sheet/sheet";
 import { Tag } from "#/components/tag/tag";
 import { useMediaQuery } from "#/components/use-media-query";
 import { useIngredientDictionaryContext } from "#/features/ingredients/components/ingredient-dictionary-context";
+import { formatAmountForUnit } from "#/features/quantity/domain/format-quantity";
 import { readCompletionKey, stepCompletionIndex } from "#/ime/completion-keys";
 import { editKindOfInput } from "#/ime/text-history";
 import {
@@ -63,12 +64,12 @@ type ShoppingBulkAddProps = {
 const noConversionDefaults: ShoppingConversionDefaults = {};
 const noItemMemories: ShoppingItemMemories = {};
 
-function formatQuantity(line: ParsedShoppingMemoLine): string | null {
+function describeLineAmount(line: ParsedShoppingMemoLine): string | null {
 	if (line.unitLabel === null && line.quantity === 1) {
 		return null;
 	}
 
-	return `${line.quantity}${line.unitLabel ?? ""}`;
+	return formatAmountForUnit(line.quantity, line.unitLabel);
 }
 
 // 買い物のメモを、1行に1つずつ書いて（貼り付けて）、読み取った結果を確認してから、まとめて一覧に追加する。
@@ -408,9 +409,9 @@ export function ShoppingBulkAdd({
 						// biome-ignore lint/suspicious/noArrayIndexKey: 書いた文章から作る確認用の一覧で、並びは行の順のまま。
 						<li className={styles.bulkRow} key={index}>
 							<span className={styles.bulkName}>{line.name}</span>
-							{formatQuantity(line) ? (
+							{describeLineAmount(line) ? (
 								<span className={styles.bulkQuantity}>
-									{formatQuantity(line)}
+									{describeLineAmount(line)}
 								</span>
 							) : null}
 							{line.storeId ? (

@@ -22,7 +22,7 @@ import { Sheet } from "#/components/sheet/sheet";
 import { Tag } from "#/components/tag/tag";
 import { listStockUnitOptions } from "#/features/ingredients/domain/list-stock-unit-options";
 import { QuantityInput } from "#/features/quantity/components/quantity-input";
-import { formatStockAmount } from "#/features/quantity/domain/format-quantity";
+import { formatStockAmountWithUnit } from "#/features/quantity/domain/format-quantity";
 import type { InventoryListItem } from "../../application/inventory-query-repository";
 import {
 	expiryKindLabels,
@@ -109,7 +109,7 @@ function formatLotExpiry(lot: InventoryLot): string | null {
 }
 
 function formatQuantityText(item: InventoryListItem, quantity: number) {
-	return `${item.trackingMode === "estimated" ? "約 " : ""}${formatStockAmount(quantity, item.stockUnitCode)}${item.stockUnitLabel}`;
+	return `${item.trackingMode === "estimated" ? "約 " : ""}${formatStockAmountWithUnit(quantity, item.stockUnitCode, item.stockUnitLabel)}`;
 }
 
 // 食材のパネル：上から、量 → 主な操作 → ロット → ほかの操作。6つのフォームは、本体に差し替える。

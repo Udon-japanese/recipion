@@ -11,7 +11,7 @@ import {
 	listStockUnitOptions,
 	type StockUnitOption,
 } from "#/features/ingredients/domain/list-stock-unit-options";
-import { formatQuantityForUnit } from "#/features/quantity/domain/format-quantity";
+import { formatAmountForUnit } from "#/features/quantity/domain/format-quantity";
 import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
 import {
 	parseRegisterInventoryItemInput,
@@ -274,7 +274,7 @@ export function useInventoryRegistration({
 				...current,
 				markAsAvailable || input.initialQuantity === 0
 					? input.ingredientName
-					: `${input.ingredientName} ${formatQuantityForUnit(input.initialQuantity, input.stockUnitLabel)}${input.stockUnitLabel}`,
+					: `${input.ingredientName} ${formatAmountForUnit(input.initialQuantity, input.stockUnitLabel)}`,
 			]);
 			// 食材名・数量・期限は空に戻す。管理方法と、期限の自動入力の設定は、そのまま（続けて登録しやすいように）。
 			setIngredientName("");

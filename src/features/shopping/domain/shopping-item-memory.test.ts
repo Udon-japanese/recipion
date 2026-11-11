@@ -93,7 +93,7 @@ describe("listRememberedShoppingChoices", () => {
 				...conversion("パック", 300, 5),
 				...withQuantity(conversion("袋", 500, 4), 3),
 			},
-			expected: ["2パック（600g）", "3袋（1,500g）"],
+			expected: ["2パック（600g）", "3袋（1.5kg）"],
 		},
 		{
 			title:

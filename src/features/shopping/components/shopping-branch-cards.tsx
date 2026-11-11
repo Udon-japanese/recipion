@@ -2,8 +2,8 @@ import { useState } from "react";
 import { ConfirmDialog } from "#/components/dialog/confirm-dialog";
 import { useExitPresence } from "#/components/sheet/use-exit-presence";
 import {
+	formatAmountForUnit,
 	formatQuantity,
-	formatQuantityForUnit,
 } from "#/features/quantity/domain/format-quantity";
 import type { ShoppingRepository } from "../application/shopping-repository";
 import type { ParsedShoppingMemoLine } from "../domain/parse-shopping-memo";
@@ -119,7 +119,7 @@ function describeCondition(
 	const quantity =
 		item.unitLabel === null && item.quantity === 1
 			? ""
-			: ` ${formatQuantityForUnit(item.quantity, item.unitLabel)}${item.unitLabel ?? ""}`;
+			: ` ${formatAmountForUnit(item.quantity, item.unitLabel)}`;
 
 	return `${storeName ? `${storeName}に` : ""}${item.name}${quantity}が${condition}`;
 }
@@ -177,7 +177,7 @@ export function ShoppingBranchCards({
 				(item) => ({
 					id: item.id,
 					name: item.name,
-					amount: `${formatQuantityForUnit(item.quantity, item.unitLabel)}${item.unitLabel ?? ""}`,
+					amount: formatAmountForUnit(item.quantity, item.unitLabel),
 					storeName: item.storeId
 						? storeNamesById.get(item.storeId)
 						: undefined,

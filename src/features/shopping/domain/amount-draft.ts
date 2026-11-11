@@ -2,7 +2,10 @@ import {
 	findIngredientCatalogEntry,
 	getDefaultStockUnitLabel,
 } from "#/features/ingredients/domain/ingredient-catalog";
-import { formatQuantity } from "#/features/quantity/domain/format-quantity";
+import {
+	formatAmountForUnit,
+	formatQuantity,
+} from "#/features/quantity/domain/format-quantity";
 import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
 import {
 	getLockedStockUnitCode,
@@ -136,7 +139,7 @@ export function describeAmountTotal(
 
 	const bought = draft.preset?.quantity ?? item.quantity;
 
-	return `${formatQuantity(bought * parsed.quantity, { grouping: false })}${parsed.stockUnitLabel}`;
+	return formatAmountForUnit(bought * parsed.quantity, parsed.stockUnitLabel);
 }
 
 // 入力を、保存する換算にする。読めないときは、理由つきで throw する。

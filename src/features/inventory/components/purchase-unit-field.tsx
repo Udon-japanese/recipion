@@ -4,6 +4,7 @@ import { Chip, ChipGroup } from "#/components/chip/chip";
 import { SelectBox, TextInput } from "#/components/field/field";
 import {
 	describePurchaseUnit,
+	describePurchaseUnitInInputUnit,
 	type InventoryLotPurchaseUnit,
 } from "../domain/inventory-lot";
 import {
@@ -76,7 +77,7 @@ export function PurchaseUnitField({
 						<ChipGroup label={`${itemName}の前の換算`}>
 							{candidates.map((candidate) => (
 								<Chip
-									key={describePurchaseUnit(candidate)}
+									key={describePurchaseUnitInInputUnit(candidate)}
 									disabled={disabled}
 									onClick={() =>
 										onChange({
@@ -86,7 +87,7 @@ export function PurchaseUnitField({
 										})
 									}
 								>
-									{describePurchaseUnit(candidate)}
+									{describePurchaseUnitInInputUnit(candidate)}
 								</Chip>
 							))}
 						</ChipGroup>
