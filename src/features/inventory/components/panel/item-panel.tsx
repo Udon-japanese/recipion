@@ -20,7 +20,12 @@ import { Note } from "#/components/note/note";
 import { SegmentedControl } from "#/components/segmented-control/segmented-control";
 import { Sheet } from "#/components/sheet/sheet";
 import { Tag } from "#/components/tag/tag";
-import { listStockUnitOptions } from "#/features/ingredients/domain/list-stock-unit-options";
+import {
+	customStockUnitValue,
+	listStockUnitOptions,
+	maxStockUnitLabelLength,
+	toStockUnitValue,
+} from "#/features/ingredients/domain/list-stock-unit-options";
 import { QuantityInput } from "#/features/quantity/components/quantity-input";
 import { formatStockAmountWithUnit } from "#/features/quantity/domain/format-quantity";
 import type { InventoryListItem } from "../../application/inventory-query-repository";
@@ -58,7 +63,7 @@ import type { InventoryActions } from "./inventory-actions";
 import { ItemArtField } from "./item-art-field";
 import * as styles from "./item-panel.css";
 import { LotEditor } from "./lot-editor";
-import { isCurrentUnit, toOptionValue, useItemPanel } from "./use-item-panel";
+import { isCurrentUnit, useItemPanel } from "./use-item-panel";
 
 export type ItemPanelMode = "sheet-bottom" | "floating";
 
@@ -259,8 +264,16 @@ export function ItemPanel({
 		const options = listStockUnitOptions(item.name).filter(
 			(option) => !isCurrentUnit(item, option),
 		);
-		const selected = options.find(
-			(option) => toOptionValue(option) === panel.unitForm.option,
+		const isCustom = panel.unitForm.option === customStockUnitValue;
+		// ロットの欄に添える単位（「その他」は、入力中の呼び名）。
+		const selectedLabel = isCustom
+			? panel.unitForm.customLabel.trim() || undefined
+			: options.find(
+					(option) => toStockUnitValue(option) === panel.unitForm.option,
+				)?.stockUnitLabel;
+		// 換算できない単位では、目安が入らない（自分で入れてもらう）。
+		const hasEstimate = item.lots.some(
+			(lot) => (panel.unitForm.lotQuantities[lot.id] ?? "") !== "",
 		);
 
 		heading = `${displayName}の新しい単位`;
@@ -278,19 +291,40 @@ export function ItemPanel({
 						>
 							{options.map((option) => (
 								<option
-									value={toOptionValue(option)}
-									key={toOptionValue(option)}
+									value={toStockUnitValue(option)}
+									key={toStockUnitValue(option)}
 								>
 									{option.stockUnitLabel}
 								</option>
 							))}
+							{panel.unitForm.allowsCustom ? (
+								<option value={customStockUnitValue}>その他</option>
+							) : null}
 						</SelectBox>
 					)}
 				</Field>
 
+				{isCustom ? (
+					<Field label="単位の呼び名">
+						{(control) => (
+							<TextInput
+								{...control}
+								value={panel.unitForm.customLabel}
+								maxLength={maxStockUnitLabelLength}
+								placeholder="パック、袋、本など"
+								onChange={(event) =>
+									panel.unitForm.setCustomLabel(event.target.value)
+								}
+							/>
+						)}
+					</Field>
+				) : null}
+
 				<div className={styles.lotFieldList}>
 					<p className={styles.subLabel}>
-						入れた分ごとの量（換算した目安が入っています。違えば直してください）
+						{hasEstimate
+							? "入れた分ごとの量（換算した目安が入っています。違えば直してください）"
+							: "入れた分ごとの量（この単位には換算できないので、入れてください）"}
 					</p>
 					{item.lots.map((lot) => (
 						<div key={lot.id} className={styles.lotFieldList}>
@@ -301,7 +335,7 @@ export function ItemPanel({
 							<QuantityInput
 								className={fieldInput}
 								aria-label={`${lotLabel(lot)}の新しい単位での量`}
-								unitLabel={selected?.stockUnitLabel}
+								unitLabel={selectedLabel}
 								value={panel.unitForm.lotQuantities[lot.id] ?? ""}
 								onChange={(value) =>
 									panel.unitForm.setLotQuantity(lot.id, value)

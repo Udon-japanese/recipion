@@ -3,8 +3,12 @@ import { describeError } from "#/errors/user-facing-error";
 import { convertToStockQuantity } from "#/features/ingredients/domain/convert-to-stock-quantity";
 import { findIngredientCatalogEntry } from "#/features/ingredients/domain/ingredient-catalog";
 import {
+	allowsCustomStockUnit,
+	customStockUnitValue,
 	listStockUnitOptions,
+	resolveStockUnitChoice,
 	type StockUnitOption,
+	toStockUnitValue,
 } from "#/features/ingredients/domain/list-stock-unit-options";
 import { formatQuantity } from "#/features/quantity/domain/format-quantity";
 import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
@@ -37,10 +41,6 @@ export type ItemPanelView =
 export type AdjustOptions = { unitLabel?: string; remember?: boolean };
 
 const quantityError = "数量を確認してください（例：2、0.5、1/2）";
-
-export function toOptionValue(option: StockUnitOption): string {
-	return `${option.stockUnitCode}:${option.stockUnitLabel}`;
-}
 
 export function isCurrentUnit(
 	item: InventoryListItem,
@@ -88,6 +88,8 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 	);
 	// 単位
 	const [unitOption, setUnitOption] = useState("");
+	// 「その他」を選んだときの、自分で入力した呼び名（マスタにない食材だけ）。
+	const [customUnitLabel, setCustomUnitLabel] = useState("");
 	const [unitLotQuantities, setUnitLotQuantities] = useState<
 		Record<string, string>
 	>({});
@@ -175,9 +177,10 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 		);
 
 		setErrorMessage(null);
+		setCustomUnitLabel("");
 
 		if (first) {
-			setUnitOption(toOptionValue(first));
+			setUnitOption(toStockUnitValue(first));
 			setUnitLotQuantities(estimateLotQuantities(first));
 		} else {
 			setUnitOption("");
@@ -188,11 +191,16 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 	}
 
 	function chooseUnit(value: string) {
-		const option = listStockUnitOptions(item.name).find(
-			(candidate) => toOptionValue(candidate) === value,
-		);
-
 		setUnitOption(value);
+
+		// 自分で入力する呼び名には、換算できない（ロットごとの量を入れてもらう）。
+		if (value === customStockUnitValue) {
+			setUnitLotQuantities({});
+
+			return;
+		}
+
+		const option = resolveStockUnitChoice(item.name, value, "");
 
 		if (option) {
 			setUnitLotQuantities(estimateLotQuantities(option));
@@ -388,11 +396,25 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 			return false;
 		}
 
-		const option = listStockUnitOptions(item.name).find(
-			(candidate) => toOptionValue(candidate) === unitOption,
+		const option = resolveStockUnitChoice(
+			item.name,
+			unitOption,
+			customUnitLabel,
 		);
 
 		if (!option) {
+			setErrorMessage(
+				unitOption === customStockUnitValue
+					? "単位の呼び名を入力してください"
+					: "単位を選んでください",
+			);
+
+			return false;
+		}
+
+		if (isCurrentUnit(item, option)) {
+			setErrorMessage(`いまの単位（${item.stockUnitLabel}）と同じです`);
+
 			return false;
 		}
 
@@ -541,6 +563,9 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 		unitForm: {
 			option: unitOption,
 			choose: chooseUnit,
+			allowsCustom: allowsCustomStockUnit(item.name),
+			customLabel: customUnitLabel,
+			setCustomLabel: setCustomUnitLabel,
 			lotQuantities: unitLotQuantities,
 			setLotQuantity: (lotId: string, value: string) =>
 				setUnitLotQuantities((current) => ({ ...current, [lotId]: value })),

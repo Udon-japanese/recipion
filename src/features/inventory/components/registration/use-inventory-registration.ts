@@ -8,8 +8,12 @@ import {
 	type IngredientPurchasePreset,
 } from "#/features/ingredients/domain/ingredient-catalog";
 import {
+	allowsCustomStockUnit,
+	customStockUnitValue,
 	listStockUnitOptions,
+	resolveStockUnitChoice,
 	type StockUnitOption,
+	toStockUnitValue,
 } from "#/features/ingredients/domain/list-stock-unit-options";
 import { formatAmountForUnit } from "#/features/quantity/domain/format-quantity";
 import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
@@ -44,12 +48,6 @@ import {
 	emptyExpiryFields,
 	toLotInput,
 } from "../expiry-fields";
-
-export const customUnitValue = "custom";
-
-export function toUnitValue(option: StockUnitOption): string {
-	return `${option.stockUnitCode}:${option.stockUnitLabel}`;
-}
 
 export type RegisteredInfo = {
 	// 登録した食材（サーバーが答えたときだけ）。追加した食材のタイルに、輪を出すために使う。
@@ -156,18 +154,18 @@ export function useInventoryRegistration({
 
 		if (entry) {
 			setUnitChoice(
-				toUnitValue({
+				toStockUnitValue({
 					stockUnitCode: entry.stockUnitCode,
 					stockUnitLabel: getDefaultStockUnitLabel(entry.stockUnitCode),
 				}),
 			);
 			setTrackingMode(entry.defaultTrackingMode);
 		} else if (
-			unitChoice !== customUnitValue &&
-			!nextOptions.some((option) => toUnitValue(option) === unitChoice)
+			unitChoice !== customStockUnitValue &&
+			!nextOptions.some((option) => toStockUnitValue(option) === unitChoice)
 		) {
 			setUnitChoice(
-				toUnitValue(
+				toStockUnitValue(
 					nextOptions[0] ?? { stockUnitCode: "g", stockUnitLabel: "g" },
 				),
 			);
@@ -186,17 +184,15 @@ export function useInventoryRegistration({
 		setIsExpiryTouched(true);
 	}
 
-	// マスタにある単位だけを、選べる。マスタにない食材は、自分で呼び名を入力することもできる。
-	const isInCatalog = findIngredientCatalogEntry(ingredientName) !== undefined;
+	// マスタにある単位だけを、選べる。マスタにない食材は、自分で呼び名を入力することもできる（空なら「個」）。
+	const allowsCustomUnit = allowsCustomStockUnit(ingredientName);
 	const unitOptions = listStockUnitOptions(ingredientName);
-	const stockUnit: StockUnitOption =
-		unitChoice === customUnitValue
-			? {
-					stockUnitCode: "count",
-					stockUnitLabel: customUnitLabel.trim() || "個",
-				}
-			: (unitOptions.find((option) => toUnitValue(option) === unitChoice) ??
-				unitOptions[0] ?? { stockUnitCode: "g", stockUnitLabel: "g" });
+	const stockUnit: StockUnitOption = resolveStockUnitChoice(
+		ingredientName,
+		unitChoice,
+		customUnitLabel.trim() || "個",
+	) ??
+		unitOptions[0] ?? { stockUnitCode: "g", stockUnitLabel: "g" };
 
 	// 換算を決められるのは、在庫の単位が個数のとき（1個が何gか）。呼び名は、在庫の単位に固定。
 	const canSetPurchaseUnit = stockUnit.stockUnitCode === "count";
@@ -336,7 +332,7 @@ export function useInventoryRegistration({
 		setCustomUnitLabel,
 		unitOptions,
 		stockUnit,
-		isInCatalog,
+		allowsCustomUnit,
 		trackingMode,
 		changeTrackingMode,
 		initialQuantity,
