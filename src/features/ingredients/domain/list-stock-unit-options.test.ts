@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { listStockUnitOptions } from "./list-stock-unit-options";
+import {
+	customStockUnitValue,
+	listStockUnitOptions,
+	resolveStockUnitChoice,
+} from "./list-stock-unit-options";
 
 function labels(name: string) {
 	return listStockUnitOptions(name).map(
@@ -33,5 +37,32 @@ describe("listStockUnitOptions（マスタにある単位だけを出す）", ()
 		for (const name of ["鶏もも肉", "卵", "醤油", "キャベツ", "謎の食材"]) {
 			expect(new Set(labels(name)).size).toBe(labels(name).length);
 		}
+	});
+});
+
+describe("resolveStockUnitChoice（選択の欄の値を、在庫の単位にする）", () => {
+	it.each([
+		// 候補の値は、その候補
+		[
+			"鶏もも肉",
+			"count:枚",
+			"",
+			{ stockUnitCode: "count", stockUnitLabel: "枚" },
+		],
+		// マスタにない食材は、自分で入力した呼び名の個数（前後の空白は除く）
+		[
+			"謎の食材",
+			customStockUnitValue,
+			" 袋 ",
+			{ stockUnitCode: "count", stockUnitLabel: "袋" },
+		],
+		// 呼び名が空なら、決まらない
+		["謎の食材", customStockUnitValue, "  ", null],
+		// マスタにある食材は、自分で入力できない（マスタの単位だけ）
+		["鶏もも肉", customStockUnitValue, "袋", null],
+		// 候補にない値は、決まらない
+		["鶏もも肉", "ml:ml", "", null],
+	])("%s：%s %s", (name, value, customLabel, expected) => {
+		expect(resolveStockUnitChoice(name, value, customLabel)).toEqual(expected);
 	});
 });

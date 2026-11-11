@@ -1,5 +1,6 @@
 import * as v from "valibot";
 import { dishPlacementsSchema } from "#/features/dish-art/domain/dish-cover";
+import { maxStockUnitLabelLength } from "#/features/ingredients/domain/list-stock-unit-options";
 import {
 	type ChangeStockUnitCommand,
 	maxInventoryDisplayNameLength,
@@ -45,7 +46,12 @@ export function parseSetInventoryItemArtInput(
 const changeStockUnitInputSchema = v.object({
 	inventoryItemId: inventoryItemIdSchema,
 	stockUnitCode: v.picklist(["count", "g", "ml"]),
-	stockUnitLabel: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(10)),
+	stockUnitLabel: v.pipe(
+		v.string(),
+		v.trim(),
+		v.minLength(1),
+		v.maxLength(maxStockUnitLabelLength),
+	),
 	lotQuantities: v.optional(
 		v.array(
 			v.object({

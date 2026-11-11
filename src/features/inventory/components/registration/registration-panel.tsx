@@ -7,6 +7,11 @@ import { Icon } from "#/components/icon/icon";
 import { SegmentedControl } from "#/components/segmented-control/segmented-control";
 import { IngredientNameInput } from "#/features/ingredients/components/ingredient-name-input";
 import { IngredientSuggestionHint } from "#/features/ingredients/components/ingredient-suggestion-hint";
+import {
+	customStockUnitValue,
+	maxStockUnitLabelLength,
+	toStockUnitValue,
+} from "#/features/ingredients/domain/list-stock-unit-options";
 import { QuantityInput } from "#/features/quantity/components/quantity-input";
 import { formatQuantity } from "#/features/quantity/domain/format-quantity";
 import { ExpiryFields } from "../expiry-fields";
@@ -16,11 +21,7 @@ import {
 	trackingModeOptions,
 } from "../tracking-mode-options";
 import * as styles from "./registration-panel.css";
-import {
-	customUnitValue,
-	type InventoryRegistration,
-	toUnitValue,
-} from "./use-inventory-registration";
+import type { InventoryRegistration } from "./use-inventory-registration";
 
 // 登録の本文（上から、よく使う順）。保存方法・期限の種類・数え方は、1行の要約にたたむ。
 // 数え方は、カタログにある食材なら自動で決まる（塩・醤油などは「数えない」）。
@@ -86,9 +87,9 @@ function RegistrationForm({
 									<SelectBox
 										aria-label="在庫の単位"
 										value={
-											unitChoice === customUnitValue
-												? customUnitValue
-												: toUnitValue(stockUnit)
+											unitChoice === customStockUnitValue
+												? customStockUnitValue
+												: toStockUnitValue(stockUnit)
 										}
 										onChange={(event) =>
 											registration.setUnitChoice(event.target.value)
@@ -96,15 +97,15 @@ function RegistrationForm({
 									>
 										{unitOptions.map((option) => (
 											<option
-												value={toUnitValue(option)}
-												key={toUnitValue(option)}
+												value={toStockUnitValue(option)}
+												key={toStockUnitValue(option)}
 											>
 												{option.stockUnitLabel}
 											</option>
 										))}
-										{registration.isInCatalog ? null : (
-											<option value={customUnitValue}>その他</option>
-										)}
+										{registration.allowsCustomUnit ? (
+											<option value={customStockUnitValue}>その他</option>
+										) : null}
 									</SelectBox>
 								</div>
 							}
@@ -114,13 +115,14 @@ function RegistrationForm({
 			)}
 
 			{!isPresence &&
-			unitChoice === customUnitValue &&
-			!registration.isInCatalog ? (
+			unitChoice === customStockUnitValue &&
+			registration.allowsCustomUnit ? (
 				<Field label="単位の呼び名">
 					{(control) => (
 						<TextInput
 							{...control}
 							value={registration.customUnitLabel}
+							maxLength={maxStockUnitLabelLength}
 							placeholder="パック、袋、本など"
 							onChange={(event) =>
 								registration.setCustomUnitLabel(event.target.value)

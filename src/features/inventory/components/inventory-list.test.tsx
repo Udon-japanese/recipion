@@ -1682,6 +1682,64 @@ describe("InventoryList", () => {
 			).toBeNull();
 		});
 
+		it("マスタにない食材は、「その他」で呼び名を入れた単位に変えられる（ロットごとの量は自分で入れる）", async () => {
+			const user = userEvent.setup();
+			const changeStockUnit = vi.fn().mockResolvedValue({
+				inventoryItemId: chickenId,
+				stockUnitCode: "count",
+				stockUnitLabel: "袋",
+				quantity: 3,
+				lots: [createLot({ id: "only", quantity: 3 })],
+			});
+
+			renderList(
+				[
+					buildInventoryListItem({
+						inventoryItemId: chickenId,
+						name: "謎の食材",
+						quantity: 900,
+						stockUnitCode: "g",
+						stockUnitLabel: "g",
+						lots: [createLot({ id: "only", quantity: 900 })],
+					}),
+				],
+				{ changeStockUnit },
+			);
+
+			const dialog = await openPanel(user, "謎の食材");
+
+			await chooseFromMenu(user, dialog, "謎の食材", "単位を変える");
+			await user.selectOptions(
+				screen.getByRole("combobox", { name: "謎の食材の新しい単位" }),
+				"custom",
+			);
+
+			const lotField = screen.getByLabelText(
+				"10/1に入れた分の新しい単位での量",
+			);
+
+			expect(lotField).toHaveValue("");
+
+			// 呼び名が空のままでは、変えない。
+			await user.click(screen.getByRole("button", { name: "この単位にする" }));
+			expect(await screen.findByRole("alert")).toHaveTextContent(
+				"単位の呼び名を入力してください",
+			);
+			expect(changeStockUnit).not.toHaveBeenCalled();
+
+			await user.type(screen.getByLabelText("単位の呼び名"), "袋");
+			await user.type(lotField, "3");
+			await user.click(screen.getByRole("button", { name: "この単位にする" }));
+
+			expect(await screen.findAllByText("3袋")).not.toHaveLength(0);
+			expect(changeStockUnit).toHaveBeenCalledWith({
+				inventoryItemId: chickenId,
+				stockUnitCode: "count",
+				stockUnitLabel: "袋",
+				lotQuantities: [{ lotId: "only", quantity: 3 }],
+			});
+		});
+
 		it("換算できない単位では、目安が空になり、変更に失敗したら、エラーを出して元の単位のまま", async () => {
 			const user = userEvent.setup();
 			const changeStockUnit = vi
