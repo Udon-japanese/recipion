@@ -6,8 +6,9 @@ import { Note } from "#/components/note/note";
 import { RadioList } from "#/components/radio-list/radio-list";
 import { useMediaQuery } from "#/components/use-media-query";
 import {
-	formatQuantityForUnit,
+	formatAmountForUnit,
 	formatStockAmount,
+	formatStockAmountWithUnit,
 } from "#/features/quantity/domain/format-quantity";
 import { describeAmount } from "../domain/merge-recipe-needs";
 import type {
@@ -34,7 +35,7 @@ const amountModeOptions: readonly {
 ];
 
 function describeMemoAmount(amount: RecipeShoppingRow["amount"]): string {
-	return `${formatQuantityForUnit(amount.quantity, amount.unitLabel)}${amount.unitLabel ?? ""}`;
+	return formatAmountForUnit(amount.quantity, amount.unitLabel);
 }
 
 function describeStock(row: RecipeShoppingRow): {
@@ -56,7 +57,7 @@ function describeStock(row: RecipeShoppingRow): {
 		.map((standIn) =>
 			standIn.isPresenceOnly
 				? standIn.name
-				: `${standIn.name} ${formatStockAmount(standIn.quantity, standIn.stockUnitCode)}${standIn.stockUnitLabel}`,
+				: `${standIn.name} ${formatStockAmountWithUnit(standIn.quantity, standIn.stockUnitCode, standIn.stockUnitLabel)}`,
 		)
 		.join("、");
 
@@ -97,7 +98,7 @@ function describeStockBase(row: RecipeShoppingRow): {
 
 	if (judgment.shortage !== null) {
 		return {
-			text: `あと ${formatQuantityForUnit(judgment.shortage, row.recipeAmount.unitLabel)}${row.recipeAmount.unitLabel ?? ""}`,
+			text: `あと ${formatAmountForUnit(judgment.shortage, row.recipeAmount.unitLabel)}`,
 			isShort: true,
 		};
 	}
@@ -113,10 +114,13 @@ function describeExisting(row: RecipeShoppingRow): string | null {
 		return null;
 	}
 
-	const current = `${formatQuantityForUnit(row.existing.quantity, row.existing.unitLabel)}${row.existing.unitLabel ?? ""}`;
+	const current = formatAmountForUnit(
+		row.existing.quantity,
+		row.existing.unitLabel,
+	);
 
 	if (row.plan === "update") {
-		return `メモに「${row.existing.name} ${current}」あり → ${formatQuantityForUnit(row.nextQuantity, row.existing.unitLabel)}${row.existing.unitLabel ?? ""}に更新`;
+		return `メモに「${row.existing.name} ${current}」あり → ${formatAmountForUnit(row.nextQuantity, row.existing.unitLabel)}に更新`;
 	}
 
 	const label = `メモに「${row.existing.name} ${current}」あり`;
@@ -285,11 +289,11 @@ export function RecipeShoppingRows({
 										>
 											{row.usualShortfall === null
 												? `いつもの量：${describeMemoAmount(row.amount)}`
-												: `いつもの量：${describeMemoAmount(row.amount)}では、あと ${formatQuantityForUnit(
+												: `いつもの量：${describeMemoAmount(row.amount)}では、あと ${formatAmountForUnit(
 														// 細かい端数は、小数第1位に切り上げて見せる（0.181818個 → 0.2個）。
 														Math.ceil(row.usualShortfall * 10 - 1e-9) / 10,
 														row.recipeAmount.unitLabel,
-													)}${row.recipeAmount.unitLabel ?? ""}足りません`}
+													)}足りません`}
 										</span>
 									) : null}
 

@@ -9,7 +9,7 @@ import {
 } from "#/features/quantity/components/quantity-input";
 import {
 	formatQuantity,
-	formatStockAmount,
+	formatStockAmountWithUnit,
 } from "#/features/quantity/domain/format-quantity";
 import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
 import {
@@ -52,9 +52,13 @@ type AdjustControlsProps = {
 	) => void;
 };
 
-/** 換算の単位での量の表示（330g、3玉）。g・ml は丸め、ほかは個数と同じく分数か小数第1位まで。 */
+/** 換算の単位での量の表示（330g、3玉、1.2kg）。g・ml は丸め、ほかは個数と同じく分数か小数第1位まで。 */
 export function formatAmountInUnit(quantity: number, unit: string): string {
-	return `${formatStockAmount(quantity, unit === "g" || unit === "ml" ? unit : "count")}${unit}`;
+	return formatStockAmountWithUnit(
+		quantity,
+		unit === "g" || unit === "ml" ? unit : "count",
+		unit,
+	);
 }
 
 /** 選んだ量の単位を、ロットの換算で使える単位にする（換算のロットがなくなっていたら、在庫の単位）。 */

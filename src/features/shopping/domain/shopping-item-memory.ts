@@ -1,4 +1,4 @@
-import { formatQuantity } from "#/features/quantity/domain/format-quantity";
+import { formatAmountForUnit } from "#/features/quantity/domain/format-quantity";
 import { inferInventoryConversion } from "./infer-inventory-conversion";
 import type { ShoppingCategoryId } from "./shopping-category";
 import {
@@ -83,7 +83,7 @@ function choiceLabel(
 	unitLabel: string | null,
 	inventoryConversion: ShoppingItemInventoryConversion | null,
 ): string {
-	const amount = `${formatQuantity(quantity, { grouping: false })}${unitLabel ?? ""}`;
+	const amount = formatAmountForUnit(quantity, unitLabel);
 	// 在庫での量の合計（一覧の行と同じ。「2パック（20個）」）。買う単位と在庫の単位が同じ・有無だけで管理するなら、書かない。
 	const converted = getShoppingItemConvertedQuantityLabel({
 		quantity,

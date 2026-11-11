@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+	formatAmountForUnit,
+	formatAmounts,
 	formatQuantity,
 	formatQuantityForUnit,
 	formatStockAmount,
+	formatStockAmountWithUnit,
 } from "./format-quantity";
 import { parseQuantityInput } from "./parse-quantity-input";
 
@@ -98,4 +101,75 @@ describe("formatStockAmount", () => {
 	] as const)("%s %s は %s", (value, stockUnitCode, expected) => {
 		expect(formatStockAmount(value, stockUnitCode)).toBe(expected);
 	});
+});
+
+describe("formatAmountForUnit（1,000g 以上は kg、1,000ml・1,000cc 以上は L。表示だけ）", () => {
+	it.each([
+		{ quantity: 999, unit: "g", expected: "999g" },
+		{ quantity: 1000, unit: "g", expected: "1kg" },
+		{ quantity: 1250, unit: "g", expected: "1.25kg" },
+		{ quantity: 1234, unit: "g", expected: "1.234kg" },
+		{ quantity: 12345, unit: "g", expected: "12.345kg" },
+		{ quantity: 1234567, unit: "g", expected: "1,234.567kg" },
+		// 元の単位で書ける桁（小数6桁まで）は、kg にしても失わない。
+		{ quantity: 1234.567891, unit: "g", expected: "1.234567891kg" },
+		{ quantity: 1000.000001, unit: "g", expected: "1.000000001kg" },
+		{ quantity: 1500, unit: "ml", expected: "1.5L" },
+		{ quantity: 1500, unit: "mL", expected: "1.5L" },
+		{ quantity: 2000, unit: "cc", expected: "2L" },
+		// 1,000 未満の cc は、書いた単位のまま。
+		{ quantity: 500, unit: "cc", expected: "500cc" },
+		{ quantity: 999.5, unit: "ml", expected: "999.5ml" },
+		{ quantity: -1500, unit: "g", expected: "-1.5kg" },
+		{ quantity: -999, unit: "g", expected: "-999g" },
+		// g・ml・cc 以外は、変えない。
+		{ quantity: 0.5, unit: "kg", expected: "0.5kg" },
+		{ quantity: 1500, unit: "個", expected: "1,500個" },
+		{ quantity: 1500, unit: null, expected: "1,500" },
+		{ quantity: 1 / 3, unit: "本", expected: "1/3本" },
+	])("$quantity $unit → $expected", ({ quantity, unit, expected }) => {
+		expect(formatAmountForUnit(quantity, unit)).toBe(expected);
+	});
+});
+
+describe("formatAmounts（範囲の両端）", () => {
+	const plain = (quantity: number) =>
+		formatQuantity(quantity, { grouping: false, allowFractions: false });
+
+	it.each([
+		{ quantities: [800, 1200], unit: "g", expected: ["800", "1200", "g"] },
+		{ quantities: [1000, 1500], unit: "g", expected: ["1", "1.5", "kg"] },
+		{ quantities: [1250, 1333], unit: "ml", expected: ["1.25", "1.333", "L"] },
+		{ quantities: [-1500, -1000], unit: "g", expected: ["-1.5", "-1", "kg"] },
+		{ quantities: [-500, 1500], unit: "g", expected: ["-500", "1500", "g"] },
+		{ quantities: [0, 1500], unit: "g", expected: ["0", "1500", "g"] },
+		{
+			quantities: [1000, Number.POSITIVE_INFINITY],
+			unit: "g",
+			expected: ["1000", "∞", "g"],
+		},
+		{ quantities: [1000, 1500], unit: "個", expected: ["1000", "1500", "個"] },
+	])("$quantities $unit", ({ quantities, unit, expected }) => {
+		const display = formatAmounts(quantities, unit, plain, {
+			grouping: false,
+		});
+
+		expect([...display.texts, display.unitLabel]).toEqual(expected);
+	});
+});
+
+describe("formatStockAmountWithUnit（在庫の量は、今の丸めのあとで切り替える）", () => {
+	it.each([
+		{ quantity: 1333.333, code: "g", unit: "g", expected: "1.333kg" },
+		{ quantity: 999.6, code: "g", unit: "g", expected: "1kg" },
+		{ quantity: 999.4, code: "g", unit: "g", expected: "999g" },
+		{ quantity: 2500, code: "ml", unit: "ml", expected: "2.5L" },
+		{ quantity: 1500, code: "count", unit: "個", expected: "1,500個" },
+		{ quantity: 1 / 3, code: "count", unit: "個", expected: "1/3個" },
+	] as const)(
+		"$quantity $unit → $expected",
+		({ quantity, code, unit, expected }) => {
+			expect(formatStockAmountWithUnit(quantity, code, unit)).toBe(expected);
+		},
+	);
 });

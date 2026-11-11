@@ -8,7 +8,7 @@ import {
 } from "#/components/list-row/list-row";
 import { Menu, type MenuItem } from "#/components/menu/menu";
 import { Tag } from "#/components/tag/tag";
-import { formatQuantityForUnit } from "#/features/quantity/domain/format-quantity";
+import { formatAmountForUnit } from "#/features/quantity/domain/format-quantity";
 import {
 	getShoppingItemConvertedQuantityLabel,
 	type ShoppingItem,
@@ -126,8 +126,7 @@ export function ShoppingItemRow({
 
 			<ListRowMeta>
 				<span>
-					{formatQuantityForUnit(item.quantity, item.unitLabel)}
-					{item.unitLabel}
+					{formatAmountForUnit(item.quantity, item.unitLabel)}
 					{convertedQuantityLabel
 						? `（${item.inventoryConversion?.isApproximate ? "約" : ""}${convertedQuantityLabel}）`
 						: null}

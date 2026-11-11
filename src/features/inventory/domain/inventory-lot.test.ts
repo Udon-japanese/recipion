@@ -4,6 +4,7 @@ import {
 	allocateDecrease,
 	daysBetween,
 	describePurchaseUnit,
+	describePurchaseUnitInInputUnit,
 	findMergeableLot,
 	type InventoryLot,
 	isValidDateString,
@@ -351,6 +352,13 @@ describe("toPurchaseUnit（ロットに残す換算）", () => {
 				quantityUnitLabel: "個",
 			}),
 		).toBe("1パック＝2 1/2個");
+	});
+
+	it("表示では 1,000g 以上を kg にし、欄に入れる候補のチップは、欄の単位のまま", () => {
+		const unit = { label: "袋", quantity: 1250, quantityUnitLabel: "g" };
+
+		expect(describePurchaseUnit(unit)).toBe("1袋＝1.25kg");
+		expect(describePurchaseUnitInInputUnit(unit)).toBe("1袋＝1250g");
 	});
 });
 

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { buildDictionary } from "#/test/builders/build-ingredient-dictionary";
-import { mergeRecipeNeeds } from "./merge-recipe-needs";
+import {
+	describeAmount,
+	describeAmountRange,
+	mergeRecipeNeeds,
+} from "./merge-recipe-needs";
 import type { RecipeShoppingNeed } from "./plan-shopping-from-recipe";
 
 function need(
@@ -63,12 +67,12 @@ const cases: Case[] = [
 		[["a", "牛乳", 300, "ml", "300ml"]],
 	],
 	[
-		"g と kg は、g でまとめる。同じ kg なら kg のまま",
+		"g と kg は、g でまとめる（数量は g のまま、表示は 1.2kg）。同じ kg なら kg のまま",
 		[
 			need("a", "小麦粉", 1, "kg", "1kg"),
 			need("b", "小麦粉", 200, "g", "200g"),
 		],
-		[["a", "小麦粉", 1200, "g", "1200g"]],
+		[["a", "小麦粉", 1200, "g", "1.2kg"]],
 	],
 	[
 		"換算できない行（重さと個数）は、まとめず、別の行のまま",
@@ -177,5 +181,28 @@ describe("mergeRecipeNeeds（自分の食材辞書）", () => {
 		expect(
 			merged.map(({ id, name, quantity }) => [id, name, quantity]),
 		).toEqual([["a", "マイだし", 150]]);
+	});
+});
+
+describe("describeAmount・describeAmountRange（1,000g 以上は kg、1,000ml・1,000cc 以上は L）", () => {
+	it.each([
+		{ quantity: 1200, unit: "g", expected: "1.2kg" },
+		{ quantity: 1500, unit: "cc", expected: "1.5L" },
+		{ quantity: 300, unit: "cc", expected: "300cc" },
+		{ quantity: 1.5, unit: "大さじ", expected: "大さじ1と1/2" },
+		{ quantity: 2, unit: null, expected: "2" },
+	])("$quantity $unit → $expected", ({ quantity, unit, expected }) => {
+		expect(describeAmount(quantity, unit)).toBe(expected);
+	});
+
+	it.each([
+		// 片方が 1,000 未満なら、両端とも元の単位（範囲の中で単位を混ぜない）。
+		{ min: 800, max: 1200, unit: "g", expected: "800~1200g" },
+		{ min: 1000, max: 1500, unit: "g", expected: "1~1.5kg" },
+		{ min: 1250, max: 1500, unit: "ml", expected: "1.25~1.5L" },
+		{ min: 60, max: 70, unit: "g", expected: "60~70g" },
+		{ min: 2, max: 3, unit: "大さじ", expected: "大さじ2~3" },
+	])("$min~$max $unit → $expected", ({ min, max, unit, expected }) => {
+		expect(describeAmountRange({ min, max }, unit)).toBe(expected);
 	});
 });

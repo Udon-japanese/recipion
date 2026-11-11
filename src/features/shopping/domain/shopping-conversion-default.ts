@@ -3,6 +3,7 @@ import {
 	getDefaultStockUnitLabel,
 } from "#/features/ingredients/domain/ingredient-catalog";
 import { normalizeIngredientName } from "#/features/ingredients/domain/normalize-ingredient-name";
+import { formatAmountForUnit } from "#/features/quantity/domain/format-quantity";
 import { toInputUnitCode } from "./infer-inventory-conversion";
 import type { ParsedShoppingMemoLine } from "./parse-shopping-memo";
 import {
@@ -276,5 +277,5 @@ export function describeConversionDefault(
 
 	const approx = conversion.isApproximate ? "約" : "";
 
-	return `1${value.unitLabel ?? "つ"}＝${approx}${conversion.stockQuantityPerInputUnit}${conversion.stockUnitLabel}`;
+	return `1${value.unitLabel ?? "つ"}＝${approx}${formatAmountForUnit(conversion.stockQuantityPerInputUnit, conversion.stockUnitLabel)}`;
 }

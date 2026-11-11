@@ -1,8 +1,13 @@
-import { formatStockAmount } from "#/features/quantity/domain/format-quantity";
+import { formatStockAmountParts } from "#/features/quantity/domain/format-quantity";
 import { expiryKindLabels } from "./expiry-labels";
 import { type InventoryTile, inventoryZoneLabels } from "./inventory-fridge";
 
-const spokenUnits: Record<string, string> = { g: "グラム", ml: "ミリリットル" };
+const spokenUnits: Record<string, string> = {
+	g: "グラム",
+	kg: "キログラム",
+	ml: "ミリリットル",
+	L: "リットル",
+};
 
 export type TileQuantityParts = {
 	// だいたいで管理（「約」を付ける）。
@@ -19,10 +24,16 @@ export function tileQuantityParts(
 		return null;
 	}
 
+	const { amount, unitLabel } = formatStockAmountParts(
+		tile.quantity,
+		tile.stockUnitCode,
+		tile.stockUnitLabel,
+	);
+
 	return {
 		approximate: tile.trackingMode === "estimated",
-		amount: formatStockAmount(tile.quantity, tile.stockUnitCode),
-		unit: tile.stockUnitLabel,
+		amount,
+		unit: unitLabel,
 	};
 }
 
@@ -48,7 +59,7 @@ function formatSpokenDate(value: string): string {
 // 読み上げ用のタイルの名前：食材名、量、ゾーン、期限（札が出ているときだけ）、ロット数。
 export function describeInventoryTile(tile: InventoryTile): string {
 	const quantity = describeTileQuantity(tile).replace(
-		/(\d)(g|ml)$/u,
+		/(\d)(kg|g|ml|L)$/u,
 		(_, digit: string, unit: string) => `${digit}${spokenUnits[unit]}`,
 	);
 	const parts = [tile.name, quantity, inventoryZoneLabels[tile.zone]];

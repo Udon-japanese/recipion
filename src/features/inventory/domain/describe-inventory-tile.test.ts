@@ -26,6 +26,34 @@ function tile(overrides: Partial<InventoryTile> = {}): InventoryTile {
 }
 
 describe("describeInventoryTile", () => {
+	it.each([
+		{
+			quantity: 1500,
+			unit: "g",
+			expected: "鶏むね肉、約 1.5キログラム、冷蔵室",
+		},
+		{
+			quantity: 1234,
+			unit: "g",
+			expected: "鶏むね肉、約 1.234キログラム、冷蔵室",
+		},
+		{ quantity: 2000, unit: "ml", expected: "鶏むね肉、約 2リットル、冷蔵室" },
+		{
+			quantity: 999,
+			unit: "ml",
+			expected: "鶏むね肉、約 999ミリリットル、冷蔵室",
+		},
+	] as const)(
+		"$quantity$unit は、表示に合わせて読む",
+		({ quantity, unit, expected }) => {
+			expect(
+				describeInventoryTile(
+					tile({ quantity, stockUnitCode: unit, stockUnitLabel: unit }),
+				),
+			).toBe(expected);
+		},
+	);
+
 	it("食材名、量、ゾーン、期限、ロット数を続けて読む", () => {
 		expect(
 			describeInventoryTile(

@@ -4,7 +4,10 @@ import {
 	toCanonicalIngredientName,
 } from "#/features/ingredients/domain/ingredient-dictionary";
 import { normalizeIngredientName } from "#/features/ingredients/domain/normalize-ingredient-name";
-import { formatQuantity } from "#/features/quantity/domain/format-quantity";
+import {
+	formatAmounts,
+	formatQuantity,
+} from "#/features/quantity/domain/format-quantity";
 import type { RecipeShoppingNeed } from "./plan-shopping-from-recipe";
 
 // 同じ単位の仲間（重さ・体積）にそろえるための係数。大さじ1＝15ml、小さじ1＝5ml、カップ1＝200ml。
@@ -110,38 +113,42 @@ function sumLines(lines: readonly RecipeShoppingNeed[]): {
 // 計量の単位は、数量の前に置く（「大さじ1と1/2」）。それ以外は、あとに置く（「200g」「2個」）。
 const leadingUnits = new Set(["大さじ", "小さじ", "カップ"]);
 
+// 分量の数と単位を並べる（1,000g 以上は kg、1,000ml・1,000cc 以上は L。範囲は、両端がそろうときだけ）。
+function describeAmounts(
+	quantities: readonly number[],
+	unitLabel: string | null,
+	separator: string,
+): string {
+	const display = formatAmounts(
+		quantities,
+		unitLabel,
+		(quantity) =>
+			formatQuantity(quantity, {
+				grouping: false,
+				allowFractions: unitLabel === null || !(unitLabel in massUnitGrams),
+			}).replace(" ", "と"),
+		{ grouping: false },
+	);
+	const text = display.texts.join(separator);
+
+	return display.unitLabel !== null && leadingUnits.has(display.unitLabel)
+		? `${display.unitLabel}${text}`
+		: `${text}${display.unitLabel ?? ""}`;
+}
+
 export function describeAmount(
 	quantity: number,
 	unitLabel: string | null,
 ): string {
-	const text = formatQuantity(quantity, {
-		grouping: false,
-		allowFractions: unitLabel === null || !(unitLabel in massUnitGrams),
-	}).replace(" ", "と");
-
-	return unitLabel !== null && leadingUnits.has(unitLabel)
-		? `${unitLabel}${text}`
-		: `${text}${unitLabel ?? ""}`;
+	return describeAmounts([quantity], unitLabel, "");
 }
 
-// 範囲の分量の表記（「120~140g」「大さじ2~3」）。
+// 範囲の分量の表記（「120~140g」「大さじ2~3」「1~1.5kg」）。
 export function describeAmountRange(
 	range: { min: number; max: number },
 	unitLabel: string | null,
 ): string {
-	const isLeading = unitLabel !== null && leadingUnits.has(unitLabel);
-	const unitLength = unitLabel?.length ?? 0;
-	// 数量の書き方（g の分数を使わない、など）は、describeAmount にそろえ、単位だけを外す。
-	const format = (quantity: number) => {
-		const text = describeAmount(quantity, unitLabel);
-
-		return isLeading
-			? text.slice(unitLength)
-			: text.slice(0, text.length - unitLength);
-	};
-	const text = `${format(range.min)}~${format(range.max)}`;
-
-	return isLeading ? `${unitLabel}${text}` : `${text}${unitLabel ?? ""}`;
+	return describeAmounts([range.min, range.max], unitLabel, "~");
 }
 
 /**

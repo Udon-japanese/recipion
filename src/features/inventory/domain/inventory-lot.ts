@@ -1,5 +1,8 @@
 import { UserFacingError } from "#/errors/user-facing-error";
-import { formatStockAmount } from "#/features/quantity/domain/format-quantity";
+import {
+	formatQuantity,
+	formatStockAmountWithUnit,
+} from "#/features/quantity/domain/format-quantity";
 import type { InventoryTrackingMode } from "./apply-inventory-adjustment";
 
 // 在庫は、買った（追加した）単位ごとの「ロット」で持つ。食材の数量は、ロットの数量の合計。
@@ -158,14 +161,21 @@ export function toPurchaseUnit(input: {
 	};
 }
 
-// 換算の表示（例：1玉＝40g）。量は、g・ml なら読みやすく丸め、個数などは分数で。
+// 換算の表示（例：1玉＝40g、1袋＝1kg）。量は、g・ml なら読みやすく丸め、個数などは分数で。
 export function describePurchaseUnit(unit: InventoryLotPurchaseUnit): string {
 	const code =
 		unit.quantityUnitLabel === "g" || unit.quantityUnitLabel === "ml"
 			? unit.quantityUnitLabel
 			: "count";
 
-	return `1${unit.label}＝${formatStockAmount(unit.quantity, code)}${unit.quantityUnitLabel}`;
+	return `1${unit.label}＝${formatStockAmountWithUnit(unit.quantity, code, unit.quantityUnitLabel)}`;
+}
+
+// 換算の欄に入れる候補のチップの文字（欄の単位のまま。1袋＝1000g）。
+export function describePurchaseUnitInInputUnit(
+	unit: InventoryLotPurchaseUnit,
+): string {
+	return `1${unit.label}＝${formatQuantity(unit.quantity, { grouping: false })}${unit.quantityUnitLabel}`;
 }
 
 export function isSamePurchaseUnit(

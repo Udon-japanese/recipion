@@ -8,7 +8,10 @@ import type { InventoryPurchaseOwnerScope } from "#/features/inventory/applicati
 import type { InventoryListItem } from "#/features/inventory/application/inventory-query-repository";
 import { describePurchaseUnit } from "#/features/inventory/domain/inventory-lot";
 import { lotRoundingItem } from "#/features/inventory/infrastructure/lot-rounding-storage";
-import { formatStockAmount } from "#/features/quantity/domain/format-quantity";
+import {
+	formatStockAmount,
+	formatStockAmountWithUnit,
+} from "#/features/quantity/domain/format-quantity";
 import { useStorageItem } from "#/local-storage/use-storage-item";
 import {
 	addAlternativeConsumption,
@@ -147,7 +150,7 @@ function describeLotPortions(row: RecipeConsumptionRow): string | null {
 	return portions
 		.map(
 			(portion) =>
-				`${describePurchaseUnit(portion.purchaseUnit)}を${formatStockAmount(portion.quantity, code)}${unit}${portion.isRoundedUp ? "（切り上げ）" : ""}`,
+				`${describePurchaseUnit(portion.purchaseUnit)}を${formatStockAmountWithUnit(portion.quantity, code, unit)}${portion.isRoundedUp ? "（切り上げ）" : ""}`,
 		)
 		.join("、");
 }
@@ -167,14 +170,14 @@ function describeDeducted(row: RecipeConsumptionRow): {
 		};
 	}
 
-	const amount = `${formatStockAmount(row.deduct ?? 0, code)}${unit}`;
+	const amount = formatStockAmountWithUnit(row.deduct ?? 0, code, unit);
 	const lotNote = describeLotPortions(row);
 
 	if (row.status === "partial") {
 		return {
 			amount,
 			note: [
-				`在庫が足りず、ある分だけ（必要な量は${formatStockAmount(row.required ?? 0, code)}${unit}）`,
+				`在庫が足りず、ある分だけ（必要な量は${formatStockAmountWithUnit(row.required ?? 0, code, unit)}）`,
 				lotNote,
 			]
 				.filter((note) => note !== null)
@@ -676,7 +679,7 @@ export function RecipeConsumeSection({
 															void handleUseAlternative(row, alternative)
 														}
 													>
-														{`${alternative.name}${alternative.isOwn ? "のある分だけ" : ""}を引く（${formatStockAmount(alternative.deduct, alternative.stockUnitCode)}${alternative.stockUnitLabel}）`}
+														{`${alternative.name}${alternative.isOwn ? "のある分だけ" : ""}を引く（${formatStockAmountWithUnit(alternative.deduct, alternative.stockUnitCode, alternative.stockUnitLabel)}）`}
 													</Button>
 												))}
 											</li>
