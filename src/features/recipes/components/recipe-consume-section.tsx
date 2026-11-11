@@ -6,6 +6,8 @@ import type { IngredientDictionary } from "#/features/ingredients/domain/ingredi
 import type { UndoRecipeConsumptionResult } from "#/features/inventory/application/inventory-adjustment-repository";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import type { InventoryListItem } from "#/features/inventory/application/inventory-query-repository";
+import { describePurchaseUnit } from "#/features/inventory/domain/inventory-lot";
+import { lotRoundingItem } from "#/features/inventory/infrastructure/lot-rounding-storage";
 import { formatStockAmount } from "#/features/quantity/domain/format-quantity";
 import { useStorageItem } from "#/local-storage/use-storage-item";
 import {
@@ -131,6 +133,25 @@ const skippedLabels: Record<SkippedReason, string> = {
 	unmanaged: "管理しない材料のため、減らしていません",
 };
 
+// ロットの換算で量った内訳（例：1個＝110gを2個（切り上げ））。換算を使っていなければ null。
+function describeLotPortions(row: RecipeConsumptionRow): string | null {
+	const portions = row.lotPortions ?? [];
+
+	if (portions.length === 0) {
+		return null;
+	}
+
+	const unit = row.target?.stockUnitLabel ?? "";
+	const code = row.target?.stockUnitCode ?? "count";
+
+	return portions
+		.map(
+			(portion) =>
+				`${describePurchaseUnit(portion.purchaseUnit)}を${formatStockAmount(portion.quantity, code)}${unit}${portion.isRoundedUp ? "（切り上げ）" : ""}`,
+		)
+		.join("、");
+}
+
 // 引いた行を、材料（左）と数量（右）、補足（あれば）に分ける。
 function describeDeducted(row: RecipeConsumptionRow): {
 	amount: string;
@@ -147,15 +168,22 @@ function describeDeducted(row: RecipeConsumptionRow): {
 	}
 
 	const amount = `${formatStockAmount(row.deduct ?? 0, code)}${unit}`;
+	const lotNote = describeLotPortions(row);
 
 	if (row.status === "partial") {
 		return {
 			amount,
-			note: `在庫が足りず、ある分だけ（必要な量は${formatStockAmount(row.required ?? 0, code)}${unit}）`,
+			note: [
+				`在庫が足りず、ある分だけ（必要な量は${formatStockAmount(row.required ?? 0, code)}${unit}）`,
+				lotNote,
+			]
+				.filter((note) => note !== null)
+				.join("。"),
 		};
 	}
 
 	const notes = [
+		lotNote,
 		row.viaStandIn && row.target ? `${row.target.name}から` : null,
 		// 範囲の分量（60~70g）は、多い方で引く（買い物の比べ方とそろえる）。
 		row.need.range ? `${row.need.amountText}の多い方で引いています` : null,
@@ -189,6 +217,7 @@ export function RecipeConsumeSection({
 	// リンク先のレシピは、在庫のできあがり（作り置き）があれば、先にそれから使う（初期値）。材料から作るときは、外す。
 	const [useMadeStock, setUseMadeStock] = useState(true);
 	const [standInMode] = useStorageItem(standInModeItem);
+	const [lotRounding] = useStorageItem(lotRoundingItem);
 
 	const resolvedNeeds = useMemo(
 		() =>
@@ -297,7 +326,13 @@ export function RecipeConsumeSection({
 			// 在庫のできあがり（作り置き）を先に引く。その分の材料は、needs に含まれない。
 			const rows = [
 				...planMadeRecipeConsumption(madeUses, stockItems),
-				...planRecipeConsumption(needs, stockItems, standInMode, dictionary),
+				...planRecipeConsumption(
+					needs,
+					stockItems,
+					standInMode,
+					dictionary,
+					lotRounding,
+				),
 			];
 			const operation = startRecipeConsumption(recipePublicId, rows);
 			const results = await consume(operation);

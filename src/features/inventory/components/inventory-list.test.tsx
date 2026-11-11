@@ -751,6 +751,63 @@ describe("InventoryList", () => {
 		);
 	});
 
+	it("ロットに 1個＝110g の換算があれば、g でも「使った」を打て、換算で個に直して引く。買い足すのは個だけ", async () => {
+		const user = userEvent.setup();
+		const adjustInventoryItem = vi.fn().mockResolvedValue({
+			status: "applied",
+			transactionId: "0c6f5b0e-0a51-4d2e-9b55-2f7d8c1e4a10",
+			quantity: 3,
+			lots: [],
+		});
+
+		renderList(
+			[
+				stocked({
+					inventoryItemId: "7a0d2c55-5d8b-4c5e-9f1e-0b7a4f3c2d11",
+					name: "冷凍うどん",
+					quantity: 5,
+					stockUnitCode: "count",
+					stockUnitLabel: "個",
+					lots: [
+						createLot({
+							id: "lot-udon",
+							quantity: 5,
+							purchaseUnit: {
+								label: "個",
+								quantity: 110,
+								quantityUnitLabel: "g",
+							},
+						}),
+					],
+				}),
+			],
+			{ adjustInventoryItem },
+		);
+
+		const dialog = await openPanel(user, "冷凍うどん");
+		const units = within(dialog).getByRole("group", { name: "量の単位" });
+
+		await user.click(within(units).getByRole("button", { name: "g" }));
+
+		const amount = within(dialog).getByRole("textbox", {
+			name: "冷凍うどんの使った量・買い足した量",
+		});
+
+		expect(amount).toHaveValue("");
+		expect(
+			within(dialog).getByRole("button", { name: "買い足した" }),
+		).toHaveAttribute("aria-disabled", "true");
+
+		await user.type(amount, "220");
+		await user.click(within(dialog).getByRole("button", { name: "使った" }));
+
+		await waitFor(() =>
+			expect(adjustInventoryItem).toHaveBeenCalledWith(
+				expect.objectContaining({ inputQuantity: 2, operation: "decrease" }),
+			),
+		);
+	});
+
 	it("個数の食材は、固定の端数ではなく、今ある量の半分・1/3・1/4 のボタンを出し、押すとその量が入る", async () => {
 		const user = userEvent.setup();
 

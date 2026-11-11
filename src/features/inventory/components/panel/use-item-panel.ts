@@ -20,6 +20,7 @@ import {
 	toDateString,
 } from "../../domain/inventory-lot";
 import type { InventoryTrackingMode } from "../../domain/inventory-tracking-mode";
+import { convertLotUnitAmount } from "../../domain/lot-unit-decrease";
 import { rememberAmount } from "../../infrastructure/amount-memory-storage";
 import { recordExpiryHint } from "../../infrastructure/expiry-hints-storage";
 import type { ExpiryFieldsValue } from "../expiry-fields";
@@ -210,11 +211,13 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 
 	// ---- 実行 ----
 	// 「使った」「買い足した」。lot を渡すと、その入れた分だけを増減する（入れた分の編集）。
-	// 成功したら、打った量を、次のチップのために覚える。
+	// unitLabel が在庫の単位でなければ（1個＝110g の g など）、ロットの換算で、在庫の単位に直して引く。
+	// 成功したら、打った量を、打った単位のまま、次のチップのために覚える。
 	async function adjust(
 		operation: InventoryOperation,
 		quantityText: string,
 		lot?: InventoryLot,
+		unitLabel: string = item.stockUnitLabel,
 	): Promise<boolean> {
 		const { adjustInventoryItem } = actions;
 
@@ -222,10 +225,27 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 			return false;
 		}
 
-		const quantity = parseQuantityInput(quantityText);
+		const typed = parseQuantityInput(quantityText);
 
-		if (quantity === null || !(quantity > 0)) {
+		if (typed === null || !(typed > 0)) {
 			setErrorMessage(quantityError);
+
+			return false;
+		}
+
+		const quantity =
+			unitLabel === item.stockUnitLabel
+				? typed
+				: convertLotUnitAmount(
+						lot ? [lot] : item.lots,
+						{ quantity: typed, unitLabel },
+						item,
+					);
+
+		if (quantity === null) {
+			setErrorMessage(
+				`${unitLabel}から${item.stockUnitLabel}に直せませんでした。${item.stockUnitLabel}で打ってください`,
+			);
 
 			return false;
 		}
@@ -247,18 +267,21 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 			});
 			rememberAmount({
 				ingredientName: item.name,
-				stockUnitLabel: item.stockUnitLabel,
-				amount: quantity,
+				stockUnitLabel: unitLabel,
+				amount: typed,
 			});
 		});
 	}
 
 	// パネルの本体の量の欄。成功したら、次の入力のために、はじめの値に戻す。
-	async function adjustItem(operation: InventoryOperation): Promise<boolean> {
-		const done = await adjust(operation, adjustQuantity);
+	async function adjustItem(
+		operation: InventoryOperation,
+		unitLabel: string = item.stockUnitLabel,
+	): Promise<boolean> {
+		const done = await adjust(operation, adjustQuantity, undefined, unitLabel);
 
 		if (done) {
-			setAdjustQuantity(initialQuantityInput(item.stockUnitLabel));
+			setAdjustQuantity(initialQuantityInput(unitLabel));
 		}
 
 		return done;
@@ -530,7 +553,8 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 				lot: InventoryLot,
 				operation: InventoryOperation,
 				quantityText: string,
-			) => adjust(operation, quantityText, lot),
+				unitLabel?: string,
+			) => adjust(operation, quantityText, lot, unitLabel),
 			togglePresence,
 			saveLotEdits,
 			changeUnit,

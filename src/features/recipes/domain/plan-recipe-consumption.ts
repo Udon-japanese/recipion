@@ -6,7 +6,14 @@ import {
 	toCanonicalIngredientName,
 } from "#/features/ingredients/domain/ingredient-dictionary";
 import { findInventoryItemByName } from "#/features/inventory/domain/build-expiry-prefill";
+import type { InventoryLot } from "#/features/inventory/domain/inventory-lot";
 import type { InventoryUnitCode } from "#/features/inventory/domain/inventory-unit";
+import {
+	type LotRounding,
+	type LotUnitPortion,
+	planLotUnitDecrease,
+	remainingLotsAfter,
+} from "#/features/inventory/domain/lot-unit-decrease";
 import { findStandInCandidates, type StandInMode } from "./find-stand-ins";
 import type {
 	RecipeShoppingNeed,
@@ -16,6 +23,8 @@ import type {
 // 在庫の1食材（引く先になりうるもの）。
 export type RecipeConsumptionStockItem = RecipeShoppingStockItem & {
 	inventoryItemId: string;
+	// 在庫のあるロット。ロットの換算（1個＝110g など）で引く量を決めるのに使う。省略は、ロットの換算を使わない。
+	lots?: readonly InventoryLot[];
 };
 
 export type RecipeConsumptionStatus =
@@ -66,6 +75,8 @@ export type RecipeConsumptionRow = {
 	viaStandIn: boolean;
 	// 選ぶとき（choose）の、引く先の候補。
 	alternatives: RecipeConsumptionAlternative[];
+	// ロットの換算（1個＝110g など）で量って引いた分の内訳。換算を使わなかったときは、なし。
+	lotPortions?: LotUnitPortion[];
 };
 
 function round(value: number): number {
@@ -95,6 +106,8 @@ function requiredIn(
  * - 「有無だけ」で管理している食材（塩・醤油・油など）は、減らさない。
  * - 「少々」「適量」や、換算できない分量は、引かない。
  * - 同じ食材が複数行あるときは、残りの在庫を、順に使う。
+ * - ロットに換算（1個＝110g など）があれば、期限の早いロットから、そのロットの換算で量る（planLotUnitDecrease）。
+ *   買った単位を数えるときの端数は、lotRounding で、切り上げるか、ぴったり引くかを決める。
  */
 export function planRecipeConsumption(
 	needs: readonly RecipeShoppingNeed[],
@@ -102,6 +115,7 @@ export function planRecipeConsumption(
 	standInMode: StandInMode = "auto",
 	// ユーザーの食材辞書（自分で足した呼び名でも、在庫の同じ食材から引く）。
 	dictionary?: IngredientDictionary,
+	lotRounding: LotRounding = "up",
 ): RecipeConsumptionRow[] {
 	const remaining = new Map(
 		stockItems.map((item) => [item.inventoryItemId, item.quantity]),
@@ -176,23 +190,44 @@ export function planRecipeConsumption(
 			return row("unmeasurable");
 		}
 
-		const requiredOwn = ownStock ? requiredIn(match, ownStock) : null;
+		const catalogRequired = ownStock ? requiredIn(match, ownStock) : null;
+		const lotDecrease = ownStock
+			? planLotUnitDecrease({
+					lots: remainingLotsAfter(
+						ownStock.lots ?? [],
+						ownStock.quantity - remainingOf(ownStock),
+					),
+					amount: match,
+					stock: ownStock,
+					rounding: lotRounding,
+					fallbackRequired: catalogRequired,
+				})
+			: null;
+		const requiredOwn = lotDecrease?.required ?? catalogRequired;
+		const lotPortions = lotDecrease
+			? { lotPortions: lotDecrease.portions }
+			: {};
 
 		if (ownStock && requiredOwn === null) {
 			return row("unmeasurable");
 		}
 
-		if (
-			ownStock &&
-			requiredOwn !== null &&
-			remainingOf(ownStock) >= requiredOwn
-		) {
-			take(ownStock, requiredOwn);
+		const ownDeduct = lotDecrease
+			? lotDecrease.isShort
+				? null
+				: lotDecrease.quantity
+			: requiredOwn !== null && ownStock && remainingOf(ownStock) >= requiredOwn
+				? requiredOwn
+				: null;
+
+		if (ownStock && ownDeduct !== null) {
+			take(ownStock, ownDeduct);
 
 			return row("consume", {
 				target: toTarget(ownStock),
-				deduct: requiredOwn,
-				required: requiredOwn,
+				deduct: ownDeduct,
+				required: ownDeduct,
+				...lotPortions,
 			});
 		}
 
@@ -244,6 +279,7 @@ export function planRecipeConsumption(
 				target: toTarget(ownStock),
 				deduct: available,
 				required: requiredOwn,
+				...lotPortions,
 			});
 		}
 

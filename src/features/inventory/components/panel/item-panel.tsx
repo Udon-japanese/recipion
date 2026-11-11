@@ -428,11 +428,14 @@ export function ItemPanel({
 						item={item}
 						label={`${item.name}の使った量・買い足した量`}
 						available={item.quantity}
+						lots={item.lots}
 						quantity={panel.adjustForm.quantity}
 						onQuantityChange={panel.adjustForm.setQuantity}
 						readOnly={readOnly}
-						onRun={(operation) =>
-							runAdjust(operation, () => panel.run.adjustItem(operation))
+						onRun={(operation, unitLabel) =>
+							runAdjust(operation, () =>
+								panel.run.adjustItem(operation, unitLabel),
+							)
 						}
 						decreaseStatus={decrease.status}
 						increaseStatus={increase.status}
@@ -676,8 +679,8 @@ export function ItemPanel({
 				canAdjust={!isPresence && Boolean(actions.adjustInventoryItem)}
 				canEditExpiry={Boolean(actions.updateInventoryLot)}
 				purchaseUnitCandidates={purchaseUnitCandidates}
-				onAdjust={(operation, quantityText) =>
-					panel.run.adjustLot(editingLot, operation, quantityText)
+				onAdjust={(operation, quantityText, unitLabel) =>
+					panel.run.adjustLot(editingLot, operation, quantityText, unitLabel)
 				}
 				onSave={async (edits) => {
 					const done = await panel.run.saveLotEdits(editingLot, edits);

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { InventoryLot } from "#/features/inventory/domain/inventory-lot";
 import { buildDictionary } from "#/test/builders/build-ingredient-dictionary";
 import type { StandInMode } from "./find-stand-ins";
 import {
@@ -275,5 +276,98 @@ describe("planRecipeConsumption（管理しない材料）", () => {
 			deduct: null,
 			target: null,
 		});
+	});
+});
+
+describe("planRecipeConsumption（ロットの換算）", () => {
+	const each110g = { label: "個", quantity: 110, quantityUnitLabel: "g" };
+
+	function udonLot(id: string, quantity: number): InventoryLot {
+		return {
+			id,
+			quantity,
+			acquiredOn: "2026-11-01",
+			storage: "freezer",
+			expiresOn: null,
+			expiryKind: null,
+			expirySource: null,
+			purchaseUnit: each110g,
+			createdAt: `2026-11-01T00:00:00.000Z-${id}`,
+		};
+	}
+
+	function udon(lots: InventoryLot[]): RecipeConsumptionStockItem {
+		return {
+			...stock(
+				"冷凍うどん",
+				lots.reduce((sum, lot) => sum + lot.quantity, 0),
+				"count",
+				"個",
+				"exact",
+			),
+			lots,
+		};
+	}
+
+	it("200gを、1個＝110gのロットから、切り上げて2個引く", () => {
+		const [row] = planRecipeConsumption(
+			[need("冷凍うどん", 200, "g")],
+			[udon([udonLot("a", 5)])],
+		);
+
+		expect(row).toMatchObject({
+			status: "consume",
+			deduct: 2,
+			required: 2,
+			lotPortions: [{ lotId: "a", quantity: 2, isRoundedUp: true }],
+		});
+	});
+
+	it("ぴったりの設定なら、1.818182個引く", () => {
+		const [row] = planRecipeConsumption(
+			[need("冷凍うどん", 200, "g")],
+			[udon([udonLot("a", 5)])],
+			"auto",
+			undefined,
+			"exact",
+		);
+
+		expect(row).toMatchObject({ status: "consume", deduct: 1.818182 });
+	});
+
+	it("足りなければ、ある分だけ引き、必要な量はロットの換算で出す", () => {
+		const [row] = planRecipeConsumption(
+			[need("冷凍うどん", 200, "g")],
+			[udon([udonLot("a", 1)])],
+		);
+
+		expect(row).toMatchObject({
+			status: "partial",
+			deduct: 1,
+			required: 1.818182,
+			lotPortions: [{ lotId: "a", quantity: 1 }],
+		});
+	});
+
+	it("同じ食材の2行目は、1行目で引いた残りのロットから量る", () => {
+		const rows = planRecipeConsumption(
+			[need("冷凍うどん", 200, "g", "1"), need("冷凍うどん", 100, "g", "2")],
+			[udon([udonLot("a", 3)])],
+		);
+
+		expect(rows.map((row) => [row.status, row.deduct])).toEqual([
+			["consume", 2],
+			["consume", 1],
+		]);
+	});
+
+	it("ロットに換算がなければ、これまでどおりの換算で引き、内訳はなし", () => {
+		const [row] = planRecipeConsumption(
+			[need("玉ねぎ", 2, "個")],
+			[{ ...stock("玉ねぎ", 3, "count", "個"), lots: [] }],
+		);
+
+		expect(row).toMatchObject({ status: "consume", deduct: 2 });
+		expect(row?.lotPortions).toBeUndefined();
 	});
 });
