@@ -2,6 +2,8 @@ import { useId, useState } from "react";
 import { Button } from "#/components/button/button";
 import { Chip, ChipGroup } from "#/components/chip/chip";
 import { SelectBox, TextInput } from "#/components/field/field";
+import { withLargerMeasureUnits } from "#/features/quantity/domain/measure-units";
+import { rememberMeasureUnit } from "#/features/quantity/infrastructure/measure-unit-preference-storage";
 import {
 	describePurchaseUnit,
 	describePurchaseUnitInInputUnit,
@@ -51,9 +53,11 @@ export function PurchaseUnitField({
 }: PurchaseUnitFieldProps) {
 	const [isOpen, setIsOpen] = useState(false);
 	const detailsId = useId();
-	const options = quantityUnitOptions.includes(draft.quantityUnitLabel)
-		? quantityUnitOptions
-		: [...quantityUnitOptions, draft.quantityUnitLabel];
+	// g・ml には、kg・L も並べる（在庫には g・ml で入る）。
+	const unitOptions = withLargerMeasureUnits(quantityUnitOptions);
+	const options = unitOptions.includes(draft.quantityUnitLabel)
+		? unitOptions
+		: [...unitOptions, draft.quantityUnitLabel];
 
 	return (
 		<div className={expiryStyles.group}>
@@ -128,9 +132,11 @@ export function PurchaseUnitField({
 								aria-label={`${itemName}の換算の、1つあたりの単位`}
 								value={draft.quantityUnitLabel}
 								disabled={disabled}
-								onChange={(event) =>
-									onChange({ ...draft, quantityUnitLabel: event.target.value })
-								}
+								onChange={(event) => {
+									// g・kg などは、次の既定にする（この端末だけ）。
+									rememberMeasureUnit(itemName, event.target.value);
+									onChange({ ...draft, quantityUnitLabel: event.target.value });
+								}}
 							>
 								{options.map((option) => (
 									<option value={option} key={option}>

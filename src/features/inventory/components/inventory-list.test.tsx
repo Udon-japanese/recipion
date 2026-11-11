@@ -752,6 +752,63 @@ describe("InventoryList", () => {
 		);
 	});
 
+	it("g の欄の単位を押すと kg になり、打った数はそのまま、kg で打った量を g で引く。次に開くと kg から始める", async () => {
+		const user = userEvent.setup();
+		const adjustInventoryItem = vi.fn().mockResolvedValue({
+			status: "applied",
+			transactionId: "5d2c8b1e-7f3a-4c6d-9e0b-1a2f3c4d5e6f",
+			quantity: 500,
+			lots: [],
+		});
+		const item = stocked({
+			inventoryItemId: "1fc94e80-a9cf-4458-b0e6-3d72550cce06",
+			name: "鶏もも肉",
+			quantity: 2000,
+			stockUnitCode: "g",
+			stockUnitLabel: "g",
+		});
+
+		renderList([item], { adjustInventoryItem });
+
+		const dialog = await openPanel(user, "鶏もも肉");
+		const amount = within(dialog).getByRole("textbox", {
+			name: "鶏もも肉の使った量・買い足した量",
+		});
+
+		await user.type(amount, "1.5");
+		await user.click(
+			within(dialog).getByRole("button", {
+				name: "量の単位をkgにする（いまはg）",
+			}),
+		);
+
+		expect(amount).toHaveValue("1.5");
+		// kg の「今ある分」は、kg で入る（2000g → 2）。
+		await user.click(within(dialog).getByRole("button", { name: "今ある分" }));
+		expect(amount).toHaveValue("2");
+
+		await user.clear(amount);
+		await user.type(amount, "1.5");
+		await user.click(within(dialog).getByRole("button", { name: "使った" }));
+
+		await waitFor(() =>
+			expect(adjustInventoryItem).toHaveBeenCalledWith(
+				expect.objectContaining({ inputQuantity: 1500, operation: "decrease" }),
+			),
+		);
+
+		await user.click(within(dialog).getByRole("button", { name: "閉じる" }));
+		await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+
+		const reopened = await openPanel(user, "鶏もも肉");
+
+		expect(
+			within(reopened).getByRole("button", {
+				name: "量の単位をgにする（いまはkg）",
+			}),
+		).toBeInTheDocument();
+	});
+
 	it("ロットに 1個＝110g の換算があれば、g でも「使った」を打て、換算で個に直して引く。買い足すのは個だけ", async () => {
 		const user = userEvent.setup();
 		const adjustInventoryItem = vi.fn().mockResolvedValue({

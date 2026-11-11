@@ -1,5 +1,6 @@
 import { UserFacingError } from "#/errors/user-facing-error";
 import { formatQuantity } from "#/features/quantity/domain/format-quantity";
+import { toBaseMeasureAmount } from "#/features/quantity/domain/measure-units";
 import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
 import type { InventoryLotPurchaseUnit } from "./inventory-lot";
 
@@ -54,10 +55,16 @@ export function parsePurchaseUnitDraft(
 		throw new UserFacingError("買った単位を入力してください（例：個）");
 	}
 
+	// kg・L で打った量は、g・ml で持つ（1袋＝1.5kg → 1500g）。
+	const base = toBaseMeasureAmount({
+		quantity,
+		unitLabel: draft.quantityUnitLabel,
+	});
+
 	return {
 		label,
-		quantity,
-		quantityUnitLabel: draft.quantityUnitLabel,
+		quantity: base.quantity,
+		quantityUnitLabel: base.unitLabel,
 	};
 }
 

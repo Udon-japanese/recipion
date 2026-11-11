@@ -1,5 +1,4 @@
-import { findIngredientCatalogEntry } from "#/features/ingredients/domain/ingredient-catalog";
-import { normalizeIngredientName } from "#/features/ingredients/domain/normalize-ingredient-name";
+import { toIngredientMemoryKey } from "#/features/ingredients/domain/ingredient-catalog";
 import { storageKeys } from "#/local-storage/keys";
 import {
 	defineStorageItem,
@@ -14,11 +13,7 @@ type AmountsByKey = Record<string, number[]>;
 
 // 同じ食材の別名（「しょうゆ」「醤油」）は、同じキー。単位が違えば（本・g）、別に覚える。
 function toKey(ingredientName: string, stockUnitLabel: string): string {
-	const ingredient =
-		findIngredientCatalogEntry(ingredientName)?.id ??
-		normalizeIngredientName(ingredientName);
-
-	return `${ingredient}|${stockUnitLabel}`;
+	return `${toIngredientMemoryKey(ingredientName)}|${stockUnitLabel}`;
 }
 
 // 保存された文字列を読む。形が違う項目・正の数でない量は、捨てる。

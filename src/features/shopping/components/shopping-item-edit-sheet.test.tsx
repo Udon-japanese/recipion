@@ -36,6 +36,7 @@ function setup(item = buildShoppingItem({ name: "牛乳", storeId: "aeon" })) {
 			onCreateStore={async () => null}
 			onSave={onSave}
 			onClose={onClose}
+			memories={{ itemMemories: {}, conversionDefaults: {} }}
 		/>,
 	);
 

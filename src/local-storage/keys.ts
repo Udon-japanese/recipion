@@ -21,6 +21,8 @@ export const storageKeys = {
 	inventoryGroupBy: "inventory-group-by",
 	// 在庫：食材ごとに、使った・買い足したときに打った量（チップに出す）。
 	inventoryAmountMemory: "inventory-amount-memory",
+	// 量の欄：食材ごとに、最後に選んだ重さ・体積の単位（g か kg、ml か L）。買い物メモと在庫で共通。
+	measureUnitPreference: "measure-unit-preference",
 	// 在庫：冷凍野菜を、生の野菜の代わりに使うか（auto / ask / off）。
 	standInMode: "stand-in-mode",
 	// 在庫：ロットの換算（1個＝110g など）で引くとき、端数を切り上げるか（up / exact）。

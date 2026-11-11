@@ -6,6 +6,11 @@ import {
 	formatAmountForUnit,
 	formatQuantity,
 } from "#/features/quantity/domain/format-quantity";
+import {
+	findMeasureUnit,
+	measureUnitLabel,
+	toBaseMeasureAmount,
+} from "#/features/quantity/domain/measure-units";
 import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
 import {
 	getLockedStockUnitCode,
@@ -24,17 +29,18 @@ export type UnitOption = { value: string; label: string };
 // 選べる単位。g・ml の食材は、その単位だけ。個数の食材は、g・ml（1個が何gか）も選べる。
 export function listUnitOptions(item: ShoppingItem): readonly UnitOption[] {
 	const locked = getLockedStockUnitCode(item);
-	const weight: UnitOption[] = [
-		{ value: "g", label: "g" },
-		{ value: "ml", label: "ml" },
-	];
+	// kg・L で打っても、在庫には g・ml で入る（1袋＝1.5kg → 1500g）。
+	const weight: UnitOption[] = ["g", "kg", "ml", "L"].map((unit) => ({
+		value: unit,
+		label: unit,
+	}));
 	const count: UnitOption[] = [
 		...countUnits.map((unit) => ({ value: unit, label: unit })),
 		{ value: otherUnitValue, label: "その他" },
 	];
 
-	if (locked === "g") return weight.slice(0, 1);
-	if (locked === "ml") return weight.slice(1);
+	if (locked === "g") return weight.slice(0, 2);
+	if (locked === "ml") return weight.slice(2);
 
 	return [...weight, ...count];
 }
@@ -55,8 +61,13 @@ export type AmountDraft = {
 
 // 単位の文字を、リストの選択（と「その他」の文字）にする。
 function toUnitChoice(label: string): Pick<AmountDraft, "unit" | "customUnit"> {
-	if (label === "g" || label === "ml") {
-		return { unit: label, customUnit: "" };
+	const measure = findMeasureUnit(label);
+
+	if (measure) {
+		return {
+			unit: measureUnitLabel(measure.kind, measure.isLarger),
+			customUnit: "",
+		};
 	}
 
 	return (countUnits as readonly string[]).includes(label)
@@ -73,7 +84,11 @@ function defaultUnitCode(item: ShoppingItem): StockUnitCode {
 }
 
 // 個数・枚数の食材は、「1」と、買った単位から始める。グラム・ミリリットルの食材は、1つが何かを、こちらでは決められないので、数を空にする。
-export function initialAmountDraft(item: ShoppingItem): AmountDraft {
+// preferUnit：重さ・体積の単位を、その食材で最後に選んだ方（g か kg）にする（呼び出し側が、端末の記憶を渡す）。
+export function initialAmountDraft(
+	item: ShoppingItem,
+	preferUnit: (unit: string) => string = (unit) => unit,
+): AmountDraft {
 	const code = defaultUnitCode(item);
 
 	if (code === "count") {
@@ -84,7 +99,12 @@ export function initialAmountDraft(item: ShoppingItem): AmountDraft {
 		};
 	}
 
-	return { quantityText: "", unit: code, customUnit: "", isPresence: false };
+	return {
+		quantityText: "",
+		unit: preferUnit(code),
+		customUnit: "",
+		isPresence: false,
+	};
 }
 
 export function applyAmountPreset(
@@ -119,8 +139,17 @@ function parseAmount(draft: AmountDraft): ParsedAmount | null {
 		return null;
 	}
 
-	if (label === "g" || label === "ml") {
-		return { stockUnitCode: label, stockUnitLabel: label, quantity };
+	const measure = findMeasureUnit(label);
+
+	if (measure) {
+		// kg・L で打った量は、在庫の単位（g・ml）にする。cc は ml。
+		const stockUnitCode = measure.kind === "weight" ? "g" : "ml";
+
+		return {
+			stockUnitCode,
+			stockUnitLabel: stockUnitCode,
+			quantity: toBaseMeasureAmount({ quantity, unitLabel: label }).quantity,
+		};
 	}
 
 	return { stockUnitCode: "count", stockUnitLabel: label, quantity };

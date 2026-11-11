@@ -10,7 +10,6 @@ import { IngredientSuggestionHint } from "#/features/ingredients/components/ingr
 import {
 	customStockUnitValue,
 	maxStockUnitLabelLength,
-	toStockUnitValue,
 } from "#/features/ingredients/domain/list-stock-unit-options";
 import { QuantityInput } from "#/features/quantity/components/quantity-input";
 import { formatQuantity } from "#/features/quantity/domain/format-quantity";
@@ -30,8 +29,7 @@ function RegistrationForm({
 }: {
 	registration: InventoryRegistration;
 }) {
-	const { ingredientName, stockUnit, unitOptions, unitChoice, trackingMode } =
-		registration;
+	const { ingredientName, unitChoice, trackingMode } = registration;
 	const isPresence = trackingMode === "presence";
 	const formRef = useRef<HTMLFormElement>(null);
 
@@ -81,26 +79,19 @@ function RegistrationForm({
 							id={control.id}
 							value={registration.initialQuantity}
 							onChange={registration.setInitialQuantity}
-							unitLabel={stockUnit.stockUnitLabel}
+							unitLabel={registration.inputUnitLabel}
 							trailing={
 								<div className={styles.unitSelect}>
 									<SelectBox
 										aria-label="在庫の単位"
-										value={
-											unitChoice === customStockUnitValue
-												? customStockUnitValue
-												: toStockUnitValue(stockUnit)
-										}
+										value={registration.unitSelectValue}
 										onChange={(event) =>
-											registration.setUnitChoice(event.target.value)
+											registration.chooseUnit(event.target.value)
 										}
 									>
-										{unitOptions.map((option) => (
-											<option
-												value={toStockUnitValue(option)}
-												key={toStockUnitValue(option)}
-											>
-												{option.stockUnitLabel}
+										{registration.unitSelectOptions.map((option) => (
+											<option value={option.value} key={option.value}>
+												{option.label}
 											</option>
 										))}
 										{registration.allowsCustomUnit ? (

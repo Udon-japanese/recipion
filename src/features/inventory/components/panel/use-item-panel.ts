@@ -11,6 +11,7 @@ import {
 	toStockUnitValue,
 } from "#/features/ingredients/domain/list-stock-unit-options";
 import { formatQuantity } from "#/features/quantity/domain/format-quantity";
+import { toBaseMeasureAmount } from "#/features/quantity/domain/measure-units";
 import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
 import { initialQuantityInput } from "#/features/quantity/domain/quantity-buttons";
 import { createManualInventoryAdjustment } from "../../application/create-manual-inventory-adjustment";
@@ -247,14 +248,12 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 			return false;
 		}
 
+		// kg・L で打った量は、先に g・ml にする（1.5kg → 1500g）。
+		const base = toBaseMeasureAmount({ quantity: typed, unitLabel });
 		const quantity =
-			unitLabel === item.stockUnitLabel
-				? typed
-				: convertLotUnitAmount(
-						lot ? [lot] : item.lots,
-						{ quantity: typed, unitLabel },
-						item,
-					);
+			base.unitLabel === item.stockUnitLabel
+				? base.quantity
+				: convertLotUnitAmount(lot ? [lot] : item.lots, base, item);
 
 		if (quantity === null) {
 			setErrorMessage(

@@ -354,7 +354,7 @@ describe("InventoryRegistrationPanel", () => {
 		);
 	});
 
-	it("在庫の単位は、マスタにある単位だけが選べる（鶏もも肉は g と枚。ml や個は出ない）", async () => {
+	it("在庫の単位は、マスタにある単位だけが選べる（鶏もも肉は g・kg と枚。ml や個は出ない）", async () => {
 		const user = userEvent.setup();
 
 		render(<Harness registerInventoryItem={vi.fn()} onRegistered={() => {}} />);
@@ -367,7 +367,7 @@ describe("InventoryRegistrationPanel", () => {
 			within(unitSelect)
 				.getAllByRole("option")
 				.map((option) => option.textContent),
-		).toEqual(["g", "枚"]);
+		).toEqual(["g", "kg", "枚"]);
 		expect(unitSelect).toHaveValue("g:g");
 	});
 
@@ -400,6 +400,46 @@ describe("InventoryRegistrationPanel", () => {
 					initialQuantity: 2,
 				}),
 			),
+		);
+	});
+
+	it("kg を選ぶと、kg で打った量を g で登録し、次に同じ食材を登録するときは kg から始める", async () => {
+		const user = userEvent.setup();
+		const registerInventoryItem = vi.fn().mockResolvedValue({});
+
+		render(
+			<Harness
+				registerInventoryItem={registerInventoryItem}
+				onRegistered={() => {}}
+			/>,
+		);
+
+		await user.type(screen.getByLabelText("食材名"), "鶏もも肉");
+		await user.selectOptions(
+			screen.getByRole("combobox", { name: "在庫の単位" }),
+			"g:kg",
+		);
+		await user.type(screen.getByLabelText(/^数量/u), "1.5");
+		await user.click(screen.getByRole("button", { name: "追加" }));
+
+		await waitFor(() =>
+			expect(registerInventoryItem).toHaveBeenCalledWith(
+				expect.objectContaining({
+					ingredientName: "鶏もも肉",
+					stockUnitCode: "g",
+					stockUnitLabel: "g",
+					initialQuantity: 1500,
+				}),
+			),
+		);
+
+		await waitFor(() =>
+			expect(screen.getByLabelText("食材名")).toHaveValue(""),
+		);
+		await user.type(screen.getByLabelText("食材名"), "鶏もも肉");
+
+		expect(screen.getByRole("combobox", { name: "在庫の単位" })).toHaveValue(
+			"g:kg",
 		);
 	});
 

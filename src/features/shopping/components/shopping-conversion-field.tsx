@@ -1,4 +1,5 @@
 import { Button } from "#/components/button/button";
+import { preferMeasureUnit } from "#/features/quantity/infrastructure/measure-unit-preference-storage";
 import {
 	type AmountDraft,
 	applyAmountPreset,
@@ -46,7 +47,7 @@ export function openConversionEdit(item: ShoppingItem): ConversionEdit {
 					}),
 					preset: undefined,
 				}
-			: initialAmountDraft(item),
+			: initialAmountDraft(item, (unit) => preferMeasureUnit(item.name, unit)),
 		isOpen: true,
 		isEdited: false,
 	};

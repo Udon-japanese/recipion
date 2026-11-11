@@ -121,6 +121,11 @@ export function findIngredientCatalogEntry(
 	return entriesByNormalizedAlias.get(normalizeIngredientName(name));
 }
 
+/** 食材ごとに覚えるときのキー。同じ食材の別名（「しょうゆ」「醤油」）は、同じキー（カタログの ID）。 */
+export function toIngredientMemoryKey(name: string): string {
+	return findIngredientCatalogEntry(name)?.id ?? normalizeIngredientName(name);
+}
+
 // 代わりになる食材の索引：代わりに使われる食材の名前（と、そのカタログの食材の ID）→ 代わりになる食材の ID。
 const standInIdsByKey = new Map<string, Set<string>>();
 

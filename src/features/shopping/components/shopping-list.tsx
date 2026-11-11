@@ -1,6 +1,6 @@
 import { DragDropProvider } from "@dnd-kit/react";
 import { isSortable } from "@dnd-kit/react/sortable";
-import { type ReactNode, type Ref, useEffect, useState } from "react";
+import { type ReactNode, type Ref, useEffect, useMemo, useState } from "react";
 import { Button } from "#/components/button/button";
 import { ConfirmDialog } from "#/components/dialog/confirm-dialog";
 import { Field, SelectBox } from "#/components/field/field";
@@ -284,6 +284,15 @@ export function ShoppingList({
 		}
 	}
 
+	// 編集のシートの単位のチップに使う、いまの記憶。
+	const shoppingMemories = useMemo(
+		() => ({
+			itemMemories: itemMemoryState.memories,
+			conversionDefaults: conversionState.defaults,
+		}),
+		[itemMemoryState.memories, conversionState.defaults],
+	);
+
 	// レシピから入れるときに使う、いまの記憶。
 	function loadShoppingMemories() {
 		return Promise.resolve({
@@ -556,6 +565,7 @@ export function ShoppingList({
 					errorMessage={errorMessage}
 					stores={stores}
 					onCreateStore={storeState.addStore}
+					memories={shoppingMemories}
 					onClose={() => setEditingItemId(null)}
 					onSave={async (target, input, { isConversionEdited }) => {
 						const updated = await shopping.updateItem(target, input);

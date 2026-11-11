@@ -29,6 +29,9 @@ const buttonsByUnit: Record<string, readonly QuantityButton[]> = {
 	カップ: fractionSets.measure.map((value) => ({ kind: "set", value })),
 	g: [10, 50, 100, 200, 500].map((amount) => ({ kind: "add", amount })),
 	ml: [50, 100, 200, 500].map((amount) => ({ kind: "add", amount })),
+	kg: [0.1, 0.5, 1].map((amount) => ({ kind: "add", amount })),
+	// 単位は小文字で引く（L → l）。
+	l: [0.1, 0.5, 1].map((amount) => ({ kind: "add", amount })),
 };
 
 /** 端数のボタン（1/2 など）を持つ単位か。在庫の画面では、これらの単位に「今ある量の割合」のボタンを出す。 */

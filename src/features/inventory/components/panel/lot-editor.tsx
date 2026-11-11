@@ -3,6 +3,7 @@ import { Button } from "#/components/button/button";
 import { useButtonAction } from "#/components/button/use-button-action";
 import { Toggle } from "#/components/toggle/toggle";
 import { initialQuantityInput } from "#/features/quantity/domain/quantity-buttons";
+import { preferMeasureUnit } from "#/features/quantity/infrastructure/measure-unit-preference-storage";
 import type { InventoryListItem } from "../../application/inventory-query-repository";
 import type { InventoryOperation } from "../../domain/apply-inventory-adjustment";
 import type {
@@ -79,7 +80,10 @@ export function LotEditor({
 		initialQuantityInput(item.stockUnitLabel),
 	);
 	// 量を打つ単位。在庫の単位でないあいだは、この入れた分の量に、その単位の目安を添える。
-	const [chosenUnit, setUnit] = useState(item.stockUnitLabel);
+	const [chosenUnit, setUnit] = useState(() =>
+		// g・ml は、その食材で最後に選んだ方（kg・L）で打つ。
+		preferMeasureUnit(item.name, item.stockUnitLabel),
+	);
 	const unit = resolveAmountUnit(chosenUnit, [lot], item);
 	const lotInUnit =
 		unit === item.stockUnitLabel ? null : lotQuantityInUnit(lot, unit, item);

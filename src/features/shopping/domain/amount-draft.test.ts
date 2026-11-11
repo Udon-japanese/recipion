@@ -39,6 +39,10 @@ describe("initialAmountDraft", () => {
 			quantityText: "",
 			unit: "g",
 		});
+		// 最後に kg を選んだ食材は、kg から始める（端末の記憶を、呼び出し側が渡す）。
+		expect(
+			initialAmountDraft(chicken, (unit) => (unit === "g" ? "kg" : unit)),
+		).toMatchObject({ unit: "kg" });
 	});
 });
 
@@ -75,6 +79,30 @@ describe("buildAmountConfiguration", () => {
 			stockUnitCode: "count",
 			stockUnitLabel: "玉",
 			stockQuantityPerInputUnit: 0.5,
+		});
+	});
+
+	// kg・L・cc で打った量は、在庫の単位（g・ml）で保存する。数の誤差は出さない。
+	it.each([
+		["1.5", "kg", "g", 1500],
+		["1.1", "kg", "g", 1100],
+		["0.5", "L", "ml", 500],
+		["300", "g", "g", 300],
+		["200", "cc", "ml", 200],
+	])("%s%s は、%s で %s", (quantityText, unit, stockUnitLabel, quantity) => {
+		const isOther = unit === "cc";
+
+		expect(
+			buildAmountConfiguration(chicken, {
+				quantityText,
+				unit: isOther ? otherUnitValue : unit,
+				customUnit: isOther ? unit : "",
+				isPresence: false,
+			}).inventoryConversion,
+		).toMatchObject({
+			stockUnitCode: stockUnitLabel,
+			stockUnitLabel,
+			stockQuantityPerInputUnit: quantity,
 		});
 	});
 
@@ -128,15 +156,27 @@ describe("describeAmountTotal / listUnitOptions", () => {
 		).toBeNull();
 	});
 
-	it("g の食材は g だけ選べ、個数の食材は g・ml（1個が何gか）も選べる", () => {
+	it("g の食材は g・kg だけ選べ、個数の食材は g・kg・ml・L（1個が何gか）も選べる", () => {
 		expect(listUnitOptions(chicken).map((option) => option.value)).toEqual([
 			"g",
+			"kg",
 		]);
 		expect(
 			listUnitOptions(
 				buildShoppingItem({ name: "冷凍うどん", inventoryConversion: null }),
 			).map((option) => option.value),
-		).toEqual(["g", "ml", "個", "枚", "本", "袋", "パック", "other"]);
+		).toEqual([
+			"g",
+			"kg",
+			"ml",
+			"L",
+			"個",
+			"枚",
+			"本",
+			"袋",
+			"パック",
+			"other",
+		]);
 		expect(
 			listUnitOptions(
 				buildShoppingItem({ name: "謎の商品", inventoryConversion: null }),

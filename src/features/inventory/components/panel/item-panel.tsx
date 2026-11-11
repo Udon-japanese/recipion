@@ -28,6 +28,7 @@ import {
 } from "#/features/ingredients/domain/list-stock-unit-options";
 import { QuantityInput } from "#/features/quantity/components/quantity-input";
 import { formatStockAmountWithUnit } from "#/features/quantity/domain/format-quantity";
+import { preferMeasureUnit } from "#/features/quantity/infrastructure/measure-unit-preference-storage";
 import type { InventoryListItem } from "../../application/inventory-query-repository";
 import {
 	expiryKindLabels,
@@ -142,7 +143,10 @@ export function ItemPanel({
 	// 内訳のうち、その場で直している行。
 	const [editingLotId, setEditingLotId] = useState<string | null>(null);
 	// 量を打つ単位（在庫の単位か、ロットの換算の単位）。在庫の単位でないあいだは、量の表示に、その単位の目安を添える。
-	const [chosenAmountUnit, setAmountUnit] = useState(item.stockUnitLabel);
+	const [chosenAmountUnit, setAmountUnit] = useState(() =>
+		// g・ml は、その食材で最後に選んだ方（kg・L）で打つ。
+		preferMeasureUnit(item.name, item.stockUnitLabel),
+	);
 	const amountUnit = resolveAmountUnit(chosenAmountUnit, item.lots, item);
 	const isOtherAmountUnit = amountUnit !== item.stockUnitLabel;
 	const inAmountUnit = (quantity: number | null) =>

@@ -28,6 +28,22 @@ describe("parsePurchaseUnitDraft", () => {
 		).toBe(0.5);
 	});
 
+	it.each([
+		["1.5", "kg", 1500, "g"],
+		["0.5", "L", 500, "ml"],
+	])(
+		"%s%s で打った量は、%s%s で持つ",
+		(quantityText, unit, quantity, unitLabel) => {
+			expect(
+				parsePurchaseUnitDraft({
+					label: "袋",
+					quantityText,
+					quantityUnitLabel: unit,
+				}),
+			).toEqual({ label: "袋", quantity, quantityUnitLabel: unitLabel });
+		},
+	);
+
 	it("読めない量・0以下・呼び名が空は、理由つきでエラーにする", () => {
 		for (const quantityText of ["abc", "0", "-5"]) {
 			expect(() =>
