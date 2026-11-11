@@ -219,19 +219,23 @@ describe("describeConversionDefault", () => {
 	});
 
 	it.each([
-		{ unitLabel: "g", code: "g", label: "g", expected: "gのまま" },
-		{ unitLabel: "個", code: "count", label: "個", expected: "個のまま" },
+		// 買う単位, 買う単位のコード, 在庫の単位のコード, 在庫の単位, 1単位が在庫でいくつか, 表示
+		["g", "g", "g", "g", 1, "gのまま"],
+		["個", "count", "count", "個", 1, "個のまま"],
+		// kg・L は、在庫の g・ml に決まった倍率で入る（1kg＝1000g と書くまでもない）
+		["kg", "kg", "g", "g", 1000, "gで入る"],
+		["L", "l", "ml", "ml", 1000, "mlで入る"],
 	] as const)(
-		"買う単位と在庫の単位が同じ1対1（1$unitLabel＝1$label）は、換算として書かない",
-		({ unitLabel, code, label, expected }) => {
+		"書くまでもない換算（1%s）は、換算として書かない",
+		(unitLabel, code, stockCode, stockLabel, perUnit, expected) => {
 			expect(
 				describeConversionDefault({
 					unitLabel,
 					inventoryConversion: {
 						inputUnitCode: code,
-						stockUnitCode: code,
-						stockUnitLabel: label,
-						stockQuantityPerInputUnit: 1,
+						stockUnitCode: stockCode,
+						stockUnitLabel: stockLabel,
+						stockQuantityPerInputUnit: perUnit,
 						trackingMode: "exact",
 					},
 				}),

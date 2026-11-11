@@ -8,6 +8,7 @@ import { toInputUnitCode } from "./infer-inventory-conversion";
 import type { ParsedShoppingMemoLine } from "./parse-shopping-memo";
 import {
 	isSameUnitConversion,
+	isSelfEvidentConversion,
 	type ShoppingItemInventoryConversion,
 } from "./shopping-item";
 import type { ShoppingItemMemories } from "./shopping-item-memory";
@@ -261,7 +262,7 @@ export function applyConversionDefaults(
 	});
 }
 
-// 記憶の内容を、人が読む形にする（例：1本＝1000ml。目安の換算は「約」を付ける。同じ単位の1対1は「gのまま」）。
+// 記憶の内容を、人が読む形にする（例：1本＝1000ml。目安の換算は「約」を付ける。同じ単位の1対1は「gのまま」、kg → g は「gで入る」）。
 export function describeConversionDefault(
 	value: ShoppingConversionDefault,
 ): string {
@@ -271,8 +272,11 @@ export function describeConversionDefault(
 		return "有無だけで管理";
 	}
 
-	if (isSameUnitConversion(conversion)) {
-		return `${conversion.stockUnitLabel}のまま`;
+	if (isSelfEvidentConversion(conversion)) {
+		// kg・L で買っても、在庫は g・ml（1kg＝1000g は書かない）。
+		return isSameUnitConversion(conversion)
+			? `${conversion.stockUnitLabel}のまま`
+			: `${conversion.stockUnitLabel}で入る`;
 	}
 
 	const approx = conversion.isApproximate ? "約" : "";
