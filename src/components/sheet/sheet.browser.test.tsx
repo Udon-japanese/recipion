@@ -64,10 +64,12 @@ function scroller(): HTMLElement {
 	return element;
 }
 
+// timestamp（秒）を渡すと、イベントの時刻（event.timeStamp）をその値にする。速さを、CI の遅さによらず決めるため。
 async function mouse(
 	type: "mousePressed" | "mouseMoved" | "mouseReleased",
 	x: number,
 	y: number,
+	timestamp?: number,
 ) {
 	await cdp().send("Input.dispatchMouseEvent", {
 		type,
@@ -76,6 +78,7 @@ async function mouse(
 		button: type === "mouseMoved" ? "none" : "left",
 		buttons: type === "mouseReleased" ? 0 : 1,
 		clickCount: 1,
+		...(timestamp === undefined ? {} : { timestamp }),
 	});
 }
 
@@ -147,11 +150,14 @@ it("短い距離でも、速くはじくと、閉じる（フリック）", asyn
 
 	const start = grabPoint();
 
-	await mouse("mousePressed", start.x, start.y);
-	await mouse("mouseMoved", start.x, start.y + 40);
-	await mouse("mouseMoved", start.x, start.y + 90);
-	await mouse("mouseMoved", start.x, start.y + 140);
-	await mouse("mouseReleased", start.x, start.y + 140);
+	// 140px を 30ms で（約 4.7px/ms）。イベントの時刻を決めて送る（CI が遅くて、送るのに時間がかかっても、速さは変わらない）。
+	const at = Date.now() / 1000;
+
+	await mouse("mousePressed", start.x, start.y, at);
+	await mouse("mouseMoved", start.x, start.y + 40, at + 0.01);
+	await mouse("mouseMoved", start.x, start.y + 90, at + 0.02);
+	await mouse("mouseMoved", start.x, start.y + 140, at + 0.03);
+	await mouse("mouseReleased", start.x, start.y + 140, at + 0.03);
 
 	expect(onChange).toHaveBeenLastCalledWith(false);
 });
@@ -371,12 +377,15 @@ it("勢いよく下へはじくと、2段のシートでも、いっぺんに閉
 	await mouse("mouseReleased", start.x, start.y - 140);
 	await sleep(700);
 
-	// 速く、下へはじく（短い時間に、大きく動かす）。
+	// 速く、下へはじく（140px を 20ms で。イベントの時刻を決めて送り、CI の遅さによらない速さにする）。
 	start = grabPoint();
-	await mouse("mousePressed", start.x, start.y);
-	await mouse("mouseMoved", start.x, start.y + 60);
-	await mouse("mouseMoved", start.x, start.y + 140);
-	await mouse("mouseReleased", start.x, start.y + 140);
+
+	const at = Date.now() / 1000;
+
+	await mouse("mousePressed", start.x, start.y, at);
+	await mouse("mouseMoved", start.x, start.y + 60, at + 0.01);
+	await mouse("mouseMoved", start.x, start.y + 140, at + 0.02);
+	await mouse("mouseReleased", start.x, start.y + 140, at + 0.02);
 
 	expect(onChange).toHaveBeenLastCalledWith(false);
 });
