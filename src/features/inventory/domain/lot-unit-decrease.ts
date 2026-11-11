@@ -257,3 +257,58 @@ export function convertLotUnitAmount(
 		})?.required ?? null
 	);
 }
+
+/**
+ * ロットの量（在庫の単位）を、換算の単位で表す（1個＝110g の3個 → 330g、1玉＝200g の 600g → 3玉）。
+ * そのロットの換算で直せなければ null。
+ */
+export function lotQuantityInUnit(
+	lot: InventoryLot,
+	unitLabel: string,
+	stock: StockUnit,
+): number | null {
+	const unit = lot.purchaseUnit;
+
+	if (!unit) {
+		return null;
+	}
+
+	const isStockThePurchaseUnit =
+		unit.label === stock.stockUnitLabel ||
+		(stock.stockUnitCode === "count" && unit.label === "個");
+
+	if (isStockThePurchaseUnit && unit.quantityUnitLabel === unitLabel) {
+		return round(lot.quantity * unit.quantity);
+	}
+
+	if (
+		unit.quantityUnitLabel === stock.stockUnitLabel &&
+		unit.label === unitLabel
+	) {
+		return round(lot.quantity / unit.quantity);
+	}
+
+	return null;
+}
+
+/** 在庫のあるロット全部を、換算の単位で表した合計。1つでも直せないロットがあれば null（中途半端な合計は出さない）。 */
+export function lotsQuantityInUnit(
+	lots: readonly InventoryLot[],
+	unitLabel: string,
+	stock: StockUnit,
+): number | null {
+	const stocked = lots.filter((lot) => lot.quantity > 0);
+	let total = 0;
+
+	for (const lot of stocked) {
+		const quantity = lotQuantityInUnit(lot, unitLabel, stock);
+
+		if (quantity === null) {
+			return null;
+		}
+
+		total += quantity;
+	}
+
+	return stocked.length > 0 ? round(total) : null;
+}

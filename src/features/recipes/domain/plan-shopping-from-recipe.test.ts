@@ -675,3 +675,68 @@ describe("planShoppingFromRecipe（入れる量：いつもの量）", () => {
 		expect(row?.recipeAmount).toEqual({ quantity: 200, unitLabel: "ml" });
 	});
 });
+
+describe("planShoppingFromRecipe（ロットの換算と、いつもの量の不足）", () => {
+	const udon = {
+		name: "冷凍うどん",
+		quantity: 3,
+		stockUnitCode: "count" as const,
+		stockUnitLabel: "個",
+		trackingMode: "estimated" as const,
+		lots: [
+			{
+				id: "a",
+				quantity: 3,
+				acquiredOn: "2026-11-01",
+				storage: "freezer" as const,
+				expiresOn: null,
+				expiryKind: null,
+				expirySource: null,
+				purchaseUnit: { label: "個", quantity: 110, quantityUnitLabel: "g" },
+				createdAt: "2026-11-01T00:00:00.000Z",
+			},
+		],
+	};
+
+	function usual(quantity: number, unitLabel: string) {
+		return {
+			冷凍うどん: {
+				nameKey: "冷凍うどん",
+				quantity,
+				unitLabel,
+				categoryId: null,
+				categoryAssignment: "automatic" as const,
+				usedAt: 1,
+			},
+		};
+	}
+
+	it("足りない分を、ロットの換算で出す（400g − 110g×3個 → あと1個）", () => {
+		const [row] = plan({
+			needs: [need("冷凍うどん", 400, "g")],
+			stockItems: [udon],
+		});
+
+		expect(row?.recipeAmount).toEqual({ quantity: 1, unitLabel: "個" });
+		expect(row?.usualShortfall).toBeNull();
+	});
+
+	it.each([
+		["個のいつもの量が足りない（1個で、あと3個）", usual(1, "個"), 3],
+		["個のいつもの量で足りる", usual(5, "個"), null],
+		// 220g は、ロットの換算で2個。
+		["g のいつもの量は、ロットの換算で個に直して比べる", usual(220, "g"), 2],
+		["比べられない単位は、知らせない", usual(1, "袋"), null],
+	])("%s", (_title, itemMemories, expected) => {
+		const [row] = plan({
+			needs: [need("冷凍うどん", 770, "g")],
+			stockItems: [udon],
+			amountMode: "usual",
+			itemMemories,
+		});
+
+		// 770g − 330g ＝ 440g ＝ 4個。
+		expect(row?.recipeAmount).toEqual({ quantity: 4, unitLabel: "個" });
+		expect(row?.usualShortfall).toBe(expected);
+	});
+});

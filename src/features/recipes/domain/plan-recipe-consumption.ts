@@ -6,7 +6,6 @@ import {
 	toCanonicalIngredientName,
 } from "#/features/ingredients/domain/ingredient-dictionary";
 import { findInventoryItemByName } from "#/features/inventory/domain/build-expiry-prefill";
-import type { InventoryLot } from "#/features/inventory/domain/inventory-lot";
 import type { InventoryUnitCode } from "#/features/inventory/domain/inventory-unit";
 import {
 	type LotRounding,
@@ -23,8 +22,6 @@ import type {
 // 在庫の1食材（引く先になりうるもの）。
 export type RecipeConsumptionStockItem = RecipeShoppingStockItem & {
 	inventoryItemId: string;
-	// 在庫のあるロット。ロットの換算（1個＝110g など）で引く量を決めるのに使う。省略は、ロットの換算を使わない。
-	lots?: readonly InventoryLot[];
 };
 
 export type RecipeConsumptionStatus =

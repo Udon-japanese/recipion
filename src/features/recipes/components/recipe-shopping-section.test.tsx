@@ -846,3 +846,62 @@ describe("RecipeShoppingSection（管理しない材料）", () => {
 		await waitFor(() => expect(register).toBeEnabled());
 	});
 });
+
+describe("RecipeShoppingSection（ロットの換算）", () => {
+	it("足りない分をロットの換算で出し、いつもの量では足りないときは、知らせる", async () => {
+		const user = userEvent.setup();
+
+		render(
+			<RecipeShoppingSection
+				ingredients={[ingredient("i1", "冷凍うどん", 400, "g", "400g")]}
+				ownerScope="user:user-id"
+				loadInventoryItems={async () => [
+					buildInventoryListItem({
+						inventoryItemId: "item-udon",
+						name: "冷凍うどん",
+						quantity: 1,
+						lots: [
+							{
+								id: "lot-udon",
+								quantity: 1,
+								acquiredOn: "2026-11-01",
+								storage: "freezer",
+								expiresOn: null,
+								expiryKind: null,
+								expirySource: null,
+								purchaseUnit: {
+									label: "個",
+									quantity: 110,
+									quantityUnitLabel: "g",
+								},
+								createdAt: "2026-11-01T00:00:00.000Z",
+							},
+						],
+					}),
+				]}
+				shoppingRepository={createFakeShoppingRepository()}
+				loadShoppingMemories={async () => ({
+					itemMemories: {
+						冷凍うどん: {
+							nameKey: "冷凍うどん",
+							quantity: 1,
+							unitLabel: "個",
+							categoryId: null,
+							categoryAssignment: null,
+							usedAt: 1,
+						},
+					},
+					conversionDefaults: {},
+				})}
+			/>,
+		);
+
+		const panel = within(await openPanel(user));
+
+		// 400g − 110g ＝ 290g ＝ 2.6個 → 切り上げて3個。いつもの1個では、あと2個。
+		expect(await panel.findByText("あと 3個")).toBeInTheDocument();
+		expect(
+			panel.getByText("いつもの量：1個では、あと 2個足りません"),
+		).toBeInTheDocument();
+	});
+});

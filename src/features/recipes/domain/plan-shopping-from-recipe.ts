@@ -1,4 +1,9 @@
 import {
+	convertAmountToStockQuantity,
+	toMeasuredStockUnit,
+} from "#/features/ingredients/domain/convert-to-stock-quantity";
+import { findIngredientCatalogEntry } from "#/features/ingredients/domain/ingredient-catalog";
+import {
 	type IngredientDictionary,
 	isUnmanagedIngredient,
 	toCanonicalIngredientName,
@@ -10,8 +15,10 @@ import {
 	parseAmountRange,
 } from "#/features/ingredients/domain/parse-ingredient-line";
 import { findInventoryItemByName } from "#/features/inventory/domain/build-expiry-prefill";
+import type { InventoryLot } from "#/features/inventory/domain/inventory-lot";
 import type { InventoryTrackingMode } from "#/features/inventory/domain/inventory-tracking-mode";
 import type { InventoryUnitCode } from "#/features/inventory/domain/inventory-unit";
+import { convertLotUnitAmount } from "#/features/inventory/domain/lot-unit-decrease";
 import {
 	findShoppingItemMemory,
 	type ShoppingItemMemories,
@@ -57,6 +64,8 @@ export type RecipeShoppingStockItem = {
 	trackingMode?: InventoryTrackingMode;
 	// 「作った」で入れたできあがり（作り置き）の元のレシピ。ある食材は、名前での突き合わせの対象にしない。
 	sourceRecipePublicId?: string;
+	// 在庫のあるロット。ロットの換算（1個＝110g など）で量るのに使う。省略は、ロットの換算を使わない。
+	lots?: readonly InventoryLot[];
 };
 
 // 買い物メモにある項目（未購入だけを渡す）。
@@ -110,6 +119,8 @@ export type RecipeShoppingRow = {
 	recipeAmount: { quantity: number; unitLabel: string | null };
 	// amount が、いつもの量か。
 	isUsualAmount: boolean;
+	// いつもの量が、レシピから決まる量（recipeAmount）より少ないとき、その差（recipeAmount の単位）。比べられなければ null。
+	usualShortfall: number | null;
 	existing: RecipeShoppingMemoItem | null;
 	// add: 新しい項目を作る / update: メモの項目の数量を変える / keep: メモのまま（変更なし）。
 	plan: "add" | "update" | "keep";
@@ -252,7 +263,48 @@ function toIngredientStock(item: RecipeShoppingStockItem): IngredientStock {
 		stockUnitCode: item.stockUnitCode,
 		stockUnitLabel: item.stockUnitLabel,
 		isPresenceOnly: item.trackingMode === "presence",
+		lots: item.lots,
 	};
+}
+
+/**
+ * いつもの量を、レシピから決まる量の単位で表す（比べられなければ null）。
+ * 単位が同じなら、そのまま。レシピから決まる量が在庫の単位なら、ロットの換算で直す。
+ * ロットの換算がなければ、重さ・体積（g・ml など）だけ、カタログの換算で直す
+ * （袋・パックなどは、中身の数が分からないため、比べない）。
+ */
+function toRecipeAmountUnit(
+	usual: { quantity: number; unitLabel: string | null },
+	recipeAmount: { quantity: number; unitLabel: string | null },
+	stockItem: RecipeShoppingStockItem | undefined,
+	name: string,
+): number | null {
+	if ((usual.unitLabel ?? null) === (recipeAmount.unitLabel ?? null)) {
+		return usual.quantity;
+	}
+
+	if (!stockItem || recipeAmount.unitLabel !== stockItem.stockUnitLabel) {
+		return null;
+	}
+
+	if (!usual.unitLabel) {
+		return null;
+	}
+
+	return (
+		convertLotUnitAmount(
+			stockItem.lots ?? [],
+			{ quantity: usual.quantity, unitLabel: usual.unitLabel },
+			stockItem,
+		) ??
+		(toMeasuredStockUnit(usual.unitLabel)
+			? convertAmountToStockQuantity(
+					usual,
+					stockItem,
+					findIngredientCatalogEntry(name),
+				)
+			: null)
+	);
 }
 
 // その食材の在庫で足りていなければ、代わりになる食材（冷凍野菜など）の在庫で、必要な量を満たすかも見る。
@@ -323,6 +375,7 @@ export function planShoppingFromRecipe(
 				amount,
 				recipeAmount: amount,
 				isUsualAmount: false,
+				usualShortfall: null,
 				existing: null,
 				plan: "keep",
 				keepReason: "unmanaged",
@@ -377,10 +430,18 @@ export function planShoppingFromRecipe(
 		const amount = memory
 			? { quantity: memory.quantity, unitLabel: memory.unitLabel }
 			: recipeAmount;
+		const usualInRecipeUnit =
+			memory && isNeeded
+				? toRecipeAmountUnit(amount, recipeAmount, stockItem, matchName)
+				: null;
 		const amounts = {
 			amount,
 			recipeAmount,
 			isUsualAmount: memory !== undefined,
+			usualShortfall:
+				usualInRecipeUnit !== null && usualInRecipeUnit < recipeAmount.quantity
+					? roundQuantity(recipeAmount.quantity - usualInRecipeUnit)
+					: null,
 		};
 
 		// 同じ食材の行が複数あれば、追加する量と同じ単位の行を相手にする（なければ、最初の行）。

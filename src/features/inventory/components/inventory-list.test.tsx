@@ -790,6 +790,9 @@ describe("InventoryList", () => {
 
 		await user.click(within(units).getByRole("button", { name: "g" }));
 
+		// g のあいだは、全体と入れた分の量に、g の目安を添える。
+		expect(within(dialog).getAllByText("5個（550g）")).toHaveLength(2);
+
 		const amount = within(dialog).getByRole("textbox", {
 			name: "冷凍うどんの使った量・買い足した量",
 		});
@@ -840,6 +843,54 @@ describe("InventoryList", () => {
 			"今ある分の1/4（5）にする",
 			"前に打った量：6個にする",
 		]);
+	});
+
+	it("今ある分・半分などのチップで入れた量は、覚えない（打った量は覚える）", async () => {
+		const user = userEvent.setup();
+		const adjustInventoryItem = vi.fn().mockResolvedValue({
+			status: "applied",
+			transactionId: "8d2f4a61-1b3c-4e5d-9f60-7a8b9c0d1e22",
+			quantity: 10,
+			lots: [],
+		});
+
+		renderList(
+			[
+				stocked({
+					inventoryItemId: "4c8e2b1a-6d3f-4a7b-8c9d-0e1f2a3b4c55",
+					name: "卵",
+					quantity: 20,
+					stockUnitCode: "count",
+					stockUnitLabel: "個",
+				}),
+			],
+			{ adjustInventoryItem },
+		);
+
+		const dialog = await openPanel(user, "卵");
+		const amount = within(dialog).getByRole("textbox", {
+			name: "卵の使った量・買い足した量",
+		});
+
+		await user.click(
+			within(dialog).getByRole("button", { name: "今ある分の1/4（5）にする" }),
+		);
+		await user.click(within(dialog).getByRole("button", { name: "使った" }));
+		await waitFor(() => expect(adjustInventoryItem).toHaveBeenCalledTimes(1));
+
+		expect(
+			within(dialog).queryByRole("button", { name: /^前に打った量/u }),
+		).toBeNull();
+
+		await user.clear(amount);
+		await user.type(amount, "2");
+		await user.click(within(dialog).getByRole("button", { name: "使った" }));
+
+		expect(
+			await within(dialog).findByRole("button", {
+				name: "前に打った量：2個にする",
+			}),
+		).toBeInTheDocument();
 	});
 
 	it("個数の食材は、固定の端数ではなく、今ある量の半分・1/3・1/4 のボタンを出し、押すとその量が入る", async () => {

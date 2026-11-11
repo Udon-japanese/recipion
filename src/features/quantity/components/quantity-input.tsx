@@ -36,6 +36,8 @@ export type QuantityPresetButton = {
 	value: string;
 	// 読み上げる名前（省略すると label）。
 	ariaLabel?: string;
+	// 押したときに、量を入れる前に呼ぶ（どのチップで入れたかを、呼び出し側で覚えるとき）。
+	onSelect?: () => void;
 };
 
 // 数量の入力欄。「1/2」「1と1/2」「0.5」のように、分数でも小数でも入力できる。
@@ -107,7 +109,10 @@ export function QuantityInput({
 							size="qty"
 							disabled={disabled}
 							aria-label={preset.ariaLabel}
-							onClick={() => onChange(preset.value)}
+							onClick={() => {
+								preset.onSelect?.();
+								onChange(preset.value);
+							}}
 						>
 							{preset.label}
 						</Chip>

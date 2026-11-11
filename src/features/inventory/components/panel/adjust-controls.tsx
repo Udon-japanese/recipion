@@ -7,7 +7,10 @@ import {
 	QuantityInput,
 	type QuantityPresetButton,
 } from "#/features/quantity/components/quantity-input";
-import { formatQuantity } from "#/features/quantity/domain/format-quantity";
+import {
+	formatQuantity,
+	formatStockAmount,
+} from "#/features/quantity/domain/format-quantity";
 import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
 import {
 	formatQuantityInput,
@@ -33,14 +36,37 @@ type AdjustControlsProps = {
 	available: number;
 	// 量を打てる単位を決めるロット（換算 1個＝110g があれば、g でも打てる）。
 	lots: readonly InventoryLot[];
+	// 選んだ量の単位（resolveAmountUnit で、使える単位に直したもの）。パネルの量の表示にも使うので、呼び出し側で持つ。
+	unit: string;
+	onUnitChange: (unit: string) => void;
 	quantity: string;
 	onQuantityChange: (value: string) => void;
 	readOnly: boolean;
 	decreaseStatus: ButtonStatus;
 	increaseStatus: ButtonStatus;
 	// unitLabel：打った量の単位（在庫の単位、またはロットの換算の単位）。
-	onRun: (operation: InventoryOperation, unitLabel: string) => void;
+	// remember：打った量を、次のチップのために覚えるか（今ある分・半分などのチップで入れた量は、覚えない）。
+	onRun: (
+		operation: InventoryOperation,
+		options: { unitLabel: string; remember: boolean },
+	) => void;
 };
+
+/** 換算の単位での量の表示（330g、3玉）。g・ml は丸め、ほかは個数と同じく分数か小数第1位まで。 */
+export function formatAmountInUnit(quantity: number, unit: string): string {
+	return `${formatStockAmount(quantity, unit === "g" || unit === "ml" ? unit : "count")}${unit}`;
+}
+
+/** 選んだ量の単位を、ロットの換算で使える単位にする（換算のロットがなくなっていたら、在庫の単位）。 */
+export function resolveAmountUnit(
+	chosen: string,
+	lots: readonly InventoryLot[],
+	item: Pick<InventoryListItem, "stockUnitCode" | "stockUnitLabel">,
+): string {
+	return listLotAmountUnits(lots, item).includes(chosen)
+		? chosen
+		: item.stockUnitLabel;
+}
 
 // 量を打って「使った」「買い足した」を押す欄。パネルの本体と、入れた分の編集で、同じものを使う。
 // チップ：「今ある分」、前に打った量（新しい順に3つまで）、今ある分の半分・1/3・1/4（個・玉・本など）、g・ml の足すボタン（+50 など）。
@@ -51,6 +77,8 @@ export function AdjustControls({
 	label,
 	available,
 	lots,
+	unit,
+	onUnitChange,
 	quantity,
 	onQuantityChange,
 	readOnly,
@@ -62,9 +90,8 @@ export function AdjustControls({
 	const isDecreasing = decreaseStatus === "pending";
 	const isIncreasing = increaseStatus === "pending";
 	const lotUnits = listLotAmountUnits(lots, item);
-	const [chosenUnit, setChosenUnit] = useState(item.stockUnitLabel);
-	// 選んだ単位の換算のロットがなくなったら、在庫の単位に戻す。
-	const unit = lotUnits.includes(chosenUnit) ? chosenUnit : item.stockUnitLabel;
+	// 今ある分・割合のチップで入れた量（そのまま押したら、覚えない）。
+	const [fixedChipValue, setFixedChipValue] = useState<string | null>(null);
 	const isStockUnit = unit === item.stockUnitLabel;
 	const unitCode = isStockUnit
 		? item.stockUnitCode
@@ -92,7 +119,15 @@ export function AdjustControls({
 			? [{ label: "今ある分", value: formatQuantityInput(available) }]
 			: []),
 		...shares,
-	];
+	].map((preset) => ({
+		...preset,
+		onSelect: () => setFixedChipValue(preset.value),
+	}));
+	const run = (operation: InventoryOperation) =>
+		onRun(operation, {
+			unitLabel: unit,
+			remember: !(isStockUnit && quantity === fixedChipValue),
+		});
 	const fixedValues = new Set(
 		wholeAndShares.map((preset) => parseQuantityInput(preset.value)),
 	);
@@ -136,7 +171,7 @@ export function AdjustControls({
 					}))}
 					value={unit}
 					onChange={(next) => {
-						setChosenUnit(next);
+						onUnitChange(next);
 						onQuantityChange(initialQuantityInput(next));
 					}}
 				/>
@@ -154,7 +189,7 @@ export function AdjustControls({
 								? offlineMessage
 								: "在庫が 0 のため、減らせません。"
 					}
-					onClick={() => onRun("decrease", unit)}
+					onClick={() => run("decrease")}
 				>
 					使った
 				</Button>
@@ -170,7 +205,7 @@ export function AdjustControls({
 								? offlineMessage
 								: `買い足すときは、${item.stockUnitLabel}で打ってください。`
 					}
-					onClick={() => onRun("increase", unit)}
+					onClick={() => run("increase")}
 				>
 					買い足した
 				</Button>
