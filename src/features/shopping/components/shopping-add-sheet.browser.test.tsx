@@ -1,18 +1,12 @@
-import { expect, it, vi } from "vitest";
+import { expect, it } from "vitest";
 import { cdp, page } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import type { CompositionStrategy } from "#/ime/choose-composition-strategy";
+import { emulateMacChrome } from "#/test/emulate-mac-chrome";
 import { ShoppingAddSheet } from "./shopping-add-sheet";
-
-// 変換中の補完の方式は、ブラウザ（OS）で決まる。CI（Linux）では「確定してから出す」になるので、
-// テストでは、変換中に候補を出す Mac・Windows の Chrome の方式に固定する。
-vi.mock("#/ime/use-composition-strategy", () => ({
-	useCompositionStrategy: (override?: CompositionStrategy) =>
-		override ?? "end-then-replace",
-}));
 
 // 実際のブラウザの変換（IME）のイベントで、追加シートの食材名の候補を確かめる。
 it("変換中は、カタログの名前と完全に一致しても、候補が出たままになる（買い物メモの追加シート）", async () => {
+	await emulateMacChrome();
 	await render(
 		<ShoppingAddSheet
 			title="買うものを入れる"
