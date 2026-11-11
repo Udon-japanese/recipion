@@ -128,7 +128,7 @@ export function ShoppingItemSheetFields({
 	// 単位を、入力かチップで決めたか。
 	const isUnitChosen = value.unitLabel.trim() !== "";
 	const chosenKey = isUnitChosen ? toUnitChipKey(value.unitLabel) : null;
-	// 単位のチップのうち、覚えた買い方（換算の記憶）のチップにある単位は、並べない（同じ単位を2度出さない）。
+	// 単位のチップは、前の買い方のチップと別の行。同じ単位があっても並べる（単位だけを選ぶ・g ⇄ kg を押すため）。
 	const unitChips = useMemo(
 		() =>
 			listShoppingUnitChips({
@@ -139,19 +139,11 @@ export function ShoppingItemSheetFields({
 			}),
 		[value.name, memories],
 	);
-	const candidateUnits = unitChips.filter(
-		(unit) =>
-			!rememberedChoices.some(
-				(choice) =>
-					choice.unitLabel !== null &&
-					toUnitChipKey(choice.unitLabel) === toUnitChipKey(unit),
-			),
-	);
 	// 決めるまでは並べる。決めたあとも、選んだ単位が並びにあれば残す（g ⇄ kg を押せるように）。
 	const units =
 		chosenKey === null ||
-		candidateUnits.some((unit) => toUnitChipKey(unit) === chosenKey)
-			? candidateUnits
+		unitChips.some((unit) => toUnitChipKey(unit) === chosenKey)
+			? unitChips
 			: [];
 
 	function chooseUnit(unit: string) {
@@ -212,16 +204,12 @@ export function ShoppingItemSheetFields({
 				unitName="unitLabel"
 			/>
 
-			{rememberedChoices.length > 0 ||
-			presets.length > 0 ||
-			units.length > 0 ? (
+			{rememberedChoices.length > 0 || presets.length > 0 ? (
 				<fieldset className={styles.group}>
 					<legend className={styles.groupLabel}>
 						{rememberedChoices.length > 0
 							? "前の買い方・よく使う数量"
-							: presets.length > 0
-								? "よく使う数量"
-								: "よく使う単位"}
+							: "よく使う数量"}
 					</legend>
 
 					<div className={styles.chips}>
@@ -263,6 +251,15 @@ export function ShoppingItemSheetFields({
 								{preset.label}
 							</Chip>
 						))}
+					</div>
+				</fieldset>
+			) : null}
+
+			{units.length > 0 ? (
+				<fieldset className={styles.group}>
+					<legend className={styles.groupLabel}>よく使う単位</legend>
+
+					<div className={styles.chips}>
 						{units.map((unit) => {
 							const isChosen = toUnitChipKey(unit) === chosenKey;
 
