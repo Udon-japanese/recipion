@@ -212,7 +212,18 @@ export function IngredientPreviewNode({
 
 	const currentWeight = node.scaleWeight ?? 1;
 	const weightLabel = scaleWeightLabel(node.scaleWeight);
+	const isEdited = editedIds.has(node.id);
 	const menuItems: MenuItem[] = [
+		// 手直しした行だけ。行は背景の色だけで示し、ボタンの幅を取らない（狭い画面で、名前と分量の幅を残す）。
+		...(isEdited
+			? [
+					{
+						label: "手直しを元に戻す",
+						icon: "undo" as const,
+						onSelect: () => onRevert(node.id),
+					},
+				]
+			: []),
 		// 量を変えたときの増減のしかた。選ぶと、同じメニューの中で、選択肢の階層に替わる（いまの設定にチェック）。
 		{
 			label: "量を変えたときの増減",
@@ -255,7 +266,11 @@ export function IngredientPreviewNode({
 
 	return (
 		<li className={styles.ingredientItem}>
-			<div className={styles.ingredientRow}>
+			<div
+				className={styles.ingredientRow}
+				data-edited={isEdited || undefined}
+				title={isEdited ? "手直し済み" : undefined}
+			>
 				{isLink ? (
 					<span className={styles.linkedName}>
 						<RecipeText
@@ -291,11 +306,6 @@ export function IngredientPreviewNode({
 						</span>
 					) : null}
 				</div>
-				{editedIds.has(node.id) ? (
-					<RevertButton label={node.name} onRevert={() => onRevert(node.id)} />
-				) : (
-					<span className={styles.rowActionSpace} />
-				)}
 				<Menu
 					label={`${node.name}のその他`}
 					icon="more-horizontal"

@@ -7,7 +7,9 @@ export const container = style({
 	color: "var(--color-text)",
 });
 
+// 作ったときの設定の欄は、この行を基準に開く（recipe-made-options.css.ts）。
 export const madeBar = style({
+	position: "relative",
 	display: "flex",
 	alignItems: "center",
 	justifyContent: "flex-end",

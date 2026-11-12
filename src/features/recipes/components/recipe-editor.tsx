@@ -16,6 +16,7 @@ import { ConfirmDialog } from "#/components/dialog/confirm-dialog";
 import { Field, TextInput } from "#/components/field/field";
 import { IconButton } from "#/components/icon-button/icon-button";
 import { Note } from "#/components/note/note";
+import { SegmentedControl } from "#/components/segmented-control/segmented-control";
 import { dismissToast, showToast } from "#/components/toast/toast-store";
 import { describeError } from "#/errors/user-facing-error";
 import { DishCoverField } from "#/features/dish-art/components/dish-cover-field";
@@ -136,6 +137,11 @@ type RecipeEditorProps = {
 };
 
 type ActiveTab = "input" | "preview";
+
+const editorTabOptions = [
+	{ value: "input", label: "入力", icon: "edit" },
+	{ value: "preview", label: "プレビュー", icon: "eye" },
+] as const;
 
 function reconcileFromText(
 	sync: IngredientSyncState,
@@ -769,43 +775,18 @@ export function RecipeEditor({
 					</div>
 				</div>
 
-				<div
-					className={styles.tabList}
-					role="tablist"
-					aria-label="表示の切り替え"
-				>
-					<button
-						className={styles.tab}
-						type="button"
-						role="tab"
-						id="recipe-editor-tab-input"
-						aria-selected={activeTab === "input"}
-						aria-controls="recipe-editor-panel-input"
-						onClick={() => setActiveTab("input")}
-					>
-						入力
-					</button>
-					<button
-						className={styles.tab}
-						type="button"
-						role="tab"
-						id="recipe-editor-tab-preview"
-						aria-selected={activeTab === "preview"}
-						aria-controls="recipe-editor-panel-preview"
-						onClick={() => setActiveTab("preview")}
-					>
-						プレビュー
-					</button>
+				{/* 狭い画面では、入力とプレビューを切り替える（広い画面では、左右に並べるので隠れる）。 */}
+				<div className={styles.tabList}>
+					<SegmentedControl
+						label="表示の切り替え"
+						options={editorTabOptions}
+						value={activeTab}
+						onChange={setActiveTab}
+					/>
 				</div>
 
 				<div className={styles.panes}>
-					<div
-						className={styles.pane}
-						id="recipe-editor-panel-input"
-						role="tabpanel"
-						aria-labelledby="recipe-editor-tab-input"
-						data-active={activeTab === "input"}
-					>
+					<div className={styles.pane} data-active={activeTab === "input"}>
 						<RecipeBodyTextarea
 							value={text}
 							onChange={applyText}
@@ -851,13 +832,7 @@ export function RecipeEditor({
 						</p>
 					</div>
 
-					<div
-						className={styles.preview}
-						id="recipe-editor-panel-preview"
-						role="tabpanel"
-						aria-labelledby="recipe-editor-tab-preview"
-						data-active={activeTab === "preview"}
-					>
+					<div className={styles.preview} data-active={activeTab === "preview"}>
 						<h3 className={styles.previewTitle}>保存前の確認</h3>
 
 						{preparations.length === 0 ? null : (

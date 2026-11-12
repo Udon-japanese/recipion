@@ -102,38 +102,11 @@ export const metaFieldWide = style({ flex: 1, minWidth: 220 });
 
 const wideScreen = "screen and (min-width: 900px)";
 
+// 入力とプレビューの切り替え（狭い画面だけ）。
 export const tabList = style({
-	display: "flex",
-	gap: 4,
-	padding: 4,
-	background: "var(--color-surface-muted)",
-	borderRadius: "var(--radius-control)",
 	"@media": { [wideScreen]: { display: "none" } },
 });
 
-export const tab = style({
-	flex: 1,
-	minHeight: 44,
-	color: "var(--color-text)",
-	font: "inherit",
-	fontWeight: "var(--font-weight-semibold)",
-	background: "transparent",
-	border: "1.5px solid transparent",
-	borderRadius: "var(--radius-control)",
-	cursor: "pointer",
-	selectors: {
-		'&[aria-selected="true"]': {
-			background: "var(--color-primary-soft)",
-			borderColor: "var(--color-text)",
-		},
-		"&:focus-visible": {
-			outline: "3px solid var(--color-focus)",
-			outlineOffset: 2,
-		},
-	},
-});
-
-// 狭い画面では、選んだ方だけを出す。広い画面では、左に入力、右にプレビューを並べる。
 export const panes = style({
 	display: "grid",
 	gap: 16,
@@ -305,29 +278,32 @@ export const ingredientItem = style({
 	},
 });
 
+// 材料の行：名前・分量・その他。分量の列は、中身の幅だけ取り（最大で行の45%）、残りを名前に回す（狭い画面で、名前が早く折れないように）。
+// 手直しした行は、背景を薄い色にする（元に戻すのは、その他のメニューから。左の色の線は、デザインの約束で使わない）。
 export const ingredientRow = style({
 	display: "grid",
-	gridTemplateColumns: "minmax(0, 2fr) minmax(0, 1fr) auto auto",
+	gridTemplateColumns: "minmax(0, 1fr) fit-content(45%) auto",
 	alignItems: "center",
 	gap: 4,
-	padding: "4px 6px 4px 8px",
+	// グループの中の字下げは、行の内側の余白で取る（手直しの背景色が、行の左端まで届くように）。
+	padding: "4px 6px 4px calc(8px + var(--ingredient-indent, 0px))",
+	selectors: {
+		'&[data-edited="true"]': { background: "var(--color-primary-soft)" },
+	},
 });
 
 // 材料の行の下の「もしかして」。材料名の文字の左にそろえ、下の行との間を空ける（空のときは、高さを取らない）。
 export const ingredientHint = style({
-	padding: "0 6px 10px 20px",
+	padding: "0 6px 10px calc(16px + var(--ingredient-indent, 0px))",
 	selectors: {
 		"&:empty": { display: "none" },
 	},
 });
 
 export const linkedName = style({
-	padding: "0 12px",
+	padding: "0 8px",
 	fontWeight: "var(--font-weight-bold)",
 });
-
-// 手直しの印がない行でも、右端の位置がそろうよう、ボタンの幅だけ空ける。
-export const rowActionSpace = style({ width: 36 });
 
 // 材料の行の、分量の列（分量の欄と、その下の増減のしかたの印）。
 export const amountCell = style({
@@ -340,7 +316,7 @@ export const amountCell = style({
 export const weightNote = style({
 	justifySelf: "end",
 	marginTop: -10,
-	padding: "0 12px",
+	padding: "0 8px",
 	pointerEvents: "none",
 	color: "var(--color-text-muted)",
 	fontSize: "var(--font-size-xs)",
@@ -384,14 +360,23 @@ export const inferredTag = style({
 	borderRadius: 999,
 });
 
+// グループの中の材料は、字下げする（狭い画面では、名前の幅を残すため浅く）。
+// 字下げの幅は変数で渡し、行の内側の余白にする（一覧の余白にすると、手直しの行の背景色が左だけ白く残る）。
 export const groupChildren = style({
 	margin: 0,
-	padding: "0 0 0 16px",
+	padding: 0,
 	listStyle: "none",
+	vars: { "--ingredient-indent": "8px" },
+	"@media": {
+		"screen and (min-width: 480px)": {
+			vars: { "--ingredient-indent": "16px" },
+		},
+	},
 });
 
 export const addItem = style({
 	listStyle: "none",
+	paddingLeft: "var(--ingredient-indent, 0px)",
 	...rowBorder,
 });
 

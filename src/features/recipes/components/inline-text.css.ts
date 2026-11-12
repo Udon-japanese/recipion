@@ -5,7 +5,7 @@ const base = {
 	display: "block",
 	width: "100%",
 	minHeight: 44,
-	padding: "0 12px",
+	padding: "0 8px",
 	font: "inherit",
 	borderRadius: 10,
 } as const;

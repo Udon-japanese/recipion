@@ -140,7 +140,7 @@ export const pane = style({
 
 export const section = style({
 	display: "grid",
-	gap: 8,
+	gap: 12,
 });
 
 export const sectionHeader = style({
@@ -153,17 +153,16 @@ export const sectionHeader = style({
 	minHeight: 32,
 });
 
+// 中身の下の、右寄せの操作（材料の、買い物メモへ）。
+export const sectionBottomAction = style({
+	display: "flex",
+	justifyContent: "flex-end",
+});
+
 export const sectionFooter = style({
 	marginTop: 8,
 	paddingTop: 16,
 	borderTop: "1px solid var(--color-border)",
-});
-
-export const sectionTitleGroup = style({
-	display: "flex",
-	alignItems: "center",
-	gap: 8,
-	minWidth: 0,
 });
 
 export const sectionTitleNote = style({
@@ -379,7 +378,7 @@ export const bulletItem = style({
 // 作り方：丸で囲んだ番号＋文。
 export const steps = style({
 	display: "grid",
-	gap: 12,
+	gap: 20,
 	margin: 0,
 	padding: 0,
 	listStyle: "none",
@@ -390,7 +389,7 @@ export const step = style({
 	display: "grid",
 	gridTemplateColumns: "28px minmax(0, 1fr)",
 	alignItems: "start",
-	gap: 12,
+	gap: 14,
 	counterIncrement: "step",
 	selectors: {
 		"&::before": {
