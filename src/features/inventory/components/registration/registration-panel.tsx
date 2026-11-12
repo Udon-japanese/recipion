@@ -123,13 +123,13 @@ function RegistrationForm({
 				</Field>
 			) : null}
 
-			{!isPresence && registration.canSetPurchaseUnit ? (
+			{!isPresence ? (
 				<PurchaseUnitField
 					draft={registration.purchaseUnitDraft}
 					onChange={registration.setPurchaseUnitDraft}
 					candidates={registration.purchaseUnitCandidates}
-					quantityUnitOptions={["g", "ml"]}
-					isLabelEditable={false}
+					quantityUnitOptions={registration.purchaseUnitQuantityUnits}
+					isLabelEditable={registration.isPurchaseUnitLabelEditable}
 					disabled={registration.isSubmitting}
 					itemName={ingredientName.trim() || "食材"}
 				/>
