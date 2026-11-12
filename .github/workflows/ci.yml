@@ -20,7 +20,21 @@ jobs:
       # Node.js と pnpm の版は mise.toml を正本にする（手元と同じ版を使う）。
       - uses: jdx/mise-action@v5.2.7
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium
+      # ブラウザと、その動作に要る OS のパッケージ（apt）を入れる。実行環境が apt の配布元の名前を引けず、
+      # 10分待って落ちることがある（GitHub 側の一時的な障害）。1回4分で打ち切り、30秒おいて最大3回試す。
+      - name: Install Playwright browser
+        timeout-minutes: 15
+        run: |
+          for attempt in 1 2 3; do
+            if timeout --kill-after=30s 4m pnpm exec playwright install --with-deps chromium; then
+              exit 0
+            fi
+            echo "::warning::Playwright の導入に失敗しました（${attempt}回目）"
+            if [ "$attempt" -lt 3 ]; then
+              sleep 30
+            fi
+          done
+          exit 1
       - run: pnpm run check
       - run: pnpm run typecheck
       - run: pnpm run test
