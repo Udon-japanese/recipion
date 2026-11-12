@@ -147,7 +147,7 @@ describe("InventoryRegistrationPanel", () => {
 		);
 	});
 
-	it("換算を決めないときは、ロットに換算を付けない。重さの食材（在庫の単位が g）には、換算の行を出さない", async () => {
+	it("換算を決めないときは、ロットに換算を付けない。有無だけで管理する食材には、換算の行を出さない", async () => {
 		const user = userEvent.setup();
 		const registerInventoryItem = vi.fn().mockResolvedValue({});
 
@@ -163,9 +163,56 @@ describe("InventoryRegistrationPanel", () => {
 		await waitFor(() => expect(registerInventoryItem).toHaveBeenCalled());
 		expect(registerInventoryItem.mock.calls[0]?.[0].lot).toEqual({});
 
-		await user.type(screen.getByLabelText("食材名"), "鶏もも肉");
+		await user.type(screen.getByLabelText("食材名"), "塩");
 
 		expect(screen.queryByRole("button", { name: /^換算/u })).toBeNull();
+	});
+
+	it("重さの食材（在庫の単位が g）も、呼び名を入れて換算（1パック＝300g）を決めて登録できる。候補は呼び名で絞らない", async () => {
+		const user = userEvent.setup();
+		const registerInventoryItem = vi.fn().mockResolvedValue({});
+
+		render(
+			<Harness
+				registerInventoryItem={registerInventoryItem}
+				onRegistered={() => {}}
+				lookupLotPurchaseUnits={() => [
+					{ label: "枚", quantity: 250, quantityUnitLabel: "g" },
+				]}
+			/>,
+		);
+
+		await user.type(screen.getByLabelText("食材名"), "鶏もも肉");
+		await user.type(screen.getByLabelText(/^数量/u), "600");
+		await user.click(screen.getByRole("button", { name: /^換算/u }));
+
+		expect(screen.getByRole("button", { name: "1枚＝250g" })).toBeVisible();
+
+		const label = screen.getByLabelText("鶏もも肉の換算の、買った単位");
+
+		await user.clear(label);
+		await user.type(label, "パック");
+		await user.type(
+			screen.getByLabelText("鶏もも肉の換算の、1つあたりの量"),
+			"300",
+		);
+		await user.click(screen.getByRole("button", { name: "追加" }));
+
+		await waitFor(() =>
+			expect(registerInventoryItem).toHaveBeenCalledWith(
+				expect.objectContaining({
+					stockUnitCode: "g",
+					initialQuantity: 600,
+					lot: expect.objectContaining({
+						purchaseUnit: {
+							label: "パック",
+							quantity: 300,
+							quantityUnitLabel: "g",
+						},
+					}),
+				}),
+			),
+		);
 	});
 
 	it("数量が空欄なら、食材だけを登録する（初期数量0）", async () => {

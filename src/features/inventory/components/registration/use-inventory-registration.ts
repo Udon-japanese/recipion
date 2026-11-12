@@ -129,7 +129,7 @@ export function useInventoryRegistration({
 	const [trackingMode, setTrackingMode] =
 		useState<InventoryTrackingMode>("estimated");
 	const [initialQuantity, setInitialQuantity] = useState("");
-	// 個数の食材の、「1個＝110g」の換算（量が空なら、なし）。呼び名は、在庫の単位。
+	// ロットの換算（「1個＝110g」「1パック＝300g」。量が空なら、なし）。個数の食材では、呼び名は在庫の単位。
 	const [purchaseUnitDraft, setPurchaseUnitDraft] = useState<PurchaseUnitDraft>(
 		() => emptyPurchaseUnitDraft("個"),
 	);
@@ -272,18 +272,20 @@ export function useInventoryRegistration({
 				? toStockUnitValue(stockUnit)
 				: `${stockUnit.stockUnitCode}:${inputUnitLabel}`;
 
-	// 換算を決められるのは、在庫の単位が個数のとき（1個が何gか）。呼び名は、在庫の単位に固定。
-	const canSetPurchaseUnit = stockUnit.stockUnitCode === "count";
-	const fixedPurchaseUnitDraft: PurchaseUnitDraft = {
-		...purchaseUnitDraft,
-		label: stockUnit.stockUnitLabel,
-	};
-	const purchaseUnitCandidates = canSetPurchaseUnit
-		? collectPurchaseUnitCandidates([
-				...(lookupLotPurchaseUnits?.(ingredientName) ?? []),
-				...(purchaseUnitMemory?.candidates(ingredientName) ?? []),
-			]).filter((unit) => unit.label === stockUnit.stockUnitLabel)
-		: [];
+	// 換算は、ロットの編集と同じく、どの在庫の単位でも決められる（有無だけの食材は、パネルが出さない）。
+	// 個数の食材は「1個＝110g」の形で、呼び名は在庫の単位に固定。ほかは「1パック＝300g」のように呼び名も入れる。
+	const isCountStock = stockUnit.stockUnitCode === "count";
+	const effectivePurchaseUnitDraft: PurchaseUnitDraft = isCountStock
+		? { ...purchaseUnitDraft, label: stockUnit.stockUnitLabel }
+		: purchaseUnitDraft;
+	const purchaseUnitCandidates = collectPurchaseUnitCandidates([
+		...(lookupLotPurchaseUnits?.(ingredientName) ?? []),
+		...(purchaseUnitMemory?.candidates(ingredientName) ?? []),
+	]).filter((unit) => !isCountStock || unit.label === stockUnit.stockUnitLabel);
+	// 1つあたりの量の単位。個数の食材に「1個＝1個」はないので、g・ml だけ。
+	const purchaseUnitQuantityUnits = isCountStock
+		? ["g", "ml"]
+		: ["g", "ml", stockUnit.stockUnitLabel];
 
 	// markAsAvailable が true のときは、数量を入れず、「ある」（有無だけ）で登録する（塩・醤油など）。
 	async function submit(markAsAvailable: boolean) {
@@ -314,10 +316,9 @@ export function useInventoryRegistration({
 		let purchaseUnit: InventoryLotPurchaseUnit | null = null;
 
 		try {
-			purchaseUnit =
-				markAsAvailable || !canSetPurchaseUnit
-					? null
-					: parsePurchaseUnitDraft(fixedPurchaseUnitDraft);
+			purchaseUnit = markAsAvailable
+				? null
+				: parsePurchaseUnitDraft(effectivePurchaseUnitDraft);
 			input = parseRegisterInventoryItemInput({
 				transactionId: crypto.randomUUID(),
 				ingredientName,
@@ -421,10 +422,11 @@ export function useInventoryRegistration({
 		changeTrackingMode,
 		initialQuantity,
 		setInitialQuantity,
-		canSetPurchaseUnit,
-		purchaseUnitDraft: fixedPurchaseUnitDraft,
+		isPurchaseUnitLabelEditable: !isCountStock,
+		purchaseUnitDraft: effectivePurchaseUnitDraft,
 		setPurchaseUnitDraft,
 		purchaseUnitCandidates,
+		purchaseUnitQuantityUnits,
 		presets,
 		expiry,
 		changeExpiry,
