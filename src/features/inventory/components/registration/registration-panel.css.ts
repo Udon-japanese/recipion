@@ -1,4 +1,5 @@
 import { style } from "@vanilla-extract/css";
+import { fab as fabBase, fabCorner } from "#/components/fab/fab.css";
 
 export const form = style({
 	display: "grid",
@@ -52,38 +53,17 @@ export const error = style({
 	fontSize: "var(--font-size-sm)",
 });
 
-// 右下の「在庫に追加」（スマホ）。下部ナビ（64px）の上 16px。
-export const fab = style({
-	position: "fixed",
-	right: 16,
-	bottom: "calc(64px + 16px + env(safe-area-inset-bottom))",
-	zIndex: 9,
-	display: "grid",
-	placeItems: "center",
-	width: 56,
-	height: 56,
-	padding: 0,
-	color: "var(--color-on-primary)",
-	background: "var(--color-primary)",
-	border: "none",
-	borderRadius: "50%",
-	boxShadow: "var(--shadow-md)",
-	cursor: "pointer",
-	transition: "transform var(--duration-fast) var(--ease-standard)",
-	selectors: {
-		"&:active": { transform: "scale(0.94)" },
-		"&:focus-visible": {
-			outline: "3px solid var(--color-focus)",
-			outlineOffset: 3,
-		},
-		// おうちの絵の下の床に置くとき：場面（画面の端から 16）の角から、さらに 16 離す。
-		"&[data-on-scene]": {
-			right: 16 + 16,
-			bottom: "calc(64px + 16px + 16px + env(safe-area-inset-bottom))",
+// 右下の「在庫に追加」（スマホ。見た目と置き場所は、共通の fab）。
+export const fab = style([
+	fabBase,
+	fabCorner,
+	{
+		selectors: {
+			// おうちの絵の下の床に置くとき：場面（画面の端から 16）の角から、さらに 16 離す。
+			"&[data-on-scene]": {
+				right: 16 + 16,
+				bottom: "calc(64px + 16px + 16px + env(safe-area-inset-bottom))",
+			},
 		},
 	},
-	"@media": {
-		// 広い画面では、タイトルの行の主ボタンを使う。
-		"(min-width: 768px)": { display: "none" },
-	},
-});
+]);

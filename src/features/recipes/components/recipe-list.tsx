@@ -1,8 +1,11 @@
+import { Link } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 import { ButtonLink } from "#/components/button/button-link";
 import { Card } from "#/components/card/card";
 import { Chip, ChipGroup } from "#/components/chip/chip";
+import * as fabStyles from "#/components/fab/fab.css";
 import { Field, TextInput } from "#/components/field/field";
+import { Icon } from "#/components/icon/icon";
 import { Mascot } from "#/components/mascot/mascot";
 import { SegmentedControl } from "#/components/segmented-control/segmented-control";
 import { Tag } from "#/components/tag/tag";
@@ -68,14 +71,56 @@ export function RecipeList({
 		);
 	}
 
+	// つくった記録は、レシピの集まりではなく、日付ごとの履歴。切り替えに入れず、別の画面として出す（戻るリンクつき）。
+	if (tab === "made") {
+		return (
+			<section className={styles.container}>
+				<div className={styles.backRow}>
+					<ButtonLink
+						to="/recipes"
+						search={{ tab: "mine", q: "", tags: [] }}
+						variant="ghost"
+						size="sm"
+						leadingIcon={<Icon name="chevron-left" size={16} />}
+					>
+						レシピ
+					</ButtonLink>
+				</div>
+				<h2 className={styles.title}>つくった記録</h2>
+				{madePanel}
+			</section>
+		);
+	}
+
 	return (
 		<section className={styles.container}>
 			<div className={styles.titleRow}>
 				<h2 className={styles.title}>レシピ</h2>
-				<ButtonLink to="/recipes/new" size="sm">
-					レシピを登録
-				</ButtonLink>
+				<div className={styles.titleActions}>
+					<ButtonLink
+						to="/recipes"
+						search={{ tab: "made", q: "", tags: [] }}
+						variant="secondary"
+						size="sm"
+						leadingIcon={<Icon name="calendar" size={16} />}
+					>
+						つくった記録
+					</ButtonLink>
+					{/* 広い画面だけ。スマホは、右下の＋（ほかの画面と同じ）。 */}
+					<span className={styles.wideOnly}>
+						<ButtonLink to="/recipes/new" size="sm">
+							レシピを登録
+						</ButtonLink>
+					</span>
+				</div>
 			</div>
+			<Link
+				to="/recipes/new"
+				className={`${fabStyles.fab} ${fabStyles.fabCorner}`}
+				aria-label="レシピを登録"
+			>
+				<Icon name="plus" size={24} />
+			</Link>
 
 			{onTabChange ? (
 				<SegmentedControl
@@ -83,17 +128,14 @@ export function RecipeList({
 					value={tab}
 					onChange={onTabChange}
 					options={[
-						{ value: "mine", label: "自分のレシピ" },
-						{ value: "public", label: "みんなのレシピ" },
-						{ value: "made", label: "つくった" },
+						{ value: "mine", label: "自分のレシピ", icon: "book" },
+						{ value: "public", label: "みんなのレシピ", icon: "users" },
 					]}
 				/>
 			) : null}
 
 			{tab === "public" ? (
 				publicPanel
-			) : tab === "made" ? (
-				madePanel
 			) : recipes.length === 0 ? (
 				<div className={styles.empty}>
 					<Mascot size={64} motion="still" />

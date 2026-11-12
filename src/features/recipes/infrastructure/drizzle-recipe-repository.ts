@@ -19,6 +19,7 @@ import {
 } from "#/features/ingredients/infrastructure/ingredient.sql";
 import { inventoryItem } from "#/features/inventory/infrastructure/inventory.sql";
 import { user } from "#/integrations/better-auth/auth.sql";
+import type { StoredRecipeIngredientNode } from "../application/prepare-recipe-for-storage";
 import type {
 	CreateRecipeCommand,
 	RecipeDetail,
@@ -214,6 +215,29 @@ async function replaceRecipeLinks(
 	await transaction.insert(recipeLink).values(rows);
 }
 
+// DB の材料の行を、木に戻す前の形にする（レシピの詳細と、みんなのレシピの材料のちょい見せで使う）。
+export function toStoredIngredientNode(
+	row: typeof recipeIngredientNode.$inferSelect,
+): StoredRecipeIngredientNode {
+	return {
+		id: row.id,
+		parentId: row.parentId,
+		sortOrder: row.sortOrder,
+		type: row.type === "group" ? "group" : "ingredient",
+		name: row.name,
+		rawText: row.rawText,
+		inferred: row.inferred,
+		status:
+			row.status === "parsed" || row.status === "missing-amount"
+				? row.status
+				: null,
+		amountText: row.amountText,
+		quantity: row.quantity === null ? null : Number(row.quantity),
+		unitLabel: row.unitLabel,
+		scaleWeight: Number(row.scaleWeight),
+	};
+}
+
 // 保存されたレシピを、読める形にする。リンク先は、見る人（viewerUserId）が見てよいものだけを、見つかるものとして返す。
 export async function loadRecipeDetail(
 	db: DB,
@@ -295,23 +319,7 @@ export async function loadRecipeDetail(
 		// 個人用のタグは、本人にだけ返す（他の人が見るレシピ・継承の親・リンク先では、空）。
 		personalTags: visiblePersonalTags(found, viewerUserId),
 		ingredients: restoreRecipeIngredients(
-			ingredientRows.map((row) => ({
-				id: row.id,
-				parentId: row.parentId,
-				sortOrder: row.sortOrder,
-				type: row.type === "group" ? "group" : "ingredient",
-				name: row.name,
-				rawText: row.rawText,
-				inferred: row.inferred,
-				status:
-					row.status === "parsed" || row.status === "missing-amount"
-						? row.status
-						: null,
-				amountText: row.amountText,
-				quantity: row.quantity === null ? null : Number(row.quantity),
-				unitLabel: row.unitLabel,
-				scaleWeight: Number(row.scaleWeight),
-			})),
+			ingredientRows.map(toStoredIngredientNode),
 		),
 		preparations: preparationRows.map((row) => ({
 			id: row.id,

@@ -162,11 +162,7 @@ export function RecipeTagDialog({
 								)}
 							</Field>
 						</div>
-						<Button
-							variant="secondary"
-							size="sm"
-							onClick={() => addPersonalTag(draft)}
-						>
+						<Button variant="secondary" onClick={() => addPersonalTag(draft)}>
 							足す
 						</Button>
 					</div>

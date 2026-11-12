@@ -1,6 +1,5 @@
 import { type SubmitEvent, useState } from "react";
 import { Button } from "#/components/button/button";
-import { Card } from "#/components/card/card";
 import { Chip, ChipGroup } from "#/components/chip/chip";
 import { Field, TextInput } from "#/components/field/field";
 import { Mascot } from "#/components/mascot/mascot";
@@ -14,10 +13,11 @@ import {
 	recipeTagLimits,
 	sortPublicRecipeTags,
 } from "../domain/recipe-tags";
+import { PublicRecipeCard } from "./public-recipe-card";
+import * as cardStyles from "./public-recipe-card.css";
 import * as styles from "./public-recipe-list.css";
 import { PublicRecipeTagChips } from "./public-recipe-tag-chips";
 import { RecipeDialog } from "./recipe-dialog";
-import { RecipeSummaryRow } from "./recipe-summary-row";
 
 type PublicRecipeListProps = {
 	// 検索の欄の初期値と、最初のページ。
@@ -113,9 +113,8 @@ export function PublicRecipeList({
 							)}
 						</Field>
 					</div>
-					<Button type="submit" size="sm">
-						探す
-					</Button>
+					{/* 入力欄の横のボタンは、入力欄と同じ高さ（既定の大きさ）。 */}
+					<Button type="submit">探す</Button>
 				</form>
 				<ChipGroup label="タグで絞り込む">
 					<Chip icon="sliders" onClick={openTagSheet}>
@@ -182,25 +181,11 @@ export function PublicRecipeList({
 					</p>
 				</div>
 			) : (
-				<Card>
-					<ul className={styles.list}>
-						{recipes.map((recipe) => (
-							<RecipeSummaryRow
-								key={recipe.publicId}
-								publicId={recipe.publicId}
-								thumbnailSeed={recipe.publicId}
-								cover={recipe.cover}
-								name={recipe.name}
-								yieldText={recipe.yieldText}
-								author={{
-									name: recipe.authorName,
-									handle: recipe.authorHandle,
-									avatar: recipe.authorAvatar,
-								}}
-							/>
-						))}
-					</ul>
-				</Card>
+				<ul className={cardStyles.grid}>
+					{recipes.map((recipe) => (
+						<PublicRecipeCard key={recipe.publicId} recipe={recipe} />
+					))}
+				</ul>
 			)}
 
 			{errorMessage ? (

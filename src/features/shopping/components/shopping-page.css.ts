@@ -1,4 +1,5 @@
 import { style } from "@vanilla-extract/css";
+import { fab as fabBase } from "#/components/fab/fab.css";
 
 const PC = "(min-width: 768px)";
 
@@ -329,28 +330,11 @@ export const fabSub = style({
 	boxShadow: "var(--shadow-md)",
 });
 
-export const fab = style({
-	display: "grid",
-	placeItems: "center",
-	width: 56,
-	height: 56,
-	padding: 0,
-	border: 0,
-	borderRadius: "50%",
-	background: "var(--color-primary)",
-	color: "var(--color-on-primary)",
-	boxShadow: "0 6px 20px rgba(233, 169, 0, 0.45)",
-	cursor: "pointer",
-	WebkitTapHighlightColor: "transparent",
-	selectors: {
-		"&:hover": { background: "var(--color-primary-hover)" },
-		"&:active": { transform: "scale(0.94)" },
-		"&:focus-visible": {
-			outline: "3px solid var(--color-text)",
-			outlineOffset: 3,
-		},
-	},
-});
+// 「＋」（見た目は共通の fab。置き場所は fabGroup。上の小さな丸と並ぶので、黄色の影で主役にする）。
+export const fab = style([
+	fabBase,
+	{ boxShadow: "0 6px 20px rgba(233, 169, 0, 0.45)" },
+]);
 
 // 件数は、黄色の地に、文字のまま添える（濃い丸の札は、黄色には重い）。
 // 購入確定のバーの「削除」。隣の「購入を確定」（幅いっぱい）に押されて縮み、はみ出さないようにする。

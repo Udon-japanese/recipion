@@ -131,6 +131,11 @@ select {
 	font: inherit;
 }
 
+/* 見出し（レシピ名など、短い文）は、日本語の文節で折り返す（語の途中で折らない）。対応していないブラウザは、ふつうの折り返し。 */
+:where(h1, h2, h3, h4) {
+	word-break: auto-phrase;
+}
+
 @media (prefers-reduced-motion: reduce) {
 	*,
 	*::before,

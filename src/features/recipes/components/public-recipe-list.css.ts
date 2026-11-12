@@ -1,8 +1,10 @@
 import { style } from "@vanilla-extract/css";
 
+// カードの列の数は、この欄の幅で決める（public-recipe-card.css.ts の grid）。
 export const container = style({
 	display: "grid",
 	gap: 16,
+	containerType: "inline-size",
 });
 
 export const searchForm = style({
@@ -12,12 +14,6 @@ export const searchForm = style({
 });
 
 export const searchField = style({ flex: 1, minWidth: 0 });
-
-export const list = style({
-	margin: 0,
-	padding: 0,
-	listStyle: "none",
-});
 
 export const empty = style({
 	display: "grid",
