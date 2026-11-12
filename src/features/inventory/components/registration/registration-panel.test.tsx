@@ -418,7 +418,56 @@ describe("InventoryRegistrationPanel", () => {
 		expect(unitSelect).toHaveValue("g:g");
 	});
 
-	it("マスタにない食材は、g・ml・個に加えて、自分で呼び名を入力して登録できる", async () => {
+	it("マスタにない食材は、よく使う数え方（袋など）を一覧から選んで登録できる", async () => {
+		const user = userEvent.setup();
+		const registerInventoryItem = vi.fn().mockResolvedValue({});
+
+		render(
+			<Harness
+				registerInventoryItem={registerInventoryItem}
+				onRegistered={() => {}}
+			/>,
+		);
+
+		await user.type(screen.getByLabelText("食材名"), "謎の缶詰");
+
+		const unit = screen.getByRole("combobox", { name: "在庫の単位" });
+
+		expect(
+			within(unit)
+				.getAllByRole("option")
+				.map((option) => option.textContent),
+		).toEqual(
+			expect.arrayContaining([
+				"個",
+				"本",
+				"枚",
+				"袋",
+				"パック",
+				"束",
+				"玉",
+				"缶",
+				"瓶",
+			]),
+		);
+
+		await user.selectOptions(unit, "count:袋");
+		await user.type(screen.getByLabelText(/^数量/u), "2");
+		await user.click(screen.getByRole("button", { name: "追加" }));
+
+		await waitFor(() =>
+			expect(registerInventoryItem).toHaveBeenCalledWith(
+				expect.objectContaining({
+					ingredientName: "謎の缶詰",
+					stockUnitCode: "count",
+					stockUnitLabel: "袋",
+					initialQuantity: 2,
+				}),
+			),
+		);
+	});
+
+	it("マスタにない食材は、一覧にない呼び名を、自分で入力して登録できる", async () => {
 		const user = userEvent.setup();
 		const registerInventoryItem = vi.fn().mockResolvedValue({});
 
@@ -434,7 +483,7 @@ describe("InventoryRegistrationPanel", () => {
 			screen.getByRole("combobox", { name: "在庫の単位" }),
 			"custom",
 		);
-		await user.type(screen.getByLabelText("単位の呼び名"), "缶");
+		await user.type(screen.getByLabelText("単位の呼び名"), "房");
 		await user.type(screen.getByLabelText(/^数量/u), "2");
 		await user.click(screen.getByRole("button", { name: "追加" }));
 
@@ -443,7 +492,7 @@ describe("InventoryRegistrationPanel", () => {
 				expect.objectContaining({
 					ingredientName: "謎の缶詰",
 					stockUnitCode: "count",
-					stockUnitLabel: "缶",
+					stockUnitLabel: "房",
 					initialQuantity: 2,
 				}),
 			),

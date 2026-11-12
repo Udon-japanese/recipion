@@ -22,8 +22,23 @@ describe("listStockUnitOptions（マスタにある単位だけを出す）", ()
 		["玉ねぎ", ["g:g", "count:個"]],
 		// 標準の単位が ml で密度がある
 		["牛乳", ["g:g", "ml:ml"]],
-		// マスタにない食材は、g・ml・個
-		["謎の食材", ["g:g", "ml:ml", "count:個"]],
+		// マスタにない食材は、g・ml と、よく使う数え方
+		[
+			"謎の食材",
+			[
+				"g:g",
+				"ml:ml",
+				"count:個",
+				"count:本",
+				"count:枚",
+				"count:袋",
+				"count:パック",
+				"count:束",
+				"count:玉",
+				"count:缶",
+				"count:瓶",
+			],
+		],
 	])("%s", (name, expected) => {
 		expect(labels(name)).toEqual(expected);
 	});
