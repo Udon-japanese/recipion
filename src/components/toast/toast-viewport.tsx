@@ -58,7 +58,9 @@ function moveToast(
 	element.style.opacity = String(opacity);
 }
 
-const getServerSnapshot = (): readonly Toast[] => [];
+// getServerSnapshot は、毎回同じ参照を返す必要がある（違うと、警告と再描画の無限ループになる）。
+const EMPTY_TOASTS: readonly Toast[] = [];
+const getServerSnapshot = () => EMPTY_TOASTS;
 
 // お知らせの置き場。アプリに1か所だけ置く（ルート）。モーダルを開いていても、操作できる（use-modal-focus.ts）。
 export function ToastViewport() {
@@ -68,7 +70,14 @@ export function ToastViewport() {
 		getServerSnapshot,
 	);
 
-	if (typeof document === "undefined") {
+	// 水和（サーバーの HTML と同じ描画）が済んでから、ポータルを出す。最初の描画から出すと、サーバーの HTML と食い違う。
+	const [mounted, setMounted] = useState(false);
+
+	useEffect(() => {
+		setMounted(true);
+	}, []);
+
+	if (!mounted || typeof document === "undefined") {
 		return null;
 	}
 
