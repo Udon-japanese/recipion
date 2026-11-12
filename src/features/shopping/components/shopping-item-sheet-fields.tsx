@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
-import { Button } from "#/components/button/button";
+import { useMemo } from "react";
 import { Chip } from "#/components/chip/chip";
+import { Icon } from "#/components/icon/icon";
+import { PickerSelect } from "#/components/select/picker-select";
 import { formatQuantity } from "#/features/quantity/domain/format-quantity";
 import { toggleMeasureUnit } from "#/features/quantity/domain/measure-units";
 import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
@@ -11,7 +12,6 @@ import {
 import {
 	isShoppingCategoryId,
 	type ShoppingCategoryId,
-	shoppingCategories,
 } from "../domain/shopping-category";
 import type { ShoppingItemInventoryConversion } from "../domain/shopping-item";
 import type {
@@ -30,7 +30,7 @@ import {
 } from "../domain/shopping-unit-chips";
 import * as styles from "./shopping-add-sheet.css";
 import {
-	ShoppingCategoryField,
+	ShoppingCategoryOptions,
 	ShoppingNameField,
 	ShoppingQuantityUnitFields,
 } from "./shopping-item-fields";
@@ -110,7 +110,6 @@ export function ShoppingItemSheetFields({
 	rememberedChoices = noChoices,
 	memories,
 }: ShoppingItemSheetFieldsProps) {
-	const [isChangingCategory, setIsChangingCategory] = useState(false);
 	const allPresets = getShoppingItemPresets(value.name);
 	// 覚えた候補と同じプリセットは、並べない。
 	const presets = allPresets.filter(
@@ -161,9 +160,6 @@ export function ShoppingItemSheetFields({
 		onChange({ ...value, unitLabel: next, inventoryConversion: null });
 		onAmountChange?.();
 	}
-	const categoryLabel = shoppingCategories.find(
-		(category) => category.id === value.categoryId,
-	)?.label;
 
 	function handleNameChange(name: string) {
 		const next: ShoppingItemDraft = {
@@ -288,38 +284,36 @@ export function ShoppingItemSheetFields({
 				onCreateStore={onCreateStore}
 			/>
 
+			{/* 行そのものが選択の欄。押すと、すぐ一覧（スマホはシート）が開く。 */}
 			<div className={styles.category}>
 				<span className={styles.categoryKey}>カテゴリ</span>
-				<span className={styles.categoryValue}>
-					{categoryLabel ?? "未設定"}
+				<span className={styles.categoryPicker}>
+					<PickerSelect
+						aria-label="カテゴリ"
+						name="categoryId"
+						className={styles.categorySelect}
+						value={value.categoryId}
+						onChange={(event) => {
+							const categoryId = event.target.value;
+
+							onChange({
+								...value,
+								categoryId: isShoppingCategoryId(categoryId) ? categoryId : "",
+								isCategoryManual: true,
+							});
+							onCategoryChange?.();
+						}}
+					>
+						<ShoppingCategoryOptions />
+					</PickerSelect>
+					<span className={styles.categoryChevron} aria-hidden="true">
+						<Icon name="chevron-down" size={16} />
+					</span>
 				</span>
 				{value.categoryId && !value.isCategoryManual ? (
 					<span className={styles.auto}>自動</span>
 				) : null}
-				<Button
-					variant="ghost"
-					size="sm"
-					onClick={() => setIsChangingCategory((current) => !current)}
-				>
-					{isChangingCategory ? "閉じる" : value.categoryId ? "変える" : "選ぶ"}
-				</Button>
 			</div>
-
-			{isChangingCategory ? (
-				<ShoppingCategoryField
-					label="カテゴリ"
-					name="categoryId"
-					value={value.categoryId}
-					onChange={(categoryId) => {
-						onChange({
-							...value,
-							categoryId: isShoppingCategoryId(categoryId) ? categoryId : "",
-							isCategoryManual: true,
-						});
-						onCategoryChange?.();
-					}}
-				/>
-			) : null}
 		</>
 	);
 }

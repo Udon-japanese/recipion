@@ -285,6 +285,28 @@ describe("ShoppingAddSheet", () => {
 		expect(screen.getByLabelText("単位")).toHaveValue("本");
 	});
 
+	it("カテゴリの行は、1回押すと一覧が開き、選んだカテゴリで追加する（「変える」は押さない）", async () => {
+		const user = userEvent.setup();
+		const { onAdd } = setup();
+
+		await user.type(screen.getByLabelText("買うもの"), "謎の食材");
+
+		expect(screen.queryByRole("button", { name: "変える" })).toBeNull();
+
+		await user.click(screen.getByRole("combobox", { name: "カテゴリ" }));
+		await user.click(screen.getByRole("button", { name: "卵" }));
+
+		expect(screen.getByRole("combobox", { name: "カテゴリ" })).toHaveValue(
+			"eggs",
+		);
+
+		await user.click(screen.getByRole("button", { name: /^追加/u }));
+
+		expect(onAdd).toHaveBeenCalledWith(
+			expect.objectContaining({ name: "謎の食材", categoryId: "eggs" }),
+		);
+	});
+
 	it("知らない名前には「もしかして」を出し、［〇〇にする］で名前を置き換える", async () => {
 		const user = userEvent.setup();
 

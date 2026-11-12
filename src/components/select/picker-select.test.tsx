@@ -111,6 +111,24 @@ describe("PickerSelect（選択の一覧）", () => {
 		expect(screen.getByLabelText("保存方法")).toHaveValue("room");
 	});
 
+	it("押して開いたときは、選んでも <select> へフォーカスを戻さない（WebKit が標準のメニューを開くため）。キーボードで開いたときは戻す", async () => {
+		mockCompact(false);
+		const user = userEvent.setup();
+		render(<Demo />);
+
+		await user.click(screen.getByLabelText("保存方法"));
+		await user.click(screen.getByRole("button", { name: "冷凍" }));
+
+		expect(screen.getByLabelText("保存方法")).toHaveValue("freezer");
+		expect(screen.getByLabelText("保存方法")).not.toHaveFocus();
+
+		screen.getByLabelText("保存方法").focus();
+		await user.keyboard("{Enter}");
+		await user.keyboard("{Escape}");
+
+		expect(screen.getByLabelText("保存方法")).toHaveFocus();
+	});
+
 	it("これまでどおり、selectOptions でも選べる", async () => {
 		mockCompact(false);
 		const user = userEvent.setup();

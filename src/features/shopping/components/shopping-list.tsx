@@ -60,6 +60,7 @@ import {
 } from "./shopping-branch-cards";
 import { ShoppingBranchCreate } from "./shopping-branch-create";
 import { ShoppingBulkAdd } from "./shopping-bulk-add";
+import { ShoppingClock } from "./shopping-clock";
 import { ShoppingItemEditSheet } from "./shopping-item-edit-sheet";
 import { ShoppingItemRow } from "./shopping-item-row";
 import * as styles from "./shopping-page.css";
@@ -519,6 +520,9 @@ export function ShoppingList({
 					/>
 				</div>
 			</div>
+
+			{/* いまの日時は、1行に分ける（切り替えのボタンの行を、窮屈にしない）。 */}
+			<ShoppingClock />
 
 			{notices ? <div className={styles.notices}>{notices}</div> : null}
 

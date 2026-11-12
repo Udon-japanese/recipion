@@ -73,19 +73,33 @@ export function PickerSelect(props: PickerSelectProps) {
 	const [selectedValue, setSelectedValue] = useState("");
 	// シートは、閉じる動きのあいだも描く。
 	const sheet = useExitPresence(opened?.kind === "sheet" ? opened : null);
+	// 押して開いたか（キーボードではなく）。押して開いたときは、閉じたあとに <select> へフォーカスを戻さない。
+	// iPad などの WebKit は、指の操作の流れで <select> にフォーカスが移ると、標準のメニューを開いてしまう。
+	const isOpenedByPointerRef = useRef(false);
 
-	const close = useCallback((restoreFocus: boolean) => {
-		setOpened(null);
-		if (restoreFocus) {
+	// 閉じたあと、<select> へフォーカスを戻す（キーボードで開いたときだけ）。
+	const returnFocus = useCallback(() => {
+		if (!isOpenedByPointerRef.current) {
 			selectRef.current?.focus();
 		}
 	}, []);
 
-	const open = useCallback(() => {
+	const close = useCallback(
+		(restoreFocus: boolean) => {
+			setOpened(null);
+			if (restoreFocus) {
+				returnFocus();
+			}
+		},
+		[returnFocus],
+	);
+
+	const open = useCallback((byPointer: boolean) => {
 		const select = selectRef.current;
 		if (!select || select.disabled) {
 			return;
 		}
+		isOpenedByPointerRef.current = byPointer;
 		const list = readChoices(select);
 		setChoices(list);
 		setTitle(labelOf(select));
@@ -119,7 +133,7 @@ export function PickerSelect(props: PickerSelectProps) {
 		if (!select) {
 			return;
 		}
-		select.focus();
+		returnFocus();
 		if (value !== select.value) {
 			select.value = value;
 			select.dispatchEvent(new Event("change", { bubbles: true }));
@@ -131,9 +145,8 @@ export function PickerSelect(props: PickerSelectProps) {
 		if (event.defaultPrevented || event.currentTarget.disabled) {
 			return;
 		}
-		// 標準の一覧を出さない。フォーカスは自分で移す。
+		// 標準の一覧を出さない（フォーカスも移さない。移すと、WebKit は標準のメニューを開く）。
 		event.preventDefault();
-		event.currentTarget.focus();
 	}
 
 	function handleClick(event: ReactMouseEvent<HTMLSelectElement>) {
@@ -142,7 +155,11 @@ export function PickerSelect(props: PickerSelectProps) {
 			return;
 		}
 		event.preventDefault();
-		open();
+		// 打っていた欄のフォーカスも外す（シートを閉じたときに、そこへ戻ってキーボードが出ないように）。
+		if (document.activeElement instanceof HTMLElement) {
+			document.activeElement.blur();
+		}
+		open(true);
 	}
 
 	function handleKeyDown(event: ReactKeyboardEvent<HTMLSelectElement>) {
@@ -159,7 +176,7 @@ export function PickerSelect(props: PickerSelectProps) {
 			opensWithAlt
 		) {
 			event.preventDefault();
-			open();
+			open(false);
 		}
 	}
 

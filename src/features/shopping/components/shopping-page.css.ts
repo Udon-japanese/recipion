@@ -93,6 +93,18 @@ export const headMenuButton = style({
 	},
 });
 
+// いまの日時（ボタンの行の下に、1行で。数字の幅をそろえて、時刻が変わっても動かないように）。
+export const clock = style({
+	display: "block",
+	// 上のボタンの行に寄せる（ページの間隔 16 を詰める）。
+	marginTop: -8,
+	color: "var(--color-text-muted)",
+	fontSize: "var(--font-size-sm)",
+	fontWeight: "var(--font-weight-bold)",
+	fontVariantNumeric: "tabular-nums",
+	whiteSpace: "nowrap",
+});
+
 export const toolbarSegment = style({
 	flex: 1,
 	minWidth: 0,

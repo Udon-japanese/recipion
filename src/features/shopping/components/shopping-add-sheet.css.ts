@@ -62,6 +62,42 @@ export const categoryValue = style({
 	fontWeight: "var(--font-weight-bold)",
 });
 
+// 値の部分が、そのまま選択の欄（見た目は文字と下向きの印だけ）。
+export const categoryPicker = style({
+	position: "relative",
+	display: "flex",
+	flex: 1,
+	minWidth: 0,
+	alignSelf: "stretch",
+});
+
+export const categorySelect = style({
+	boxSizing: "border-box",
+	width: "100%",
+	// 行の上下の余白まで押せるように、行の高さいっぱいに広げる。
+	minHeight: 44,
+	margin: "-6px 0",
+	padding: "0 28px 0 0",
+	appearance: "none",
+	background: "transparent",
+	border: "none",
+	color: "inherit",
+	font: "inherit",
+	fontWeight: "var(--font-weight-bold)",
+	textOverflow: "ellipsis",
+	cursor: "pointer",
+});
+
+export const categoryChevron = style({
+	position: "absolute",
+	top: "50%",
+	right: 4,
+	display: "flex",
+	color: "var(--color-text-muted)",
+	transform: "translateY(-50%)",
+	pointerEvents: "none",
+});
+
 export const auto = style({
 	padding: "1px 8px",
 	color: "var(--color-accent-text)",

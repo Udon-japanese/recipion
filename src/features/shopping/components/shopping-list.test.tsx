@@ -492,7 +492,7 @@ describe("ShoppingList", () => {
 		});
 	});
 
-	// 追加のシートの「カテゴリ　〇〇　［変える］」の行。
+	// 追加のシートの「カテゴリ　［〇〇 ▾］　自動」の行。
 	function categoryRow() {
 		const row = screen.getAllByText("カテゴリ")[0]?.parentElement;
 
@@ -541,7 +541,6 @@ describe("ShoppingList", () => {
 		await screen.findByText("買うものはまだありません。");
 
 		await user.click(screen.getByRole("button", { name: "買うものを入れる" }));
-		await user.click(screen.getByRole("button", { name: "選ぶ" }));
 		await user.selectOptions(screen.getByLabelText("カテゴリ"), "pantry");
 		await user.type(screen.getByLabelText("買うもの"), "卵");
 

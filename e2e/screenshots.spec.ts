@@ -49,7 +49,8 @@ test.describe("画面のスクリーンショット", () => {
 		await expect(page.getByText("買うものはまだありません。")).toBeVisible();
 		await expect(page).toHaveScreenshot("shopping.png", {
 			fullPage: true,
-			mask: [avatar(page)],
+			// いまの日時は、撮るたびに変わる。
+			mask: [page.locator("time"), avatar(page)],
 		});
 	});
 });
