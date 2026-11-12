@@ -116,6 +116,21 @@ type CategoryFieldProps = {
 	onChange: (value: string) => void;
 };
 
+// カテゴリの選択肢（未設定と、売り場の順のカテゴリ）。
+export function ShoppingCategoryOptions() {
+	return (
+		<>
+			<option value="">未設定</option>
+
+			{shoppingCategories.map((category) => (
+				<option value={category.id} key={category.id}>
+					{category.label}
+				</option>
+			))}
+		</>
+	);
+}
+
 export function ShoppingCategoryField({
 	label,
 	name,
@@ -131,13 +146,7 @@ export function ShoppingCategoryField({
 					value={value}
 					onChange={(event) => onChange(event.target.value)}
 				>
-					<option value="">未設定</option>
-
-					{shoppingCategories.map((category) => (
-						<option value={category.id} key={category.id}>
-							{category.label}
-						</option>
-					))}
+					<ShoppingCategoryOptions />
 				</SelectBox>
 			)}
 		</Field>
