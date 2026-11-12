@@ -3,6 +3,19 @@ import {
 	getDefaultStockUnitLabel,
 } from "./ingredient-catalog";
 
+// マスタにない食材の、在庫の単位に選べる数え方（よく使う順）。
+const commonCountLabels = [
+	"個",
+	"本",
+	"枚",
+	"袋",
+	"パック",
+	"束",
+	"玉",
+	"缶",
+	"瓶",
+] as const;
+
 export type StockUnitOption = {
 	stockUnitCode: "count" | "g" | "ml";
 	stockUnitLabel: string;
@@ -13,7 +26,7 @@ export type StockUnitOption = {
  * - g：その食材の標準の単位が g か、重さの定義（1本・1枚が何g）か密度があるとき。
  * - ml：標準の単位が ml か、密度があるとき。
  * - 個数：重さの定義にある数え方（鶏もも肉は枚、大根は本、キャベツは枚・玉）。標準の単位が個数なら、その呼び名（個）も。
- * マスタにない食材は、g・ml・個（自分で入力する呼び名は、allowsCustomStockUnit と resolveStockUnitChoice）。
+ * マスタにない食材は、g・ml と、よく使う数え方（commonCountLabels）。ほかの呼び名は、自分で入力する（allowsCustomStockUnit と resolveStockUnitChoice）。
  */
 export function listStockUnitOptions(
 	ingredientName: string,
@@ -24,7 +37,12 @@ export function listStockUnitOptions(
 		return [
 			{ stockUnitCode: "g", stockUnitLabel: "g" },
 			{ stockUnitCode: "ml", stockUnitLabel: "ml" },
-			{ stockUnitCode: "count", stockUnitLabel: "個" },
+			...commonCountLabels.map(
+				(label): StockUnitOption => ({
+					stockUnitCode: "count",
+					stockUnitLabel: label,
+				}),
+			),
 		];
 	}
 
