@@ -6,7 +6,6 @@ import {
 	ListRowMeta,
 	ListRowName,
 } from "#/components/list-row/list-row";
-import { Tag } from "#/components/tag/tag";
 import { AvatarArt } from "#/features/avatar/components/avatar-art";
 import type { Avatar } from "#/features/avatar/domain/avatar";
 import type { DishPlacement } from "#/features/dish-art/domain/dish-cover";
@@ -28,7 +27,7 @@ type RecipeSummaryRowProps = {
 	extra?: ReactNode;
 };
 
-// レシピの一覧の1行（自分のレシピ・みんなのレシピ・つくった、で同じ見た目）。
+// レシピの一覧の1行（自分のレシピ・つくった記録）。みんなのレシピは、カード（public-recipe-card.tsx）。
 export function RecipeSummaryRow({
 	publicId,
 	thumbnailSeed,
@@ -55,7 +54,9 @@ export function RecipeSummaryRow({
 				<ListRowName>{name}</ListRowName>
 			)}
 			<ListRowMeta>
-				{yieldText ? <Tag>{yieldText}</Tag> : null}
+				{yieldText ? (
+					<span className={styles.yieldText}>{yieldText}</span>
+				) : null}
 				{extra}
 				{author ? (
 					<span className={styles.author}>

@@ -220,6 +220,16 @@ export const iconDefinitions = {
 		style: "outline",
 		content: (<path d="M7 7l10 10M17 7L7 17" />) as ReactNode,
 	},
+	// 2人の上半身：みんな（みんなのレシピ）。
+	users: {
+		style: "outline",
+		content: (
+			<>
+				<circle cx={9} cy={8} r={3.5} />
+				<path d="M2.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5M15.5 4.8a3.5 3.5 0 010 6.4M18 14c2.1.8 3.5 3.1 3.5 6" />
+			</>
+		) as ReactNode,
+	},
 	// 柄のついたフライパンと湯気：作りかた（レシピの「作りかた」）。
 	pan: {
 		style: "outline",

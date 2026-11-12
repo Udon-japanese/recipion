@@ -32,6 +32,7 @@ function recipe(
 		yieldText: "2人分",
 		cover: null,
 		publicTags: [],
+		ingredientPreview: { names: [], total: 0 },
 		createdAt: "2026-10-23T00:00:00.000Z",
 		authorName: "作者",
 		authorHandle: "author",
@@ -64,9 +65,20 @@ function renderList(
 }
 
 describe("PublicRecipeList", () => {
-	it("レシピ名・何人分・作者を出し、材料の数は出さず、レシピへのリンクにする", () => {
+	it("レシピ名・何人分・作者・材料のちょい見せをカードに出し、レシピへのリンクにする", () => {
 		renderList({
-			recipes: [recipe("r1", "親子丼", { authorName: "たろう" })],
+			recipes: [
+				recipe("r1", "親子丼", {
+					authorName: "たろう",
+					ingredientPreview: {
+						names: ["鶏もも肉", "玉ねぎ", "卵", "醤油"],
+						total: 7,
+					},
+				}),
+				recipe("r2", "冷奴", {
+					ingredientPreview: { names: ["豆腐", "ねぎ"], total: 2 },
+				}),
+			],
 			nextCursor: null,
 		});
 
@@ -74,9 +86,13 @@ describe("PublicRecipeList", () => {
 			"href",
 			"/recipes/r1",
 		);
-		expect(screen.getByText("たろう（@author）")).toBeInTheDocument();
-		expect(screen.getByText("2人分")).toBeInTheDocument();
-		expect(screen.queryByText(/^材料/u)).toBeNull();
+		expect(screen.getByText("たろう")).toBeInTheDocument();
+		expect(screen.getAllByText("2人分")).toHaveLength(2);
+		// 見せきれない材料は「ほか n品」、全部見せられるときは付けない。
+		expect(
+			screen.getByText("鶏もも肉・玉ねぎ・卵・醤油 ほか3品"),
+		).toBeInTheDocument();
+		expect(screen.getByText("豆腐・ねぎ")).toBeInTheDocument();
 		expect(screen.queryByRole("button", { name: "もっと見る" })).toBeNull();
 	});
 

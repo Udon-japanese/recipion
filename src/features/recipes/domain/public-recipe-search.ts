@@ -1,6 +1,7 @@
 // 全体公開のレシピの一覧・検索に使う、純粋な関数と型。
 import type { Avatar } from "#/features/avatar/domain/avatar";
 import type { DishPlacement } from "#/features/dish-art/domain/dish-cover";
+import type { IngredientPreview } from "./ingredient-preview";
 import {
 	type PublicRecipeTag,
 	publicRecipeTagLabels,
@@ -15,6 +16,8 @@ export type PublicRecipeSummary = {
 	// 料理の絵（なければ、れしぽよの絵）。
 	cover: DishPlacement[] | null;
 	publicTags: PublicRecipeTag[];
+	// カードで見せる、先頭の材料名と、材料の数。
+	ingredientPreview: IngredientPreview;
 	// 登録した日時（ISO 8601）。
 	createdAt: string;
 	authorName: string;

@@ -70,9 +70,9 @@ export function ShoppingStoreManager({
 									/>
 								</div>
 
+								{/* 入力欄の横のボタンは、入力欄と同じ高さ（既定の大きさ）。 */}
 								<div className={styles.buttons}>
 									<Button
-										size="sm"
 										onClick={async () => {
 											if (await onRename(store, editName)) {
 												setEditingId(null);
@@ -83,7 +83,6 @@ export function ShoppingStoreManager({
 									</Button>
 
 									<Button
-										size="sm"
 										variant="secondary"
 										onClick={() => setEditingId(null)}
 									>
@@ -164,7 +163,6 @@ export function ShoppingStoreManager({
 				</div>
 
 				<Button
-					size="sm"
 					aria-label="店を追加"
 					leadingIcon={<Icon name="plus" size={20} />}
 					disabled={newName.trim() === ""}

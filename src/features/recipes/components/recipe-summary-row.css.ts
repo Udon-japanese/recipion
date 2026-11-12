@@ -16,3 +16,9 @@ export const author = style({
 	color: "var(--color-text-muted)",
 	fontSize: 14,
 });
+
+// 何人分（札にせず、薄い文字。題名より目立たせない）。
+export const yieldText = style({
+	color: "var(--color-text-muted)",
+	fontSize: "var(--font-size-sm)",
+});

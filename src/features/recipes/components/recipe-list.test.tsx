@@ -8,11 +8,22 @@ import { RecipeList } from "./recipe-list";
 vi.mock("@tanstack/react-router", () => ({
 	Link: ({
 		children,
+		to,
 		params,
+		"aria-label": ariaLabel,
 	}: {
 		children: React.ReactNode;
-		params: { publicId: string };
-	}) => <a href={`/recipes/${params.publicId}`}>{children}</a>,
+		to: string;
+		params?: { publicId: string };
+		"aria-label"?: string;
+	}) => (
+		<a
+			href={params ? `/recipes/${params.publicId}` : to}
+			aria-label={ariaLabel}
+		>
+			{children}
+		</a>
+	),
 }));
 
 vi.mock("#/components/button/button-link", () => ({
@@ -106,5 +117,37 @@ describe("RecipeList の自分のレシピの検索", () => {
 		render(<RecipeList recipes={[]} />);
 
 		expect(screen.queryByRole("searchbox")).toBeNull();
+	});
+});
+
+describe("RecipeList の切り替えと、つくった記録", () => {
+	it("切り替えは、自分のレシピとみんなのレシピの2つだけ", () => {
+		render(<RecipeList recipes={[]} onTabChange={vi.fn()} />);
+
+		const group = screen.getByRole("group", { name: "表示するレシピ" });
+
+		expect(
+			within(group)
+				.getAllByRole("button")
+				.map((button) => button.textContent),
+		).toEqual(["自分のレシピ", "みんなのレシピ"]);
+	});
+
+	it("つくった記録は、切り替えを出さず、題名と戻るリンクつきの別の画面にする", () => {
+		render(
+			<RecipeList
+				recipes={[]}
+				tab="made"
+				onTabChange={vi.fn()}
+				madePanel={<p>記録の一覧</p>}
+			/>,
+		);
+
+		expect(
+			screen.getByRole("heading", { name: "つくった記録" }),
+		).toBeInTheDocument();
+		expect(screen.getByText("記録の一覧")).toBeInTheDocument();
+		expect(screen.getByRole("link", { name: "レシピ" })).toBeInTheDocument();
+		expect(screen.queryByRole("group", { name: "表示するレシピ" })).toBeNull();
 	});
 });

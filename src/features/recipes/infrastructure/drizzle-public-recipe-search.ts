@@ -5,6 +5,7 @@ import {
 	desc,
 	eq,
 	exists,
+	inArray,
 	ne,
 	notExists,
 	or,
@@ -16,6 +17,8 @@ import { resolveUserAvatar } from "#/features/avatar/domain/avatar-presets";
 import { parseDishCover } from "#/features/dish-art/domain/dish-cover";
 import { accountSuspension } from "#/features/moderation/infrastructure/moderation.sql";
 import { user } from "#/integrations/better-auth/auth.sql";
+import { restoreRecipeIngredients } from "../application/restore-recipe-ingredients";
+import { previewIngredients } from "../domain/ingredient-preview";
 import {
 	buildLikePatterns,
 	findPublicTagsMatchingTerm,
@@ -25,6 +28,7 @@ import {
 	publicRecipePageSize,
 } from "../domain/public-recipe-search";
 import type { PublicRecipeTag } from "../domain/recipe-tags";
+import { toStoredIngredientNode } from "./drizzle-recipe-repository";
 import { recipe, recipeIngredientNode } from "./recipe.sql";
 
 // 全体公開のレシピを、新しい順に探す。自分のレシピ・停止中のユーザーのレシピは含めない。
@@ -69,6 +73,7 @@ export async function searchPublicRecipes(
 
 	const rows = await db
 		.select({
+			id: recipe.id,
 			publicId: recipe.publicId,
 			name: recipe.name,
 			yieldText: recipe.yieldText,
@@ -107,6 +112,27 @@ export async function searchPublicRecipes(
 
 	const pageRows = rows.slice(0, publicRecipePageSize);
 	const last = pageRows.at(-1);
+	// カードの材料のちょい見せ：このページのレシピの材料を、まとめて1回で取る。
+	const ingredientRows =
+		pageRows.length === 0
+			? []
+			: await db
+					.select()
+					.from(recipeIngredientNode)
+					.where(
+						inArray(
+							recipeIngredientNode.recipeId,
+							pageRows.map((row) => row.id),
+						),
+					);
+	const ingredientRowsByRecipe = new Map<string, typeof ingredientRows>();
+
+	for (const row of ingredientRows) {
+		ingredientRowsByRecipe.set(row.recipeId, [
+			...(ingredientRowsByRecipe.get(row.recipeId) ?? []),
+			row,
+		]);
+	}
 
 	return {
 		recipes: pageRows.map((row) => ({
@@ -115,6 +141,13 @@ export async function searchPublicRecipes(
 			yieldText: row.yieldText,
 			cover: parseDishCover(row.cover),
 			publicTags: row.publicTags,
+			ingredientPreview: previewIngredients(
+				restoreRecipeIngredients(
+					(ingredientRowsByRecipe.get(row.id) ?? []).map(
+						toStoredIngredientNode,
+					),
+				),
+			),
 			createdAt: row.createdAt.toISOString(),
 			authorName: row.authorName,
 			authorHandle: row.authorHandle,
