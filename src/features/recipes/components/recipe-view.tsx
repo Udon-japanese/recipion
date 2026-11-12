@@ -364,19 +364,16 @@ function IngredientItem({
 
 function RecipeSection({
 	title,
-	titleNote,
-	titleControl,
-	action,
+	aside,
+	bottomAction,
 	footer,
 	children,
 }: {
 	title: string;
-	// 見出しのすぐ横に、小さく添える文字（材料の、できあがりの量など）。
-	titleNote?: string;
-	// 見出しのすぐ横に置く操作（材料の量を変える）。あれば、titleNote の代わり。
-	titleControl?: ReactNode;
-	// 見出しの右に置くもの。
-	action?: ReactNode;
+	// 見出しの右に置くもの（材料の、できあがりの量・量を変える操作。作り方の、画面をつけたまま）。
+	aside?: ReactNode;
+	// 中身のすぐ下に、右寄せで置く操作（材料の、買い物メモへ）。
+	bottomAction?: ReactNode;
 	// カードの一番下に、線で区切って置くもの。
 	footer?: ReactNode;
 	children: ReactNode;
@@ -385,16 +382,13 @@ function RecipeSection({
 		<Card padding="md">
 			<section className={styles.section}>
 				<div className={styles.sectionHeader}>
-					<div className={styles.sectionTitleGroup}>
-						<h3 className={styles.sectionTitle}>{title}</h3>
-						{titleControl ??
-							(titleNote ? (
-								<span className={styles.sectionTitleNote}>{titleNote}</span>
-							) : null)}
-					</div>
-					{action}
+					<h3 className={styles.sectionTitle}>{title}</h3>
+					{aside}
 				</div>
 				{children}
+				{bottomAction ? (
+					<div className={styles.sectionBottomAction}>{bottomAction}</div>
+				) : null}
 				{footer ? <div className={styles.sectionFooter}>{footer}</div> : null}
 			</section>
 		</Card>
@@ -418,7 +412,7 @@ export type RecipeViewProps = {
 	headerExtra?: ReactNode;
 	// 作り方の見出しの右に置くもの（画面をつけたまま）。作り方がなければ、出さない。
 	instructionsAction?: ReactNode;
-	// 材料の見出しの右に置くもの（買い物メモへ）。材料がなければ、出さない。
+	// 材料の一覧の下に、右寄せで置くもの（買い物メモへ）。材料がなければ、出さない。
 	ingredientsAction?: ReactNode;
 	// 作り終えたときの操作（つくった）。作り方のカードの一番下（作り方がなければ、材料のカードの一番下）。
 	madeAction?: ReactNode;
@@ -428,15 +422,15 @@ export type RecipeViewProps = {
 	checklist?: boolean;
 	// 分量に掛ける割合（人数を変えたとき・プレビューでリンク先の何回分を見せるとき）。省略は 1。
 	ratio?: number;
-	// 材料の見出しの横に、量の文字の代わりに置くもの（量を変える操作）。
+	// 材料の見出しの右に、量の文字の代わりに置くもの（量を変える操作）。
 	yieldControl?: ReactNode;
 };
 
 type RecipeTab = "prepare" | "cook";
 
 const tabOptions = [
-	{ value: "prepare", label: "そろえる" },
-	{ value: "cook", label: "作りかた" },
+	{ value: "prepare", label: "そろえる", icon: "bowl" },
+	{ value: "cook", label: "作りかた", icon: "pan" },
 ] as const;
 
 export function RecipeView({
@@ -489,6 +483,10 @@ export function RecipeView({
 		recipe.note.length > 0;
 	const hasTabs = hasPreparePane && hasCookPane;
 	const hasInstructions = recipe.instructions.length > 0;
+	const yieldText = scaleRecipeYieldText(recipe.yieldText, ratio);
+	const yieldNote = yieldText ? (
+		<span className={styles.sectionTitleNote}>{yieldText}</span>
+	) : null;
 
 	return (
 		<article className={styles.container}>
@@ -540,9 +538,8 @@ export function RecipeView({
 							{hasIngredients ? (
 								<RecipeSection
 									title="材料"
-									titleNote={scaleRecipeYieldText(recipe.yieldText, ratio)}
-									titleControl={yieldControl}
-									action={ingredientsAction}
+									aside={yieldControl ?? yieldNote}
+									bottomAction={ingredientsAction}
 									footer={hasInstructions ? undefined : madeAction}
 								>
 									{canUseChecklist ? (
@@ -597,7 +594,7 @@ export function RecipeView({
 							{hasInstructions ? (
 								<RecipeSection
 									title="作り方"
-									action={instructionsAction}
+									aside={instructionsAction}
 									footer={madeAction}
 								>
 									<ol className={styles.steps}>

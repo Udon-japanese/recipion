@@ -57,6 +57,17 @@ export const iconDefinitions = {
 		style: "outline",
 		content: (<path d="M5 6h14v14H5zM5 10h14M9 3v4M15 3v4" />) as ReactNode,
 	},
+	// ボウルと、のぞく食材：材料をそろえる（レシピの「そろえる」）。
+	bowl: {
+		style: "outline",
+		content: (
+			<>
+				<path d="M3 12h18a9 8 0 01-18 0z" />
+				<circle cx={9} cy={8} r={2.5} />
+				<path d="M14 10l4-7" />
+			</>
+		) as ReactNode,
+	},
 	carton: {
 		style: "outline",
 		content: (<path d="M7 3h10v18H7zM7 10h10M10 6v2M10 13v3" />) as ReactNode,
@@ -208,6 +219,16 @@ export const iconDefinitions = {
 	multiply: {
 		style: "outline",
 		content: (<path d="M7 7l10 10M17 7L7 17" />) as ReactNode,
+	},
+	// 柄のついたフライパンと湯気：作りかた（レシピの「作りかた」）。
+	pan: {
+		style: "outline",
+		content: (
+			<>
+				<circle cx={10} cy={15} r={6} />
+				<path d="M14.3 10.7L21 4M8 3c-1 1 1 2 0 3M12 3c-1 1 1 2 0 3" />
+			</>
+		) as ReactNode,
 	},
 	plus: {
 		style: "outline",

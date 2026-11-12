@@ -1033,9 +1033,7 @@ describe("RecipeEditor", () => {
 		await user.clear(amount);
 		await user.type(amount, "2個");
 		await user.keyboard("{Enter}");
-		expect(
-			screen.getAllByRole("button", { name: "卵の手直しを元に戻す" }),
-		).toHaveLength(1);
+		expect(screen.getAllByTitle("手直し済み")).toHaveLength(1);
 
 		// 本文を、1回の変更で書き換える（いったん空にすると、材料ごと消えるため）。
 		fireEvent.change(screen.getByRole("textbox", { name: "レシピの本文" }), {
@@ -1067,9 +1065,7 @@ describe("RecipeEditor", () => {
 		expect(
 			screen.getByRole("button", { name: "卵の分量を編集" }).textContent,
 		).toBe("3個");
-		expect(
-			screen.queryByRole("button", { name: "卵の手直しを元に戻す" }),
-		).toBeNull();
+		expect(screen.queryByTitle("手直し済み")).toBeNull();
 	});
 
 	it("手直しを元に戻せる", async () => {
@@ -1083,16 +1079,12 @@ describe("RecipeEditor", () => {
 		await user.clear(amount);
 		await user.type(amount, "2個");
 		await user.keyboard("{Enter}");
-		await user.click(
-			screen.getByRole("button", { name: "卵の手直しを元に戻す" }),
-		);
+		await chooseMenuItem(user, "卵", "手直しを元に戻す");
 
 		expect(
 			screen.getByRole("button", { name: "卵の分量を編集" }).textContent,
 		).toBe("1個");
-		expect(
-			screen.queryByRole("button", { name: "卵の手直しを元に戻す" }),
-		).toBeNull();
+		expect(screen.queryByTitle("手直し済み")).toBeNull();
 	});
 
 	it("プレビューで消した材料は、本文に残っていても、出てこない", async () => {

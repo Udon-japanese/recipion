@@ -53,7 +53,7 @@ export function RecipeMadeOptions({
 	}, [isOpen]);
 
 	return (
-		<div className={styles.root} ref={rootRef}>
+		<div ref={rootRef}>
 			<IconButton
 				icon="settings"
 				label="作ったときの設定"
