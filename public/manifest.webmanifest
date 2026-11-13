@@ -1,5 +1,5 @@
 {
-	"_comment": "name / short_name は src/config/app.ts の APP_DISPLAY_NAME と合わせること。theme_color は、ページの meta theme-color と、styles.css の --color-background と、同じ色にする（インストールした PWA の Android のナビゲーションバーは、manifest の theme_color で塗られる。書かないと黒になる。2026-11-11 に消したら黒になったため戻した）",
+	"_comment": "name / short_name は src/config/app.ts の APP_DISPLAY_NAME と合わせること。theme_color は、Android にインストールした PWA のナビゲーションバーの色（たまごイエロー）。書かないと黒になる。背景と同じ明るい色にすると、ページとの間に区切り線が出て、消せない。ステータスバーの色は、ページの meta theme-color（ヘッダーと同じ #fffdf7）が優先される",
 	"name": "れしぴょん",
 	"short_name": "れしぴょん",
 	"description": "レシピ、買い物メモ、在庫を管理するアプリ",
@@ -8,7 +8,7 @@
 	"scope": "/",
 	"display": "standalone",
 	"background_color": "#fffdf7",
-	"theme_color": "#fffdf7",
+	"theme_color": "#e9a900",
 	"icons": [
 		{
 			"src": "/recipion-icon.svg",
