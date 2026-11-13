@@ -3,6 +3,8 @@ import type { ComponentProps } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AppShell } from "./app-shell";
 
+const noopRefresh = () => Promise.resolve();
+
 const mocks = vi.hoisted(() => ({
 	pathname: "/shopping",
 	session: {
@@ -53,7 +55,7 @@ afterEach(() => {
 describe("AppShell", () => {
 	it("ゲストは、ログインへのリンクが出る", () => {
 		render(
-			<AppShell>
+			<AppShell onRefresh={noopRefresh}>
 				<p>本文</p>
 			</AppShell>,
 		);
@@ -72,7 +74,7 @@ describe("AppShell", () => {
 		};
 
 		render(
-			<AppShell>
+			<AppShell onRefresh={noopRefresh}>
 				<p>本文</p>
 			</AppShell>,
 		);
@@ -85,7 +87,7 @@ describe("AppShell", () => {
 		mocks.session = { data: null, isPending: true };
 
 		render(
-			<AppShell>
+			<AppShell onRefresh={noopRefresh}>
 				<p>本文</p>
 			</AppShell>,
 		);
@@ -96,7 +98,7 @@ describe("AppShell", () => {
 
 	it("機能のナビは、買い物メモ・在庫・レシピ", () => {
 		render(
-			<AppShell>
+			<AppShell onRefresh={noopRefresh}>
 				<p>本文</p>
 			</AppShell>,
 		);
@@ -110,7 +112,7 @@ describe("AppShell", () => {
 		mocks.pathname = "/login";
 
 		render(
-			<AppShell>
+			<AppShell onRefresh={noopRefresh}>
 				<p>本文</p>
 			</AppShell>,
 		);

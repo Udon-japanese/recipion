@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { pageTitle } from "#/config/app";
 import { IngredientDictionaryScope } from "#/features/ingredients/components/ingredient-dictionary-context";
 import { useIngredientDictionaryWithActions } from "#/features/ingredients/hooks/use-ingredient-dictionary";
@@ -42,6 +42,7 @@ import {
 } from "#/features/inventory/server/manage-inventory-item";
 import { registerInventoryItemServerFn } from "#/features/inventory/server/register-inventory-item";
 import { updateInventoryLotServerFn } from "#/features/inventory/server/update-inventory-lot";
+import { onAppRefreshRequest } from "#/features/pull-refresh/infrastructure/app-refresh-request";
 
 export const Route = createFileRoute("/inventory")({
 	head: () => ({ meta: [{ title: pageTitle("在庫") }] }),
@@ -51,6 +52,15 @@ export const Route = createFileRoute("/inventory")({
 
 function InventoryPage() {
 	const [inventoryRefreshKey, setInventoryRefreshKey] = useState(0);
+
+	// 引っ張り更新が終わったら、在庫の一覧を取り直す。
+	useEffect(
+		() =>
+			onAppRefreshRequest(() =>
+				setInventoryRefreshKey((currentKey) => currentKey + 1),
+			),
+		[],
+	);
 
 	const ownerScope = useOwnerScope();
 	const [expiryEstimateLevel] = useExpiryEstimateLevel();

@@ -110,10 +110,13 @@
 
 html {
 	background: var(--color-background);
+	/* ブラウザ標準の引っ張り更新を止める（代わりに features/pull-refresh の丸を使う）。 */
+	overscroll-behavior-y: contain;
 }
 
 body {
 	margin: 0;
+	overscroll-behavior-y: contain;
 	color: var(--color-text);
 	background: var(--color-background);
 	font-family: var(--font-sans);
