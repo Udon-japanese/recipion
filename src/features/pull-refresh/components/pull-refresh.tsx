@@ -21,6 +21,9 @@ import * as styles from "./pull-refresh.css";
 
 type Phase = "idle" | "pulling" | "loading" | "leaving";
 
+// 白丸の中の mascot の大きさ（px）。丸（48px）に対して小さめにして、中で跳ねられるようにする。
+const MASCOT_SIZE_PX = 20;
+
 // ダイアログ（シート・モーダル）の中の指の動きでは、引っ張り更新を始めない。
 const dialogSelector = '[role="dialog"], [aria-modal="true"]';
 
@@ -134,6 +137,8 @@ export function PullRefresh({ onRefresh }: PullRefreshProps) {
 		};
 	}, []);
 
+	const loading = phase === "loading";
+
 	return (
 		<div
 			aria-hidden="true"
@@ -148,10 +153,14 @@ export function PullRefresh({ onRefresh }: PullRefreshProps) {
 						: "transform 360ms ease-out, opacity 200ms ease-out",
 			}}
 		>
+			{/* ふだんは白丸の中央に止まり、読み込み中は Button と同じく中で跳ね回る。
+			    止まっているときの位置は、動く範囲（roam）の中心になるため、roam を分けて、中央に合わせる。
+			    状態が変わるたびに作り直して、止まる位置を初期化する。 */}
 			<Mascot
-				size={28}
-				motion={phase === "loading" ? "loop" : "still"}
-				roam={0.2}
+				key={loading ? "loop" : "still"}
+				size={MASCOT_SIZE_PX}
+				motion={loading ? "loop" : "still"}
+				roam={loading ? 1 : 0.01}
 			/>
 		</div>
 	);
