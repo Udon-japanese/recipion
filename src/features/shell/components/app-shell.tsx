@@ -6,6 +6,7 @@ import type { IconName } from "#/components/icon/icon-definitions";
 import { Mascot } from "#/components/mascot/mascot";
 import { APP_DISPLAY_NAME } from "#/config/app";
 import { UserAvatar } from "#/features/avatar/components/user-avatar";
+import { PullRefresh } from "#/features/pull-refresh/components/pull-refresh";
 import { useAppSession } from "#/integrations/better-auth/use-app-session";
 import { getShellLayout } from "../domain/shell-layout";
 import * as styles from "./app-shell.css";
@@ -40,7 +41,14 @@ const navItems: readonly NavItem[] = [
 
 // アプリの枠：スマホは上のヘッダー（ロゴ・アカウント）と下のナビ、PC は左のナビ。
 // ログイン状態の確認中は、アカウントの所を空けておく（静的なページに、誰の情報も焼き込まないため）。
-export function AppShell({ children }: { children: ReactNode }) {
+// onRefresh は、引っ張り更新の中身（枠の中の画面だけで、引っ張れる）。
+export function AppShell({
+	children,
+	onRefresh,
+}: {
+	children: ReactNode;
+	onRefresh: () => Promise<unknown>;
+}) {
 	const pathname = useRouterState({
 		select: (state) => state.location.pathname,
 	});
@@ -52,6 +60,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
 	return (
 		<div className={styles.root}>
+			<PullRefresh onRefresh={onRefresh} />
 			<SideNav />
 
 			<header className={styles.header}>

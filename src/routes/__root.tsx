@@ -3,13 +3,21 @@ import {
 	HeadContent,
 	Outlet,
 	Scripts,
+	useRouter,
 } from "@tanstack/react-router";
+import { useCallback } from "react";
 import { ToastViewport } from "#/components/toast/toast-viewport";
 import { APP_DISPLAY_NAME } from "#/config/app";
 import { SuspensionGate } from "#/features/moderation/components/suspension-gate";
+import {
+	isUserScope,
+	refreshAppData,
+} from "#/features/pull-refresh/application/refresh-app-data";
+import { requestAppRefresh } from "#/features/pull-refresh/infrastructure/app-refresh-request";
 import { PwaRegister } from "#/features/pwa/components/pwa-register";
 import { AppShell } from "#/features/shell/components/app-shell";
 import { ShoppingSyncRunner } from "#/features/shopping/components/shopping-sync-runner";
+import { useShoppingOwnerScope } from "#/features/shopping/hooks/use-shopping-owner-scope";
 import { syncDexieShoppingMemo } from "#/features/shopping/infrastructure/sync-dexie-shopping-memo";
 import { getInitialSessionServerFn } from "#/integrations/better-auth/get-initial-session";
 import appCss from "../styles.css?url";
@@ -86,9 +94,24 @@ export const Route = createRootRoute({
 });
 
 function RootLayout() {
+	const router = useRouter();
+	const ownerScope = useShoppingOwnerScope();
+	// 引っ張り更新：ルートの再読み込み、ログイン中は買い物メモの同期（他の端末の変更を受け取る）、在庫の再読み込みの通知。
+	const onRefresh = useCallback(
+		() =>
+			refreshAppData({
+				invalidateRoutes: () => router.invalidate(),
+				syncShoppingMemo: isUserScope(ownerScope)
+					? () => syncDexieShoppingMemo(ownerScope, "wake")
+					: undefined,
+				notify: requestAppRefresh,
+			}),
+		[router, ownerScope],
+	);
+
 	return (
 		<SuspensionGate>
-			<AppShell>
+			<AppShell onRefresh={onRefresh}>
 				<Outlet />
 				<ShoppingSyncRunner sync={syncDexieShoppingMemo} />
 				<ToastViewport />
