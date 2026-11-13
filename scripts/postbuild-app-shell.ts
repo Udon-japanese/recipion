@@ -190,10 +190,18 @@ const viteManifest = JSON.parse(
 	readFileSync(viteManifestPath, "utf8"),
 ) as Record<string, ViteManifestEntry>;
 const urls = collectPrecacheUrls(viteManifest);
+// public/sw.js の STATIC_URLS と同じファイル。サービスワーカーが、ビルドごとにキャッシュして、キャッシュを優先して返す。
+// 中身をビルド ID に含めないと、manifest だけを変えたとき、ID が変わらず、サービスワーカーが更新されず、
+// 端末が古い manifest を返し続ける（2026-11-13 に theme_color を戻したのに、PWA に反映されなかった）。
+const staticFileContents = [
+	"manifest.webmanifest",
+	"recipion-icon.svg",
+].map((name) => readFileSync(`${clientDir}/${name}`, "utf8"));
 const buildId = createBuildId([
 	shell,
 	...shellCopies.map((copy) => copy.html),
 	...urls,
+	...staticFileContents,
 ]);
 
 writeFileSync(
