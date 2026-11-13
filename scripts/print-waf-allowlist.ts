@@ -15,7 +15,10 @@ const publicFiles = readdirSync("public", {
 	withFileTypes: true,
 })
 	.filter((entry) => entry.isFile())
-	.map((entry) => relative("public", join(entry.parentPath, entry.name)));
+	// URL のパスなので、区切りは `/`（Windows では、relative が `\` を返し、WAF の式が構文エラーになる）。
+	.map((entry) =>
+		relative("public", join(entry.parentPath, entry.name)).replaceAll("\\", "/"),
+	);
 
 const allowlist = buildWafAllowlist({ routePaths, publicFiles });
 
