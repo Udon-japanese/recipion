@@ -22,7 +22,8 @@ export const header = style({
 	gap: 4,
 	height: 56,
 	flex: "none",
-	padding: "0 6px 0 16px",
+	// 画面の上端（ステータスバーの領域）まで描くときは、その分を空ける（高さは content-box なので、56px は保つ）。
+	padding: "env(safe-area-inset-top) 6px 0 16px",
 	background: "var(--color-background)",
 	borderBottom: "1px solid var(--color-border)",
 
