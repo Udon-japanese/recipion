@@ -5,13 +5,12 @@ import { SelectBox, TextInput } from "#/components/field/field";
 import { withLargerMeasureUnits } from "#/features/quantity/domain/measure-units";
 import { rememberMeasureUnit } from "#/features/quantity/infrastructure/measure-unit-preference-storage";
 import {
-	describePurchaseUnit,
 	describePurchaseUnitInInputUnit,
 	type InventoryLotPurchaseUnit,
 } from "../domain/inventory-lot";
 import {
 	type PurchaseUnitDraft,
-	parsePurchaseUnitDraft,
+	summarizePurchaseUnitDraft,
 } from "../domain/purchase-unit-draft";
 import * as expiryStyles from "./expiry-fields.css";
 import * as styles from "./purchase-unit-field.css";
@@ -23,6 +22,8 @@ type PurchaseUnitFieldProps = {
 	candidates: readonly InventoryLotPurchaseUnit[];
 	// 1つあたりの量の単位の選択肢（g・ml・在庫の単位の呼び名など）。
 	quantityUnitOptions: readonly string[];
+	// 在庫の単位の呼び名（換算なしのときは、この単位のまま、と出す）。
+	stockUnitLabel: string;
 	// 買った単位の呼び名を、直せるか。false のときは、呼び名は固定（登録では、在庫の単位）。
 	isLabelEditable: boolean;
 	disabled?: boolean;
@@ -30,11 +31,9 @@ type PurchaseUnitFieldProps = {
 	itemName: string;
 };
 
-function summarize(draft: PurchaseUnitDraft): string {
+function summarize(draft: PurchaseUnitDraft, stockUnitLabel: string): string {
 	try {
-		const unit = parsePurchaseUnitDraft(draft);
-
-		return unit ? describePurchaseUnit(unit) : "未設定";
+		return summarizePurchaseUnitDraft(draft, stockUnitLabel);
 	} catch {
 		return "入力を確かめてください";
 	}
@@ -47,6 +46,7 @@ export function PurchaseUnitField({
 	onChange,
 	candidates,
 	quantityUnitOptions,
+	stockUnitLabel,
 	isLabelEditable,
 	disabled = false,
 	itemName,
@@ -69,7 +69,9 @@ export function PurchaseUnitField({
 				onClick={() => setIsOpen(!isOpen)}
 			>
 				<span className={expiryStyles.detailsTitle}>換算</span>
-				<span className={expiryStyles.detailsSummary}>{summarize(draft)}</span>
+				<span className={expiryStyles.detailsSummary}>
+					{summarize(draft, stockUnitLabel)}
+				</span>
 				<span className={expiryStyles.detailsAction} aria-hidden="true">
 					{isOpen ? "閉じる" : "変える"}
 				</span>
@@ -148,7 +150,7 @@ export function PurchaseUnitField({
 					</div>
 
 					<p className={styles.hint}>
-						このロットだけの換算です。量を空にすると、換算なしになります。
+						このロットだけの換算です。量を空にすると、在庫の単位のまま（換算なし）になります。
 					</p>
 
 					{draft.quantityText !== "" ? (

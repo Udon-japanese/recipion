@@ -129,6 +129,7 @@ function RegistrationForm({
 					onChange={registration.setPurchaseUnitDraft}
 					candidates={registration.purchaseUnitCandidates}
 					quantityUnitOptions={registration.purchaseUnitQuantityUnits}
+					stockUnitLabel={registration.stockUnit.stockUnitLabel}
 					isLabelEditable={registration.isPurchaseUnitLabelEditable}
 					disabled={registration.isSubmitting}
 					itemName={ingredientName.trim() || "食材"}

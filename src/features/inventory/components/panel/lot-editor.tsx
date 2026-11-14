@@ -226,6 +226,7 @@ export function LotEditor({
 						onChange={setPurchaseUnitDraft}
 						candidates={purchaseUnitCandidates}
 						quantityUnitOptions={["g", "ml", item.stockUnitLabel]}
+						stockUnitLabel={item.stockUnitLabel}
 						isLabelEditable
 						disabled={save.isPending}
 						itemName={label}

@@ -245,13 +245,15 @@ export function markShoppingItemAsPurchased(
 	};
 }
 
-// 買う単位と在庫の単位が同じで、1対1の換算（1g＝1g、1個＝1個）。
+// 買う単位と在庫の単位が同じで、1対1の換算（1g＝1g、1個＝1個、在庫が枚のとき1枚＝1枚）。
+// 単位のコード（個は count）と、在庫の単位の呼び名の両方で比べる（枚は、コードでは count と区別できない）。
 export function isSameUnitConversion(
 	conversion: ShoppingItemInventoryConversion,
 ): boolean {
 	return (
-		conversion.inputUnitCode === conversion.stockUnitCode &&
-		conversion.stockQuantityPerInputUnit === 1
+		conversion.stockQuantityPerInputUnit === 1 &&
+		(conversion.inputUnitCode === conversion.stockUnitCode ||
+			conversion.inputUnitCode === conversion.stockUnitLabel)
 	);
 }
 
