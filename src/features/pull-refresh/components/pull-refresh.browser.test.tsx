@@ -42,6 +42,28 @@ it("しきい値まで引いて離すと、更新を1回頼む", async () => {
 	await vi.waitFor(() => expect(onRefresh).toHaveBeenCalledTimes(1));
 });
 
+// 指の動きを自分で使う場所（シート・モーダル、指で消すお知らせ）の上では、引っ張り更新を始めない。
+it.each([
+	{ name: "ダイアログ", attributes: { role: "dialog" } },
+	{ name: "お知らせ", attributes: { "data-toast-viewport": "" } },
+])("$name の上で引いたときは、更新を頼まない", async ({ attributes }) => {
+	const onRefresh = vi.fn(() => Promise.resolve());
+
+	await render(
+		<>
+			<div
+				{...attributes}
+				style={{ position: "fixed", inset: 0, zIndex: 100 }}
+			/>
+			<PullRefresh onRefresh={onRefresh} />
+		</>,
+	);
+	await pullDown(220);
+	await new Promise((resolve) => setTimeout(resolve, 800));
+
+	expect(onRefresh).not.toHaveBeenCalled();
+});
+
 it("しきい値の手前で離したときは、更新を頼まない", async () => {
 	const onRefresh = vi.fn(() => Promise.resolve());
 
