@@ -1,4 +1,11 @@
-import { style } from "@vanilla-extract/css";
+import { createVar, fallbackVar, style } from "@vanilla-extract/css";
+
+// 行の左右の余白の足し分。カード側に余白を持たせず、行の中に持たせると、チェック済みの塗りがカードの端まで届く。
+// 区切り線は、この足し分だけ内側から引く（カードの端には届かせない）。
+export const rowInsetStart = createVar();
+export const rowInsetEnd = createVar();
+const insetStart = fallbackVar(rowInsetStart, "0px");
+const insetEnd = fallbackVar(rowInsetEnd, "0px");
 
 export const row = style({
 	position: "relative",
@@ -6,18 +13,27 @@ export const row = style({
 	alignItems: "center",
 	gap: 15,
 	minHeight: 64,
-	padding: "12px",
-	borderTop: "1px solid var(--color-border)",
+	paddingBlock: 12,
+	paddingInlineStart: `calc(12px + ${insetStart})`,
+	paddingInlineEnd: `calc(12px + ${insetEnd})`,
 	listStyle: "none",
 
 	selectors: {
-		"&:first-child": { borderTop: 0 },
-		// チェックを入れた（買った）行は、薄い緑（色で、済んだことが分かる）。
-		"&[data-checked]": {
-			background: "var(--color-success-soft)",
-			borderRadius: 12,
-			borderTopColor: "transparent",
+		// 上の区切り線。
+		"&::before": {
+			content: "",
+			position: "absolute",
+			insetBlockStart: 0,
+			insetInlineStart: insetStart,
+			insetInlineEnd: insetEnd,
+			borderTop: "1px solid var(--color-border)",
 		},
+		"&:first-child::before": { content: "none" },
+		// チェックを入れた（買った）行は、薄い緑（色で、済んだことが分かる）。
+		// 塗りは行の端から端まで（角は、カードの角丸で切り取る）。塗りの上下には、区切り線を引かない。
+		"&[data-checked]": { background: "var(--color-success-soft)" },
+		"&[data-checked]::before": { content: "none" },
+		"[data-checked] + &::before": { content: "none" },
 		// 持ち上げて動かしているとき。
 		"&[data-dragging]": {
 			background: "var(--color-surface)",
@@ -25,6 +41,7 @@ export const row = style({
 			borderRadius: 16,
 			boxShadow: "var(--shadow-md)",
 		},
+		"&[data-dragging]::before": { content: "none" },
 	},
 });
 

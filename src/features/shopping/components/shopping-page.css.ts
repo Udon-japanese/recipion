@@ -1,5 +1,6 @@
 import { style } from "@vanilla-extract/css";
 import { fab as fabBase } from "#/components/fab/fab.css";
+import { rowInsetEnd, rowInsetStart } from "#/components/list-row/list-row.css";
 
 const PC = "(min-width: 768px)";
 
@@ -227,10 +228,18 @@ export const groupTitle = style({
 	color: "var(--color-text-muted)",
 });
 
+// 行の左右の余白（左 8・右 12）は、行の中に持たせる（チェック済みの塗りを、カードの端まで届かせる）。
+const rowInsets = {
+	[rowInsetStart]: "8px",
+	[rowInsetEnd]: "12px",
+};
+
 export const listCard = style({
 	margin: 0,
-	padding: "0 12px 0 8px",
+	padding: 0,
+	overflow: "hidden",
 	listStyle: "none",
+	vars: rowInsets,
 	background: "var(--color-surface)",
 	borderRadius: "var(--radius-card)",
 	boxShadow: "var(--shadow-sm)",
@@ -360,8 +369,9 @@ export const categoryCard = style({
 
 export const rowList = style({
 	margin: 0,
-	padding: "0 12px 0 8px",
+	padding: 0,
 	listStyle: "none",
+	vars: rowInsets,
 	selectors: {
 		// 分類ごとに分かれた並びも、1つのカードの中で、続けて見えるよう、区切り線を引く。
 		"& + &": { borderTop: "1px solid var(--color-border)" },
