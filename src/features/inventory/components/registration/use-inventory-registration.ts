@@ -72,6 +72,13 @@ function splitLargerChoice(choice: string): {
 		: { baseChoice: choice, inputUnit: null };
 }
 
+// カタログにない食材の、在庫の単位と管理方法の初期値（開いたとき・カタログにない名前にしたとき）。
+const initialStockUnit: StockUnitOption = {
+	stockUnitCode: "g",
+	stockUnitLabel: "g",
+};
+const initialTrackingMode: InventoryTrackingMode = "estimated";
+
 export type RegisteredInfo = {
 	// 登録した食材（サーバーが答えたときだけ）。追加した食材のタイルに、輪を出すために使う。
 	inventoryItemId: string | null;
@@ -124,10 +131,16 @@ export function useInventoryRegistration({
 }: UseInventoryRegistrationOptions) {
 	const [ingredientName, setIngredientName] = useState("");
 	// 在庫の単位の選択（"g:g" の形。マスタにない食材は、"custom"＝自分で入力した呼び名の個数）。
-	const [unitChoice, setUnitChoice] = useState("g:g");
+	const [unitChoice, setUnitChoice] = useState(
+		toStockUnitValue(initialStockUnit),
+	);
 	const [customUnitLabel, setCustomUnitLabel] = useState("");
 	const [trackingMode, setTrackingMode] =
-		useState<InventoryTrackingMode>("estimated");
+		useState<InventoryTrackingMode>(initialTrackingMode);
+	// ユーザーが単位・管理方法を選んだら、カタログにない名前に変えても、初期値に戻さない。
+	// （選んでいなければ、名前を変えるたびに、その名前に合わせて入れ直す。「塩」→「塩こうじ」で、塩の「数えない」を残さない。）
+	const [isUnitTouched, setIsUnitTouched] = useState(false);
+	const [isTrackingModeTouched, setIsTrackingModeTouched] = useState(false);
 	const [initialQuantity, setInitialQuantity] = useState("");
 	// ロットの換算（「1個＝110g」「1パック＝300g」。量が空なら、なし）。個数の食材では、呼び名は在庫の単位。
 	const [purchaseUnitDraft, setPurchaseUnitDraft] = useState<PurchaseUnitDraft>(
@@ -187,18 +200,32 @@ export function useInventoryRegistration({
 				}),
 			);
 			setTrackingMode(entry.defaultTrackingMode);
-		} else if (
-			unitChoice !== customStockUnitValue &&
-			!nextOptions.some(
-				(option) =>
-					toStockUnitValue(option) === splitLargerChoice(unitChoice).baseChoice,
-			)
-		) {
-			setUnitChoice(
-				toStockUnitValue(
-					nextOptions[0] ?? { stockUnitCode: "g", stockUnitLabel: "g" },
-				),
-			);
+		} else {
+			// カタログにない名前：選んでいない欄は、初期値に戻す（途中で通ったカタログの食材の値を残さない）。
+			if (!isTrackingModeTouched) {
+				setTrackingMode(initialTrackingMode);
+			}
+
+			if (!isUnitTouched) {
+				setUnitChoice(
+					toStockUnitValue({
+						...initialStockUnit,
+						stockUnitLabel: preferMeasureUnit(
+							value,
+							initialStockUnit.stockUnitLabel,
+						),
+					}),
+				);
+			} else if (
+				unitChoice !== customStockUnitValue &&
+				!nextOptions.some(
+					(option) =>
+						toStockUnitValue(option) ===
+						splitLargerChoice(unitChoice).baseChoice,
+				)
+			) {
+				setUnitChoice(toStockUnitValue(nextOptions[0] ?? initialStockUnit));
+			}
 		}
 
 		// 換算の量の単位も、まだ打っていなければ、最後に選んだ方（g か kg）にする。
@@ -221,6 +248,7 @@ export function useInventoryRegistration({
 	// 単位の選択を変える。g・kg などは、次の既定にする（この端末だけ）。
 	function chooseUnit(value: string) {
 		setUnitChoice(value);
+		setIsUnitTouched(true);
 		const [, label] = value.split(":");
 
 		if (label) {
@@ -230,6 +258,7 @@ export function useInventoryRegistration({
 
 	function changeTrackingMode(value: string) {
 		setTrackingMode(v.parse(inventoryTrackingModeSchema, value));
+		setIsTrackingModeTouched(true);
 	}
 
 	function changeExpiry(value: ExpiryFieldsValue) {
@@ -242,12 +271,14 @@ export function useInventoryRegistration({
 	const unitOptions = listStockUnitOptions(ingredientName);
 	// 「g:kg」のような選択は、在庫の単位は g のまま、量を kg で打つ。
 	const { baseChoice, inputUnit } = splitLargerChoice(unitChoice);
-	const stockUnit: StockUnitOption = resolveStockUnitChoice(
-		ingredientName,
-		baseChoice,
-		customUnitLabel.trim() || "個",
-	) ??
-		unitOptions[0] ?? { stockUnitCode: "g", stockUnitLabel: "g" };
+	const stockUnit: StockUnitOption =
+		resolveStockUnitChoice(
+			ingredientName,
+			baseChoice,
+			customUnitLabel.trim() || "個",
+		) ??
+		unitOptions[0] ??
+		initialStockUnit;
 	// 量の欄の単位（kg で打つなら kg）。
 	const inputUnitLabel =
 		inputUnit && baseChoice === toStockUnitValue(stockUnit)
@@ -358,6 +389,8 @@ export function useInventoryRegistration({
 			// 食材名・数量・期限は空に戻す。管理方法と、期限の自動入力の設定は、そのまま（続けて登録しやすいように）。
 			setIngredientName("");
 			setInitialQuantity("");
+			// 単位は食材ごとなので、次の食材では、選び直していなければ、名前に合わせて入れ直す。
+			setIsUnitTouched(false);
 			setPurchaseUnitDraft(emptyPurchaseUnitDraft("個"));
 			// 決めた換算は、買い物メモの候補にもなるよう、覚える。
 			if (purchaseUnit) {
