@@ -10,6 +10,7 @@ import { DateField } from "#/components/date-picker/date-picker";
 import { ConfirmDialog } from "#/components/dialog/confirm-dialog";
 import {
 	Field,
+	SearchInput,
 	SelectBox,
 	TextArea,
 	TextInput,
@@ -617,6 +618,7 @@ function PartsGallery() {
 					<Field label="申し立ての内容">
 						{(control) => <TextArea {...control} placeholder="内容" />}
 					</Field>
+					<SearchInput aria-label="在庫を探す" placeholder="在庫を探す" />
 					<TextInput placeholder="使えない欄" disabled />
 					<SegmentedControl
 						label="表示の切り替え"

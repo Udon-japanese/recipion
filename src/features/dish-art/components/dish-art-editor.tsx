@@ -8,7 +8,7 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { TextInput } from "#/components/field/field";
+import { SearchInput } from "#/components/field/field";
 import { IconButton } from "#/components/icon-button/icon-button";
 import { SegmentedControl } from "#/components/segmented-control/segmented-control";
 import { useMediaQuery } from "#/components/use-media-query";
@@ -1042,8 +1042,7 @@ export function DishArtEditor({
 
 				{tab === "parts" ? (
 					<>
-						<TextInput
-							type="search"
+						<SearchInput
 							aria-label="部品を探す"
 							placeholder="部品を探す（例：からあげ）"
 							autoComplete="off"

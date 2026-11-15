@@ -39,6 +39,8 @@ export const input = style({
 	font: "inherit",
 	fontSize: 16,
 	lineHeight: 1.35,
+	// 幅が足りないとき（モバイルの長いプレースホルダーなど）、途中で切らず「…」で終える。
+	textOverflow: "ellipsis",
 	transition: `border-color var(--duration-fast) var(--ease-standard)`,
 
 	selectors: {
@@ -78,6 +80,29 @@ export const select = style({
 	backgroundRepeat: "no-repeat",
 	backgroundPosition: "right 16px center",
 	backgroundSize: 20,
+});
+
+// 検索の入力欄：虫眼鏡を、欄の内側の左に重ねる。
+export const searchBox = style({
+	position: "relative",
+	display: "block",
+	width: "100%",
+});
+
+export const searchIcon = style({
+	position: "absolute",
+	top: 0,
+	bottom: 0,
+	left: 16,
+	display: "flex",
+	alignItems: "center",
+	color: "var(--color-text-muted)",
+	pointerEvents: "none",
+});
+
+// 左の余白＝アイコンの左（16）＋幅（20）＋間（8）。
+export const searchInput = style({
+	paddingLeft: 44,
 });
 
 export const hint = style({

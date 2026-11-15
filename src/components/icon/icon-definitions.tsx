@@ -274,6 +274,15 @@ export const iconDefinitions = {
 			</>
 		) as ReactNode,
 	},
+	search: {
+		style: "outline",
+		content: (
+			<>
+				<circle cx={11} cy={11} r={7} />
+				<path d="M16 16l4 4" />
+			</>
+		) as ReactNode,
+	},
 	"shopping-bag": {
 		style: "outline",
 		content: (<path d="M3 9h18l-2 11H5L3 9zM8 9l3-5M16 9l-3-5" />) as ReactNode,

@@ -1,5 +1,5 @@
 import { useId, useMemo } from "react";
-import { SelectBox, TextInput } from "#/components/field/field";
+import { SearchInput, SelectBox } from "#/components/field/field";
 import { Icon } from "#/components/icon/icon";
 import { DishArt } from "#/features/dish-art/components/dish-art";
 import {
@@ -86,8 +86,7 @@ export function InventorySearch({
 	return (
 		<div className={styles.search}>
 			<span className={styles.searchField}>
-				<TextInput
-					type="search"
+				<SearchInput
 					placeholder="在庫を探す"
 					aria-label="在庫を探す"
 					value={query}

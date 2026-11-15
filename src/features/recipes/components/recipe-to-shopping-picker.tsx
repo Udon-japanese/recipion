@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Field, TextInput } from "#/components/field/field";
+import { Field, SearchInput } from "#/components/field/field";
 import {
 	FloatingPanel,
 	floatingPanelWidth,
@@ -196,9 +196,8 @@ export function RecipeToShoppingPicker({
 			</p>
 			<Field label="レシピの名前で絞り込む" hideLabel>
 				{(control) => (
-					<TextInput
+					<SearchInput
 						{...control}
-						type="search"
 						value={query}
 						placeholder="レシピの名前で絞り込む"
 						onChange={(event) => setQuery(event.target.value)}
