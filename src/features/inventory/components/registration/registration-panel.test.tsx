@@ -215,6 +215,60 @@ describe("InventoryRegistrationPanel", () => {
 		);
 	});
 
+	// 1文字ずつ打つと、途中でカタログの食材（塩・卵・牛乳）を通る。その単位・管理方法を、カタログにない名前に残さない。
+	it.each([
+		{ name: "塩こうじ", passes: "塩（数えない）" },
+		{ name: "醤油麹", passes: "醤油（ml・数えない）" },
+		{ name: "卵豆腐", passes: "卵（個）" },
+		{ name: "牛乳パン", passes: "牛乳（ml）" },
+	])(
+		"カタログにない「$name」は、$passes を通っても、g・だいたいに戻り、換算の呼び名と単位を自由に選べる",
+		async ({ name }) => {
+			const user = userEvent.setup();
+
+			render(
+				<Harness registerInventoryItem={vi.fn()} onRegistered={() => {}} />,
+			);
+
+			await user.type(screen.getByLabelText("食材名"), name);
+
+			expect(screen.getByRole("combobox", { name: "在庫の単位" })).toHaveValue(
+				"g:g",
+			);
+			expectTrackingMode("だいたい");
+
+			await user.click(screen.getByRole("button", { name: /^換算/u }));
+
+			expect(
+				screen.getByLabelText(`${name}の換算の、買った単位`),
+			).toBeEnabled();
+			expect(
+				within(screen.getByLabelText(`${name}の換算の、1つあたりの単位`))
+					.getAllByRole("option")
+					.map((option) => option.textContent),
+			).toEqual(["g", "kg", "ml", "L"]);
+		},
+	);
+
+	it("自分で選んだ単位・管理方法は、カタログにない名前に直しても残す", async () => {
+		const user = userEvent.setup();
+
+		render(<Harness registerInventoryItem={vi.fn()} onRegistered={() => {}} />);
+
+		await user.type(screen.getByLabelText("食材名"), "ズッキーニ");
+		await user.selectOptions(
+			screen.getByRole("combobox", { name: "在庫の単位" }),
+			"本",
+		);
+		await chooseTrackingMode(user, "正確");
+		await user.type(screen.getByLabelText("食材名"), "（黄）");
+
+		expect(screen.getByRole("combobox", { name: "在庫の単位" })).toHaveValue(
+			"count:本",
+		);
+		expectTrackingMode("正確");
+	});
+
 	it("数量が空欄なら、食材だけを登録する（初期数量0）", async () => {
 		const user = userEvent.setup();
 		const registerInventoryItem = vi.fn().mockResolvedValue({});
