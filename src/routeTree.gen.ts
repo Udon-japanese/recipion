@@ -27,7 +27,9 @@ import { Route as AdminUserReportsRouteImport } from './routes/admin/user-report
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as DevUiRouteImport } from './routes/dev.ui'
 import { Route as RecipesIndexRouteImport } from './routes/recipes/index'
+import { Route as RecipesMadeRouteImport } from './routes/recipes/made'
 import { Route as RecipesNewRouteImport } from './routes/recipes/new'
+import { Route as RecipesPublicRouteImport } from './routes/recipes/public'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as RecipesPublicIdIndexRouteImport } from './routes/recipes/$publicId/index'
 import { Route as RecipesPublicIdEditRouteImport } from './routes/recipes/$publicId/edit'
@@ -122,9 +124,19 @@ const RecipesIndexRoute = RecipesIndexRouteImport.update({
   path: '/recipes/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RecipesMadeRoute = RecipesMadeRouteImport.update({
+  id: '/recipes/made',
+  path: '/recipes/made',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RecipesNewRoute = RecipesNewRouteImport.update({
   id: '/recipes/new',
   path: '/recipes/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecipesPublicRoute = RecipesPublicRouteImport.update({
+  id: '/recipes/public',
+  path: '/recipes/public',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
@@ -160,7 +172,9 @@ export interface FileRoutesByFullPath {
   '/admin/user-reports': typeof AdminUserReportsRoute
   '/admin/users': typeof AdminUsersRoute
   '/dev/ui': typeof DevUiRoute
+  '/recipes/made': typeof RecipesMadeRoute
   '/recipes/new': typeof RecipesNewRoute
+  '/recipes/public': typeof RecipesPublicRoute
   '/admin/': typeof AdminIndexRoute
   '/recipes/': typeof RecipesIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -183,7 +197,9 @@ export interface FileRoutesByTo {
   '/admin/user-reports': typeof AdminUserReportsRoute
   '/admin/users': typeof AdminUsersRoute
   '/dev/ui': typeof DevUiRoute
+  '/recipes/made': typeof RecipesMadeRoute
   '/recipes/new': typeof RecipesNewRoute
+  '/recipes/public': typeof RecipesPublicRoute
   '/admin': typeof AdminIndexRoute
   '/recipes': typeof RecipesIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -208,7 +224,9 @@ export interface FileRoutesById {
   '/admin/user-reports': typeof AdminUserReportsRoute
   '/admin/users': typeof AdminUsersRoute
   '/dev/ui': typeof DevUiRoute
+  '/recipes/made': typeof RecipesMadeRoute
   '/recipes/new': typeof RecipesNewRoute
+  '/recipes/public': typeof RecipesPublicRoute
   '/admin/': typeof AdminIndexRoute
   '/recipes/': typeof RecipesIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -234,7 +252,9 @@ export interface FileRouteTypes {
     | '/admin/user-reports'
     | '/admin/users'
     | '/dev/ui'
+    | '/recipes/made'
     | '/recipes/new'
+    | '/recipes/public'
     | '/admin/'
     | '/recipes/'
     | '/api/auth/$'
@@ -257,7 +277,9 @@ export interface FileRouteTypes {
     | '/admin/user-reports'
     | '/admin/users'
     | '/dev/ui'
+    | '/recipes/made'
     | '/recipes/new'
+    | '/recipes/public'
     | '/admin'
     | '/recipes'
     | '/api/auth/$'
@@ -281,7 +303,9 @@ export interface FileRouteTypes {
     | '/admin/user-reports'
     | '/admin/users'
     | '/dev/ui'
+    | '/recipes/made'
     | '/recipes/new'
+    | '/recipes/public'
     | '/admin/'
     | '/recipes/'
     | '/api/auth/$'
@@ -302,7 +326,9 @@ export interface RootRouteChildren {
   TeapotRoute: typeof TeapotRoute
   TermsRoute: typeof TermsRoute
   DevUiRoute: typeof DevUiRoute
+  RecipesMadeRoute: typeof RecipesMadeRoute
   RecipesNewRoute: typeof RecipesNewRoute
+  RecipesPublicRoute: typeof RecipesPublicRoute
   RecipesIndexRoute: typeof RecipesIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   RecipesPublicIdEditRoute: typeof RecipesPublicIdEditRoute
@@ -437,11 +463,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RecipesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/recipes/made': {
+      id: '/recipes/made'
+      path: '/recipes/made'
+      fullPath: '/recipes/made'
+      preLoaderRoute: typeof RecipesMadeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/recipes/new': {
       id: '/recipes/new'
       path: '/recipes/new'
       fullPath: '/recipes/new'
       preLoaderRoute: typeof RecipesNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/recipes/public': {
+      id: '/recipes/public'
+      path: '/recipes/public'
+      fullPath: '/recipes/public'
+      preLoaderRoute: typeof RecipesPublicRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/auth/$': {
@@ -499,7 +539,9 @@ const rootRouteChildren: RootRouteChildren = {
   TeapotRoute: TeapotRoute,
   TermsRoute: TermsRoute,
   DevUiRoute: DevUiRoute,
+  RecipesMadeRoute: RecipesMadeRoute,
   RecipesNewRoute: RecipesNewRoute,
+  RecipesPublicRoute: RecipesPublicRoute,
   RecipesIndexRoute: RecipesIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   RecipesPublicIdEditRoute: RecipesPublicIdEditRoute,

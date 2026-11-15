@@ -1,4 +1,8 @@
 import { createRouter as createTanStackRouter } from "@tanstack/react-router";
+import type {
+	StoredOwnRecipeSearch,
+	StoredPublicRecipeSearch,
+} from "#/features/recipes/domain/recipe-search-history";
 import {
 	RoutePending,
 	routePendingOptions,
@@ -34,5 +38,13 @@ export function getRouter() {
 declare module "@tanstack/react-router" {
 	interface Register {
 		router: ReturnType<typeof getRouter>;
+	}
+
+	// 履歴（history state）に持つ値。URL に出したくない、その人だけの画面の状態。
+	interface HistoryState {
+		// 自分のレシピの検索の条件。読むときは readOwnRecipeSearch で確かめる。
+		ownRecipeSearch?: StoredOwnRecipeSearch;
+		// みんなのレシピで、最後に探した条件（切り替えで戻るとき、URL へ戻す）。読むときは readPublicRecipeSearch で確かめる。
+		publicRecipeSearch?: StoredPublicRecipeSearch;
 	}
 }

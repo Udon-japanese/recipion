@@ -1,7 +1,10 @@
 import { parseRecipeSearchTerms } from "./public-recipe-search";
 import {
+	isPublicRecipeTag,
+	normalizePersonalTag,
 	type PublicRecipeTag,
 	publicRecipeTagLabel,
+	recipeTagLimits,
 	sortPublicRecipeTags,
 } from "./recipe-tags";
 
@@ -18,6 +21,50 @@ function toComparable(text: string): string {
 export type OwnRecipeTagFilter =
 	| { kind: "public"; tag: PublicRecipeTag }
 	| { kind: "personal"; tag: string };
+
+// 一度に絞り込みに使えるタグの数（履歴に持つため、上限を決める）。
+export const maxOwnRecipeTagFilters = 20;
+
+export function isSameOwnRecipeTagFilter(
+	a: OwnRecipeTagFilter,
+	b: OwnRecipeTagFilter,
+): boolean {
+	return a.kind === b.kind && a.tag === b.tag;
+}
+
+// 履歴から読んだ絞り込みのタグを整える。語の一覧にない公開用のタグ、保存できない形の個人用のタグ、重なりは捨てる。
+export function parseOwnRecipeTagFilters(
+	values: readonly { kind: "public" | "personal"; tag: string }[],
+): OwnRecipeTagFilter[] {
+	const filters: OwnRecipeTagFilter[] = [];
+
+	for (const { kind, tag } of values) {
+		const filter = toOwnRecipeTagFilter(kind, tag);
+
+		if (
+			filter &&
+			!filters.some((selected) => isSameOwnRecipeTagFilter(selected, filter))
+		) {
+			filters.push(filter);
+		}
+	}
+
+	return filters.slice(0, maxOwnRecipeTagFilters);
+}
+
+function toOwnRecipeTagFilter(
+	kind: "public" | "personal",
+	tag: string,
+): OwnRecipeTagFilter | null {
+	if (kind === "public") {
+		return isPublicRecipeTag(tag) ? { kind, tag } : null;
+	}
+
+	return normalizePersonalTag(tag) === tag &&
+		[...tag].length <= recipeTagLimits.personalTagMaxLength
+		? { kind, tag }
+		: null;
+}
 
 type FilterableRecipe = {
 	name: string;

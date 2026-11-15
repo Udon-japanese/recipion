@@ -1,18 +1,14 @@
-import { Link } from "@tanstack/react-router";
-import { type ReactNode, useState } from "react";
-import { ButtonLink } from "#/components/button/button-link";
+import { useRef, useState } from "react";
 import { Card } from "#/components/card/card";
 import { Chip, ChipGroup } from "#/components/chip/chip";
-import * as fabStyles from "#/components/fab/fab.css";
 import { Field, TextInput } from "#/components/field/field";
-import { Icon } from "#/components/icon/icon";
 import { Mascot } from "#/components/mascot/mascot";
-import { SegmentedControl } from "#/components/segmented-control/segmented-control";
 import { Tag } from "#/components/tag/tag";
 import type { RecipeSummary } from "../application/recipe-repository";
 import {
 	collectOwnRecipeTags,
 	filterOwnRecipes,
+	isSameOwnRecipeTagFilter,
 	type OwnRecipeTagFilter,
 } from "../domain/filter-own-recipes";
 import { maxSearchQueryLength } from "../domain/public-recipe-search";
@@ -21,31 +17,40 @@ import { recipeVisibilityLabels } from "../domain/recipe-visibility-label";
 import * as styles from "./recipe-list.css";
 import { RecipeSummaryRow } from "./recipe-summary-row";
 
-export type RecipesTab = "mine" | "public" | "made";
-
-function isSameTagFilter(a: OwnRecipeTagFilter, b: OwnRecipeTagFilter) {
-	return a.kind === b.kind && a.tag === b.tag;
-}
-
 type RecipeListProps = {
 	recipes: readonly RecipeSummary[];
-	tab?: RecipesTab;
-	onTabChange?: (tab: RecipesTab) => void;
-	// 「みんなのレシピ」の中身（tab が public のとき、自分のレシピの代わりに出す）。
-	publicPanel?: ReactNode;
-	// 「つくった」の中身（tab が made のとき）。
-	madePanel?: ReactNode;
+	// 自分のレシピの検索語と、絞り込みのタグ（履歴に持つ。切り替えて戻っても残る）。
+	query: string;
+	// 検索語が変わったとき（変換中は、確定したあとに1回だけ）。
+	onQueryChange: (query: string) => void;
+	tagFilters: readonly OwnRecipeTagFilter[];
+	onTagFiltersChange: (filters: OwnRecipeTagFilter[]) => void;
+	// 条件を読み直したときに変わる値（履歴の項目・持ち主が変わったとき）。変わったら、欄を query に戻す。
+	restoreKey?: string;
+	// 履歴の条件を、まだ読めない（画面が動き出す前）。その間は、一覧を描かない（全件が一瞬見えないように）。
+	isRestoring?: boolean;
 };
 
+// 自分のレシピの一覧と、画面の中での絞り込み（検索語・タグ）。
 export function RecipeList({
 	recipes,
-	tab = "mine",
-	onTabChange,
-	publicPanel,
-	madePanel,
+	query,
+	onQueryChange,
+	tagFilters,
+	onTagFiltersChange,
+	restoreKey = "",
+	isRestoring = false,
 }: RecipeListProps) {
-	const [searchText, setSearchText] = useState("");
-	const [tagFilters, setTagFilters] = useState<OwnRecipeTagFilter[]>([]);
+	const [searchText, setSearchText] = useState(query);
+	const [restoredFor, setRestoredFor] = useState(restoreKey);
+
+	// 戻る・進む、画面が動き出したときなどに、履歴の条件を、欄に入れ直す（打つたびには変わらない）。
+	if (restoredFor !== restoreKey) {
+		setRestoredFor(restoreKey);
+		setSearchText(query);
+	}
+	// 変換中（IME）かどうか。変換中は履歴を更新せず、確定のときに1回だけ反映する。
+	const composingRef = useRef(false);
 	const usedTags = collectOwnRecipeTags(recipes);
 	const tagOptions: { filter: OwnRecipeTagFilter; label: string }[] = [
 		...usedTags.publicTags.map((tag) => ({
@@ -59,154 +64,118 @@ export function RecipeList({
 	];
 	// 消したタグなど、もう使われていないタグは、絞り込みから外す。
 	const activeTagFilters = tagFilters.filter((filter) =>
-		tagOptions.some((option) => isSameTagFilter(option.filter, filter)),
+		tagOptions.some((option) =>
+			isSameOwnRecipeTagFilter(option.filter, filter),
+		),
 	);
 	const shownRecipes = filterOwnRecipes(recipes, searchText, activeTagFilters);
 
 	function toggleTagFilter(filter: OwnRecipeTagFilter) {
-		setTagFilters((current) =>
-			current.some((selected) => isSameTagFilter(selected, filter))
-				? current.filter((selected) => !isSameTagFilter(selected, filter))
-				: [...current, filter],
+		onTagFiltersChange(
+			activeTagFilters.some((selected) =>
+				isSameOwnRecipeTagFilter(selected, filter),
+			)
+				? activeTagFilters.filter(
+						(selected) => !isSameOwnRecipeTagFilter(selected, filter),
+					)
+				: [...activeTagFilters, filter],
 		);
 	}
 
-	// つくった記録は、レシピの集まりではなく、日付ごとの履歴。切り替えに入れず、別の画面として出す（戻るリンクつき）。
-	if (tab === "made") {
+	if (isRestoring) {
 		return (
-			<section className={styles.container}>
-				<div className={styles.backRow}>
-					<ButtonLink
-						to="/recipes"
-						search={{ tab: "mine", q: "", tags: [] }}
-						variant="ghost"
-						size="sm"
-						leadingIcon={<Icon name="chevron-left" size={16} />}
-					>
-						レシピ
-					</ButtonLink>
-				</div>
-				<h2 className={styles.title}>つくった記録</h2>
-				{madePanel}
-			</section>
+			<output className={styles.empty}>
+				<Mascot size={64} motion="loop" />
+				よみこみ中...
+			</output>
+		);
+	}
+
+	if (recipes.length === 0) {
+		return (
+			<div className={styles.empty}>
+				<Mascot size={64} motion="still" />
+				<p className={styles.emptyText}>レシピはまだありません。</p>
+			</div>
 		);
 	}
 
 	return (
-		<section className={styles.container}>
-			<div className={styles.titleRow}>
-				<h2 className={styles.title}>レシピ</h2>
-				<div className={styles.titleActions}>
-					<ButtonLink
-						to="/recipes"
-						search={{ tab: "made", q: "", tags: [] }}
-						variant="secondary"
-						size="sm"
-						leadingIcon={<Icon name="calendar" size={16} />}
-					>
-						つくった記録
-					</ButtonLink>
-					{/* 広い画面だけ。スマホは、右下の＋（ほかの画面と同じ）。 */}
-					<span className={styles.wideOnly}>
-						<ButtonLink to="/recipes/new" size="sm">
-							レシピを登録
-						</ButtonLink>
-					</span>
-				</div>
-			</div>
-			<Link
-				to="/recipes/new"
-				className={`${fabStyles.fab} ${fabStyles.fabCorner}`}
-				aria-label="レシピを登録"
-			>
-				<Icon name="plus" size={24} />
-			</Link>
+		<>
+			<search className={styles.search}>
+				<Field label="自分のレシピを探す" hideLabel>
+					{(control) => (
+						<TextInput
+							{...control}
+							type="search"
+							value={searchText}
+							maxLength={maxSearchQueryLength}
+							placeholder="レシピ名で探す"
+							onChange={(event) => {
+								setSearchText(event.target.value);
+								if (!composingRef.current) {
+									onQueryChange(event.target.value);
+								}
+							}}
+							onCompositionStart={() => {
+								composingRef.current = true;
+							}}
+							onCompositionEnd={(event) => {
+								composingRef.current = false;
+								onQueryChange(event.currentTarget.value);
+							}}
+						/>
+					)}
+				</Field>
+				{tagOptions.length > 0 ? (
+					<ChipGroup label="タグで絞り込む">
+						{tagOptions.map((option) => (
+							<Chip
+								key={`${option.filter.kind}:${option.filter.tag}`}
+								pressed={activeTagFilters.some((selected) =>
+									isSameOwnRecipeTagFilter(selected, option.filter),
+								)}
+								onClick={() => toggleTagFilter(option.filter)}
+							>
+								{option.label}
+							</Chip>
+						))}
+					</ChipGroup>
+				) : null}
+			</search>
 
-			{onTabChange ? (
-				<SegmentedControl
-					label="表示するレシピ"
-					value={tab}
-					onChange={onTabChange}
-					options={[
-						{ value: "mine", label: "自分のレシピ", icon: "book" },
-						{ value: "public", label: "みんなのレシピ", icon: "users" },
-					]}
-				/>
-			) : null}
-
-			{tab === "public" ? (
-				publicPanel
-			) : recipes.length === 0 ? (
+			{shownRecipes.length === 0 ? (
 				<div className={styles.empty}>
 					<Mascot size={64} motion="still" />
-					<p className={styles.emptyText}>レシピはまだありません。</p>
+					<p className={styles.emptyText}>
+						{searchText.trim() === ""
+							? "選んだタグに合うレシピは見つかりませんでした。"
+							: `「${searchText.trim()}」に合うレシピは見つかりませんでした。`}
+					</p>
 				</div>
 			) : (
-				<>
-					<search className={styles.search}>
-						<Field label="自分のレシピを探す" hideLabel>
-							{(control) => (
-								<TextInput
-									{...control}
-									type="search"
-									value={searchText}
-									maxLength={maxSearchQueryLength}
-									placeholder="レシピ名で探す"
-									onChange={(event) => setSearchText(event.target.value)}
-								/>
-							)}
-						</Field>
-						{tagOptions.length > 0 ? (
-							<ChipGroup label="タグで絞り込む">
-								{tagOptions.map((option) => (
-									<Chip
-										key={`${option.filter.kind}:${option.filter.tag}`}
-										pressed={activeTagFilters.some((selected) =>
-											isSameTagFilter(selected, option.filter),
-										)}
-										onClick={() => toggleTagFilter(option.filter)}
-									>
-										{option.label}
-									</Chip>
-								))}
-							</ChipGroup>
-						) : null}
-					</search>
-
-					{shownRecipes.length === 0 ? (
-						<div className={styles.empty}>
-							<Mascot size={64} motion="still" />
-							<p className={styles.emptyText}>
-								{searchText.trim() === ""
-									? "選んだタグに合うレシピは見つかりませんでした。"
-									: `「${searchText.trim()}」に合うレシピは見つかりませんでした。`}
-							</p>
-						</div>
-					) : (
-						<Card>
-							<ul className={styles.list}>
-								{shownRecipes.map((recipe) => (
-									<RecipeSummaryRow
-										key={recipe.publicId}
-										publicId={recipe.publicId}
-										thumbnailSeed={recipe.publicId}
-										cover={recipe.cover}
-										name={recipe.name}
-										yieldText={recipe.yieldText}
-										extra={
-											recipe.visibility === "private" ? null : (
-												<Tag tone="soft">
-													{recipeVisibilityLabels[recipe.visibility]}
-												</Tag>
-											)
-										}
-									/>
-								))}
-							</ul>
-						</Card>
-					)}
-				</>
+				<Card>
+					<ul className={styles.list}>
+						{shownRecipes.map((recipe) => (
+							<RecipeSummaryRow
+								key={recipe.publicId}
+								publicId={recipe.publicId}
+								thumbnailSeed={recipe.publicId}
+								cover={recipe.cover}
+								name={recipe.name}
+								yieldText={recipe.yieldText}
+								extra={
+									recipe.visibility === "private" ? null : (
+										<Tag tone="soft">
+											{recipeVisibilityLabels[recipe.visibility]}
+										</Tag>
+									)
+								}
+							/>
+						))}
+					</ul>
+				</Card>
 			)}
-		</section>
+		</>
 	);
 }
