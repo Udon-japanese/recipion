@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { Card } from "#/components/card/card";
 import { Chip, ChipGroup } from "#/components/chip/chip";
-import { Field, TextInput } from "#/components/field/field";
+import { Field, SearchInput } from "#/components/field/field";
 import { Mascot } from "#/components/mascot/mascot";
 import { Tag } from "#/components/tag/tag";
 import type { RecipeSummary } from "../application/recipe-repository";
@@ -105,9 +105,8 @@ export function RecipeList({
 			<search className={styles.search}>
 				<Field label="自分のレシピを探す" hideLabel>
 					{(control) => (
-						<TextInput
+						<SearchInput
 							{...control}
-							type="search"
 							value={searchText}
 							maxLength={maxSearchQueryLength}
 							placeholder="レシピ名で探す"

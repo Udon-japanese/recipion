@@ -74,6 +74,24 @@ export function TextInput(props: TextInputProps) {
 	return <input {...props} className={styles.input} />;
 }
 
+type SearchInputProps = Omit<TextInputProps, "type">;
+
+// 検索の入力欄（欄の内側の左に、虫眼鏡。アイコンは飾りで、名前はラベル・aria-label が持つ）。
+export function SearchInput(props: SearchInputProps) {
+	return (
+		<span className={styles.searchBox}>
+			<span className={styles.searchIcon}>
+				<Icon name="search" size={20} />
+			</span>
+			<input
+				{...props}
+				type="search"
+				className={`${styles.input} ${styles.searchInput}`}
+			/>
+		</span>
+	);
+}
+
 type TextAreaProps = Omit<ComponentProps<"textarea">, "className" | "style">;
 
 // 複数行の入力欄。

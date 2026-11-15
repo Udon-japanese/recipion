@@ -1,7 +1,7 @@
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { Button } from "#/components/button/button";
 import { useButtonAction } from "#/components/button/use-button-action";
-import { TextInput } from "#/components/field/field";
+import { SearchInput, TextInput } from "#/components/field/field";
 import { IconButton } from "#/components/icon-button/icon-button";
 import { Note } from "#/components/note/note";
 import { Tag } from "#/components/tag/tag";
@@ -101,8 +101,7 @@ export function IngredientDictionarySection({
 				<p className={settingsStyles.sectionNote}>まだ材料はありません。</p>
 			) : (
 				<>
-					<TextInput
-						type="search"
+					<SearchInput
 						aria-label="材料を探す"
 						placeholder="材料を探す"
 						autoComplete="off"

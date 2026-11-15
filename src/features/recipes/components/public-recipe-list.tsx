@@ -1,7 +1,7 @@
 import { type SubmitEvent, useState } from "react";
 import { Button } from "#/components/button/button";
 import { Chip, ChipGroup } from "#/components/chip/chip";
-import { Field, TextInput } from "#/components/field/field";
+import { Field, SearchInput } from "#/components/field/field";
 import { Mascot } from "#/components/mascot/mascot";
 import { useMediaQuery } from "#/components/use-media-query";
 import { UserFacingError } from "#/errors/user-facing-error";
@@ -102,12 +102,11 @@ export function PublicRecipeList({
 					<div className={styles.searchField}>
 						<Field label="レシピを探す" hideLabel>
 							{(control) => (
-								<TextInput
+								<SearchInput
 									{...control}
-									type="search"
 									value={searchText}
 									maxLength={maxSearchQueryLength}
-									placeholder="レシピ名・材料で探す（空欄なら新しい順）"
+									placeholder="レシピ名・材料で探す"
 									onChange={(event) => setSearchText(event.target.value)}
 								/>
 							)}
