@@ -24,8 +24,10 @@ type Phase = "idle" | "pulling" | "loading" | "leaving";
 // 白丸の中の mascot の大きさ（px）。丸（48px）に対して小さめにして、中で跳ねられるようにする。
 const MASCOT_SIZE_PX = 20;
 
-// ダイアログ（シート・モーダル）の中の指の動きでは、引っ張り更新を始めない。
-const dialogSelector = '[role="dialog"], [aria-modal="true"]';
+// ダイアログ（シート・モーダル）とお知らせ（toast）の上の指の動きでは、引っ張り更新を始めない。
+// お知らせは、指で動かして消すため（toast-viewport.tsx）。
+const noPullSelector =
+	'[role="dialog"], [aria-modal="true"], [data-toast-viewport]';
 
 type PullRefreshProps = {
 	// 更新の中身。失敗しても、丸は必ず戻す（例外は握りつぶす）。
@@ -179,13 +181,13 @@ function indicatorAngle(phase: Phase, distance: number): number {
 	return rollAngleDeg(distance);
 }
 
-// 引っ張りを始めてよいか。ページの一番上で、ダイアログの中ではなく、スクロールしている要素の中でもないとき。
+// 引っ張りを始めてよいか。ページの一番上で、ダイアログ・お知らせの上ではなく、スクロールしている要素の中でもないとき。
 function canStartPull(target: EventTarget | null): boolean {
 	if ((document.scrollingElement?.scrollTop ?? 0) > 0) {
 		return false;
 	}
 
-	if (!(target instanceof Element) || target.closest(dialogSelector)) {
+	if (!(target instanceof Element) || target.closest(noPullSelector)) {
 		return false;
 	}
 
