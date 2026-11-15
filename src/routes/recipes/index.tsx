@@ -1,102 +1,63 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import * as v from "valibot";
 import { pageTitle } from "#/config/app";
-import { PublicRecipeList } from "#/features/recipes/components/public-recipe-list";
-import { RecipeCookList } from "#/features/recipes/components/recipe-cook-list";
 import { RecipeList } from "#/features/recipes/components/recipe-list";
 import { RecipeRouteError } from "#/features/recipes/components/recipe-route-error";
-import {
-	maxSearchQueryLength,
-	parseSearchTags,
-} from "#/features/recipes/domain/public-recipe-search";
+import { RecipesFrame } from "#/features/recipes/components/recipes-frame";
+import type { OwnRecipeSearch } from "#/features/recipes/domain/recipe-search-history";
+import { useRecipeSearchHistory } from "#/features/recipes/hooks/use-recipe-search-history";
 import { listRecipesServerFn } from "#/features/recipes/server/list-recipes";
-import { listRecipeCooksServerFn } from "#/features/recipes/server/recipe-cook-log";
-import { searchPublicRecipesServerFn } from "#/features/recipes/server/search-public-recipes";
 
+// 自分のレシピ。検索の条件は、個人用のタグを含むため URL に出さず、履歴（history state）に持つ。
+// みんなのレシピは /recipes/public、つくった記録は /recipes/made。
 export const Route = createFileRoute("/recipes/")({
 	head: () => ({ meta: [{ title: pageTitle("レシピ") }] }),
-	// tab：自分のレシピ（mine）／みんなのレシピ（public）／つくったレシピ（made）。q：みんなのレシピの検索語。
-	// tags：みんなのレシピを絞る公開用のタグ（語の一覧にないものは、捨てる）。
-	validateSearch: v.object({
-		tab: v.optional(v.picklist(["mine", "public", "made"]), "mine"),
-		q: v.optional(v.pipe(v.string(), v.maxLength(maxSearchQueryLength)), ""),
-		tags: v.optional(
-			v.pipe(
-				v.array(v.string()),
-				v.maxLength(20),
-				v.transform((values) => parseSearchTags(values)),
-			),
-			[],
-		),
-	}),
-	loaderDeps: ({ search }) => ({
-		tab: search.tab,
-		query: search.q,
-		tags: search.tags,
-	}),
-	loader: async ({ deps }) => {
-		const [recipes, publicPage, cookPage] = await Promise.all([
-			deps.tab === "mine" ? listRecipesServerFn() : Promise.resolve([]),
-			deps.tab === "public"
-				? searchPublicRecipesServerFn({
-						data: { query: deps.query, tags: deps.tags },
-					})
-				: Promise.resolve(null),
-			deps.tab === "made"
-				? listRecipeCooksServerFn({ data: {} })
-				: Promise.resolve(null),
-		]);
-
-		return {
-			recipes,
-			publicPage,
-			cookPage,
-			query: deps.query,
-			tags: deps.tags,
-		};
-	},
+	loader: () => listRecipesServerFn(),
 	errorComponent: RecipeRouteError,
-	component: RecipesPage,
+	component: OwnRecipesPage,
 });
 
-function RecipesPage() {
-	const { recipes, publicPage, cookPage, query, tags } = Route.useLoaderData();
-	const { tab } = Route.useSearch();
+function OwnRecipesPage() {
+	const recipes = Route.useLoaderData();
 	const navigate = useNavigate({ from: "/recipes/" });
+	const history = useRecipeSearchHistory("/recipes");
+	const { own } = history;
+
+	// 条件が変わるたびに、履歴を増やさず、いまの履歴の項目に書く（URL は変えない）。
+	function saveOwnSearch(next: OwnRecipeSearch) {
+		void navigate({ state: history.withOwnSearch(next), replace: true });
+	}
 
 	return (
-		<RecipeList
-			recipes={recipes}
-			tab={tab}
-			onTabChange={(nextTab) =>
-				void navigate({ search: { tab: nextTab, q: "", tags: [] } })
-			}
-			publicPanel={
-				publicPage ? (
-					<PublicRecipeList
-						key={`${query}|${tags.join(",")}`}
-						query={query}
-						tags={tags}
-						initialPage={publicPage}
-						onSearch={(nextQuery, nextTags) =>
-							void navigate({
-								search: { tab: "public", q: nextQuery, tags: nextTags },
-							})
-						}
-						loadMore={(cursor) =>
-							searchPublicRecipesServerFn({ data: { query, tags, cursor } })
-						}
-					/>
-				) : null
-			}
-			madePanel={
-				cookPage ? (
-					<RecipeCookList
-						initialPage={cookPage}
-						loadMore={(cursor) => listRecipeCooksServerFn({ data: { cursor } })}
-					/>
-				) : null
-			}
-		/>
+		<RecipesFrame
+			tab="mine"
+			// みんなのレシピへ：最後に探した条件を URL に戻し、自分のレシピの条件は、履歴に引き継ぐ。
+			onTabChange={(tab) => {
+				if (tab === "mine") return;
+
+				void navigate({
+					to: "/recipes/public",
+					search: {
+						q: history.lastPublic?.query ?? "",
+						tags: history.lastPublic?.tags ?? [],
+					},
+					state: true,
+				});
+			}}
+			carryState={(prev) => prev}
+		>
+			<RecipeList
+				recipes={recipes}
+				query={own.query}
+				onQueryChange={(query) =>
+					saveOwnSearch({ query, tagFilters: own.tagFilters })
+				}
+				tagFilters={own.tagFilters}
+				onTagFiltersChange={(tagFilters) =>
+					saveOwnSearch({ query: own.query, tagFilters })
+				}
+				restoreKey={history.restoreKey}
+				isRestoring={history.isRestoring}
+			/>
+		</RecipesFrame>
 	);
 }

@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
 	collectOwnRecipeTags,
 	filterOwnRecipes,
+	maxOwnRecipeTagFilters,
 	type OwnRecipeTagFilter,
+	parseOwnRecipeTagFilters,
 } from "./filter-own-recipes";
 import type { PublicRecipeTag } from "./recipe-tags";
 
@@ -88,5 +90,66 @@ describe("collectOwnRecipeTags", () => {
 			publicTags: ["main_dish", "quick"],
 			personalTags: ["晩ご飯", "ランチ", "子どもが好き"],
 		});
+	});
+});
+
+describe("parseOwnRecipeTagFilters", () => {
+	it.each<{
+		title: string;
+		values: { kind: "public" | "personal"; tag: string }[];
+		expected: OwnRecipeTagFilter[];
+	}>([
+		{
+			title: "公開用と個人用を、そのままの順で残す",
+			values: [
+				{ kind: "personal", tag: "晩ご飯" },
+				{ kind: "public", tag: "main_dish" },
+			],
+			expected: [
+				{ kind: "personal", tag: "晩ご飯" },
+				{ kind: "public", tag: "main_dish" },
+			],
+		},
+		{
+			title: "語の一覧にない公開用のタグは、捨てる",
+			values: [{ kind: "public", tag: "no_such_tag" }],
+			expected: [],
+		},
+		{
+			title:
+				"保存できない形の個人用のタグ（空・前後の空白・長すぎる）は、捨てる",
+			values: [
+				{ kind: "personal", tag: "" },
+				{ kind: "personal", tag: " 晩ご飯" },
+				{ kind: "personal", tag: "あ".repeat(21) },
+				{ kind: "personal", tag: "あ".repeat(20) },
+			],
+			expected: [{ kind: "personal", tag: "あ".repeat(20) }],
+		},
+		{
+			title: "重なりは、1つにする（公開用と個人用は、同じ文字でも別）",
+			values: [
+				{ kind: "public", tag: "main_dish" },
+				{ kind: "public", tag: "main_dish" },
+				{ kind: "personal", tag: "main_dish" },
+			],
+			expected: [
+				{ kind: "public", tag: "main_dish" },
+				{ kind: "personal", tag: "main_dish" },
+			],
+		},
+	])("$title", ({ values, expected }) => {
+		expect(parseOwnRecipeTagFilters(values)).toEqual(expected);
+	});
+
+	it("上限を超えた分は、捨てる", () => {
+		const values = Array.from(
+			{ length: maxOwnRecipeTagFilters + 1 },
+			(_, index) => ({ kind: "personal" as const, tag: `タグ${index}` }),
+		);
+
+		expect(parseOwnRecipeTagFilters(values)).toHaveLength(
+			maxOwnRecipeTagFilters,
+		);
 	});
 });
