@@ -3,11 +3,39 @@ import {
 	collectPurchaseUnitCandidates,
 	emptyPurchaseUnitDraft,
 	parsePurchaseUnitDraft,
+	summarizePurchaseUnitDraft,
 	toPurchaseUnitDraft,
 } from "./purchase-unit-draft";
 
 const udon200 = { label: "個", quantity: 200, quantityUnitLabel: "g" };
 const udon110 = { label: "個", quantity: 110, quantityUnitLabel: "g" };
+
+describe("summarizePurchaseUnitDraft", () => {
+	// 換算を残さない入力は、「未設定」ではなく、在庫の単位のまま（保存されるのと同じ判定）。
+	it.each([
+		["量が空", emptyPurchaseUnitDraft("個"), "個", "個のまま"],
+		[
+			"同じ単位（1枚＝1枚）",
+			{ label: "枚", quantityText: "1", quantityUnitLabel: "枚" },
+			"枚",
+			"枚のまま",
+		],
+		[
+			"g そのもの（1g＝1g）",
+			{ label: "g", quantityText: "1", quantityUnitLabel: "g" },
+			"g",
+			"gのまま",
+		],
+		[
+			"換算があれば、その表示",
+			{ label: "玉", quantityText: "40", quantityUnitLabel: "g" },
+			"g",
+			"1玉＝40g",
+		],
+	])("%s は、%s", (_title, draft, stockUnitLabel, expected) => {
+		expect(summarizePurchaseUnitDraft(draft, stockUnitLabel)).toBe(expected);
+	});
+});
 
 describe("parsePurchaseUnitDraft", () => {
 	it("量が空なら、換算なし。入っていれば、呼び名・量・単位の換算にする", () => {

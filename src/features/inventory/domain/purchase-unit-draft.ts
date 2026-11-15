@@ -2,7 +2,11 @@ import { UserFacingError } from "#/errors/user-facing-error";
 import { formatQuantity } from "#/features/quantity/domain/format-quantity";
 import { toBaseMeasureAmount } from "#/features/quantity/domain/measure-units";
 import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
-import type { InventoryLotPurchaseUnit } from "./inventory-lot";
+import {
+	describePurchaseUnit,
+	type InventoryLotPurchaseUnit,
+	toPurchaseUnit,
+} from "./inventory-lot";
 
 // ロットの換算（1個＝110g など）の入力欄の中身。量が空なら「換算なし」。
 export type PurchaseUnitDraft = {
@@ -66,6 +70,27 @@ export function parsePurchaseUnitDraft(
 		quantity: base.quantity,
 		quantityUnitLabel: base.unitLabel,
 	};
+}
+
+/**
+ * 入力欄の中身の、いまの換算の表示（保存されるとおりに見せる）。
+ * 換算を残さない入力（量が空・同じ単位・g・ml そのもの）は、「未設定」ではなく、在庫の単位のまま（ロットの量は、もともと在庫の単位で数えている）。
+ * 読めないときは throw する（呼び出し側で、入力を確かめてもらう）。
+ */
+export function summarizePurchaseUnitDraft(
+	draft: PurchaseUnitDraft,
+	stockUnitLabel: string,
+): string {
+	const unit = parsePurchaseUnitDraft(draft);
+	const saved =
+		unit &&
+		toPurchaseUnit({
+			inputUnitCode: unit.label,
+			quantity: unit.quantity,
+			quantityUnitLabel: unit.quantityUnitLabel,
+		});
+
+	return saved ? describePurchaseUnit(saved) : `${stockUnitLabel}のまま`;
 }
 
 function isSameUnit(
