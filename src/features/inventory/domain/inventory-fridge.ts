@@ -79,6 +79,8 @@ export type InventoryTile = {
 	// 並べ替えの鍵：数量が 0 より多いロットのいちばん近い期限（なければ null）と、読み仮名。
 	sortExpiresOn: string | null;
 	sortReading: string;
+	// 入れた日時：数量が 0 より多いロットのうち、いちばん新しく入れたもの（ISO 8601。なければ null）。
+	sortAddedAt: string | null;
 };
 
 export type InventoryFridgeZone = {
@@ -256,6 +258,19 @@ function nearestExpiryDate(lots: readonly InventoryLot[]): string | null {
 	return dates.sort()[0] ?? null;
 }
 
+// 並び順に使う「いちばん新しく入れた日時」。
+function latestAddedAt(lots: readonly InventoryLot[]): string | null {
+	let latest: string | null = null;
+
+	for (const lot of lots) {
+		if (lot.quantity > 0 && (latest === null || lot.createdAt > latest)) {
+			latest = lot.createdAt;
+		}
+	}
+
+	return latest;
+}
+
 /**
  * 在庫の食材を、ゾーンごとのタイルにする。
  * - 食材は、ロットの行き先のゾーンごとにタイルになる（牛乳が冷蔵と冷凍にあれば、2枚）。
@@ -326,6 +341,7 @@ export function buildInventoryFridge(
 				approximate: item.trackingMode === "estimated",
 				sortExpiresOn: nearestExpiryDate(lots),
 				sortReading,
+				sortAddedAt: latestAddedAt(lots),
 			});
 		}
 	}

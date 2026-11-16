@@ -111,6 +111,31 @@ describe("buildInventoryFridge", () => {
 		]);
 	});
 
+	it.each([
+		{
+			name: "量のあるロットのうち、いちばん新しく入れた日時",
+			lots: [
+				lot({ id: "x1", createdAt: "2026-10-12T00:00:00.000Z" }),
+				lot({ id: "x2", createdAt: "2026-10-13T00:00:00.000Z" }),
+				lot({ id: "x3", quantity: 0, createdAt: "2026-10-14T00:00:00.000Z" }),
+			],
+			expected: "2026-10-13T00:00:00.000Z",
+		},
+		{
+			name: "量のあるロットがなければ null",
+			lots: [],
+			expected: null,
+		},
+	])("入れた日時：$name", ({ lots, expected }) => {
+		const item = buildInventoryListItem({
+			inventoryItemId: "x",
+			name: "豆腐",
+			lots,
+		});
+
+		expect(tilesOf([item], "fridge")[0]?.sortAddedAt).toBe(expected);
+	});
+
 	it("ゾーンをまたぐ食材は、ゾーンごとのタイルになり、量と期限はゾーンごとに数える", () => {
 		const item = buildInventoryListItem({
 			inventoryItemId: "milk",

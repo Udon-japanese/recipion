@@ -25,6 +25,7 @@ function tile(overrides: Partial<InventoryTile>): InventoryTile {
 		approximate: false,
 		sortExpiresOn: null,
 		sortReading: "とりむね",
+		sortAddedAt: null,
 		...overrides,
 	};
 }
@@ -52,6 +53,21 @@ describe("inventoryGroupOf", () => {
 		);
 	});
 
+	// 入れた日は、日本時間の日付で数える（UTC の 15:00 が、日本時間の 0:00）。
+	it.each([
+		["2026-10-30T05:00:00.000Z", "today"],
+		["2026-10-29T15:00:00.000Z", "today"],
+		["2026-10-31T01:00:00.000Z", "today"],
+		["2026-10-29T14:59:59.000Z", "yesterday"],
+		["2026-10-28T15:00:00.000Z", "yesterday"],
+		["2026-10-28T14:59:59.000Z", "week"],
+		["2026-10-22T15:00:00.000Z", "week"],
+		["2026-10-22T14:59:59.000Z", "earlier"],
+		[null, "none"],
+	])("入れた日時 %s → %s", (sortAddedAt, group) => {
+		expect(inventoryGroupOf(tile({ sortAddedAt }), "added", today)).toBe(group);
+	});
+
 	it.each([
 		["とりむね", "た"],
 		["ぎゅうにゅう", "か"],
@@ -62,7 +78,7 @@ describe("inventoryGroupOf", () => {
 	});
 
 	it("どの分類のタイルも、一覧のグループのどれかに入る", () => {
-		for (const by of ["zone", "expiry", "kana"] as const) {
+		for (const by of ["zone", "expiry", "added", "kana"] as const) {
 			const ids = listInventoryGroups(by).map((group) => group.id);
 
 			expect(ids).toContain(inventoryGroupOf(tile({}), by, today));
@@ -83,5 +99,39 @@ describe("compareTilesFor", () => {
 			"かぼちゃ",
 			"ミルク",
 		]);
+	});
+
+	it.each([
+		{
+			name: "新しく入れた順",
+			tiles: [
+				{ sortReading: "あじ", sortAddedAt: "2026-10-28T01:00:00.000Z" },
+				{ sortReading: "かぼちゃ", sortAddedAt: "2026-10-30T01:00:00.000Z" },
+				{ sortReading: "さけ", sortAddedAt: "2026-10-29T01:00:00.000Z" },
+			],
+			expected: ["かぼちゃ", "さけ", "あじ"],
+		},
+		{
+			name: "入れた日時のないものは最後",
+			tiles: [
+				{ sortReading: "あじ", sortAddedAt: null },
+				{ sortReading: "かぼちゃ", sortAddedAt: "2026-10-28T01:00:00.000Z" },
+			],
+			expected: ["かぼちゃ", "あじ"],
+		},
+		{
+			name: "同じ日時・どちらもないときは、読み仮名の順",
+			tiles: [
+				{ sortReading: "ミルク", sortAddedAt: null },
+				{ sortReading: "さけ", sortAddedAt: "2026-10-30T01:00:00.000Z" },
+				{ sortReading: "あじ", sortAddedAt: null },
+				{ sortReading: "かぼちゃ", sortAddedAt: "2026-10-30T01:00:00.000Z" },
+			],
+			expected: ["かぼちゃ", "さけ", "あじ", "ミルク"],
+		},
+	])("入れた日：$name", ({ tiles, expected }) => {
+		const sorted = tiles.map((t) => tile(t)).sort(compareTilesFor("added"));
+
+		expect(sorted.map((t) => t.sortReading)).toEqual(expected);
 	});
 });
