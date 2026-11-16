@@ -10,7 +10,7 @@ export const meatAndSeafoodEntries: readonly IngredientCatalogEntry[] =
 		entry({
 			id: "chicken-thigh",
 			name: "鶏もも肉",
-			aliases: ["鶏もも肉", "鶏もも", "もも肉"],
+			aliases: ["鶏もも肉", "鶏もも"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
 				{
@@ -123,7 +123,7 @@ export const meatAndSeafoodEntries: readonly IngredientCatalogEntry[] =
 		entry({
 			id: "pork-loin",
 			name: "豚ロース肉",
-			aliases: ["豚ロース肉", "豚ロース", "ロース肉"],
+			aliases: ["豚ロース肉", "豚ロース"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
 				{
@@ -138,7 +138,7 @@ export const meatAndSeafoodEntries: readonly IngredientCatalogEntry[] =
 		entry({
 			id: "pork-shoulder-loin",
 			name: "豚肩ロース肉",
-			aliases: ["豚肩ロース肉", "豚肩ロース", "肩ロース"],
+			aliases: ["豚肩ロース肉", "豚肩ロース"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
 				{
@@ -197,8 +197,6 @@ export const meatAndSeafoodEntries: readonly IngredientCatalogEntry[] =
 				"合びき肉",
 				"合い挽き",
 				"合いびき",
-				"ひき肉",
-				"挽き肉",
 			],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
@@ -277,7 +275,7 @@ export const meatAndSeafoodEntries: readonly IngredientCatalogEntry[] =
 		entry({
 			id: "salmon",
 			name: "鮭",
-			aliases: ["鮭", "しゃけ", "サーモン", "生鮭"],
+			aliases: ["鮭", "しゃけ", "生鮭"],
 			stockUnitCode: "count",
 			presets: presetsFor("count", [
 				{

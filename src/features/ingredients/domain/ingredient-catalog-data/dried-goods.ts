@@ -39,7 +39,7 @@ export const driedGoodsEntries: readonly IngredientCatalogEntry[] =
 		entry({
 			id: "dried-wakame",
 			name: "乾燥わかめ",
-			aliases: ["乾燥わかめ", "カットわかめ", "わかめ"],
+			aliases: ["乾燥わかめ", "カットわかめ"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
 				{ label: "20g袋", quantity: 1, unit: "袋", code: "bag", per: 20 },
@@ -92,7 +92,7 @@ export const driedGoodsEntries: readonly IngredientCatalogEntry[] =
 		entry({
 			id: "white-sesame",
 			name: "白ごま",
-			aliases: ["白ごま", "白胡麻", "いりごま", "ごま"],
+			aliases: ["白ごま", "白胡麻"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
 				{ label: "60g袋", quantity: 1, unit: "袋", code: "bag", per: 60 },

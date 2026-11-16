@@ -10,7 +10,7 @@ export const staplesEntries: readonly IngredientCatalogEntry[] =
 		entry({
 			id: "spaghetti",
 			name: "スパゲティ",
-			aliases: ["スパゲティ", "スパゲッティ", "パスタ"],
+			aliases: ["スパゲティ", "スパゲッティ"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
 				{ label: "300g袋", quantity: 1, unit: "袋", code: "bag", per: 300 },
@@ -77,7 +77,7 @@ export const staplesEntries: readonly IngredientCatalogEntry[] =
 		entry({
 			id: "bread",
 			name: "食パン",
-			aliases: ["食パン", "パン"],
+			aliases: ["食パン"],
 			stockUnitCode: "count",
 			presets: presetsFor("count", [
 				{ label: "6枚切", quantity: 1, unit: "袋", code: "bag", per: 6 },
@@ -102,7 +102,7 @@ export const staplesEntries: readonly IngredientCatalogEntry[] =
 		entry({
 			id: "boiled-udon",
 			name: "ゆでうどん",
-			aliases: ["ゆでうどん", "茹でうどん", "うどん"],
+			aliases: ["ゆでうどん", "茹でうどん"],
 			stockUnitCode: "count",
 			presets: presetsFor("count", [
 				{ label: "1玉", quantity: 1, unit: "玉", code: "count", per: 1 },

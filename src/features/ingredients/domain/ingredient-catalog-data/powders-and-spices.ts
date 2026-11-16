@@ -343,7 +343,7 @@ export const powdersAndSpicesEntries: readonly IngredientCatalogEntry[] =
 		entry({
 			id: "chicken-stock-powder",
 			name: "鶏がらスープの素",
-			aliases: ["鶏がらスープの素", "鶏がらスープ", "鶏ガラスープ", "鶏がら"],
+			aliases: ["鶏がらスープの素", "鶏がらスープ", "鶏ガラスープ"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
 				{ label: "50g袋", quantity: 1, unit: "袋", code: "bag", per: 50 },

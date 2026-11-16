@@ -309,7 +309,7 @@ export const seasoningsEntries: readonly IngredientCatalogEntry[] =
 		entry({
 			id: "worcester-sauce",
 			name: "ウスターソース",
-			aliases: ["ウスターソース", "ウスター", "ソース"],
+			aliases: ["ウスターソース", "ウスター"],
 			stockUnitCode: "ml",
 			presets: presetsFor("ml", [
 				{ label: "300ml", quantity: 300, unit: "ml", code: "ml", per: 1 },
@@ -521,7 +521,7 @@ export const seasoningsEntries: readonly IngredientCatalogEntry[] =
 		entry({
 			id: "salad-oil",
 			name: "サラダ油",
-			aliases: ["サラダ油", "油", "植物油"],
+			aliases: ["サラダ油", "植物油"],
 			stockUnitCode: "ml",
 			presets: presetsFor("ml", [
 				{
