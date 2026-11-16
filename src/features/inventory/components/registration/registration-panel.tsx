@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import { Chip, ChipGroup } from "#/components/chip/chip";
 import { CornerSheet } from "#/components/corner-sheet/corner-sheet";
 import { Field, SelectBox, TextInput } from "#/components/field/field";
@@ -32,6 +32,7 @@ function RegistrationForm({
 	const { ingredientName, unitChoice, trackingMode } = registration;
 	const isPresence = trackingMode === "presence";
 	const formRef = useRef<HTMLFormElement>(null);
+	const stockUnitLockedHintId = useId();
 
 	// 開いた直後に、食材名の欄へ。1件登録したあとも、続けて入力できるよう、食材名の欄へ戻す。
 	// biome-ignore lint/correctness/useExhaustiveDependencies: 件数が変わったときにも、戻す。
@@ -85,6 +86,11 @@ function RegistrationForm({
 									<SelectBox
 										aria-label="在庫の単位"
 										value={registration.unitSelectValue}
+										aria-describedby={
+											registration.isStockUnitLocked
+												? stockUnitLockedHintId
+												: undefined
+										}
 										onChange={(event) =>
 											registration.chooseUnit(event.target.value)
 										}
@@ -104,6 +110,13 @@ function RegistrationForm({
 					)}
 				</Field>
 			)}
+
+			{!isPresence && registration.isStockUnitLocked ? (
+				<p className={styles.hint} id={stockUnitLockedHintId}>
+					在庫にあるので、単位は{registration.stockUnit.stockUnitLabel}
+					のままです（変えるときは、在庫の「単位を変える」から）。
+				</p>
+			) : null}
 
 			{!isPresence &&
 			unitChoice === customStockUnitValue &&

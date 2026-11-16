@@ -32,10 +32,7 @@ import {
 	type InventoryTile as InventoryTileModel,
 	type InventoryZoneId,
 } from "../domain/inventory-fridge";
-import {
-	type InventoryLotPurchaseUnit,
-	toDateString,
-} from "../domain/inventory-lot";
+import { toDateString } from "../domain/inventory-lot";
 import { usePurchaseUnitMemory } from "../hooks/use-purchase-unit-memory";
 import {
 	type InventoryView,
@@ -53,7 +50,10 @@ import {
 	type InventoryRegistrationConfig,
 	InventoryRegistrationController,
 } from "./registration/registration-controller";
-import type { RegisteredInfo } from "./registration/use-inventory-registration";
+import type {
+	ExistingInventoryItem,
+	RegisteredInfo,
+} from "./registration/use-inventory-registration";
 import { InventoryScene, InventorySceneLoading } from "./scene/inventory-scene";
 import { ViewToggle } from "./view-toggle";
 
@@ -129,13 +129,13 @@ export function InventoryList({
 	// 買い物メモの換算の記憶。換算の候補と、決めた換算の保存先（買い物メモと共有）。
 	const purchaseUnitMemory = usePurchaseUnitMemory(ownerScope);
 
-	// すでにある同じ食材の、ロットの換算（新しい順）。登録の候補になる。
-	function lookupLotPurchaseUnits(
+	// 在庫にすでにある同じ食材。登録は、その単位に固定し、ロットの換算（新しい順）を候補にする。
+	function findExistingItem(
 		ingredientName: string,
-	): InventoryLotPurchaseUnit[] {
-		// 食材名が空のときは、正規化できない（候補もなし）。
+	): ExistingInventoryItem | null {
+		// 食材名が空のときは、正規化できない。
 		if (ingredientName.trim() === "") {
-			return [];
+			return null;
 		}
 
 		const key = normalizeIngredientName(ingredientName);
@@ -143,9 +143,15 @@ export function InventoryList({
 			(candidate) => normalizeIngredientName(candidate.name) === key,
 		);
 
-		return [...(item?.lots ?? [])]
-			.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
-			.flatMap((lot) => lot.purchaseUnit ?? []);
+		return item
+			? {
+					stockUnitCode: item.stockUnitCode,
+					stockUnitLabel: item.stockUnitLabel,
+					purchaseUnits: [...item.lots]
+						.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+						.flatMap((lot) => lot.purchaseUnit ?? []),
+				}
+			: null;
 	}
 	// 最後に選んだ表示（読み込み中の見た目も、これに合わせる）。この画面はサーバーで描かないので、最初の描画から保存した値になる。
 	const [view, setView] = useStorageItem(inventoryViewStorage);
@@ -709,7 +715,7 @@ export function InventoryList({
 					}
 					fabOnScene={view === "scene"}
 					purchaseUnitMemory={purchaseUnitMemory}
-					lookupLotPurchaseUnits={lookupLotPurchaseUnits}
+					findExistingItem={findExistingItem}
 				/>
 			) : null}
 		</section>

@@ -39,20 +39,28 @@ describe("summarizePurchaseUnitDraft", () => {
 
 describe("parsePurchaseUnitDraft", () => {
 	it("量が空なら、換算なし。入っていれば、呼び名・量・単位の換算にする", () => {
-		expect(parsePurchaseUnitDraft(emptyPurchaseUnitDraft("個"))).toBeNull();
 		expect(
-			parsePurchaseUnitDraft({
-				label: " 個 ",
-				quantityText: "110",
-				quantityUnitLabel: "g",
-			}),
+			parsePurchaseUnitDraft(emptyPurchaseUnitDraft("個"), "個"),
+		).toBeNull();
+		expect(
+			parsePurchaseUnitDraft(
+				{
+					label: " 個 ",
+					quantityText: "110",
+					quantityUnitLabel: "g",
+				},
+				"個",
+			),
 		).toEqual(udon110);
 		expect(
-			parsePurchaseUnitDraft({
-				label: "パック",
-				quantityText: "1/2",
-				quantityUnitLabel: "個",
-			})?.quantity,
+			parsePurchaseUnitDraft(
+				{
+					label: "パック",
+					quantityText: "1/2",
+					quantityUnitLabel: "個",
+				},
+				"個",
+			)?.quantity,
 		).toBe(0.5);
 	});
 
@@ -63,11 +71,14 @@ describe("parsePurchaseUnitDraft", () => {
 		"%s%s で打った量は、%s%s で持つ",
 		(quantityText, unit, quantity, unitLabel) => {
 			expect(
-				parsePurchaseUnitDraft({
-					label: "袋",
-					quantityText,
-					quantityUnitLabel: unit,
-				}),
+				parsePurchaseUnitDraft(
+					{
+						label: "袋",
+						quantityText,
+						quantityUnitLabel: unit,
+					},
+					"個",
+				),
 			).toEqual({ label: "袋", quantity, quantityUnitLabel: unitLabel });
 		},
 	);
@@ -75,21 +86,67 @@ describe("parsePurchaseUnitDraft", () => {
 	it("読めない量・0以下・呼び名が空は、理由つきでエラーにする", () => {
 		for (const quantityText of ["abc", "0", "-5"]) {
 			expect(() =>
-				parsePurchaseUnitDraft({
-					label: "個",
-					quantityText,
-					quantityUnitLabel: "g",
-				}),
+				parsePurchaseUnitDraft(
+					{
+						label: "個",
+						quantityText,
+						quantityUnitLabel: "g",
+					},
+					"個",
+				),
 			).toThrow("1つあたりの量を確認してください");
 		}
 
 		expect(() =>
-			parsePurchaseUnitDraft({
-				label: " ",
-				quantityText: "200",
-				quantityUnitLabel: "g",
-			}),
+			parsePurchaseUnitDraft(
+				{
+					label: " ",
+					quantityText: "200",
+					quantityUnitLabel: "g",
+				},
+				"個",
+			),
 		).toThrow("買った単位を入力してください");
+	});
+});
+
+describe("parsePurchaseUnitDraft（在庫の量に直せるか）", () => {
+	// 左が在庫の単位なら、右は何でもよい（枚で打った量を、袋に直して引く）。右が在庫の単位か g・ml でもよい。
+	it.each([
+		{ stock: "袋", label: "袋", unit: "枚", fits: true },
+		{ stock: "枚", label: "袋", unit: "枚", fits: true },
+		{ stock: "g", label: "パック", unit: "g", fits: true },
+		{ stock: "個", label: "個", unit: "g", fits: true },
+		{ stock: "g", label: "袋", unit: "枚", fits: false },
+		{ stock: "個", label: "袋", unit: "枚", fits: false },
+	])(
+		"在庫が「$stock」で「1 $label ＝ 6 $unit」は、使える：$fits",
+		({ stock, label, unit, fits }) => {
+			const parse = () =>
+				parsePurchaseUnitDraft(
+					{ label, quantityText: "6", quantityUnitLabel: unit },
+					stock,
+				);
+
+			if (fits) {
+				expect(parse()).toEqual({
+					label,
+					quantity: 6,
+					quantityUnitLabel: unit,
+				});
+			} else {
+				expect(parse).toThrow(`在庫は${stock}で数えるので`);
+			}
+		},
+	);
+
+	it("1つあたりの単位（その他）が空なら、理由つきでエラーにする", () => {
+		expect(() =>
+			parsePurchaseUnitDraft(
+				{ label: "袋", quantityText: "6", quantityUnitLabel: " " },
+				"袋",
+			),
+		).toThrow("1つあたりの単位を入力してください");
 	});
 });
 

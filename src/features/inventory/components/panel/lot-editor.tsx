@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "#/components/button/button";
 import { useButtonAction } from "#/components/button/use-button-action";
+import { Icon } from "#/components/icon/icon";
 import { Toggle } from "#/components/toggle/toggle";
 import { initialQuantityInput } from "#/features/quantity/domain/quantity-buttons";
 import { preferMeasureUnit } from "#/features/quantity/infrastructure/measure-unit-preference-storage";
@@ -125,7 +126,10 @@ export function LotEditor({
 		let purchaseUnit: InventoryLotPurchaseUnit | null;
 
 		try {
-			purchaseUnit = parsePurchaseUnitDraft(purchaseUnitDraft);
+			purchaseUnit = parsePurchaseUnitDraft(
+				purchaseUnitDraft,
+				item.stockUnitLabel,
+			);
 			setPurchaseUnitError(null);
 		} catch (error) {
 			setPurchaseUnitError(
@@ -233,7 +237,10 @@ export function LotEditor({
 					/>
 
 					{purchaseUnitError ? (
-						<p role="alert" className={styles.hint}>
+						<p role="alert" className={styles.error}>
+							<span className={styles.errorIcon} aria-hidden="true">
+								<Icon name="alert-triangle" size={16} />
+							</span>
 							{purchaseUnitError}
 						</p>
 					) : null}

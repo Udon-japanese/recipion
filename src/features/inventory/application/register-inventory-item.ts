@@ -1,6 +1,10 @@
 import * as v from "valibot";
+import { UserFacingError } from "#/errors/user-facing-error";
 import { inventoryTrackingModeSchema } from "../domain/inventory-tracking-mode";
-import { inventoryUnitCodeSchema } from "../domain/inventory-unit";
+import {
+	inventoryUnitCodeSchema,
+	isSameStockUnit,
+} from "../domain/inventory-unit";
 import type {
 	InventoryAdjustmentRepository,
 	InventoryAdjustmentRepositoryResult,
@@ -107,7 +111,14 @@ export async function registerInventoryItem(
 		return { inventoryItem, adjustment: null };
 	}
 
-	// 入力の数量は、その在庫の単位で受け取る（すでに別の単位で登録済みなら、その単位に従う）。
+	// すでに別の単位で在庫にある食材に、違う単位で打った数を、その単位の数として足さない（6枚が6袋にならないように）。
+	// 登録のパネルは、在庫にある食材の単位を固定する。古い画面などから届いたときの守り。
+	if (!input.markAsAvailable && !isSameStockUnit(inventoryItem, input)) {
+		throw new UserFacingError(
+			`${inventoryItem.name}は、在庫の単位が${inventoryItem.stockUnitLabel}です。${inventoryItem.stockUnitLabel}で入れてください（単位を変えるときは、在庫の「単位を変える」から）`,
+		);
+	}
+
 	const adjustment =
 		await dependencies.inventoryAdjustmentRepository.applyAdjustment({
 			transactionId: input.transactionId,

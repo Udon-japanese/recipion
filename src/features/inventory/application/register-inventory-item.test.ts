@@ -6,16 +6,23 @@ import {
 
 const transactionId = "3f1c9a5e-7b1d-4c3e-9a41-2d6f8b0e1a11";
 
+type StockUnit = {
+	stockUnitCode: "count" | "g" | "ml";
+	stockUnitLabel: string;
+};
+
+// existingUnit：すでに在庫にある食材の単位（省略は、登録で頼んだ単位のまま）。
 function createDependencies(
 	currentQuantity = 0,
 	currentMode: "exact" | "estimated" | "presence" = "estimated",
+	existingUnit?: StockUnit,
 ) {
-	const resolveOrCreateInventoryItem = vi.fn(async () => ({
+	const resolveOrCreateInventoryItem = vi.fn(async (command: StockUnit) => ({
 		ingredientId: "ingredient-1",
 		inventoryItemId: "inventory-item-1",
 		name: "塩",
-		stockUnitCode: "g" as const,
-		stockUnitLabel: "g",
+		stockUnitCode: existingUnit?.stockUnitCode ?? command.stockUnitCode,
+		stockUnitLabel: existingUnit?.stockUnitLabel ?? command.stockUnitLabel,
 		trackingMode: currentMode,
 		quantity: currentQuantity,
 	}));
@@ -175,6 +182,65 @@ describe("parseRegisterInventoryItemInput", () => {
 		expect(() =>
 			parseRegisterInventoryItemInput({ ...valid, transactionId: "x" }),
 		).toThrow();
+	});
+
+	// 在庫にある食材の単位と違う単位で打った数を、その単位の数として足さない（6枚が6袋にならない）。
+	it.each([
+		{ existing: "袋", chosen: "枚", rejects: true },
+		{ existing: "g", chosen: "個", rejects: true },
+		{ existing: "袋", chosen: "袋", rejects: false },
+	])(
+		"在庫が「$existing」の食材に「$chosen」で6を入れると、断る：$rejects",
+		async ({ existing, chosen, rejects }) => {
+			const toUnit = (label: string): StockUnit => ({
+				stockUnitCode: label === "g" ? "g" : "count",
+				stockUnitLabel: label,
+			});
+			const { dependencies, applyAdjustment } = createDependencies(
+				6,
+				"estimated",
+				toUnit(existing),
+			);
+			const register = registerInventoryItem(
+				parseRegisterInventoryItemInput({
+					transactionId,
+					ingredientName: "米粉パン",
+					...toUnit(chosen),
+					initialQuantity: 6,
+				}),
+				dependencies,
+			);
+
+			if (rejects) {
+				await expect(register).rejects.toThrow(`在庫の単位が${existing}です`);
+				expect(applyAdjustment).not.toHaveBeenCalled();
+			} else {
+				await register;
+				expect(applyAdjustment).toHaveBeenCalled();
+			}
+		},
+	);
+
+	it("「ある」で登録するときは、単位を比べない（量を使わない）", async () => {
+		const { dependencies, applyAdjustment } = createDependencies(
+			0,
+			"presence",
+			{ stockUnitCode: "ml", stockUnitLabel: "ml" },
+		);
+
+		await registerInventoryItem(
+			parseRegisterInventoryItemInput({
+				transactionId,
+				ingredientName: "塩",
+				stockUnitCode: "g",
+				stockUnitLabel: "g",
+				initialQuantity: 0,
+				markAsAvailable: true,
+			}),
+			dependencies,
+		);
+
+		expect(applyAdjustment).toHaveBeenCalled();
 	});
 
 	it("ロットの換算（1個＝110g）は、そのまま初期数量のロットに渡す", async () => {
