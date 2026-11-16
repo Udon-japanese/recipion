@@ -51,8 +51,35 @@ export interface MadeRecipeStockRepository {
 	): Promise<{ inventoryItemId: string }>;
 }
 
+export type CorrectRecipeConsumptionCommand = {
+	// 再送しても二重に直さないための印。
+	transactionId: string;
+	// 「作った」の操作の印。
+	sourceId: string;
+	inventoryItemId: string;
+	// 直したあとの、この操作で引いた量（在庫の単位。0 より大きい。0 にするのは、1行の「戻す」）。
+	quantity: number;
+};
+
+export type CorrectRecipeConsumptionResult = {
+	status: "applied" | "already-applied";
+	// 直したあとの、この操作で引いた量（在庫の単位）。
+	consumedQuantity: number;
+	// 食材の、操作後の数量とロット（キャッシュの更新に使う）。
+	quantity: number;
+	lots: InventoryLot[];
+};
+
+export interface RecipeConsumptionCorrectionRepository {
+	// 「作った」で引いた量を、直す（足りなければ期限の早いロットから引き、多ければ引いたロットへ戻す）。
+	// 戻したあとの食材・在庫の単位を変えた食材は、直せない。
+	correctRecipeConsumption(
+		command: CorrectRecipeConsumptionCommand,
+	): Promise<CorrectRecipeConsumptionResult>;
+}
+
 export interface RecipeConsumptionUndoRepository {
-	// 「作った」で引いた分（同じ sourceId の履歴）を、引いたロットへ戻す。二重には戻さない（食材ごとに判定）。
+	// 「作った」で引いた分（同じ sourceId の履歴。「直す」で増減した分も含めた合計）を、引いたロットへ戻す。二重には戻さない（食材ごとに判定）。
 	// inventoryItemIds を渡すと、その食材の分だけを戻す（1行ずつの「戻す」）。省略は、まだ戻していない全部。
 	undoRecipeConsumption(
 		sourceId: string,

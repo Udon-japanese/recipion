@@ -906,6 +906,12 @@ function SheetGallery() {
 					items: [],
 					unreturnedProduction: 0,
 				})}
+				correct={async (command) => ({
+					status: "applied" as const,
+					consumedQuantity: command.quantity,
+					quantity: 0,
+					lots: [],
+				})}
 			/>
 
 			<ConfirmDialog

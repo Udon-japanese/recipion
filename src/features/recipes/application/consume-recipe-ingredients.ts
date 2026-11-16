@@ -1,5 +1,7 @@
 import { adjustInventoryWithCache } from "#/features/inventory/application/adjust-inventory-with-cache";
 import type {
+	CorrectRecipeConsumptionCommand,
+	CorrectRecipeConsumptionResult,
 	InventoryAdjustmentCommand,
 	InventoryAdjustmentRepositoryResult,
 	UndoRecipeConsumptionResult,
@@ -152,6 +154,32 @@ export type RecipeConsumptionUndoTarget = {
 	sourceId: string;
 	inventoryItemIds?: readonly string[];
 };
+
+/** 引いた量を直し（在庫の単位）、在庫のキャッシュも更新する。 */
+export async function correctRecipeConsumptionWithCache(
+	ownerScope: InventoryCacheOwnerScope,
+	command: CorrectRecipeConsumptionCommand,
+	correctRemote: (
+		command: CorrectRecipeConsumptionCommand,
+	) => Promise<CorrectRecipeConsumptionResult>,
+	cacheRepository: InventoryCacheRepository,
+	now = new Date(),
+): Promise<CorrectRecipeConsumptionResult> {
+	const result = await correctRemote(command);
+
+	try {
+		await cacheRepository.updateStock(
+			ownerScope,
+			command.inventoryItemId,
+			{ quantity: result.quantity, lots: result.lots },
+			now,
+		);
+	} catch {
+		// サーバーの変更は完了しているので、キャッシュ更新だけの失敗は、結果にしない。
+	}
+
+	return result;
+}
 
 /** 引いた分を戻し、在庫のキャッシュも更新する。 */
 export async function undoRecipeConsumptionWithCache(

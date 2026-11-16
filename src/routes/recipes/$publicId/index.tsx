@@ -14,11 +14,13 @@ import {
 	getDefaultStockUnitLabel,
 } from "#/features/ingredients/domain/ingredient-catalog";
 import { useIngredientDictionaryWithActions } from "#/features/ingredients/hooks/use-ingredient-dictionary";
+import type { CorrectRecipeConsumptionCommand } from "#/features/inventory/application/inventory-adjustment-repository";
 import { userIdOfOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import { loadInventoryItemsWithCache } from "#/features/inventory/application/load-inventory-items-with-cache";
 import { useOwnerScope } from "#/features/inventory/hooks/use-owner-scope";
 import { createDexieInventoryCacheRepository } from "#/features/inventory/infrastructure/dexie-inventory-cache-repository";
 import { adjustInventory as adjustInventoryServerFn } from "#/features/inventory/server/adjust-inventory";
+import { correctRecipeConsumptionServerFn } from "#/features/inventory/server/correct-recipe-consumption";
 import { listInventoryItemsServerFn } from "#/features/inventory/server/list-inventory-items";
 import { registerInventoryItemServerFn } from "#/features/inventory/server/register-inventory-item";
 import { stockMadeRecipeServerFn } from "#/features/inventory/server/stock-made-recipe";
@@ -28,6 +30,7 @@ import type {
 	RecipeConsumptionOperation,
 } from "#/features/recipes/application/consume-recipe-ingredients";
 import {
+	correctRecipeConsumptionWithCache,
 	type RecipeConsumptionUndoTarget,
 	runRecipeConsumption,
 	undoRecipeConsumptionWithCache,
@@ -336,6 +339,23 @@ function useRecipeViewSupport(
 		[ownerScope],
 	);
 
+	// 「作った」のあとで、1つの食材の引いた量を直す。
+	const correctConsumption = useCallback(
+		async (command: CorrectRecipeConsumptionCommand) => {
+			if (!ownerScope || ownerScope === "guest") {
+				throw new Error("在庫を操作できるユーザーではありません");
+			}
+
+			return correctRecipeConsumptionWithCache(
+				ownerScope,
+				command,
+				(data) => correctRecipeConsumptionServerFn({ data }),
+				createDexieInventoryCacheRepository(),
+			);
+		},
+		[ownerScope],
+	);
+
 	// 作り置きのレシピ：「作った」で、できあがりを在庫に入れる。
 	const produce = useCallback(
 		async (input: {
@@ -366,6 +386,7 @@ function useRecipeViewSupport(
 		registerAvailable,
 		consume,
 		undoConsumption,
+		correctConsumption,
 		produce,
 	};
 }
@@ -394,6 +415,7 @@ function OwnRecipePage({
 		registerAvailable,
 		consume,
 		undoConsumption,
+		correctConsumption,
 		produce,
 	} = useRecipeViewSupport(recipe, preload);
 
@@ -502,6 +524,7 @@ function OwnRecipePage({
 						dictionary={dictionary}
 						consume={consume}
 						undo={undoConsumption}
+						correct={correctConsumption}
 						cookLog={cookLog}
 						madeRecipe={{
 							name: recipe.name,
@@ -543,6 +566,7 @@ function SharedRecipePage({
 		registerAvailable,
 		consume,
 		undoConsumption,
+		correctConsumption,
 	} = useRecipeViewSupport(recipe, preload);
 
 	return (
@@ -629,6 +653,7 @@ function SharedRecipePage({
 						dictionary={dictionary}
 						consume={consume}
 						undo={undoConsumption}
+						correct={correctConsumption}
 						cookLog={cookLog}
 					/>
 				}
