@@ -10,7 +10,7 @@ export const soyAndProcessedEntries: readonly IngredientCatalogEntry[] =
 		entry({
 			id: "tofu-momen",
 			name: "木綿豆腐",
-			aliases: ["木綿豆腐", "もめん豆腐", "豆腐"],
+			aliases: ["木綿豆腐", "もめん豆腐"],
 			stockUnitCode: "count",
 			presets: presetsFor("count", [
 				{ label: "1丁", quantity: 1, unit: "丁", code: "count", per: 1 },

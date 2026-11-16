@@ -21,13 +21,7 @@ export const vegetablesEntries: readonly IngredientCatalogEntry[] =
 		entry({
 			id: "potato",
 			name: "じゃがいも",
-			aliases: [
-				"じゃがいも",
-				"ジャガイモ",
-				"じゃが芋",
-				"ポテト",
-				"ポテト(じゃがいも)",
-			],
+			aliases: ["じゃがいも", "ジャガイモ", "じゃが芋", "ポテト(じゃがいも)"],
 			stockUnitCode: "count",
 			presets: presetsFor("count", [
 				{ label: "1個", quantity: 1, unit: "個", code: "count", per: 1 },
@@ -49,7 +43,7 @@ export const vegetablesEntries: readonly IngredientCatalogEntry[] =
 		entry({
 			id: "cabbage",
 			name: "キャベツ",
-			aliases: ["キャベツ", "ざくぎりキャベツ", "千切りキャベツ"],
+			aliases: ["キャベツ"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
 				{
@@ -161,16 +155,7 @@ export const vegetablesEntries: readonly IngredientCatalogEntry[] =
 		entry({
 			id: "long-onion",
 			name: "長ねぎ",
-			aliases: [
-				"長ねぎ",
-				"長ネギ",
-				"長葱",
-				"ねぎ",
-				"ネギ",
-				"白ねぎ",
-				"白ネギ",
-				"白葱",
-			],
+			aliases: ["長ねぎ", "長ネギ", "長葱", "白ねぎ", "白ネギ", "白葱"],
 			stockUnitCode: "count",
 			presets: presetsFor("count", [
 				{ label: "1本", quantity: 1, unit: "本", code: "count", per: 1 },

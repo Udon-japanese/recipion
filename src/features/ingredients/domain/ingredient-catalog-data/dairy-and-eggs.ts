@@ -187,7 +187,7 @@ export const dairyAndEggsEntries: readonly IngredientCatalogEntry[] =
 		entry({
 			id: "sliced-cheese",
 			name: "スライスチーズ",
-			aliases: ["スライスチーズ", "チーズ"],
+			aliases: ["スライスチーズ"],
 			stockUnitCode: "count",
 			presets: presetsFor("count", [
 				{ label: "7枚入り", quantity: 1, unit: "袋", code: "bag", per: 7 },
@@ -241,7 +241,7 @@ export const dairyAndEggsEntries: readonly IngredientCatalogEntry[] =
 		entry({
 			id: "fresh-cream",
 			name: "生クリーム",
-			aliases: ["生クリーム", "ホイップクリーム", "ホイップ"],
+			aliases: ["生クリーム"],
 			stockUnitCode: "ml",
 			presets: presetsFor("ml", [
 				{ label: "200ml", quantity: 200, unit: "ml", code: "ml", per: 1 },

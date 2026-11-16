@@ -69,6 +69,32 @@ describe("findIngredientCatalogEntry", () => {
 		expect(findIngredientCatalogEntry("謎の食材")).toBeUndefined();
 		expect(findIngredientCatalogEntry("  ")).toBeUndefined();
 	});
+
+	// ほかの食材も指す広い言葉は、1つの食材の別名にしない（「油」でごま油まで、サラダ油として扱ってしまう）。
+	it.each([
+		"油",
+		"ソース",
+		"ねぎ",
+		"豆腐",
+		"ひき肉",
+		"もも肉",
+		"ロース肉",
+		"肩ロース",
+		"うどん",
+		"パン",
+		"チーズ",
+		"ごま",
+		"いりごま",
+		"パスタ",
+		"わかめ",
+		"ホイップ",
+		"ポテト",
+		"鶏がら",
+		"千切りキャベツ",
+		"サーモン",
+	])("広い言葉「%s」は、カタログのどの食材にも当たらない", (name) => {
+		expect(findIngredientCatalogEntry(name)).toBeUndefined();
+	});
 });
 
 describe("買うときの数量プリセット", () => {
