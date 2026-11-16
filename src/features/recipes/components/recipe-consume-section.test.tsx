@@ -1,6 +1,7 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import type { CorrectRecipeConsumptionCommand } from "#/features/inventory/application/inventory-adjustment-repository";
 import { buildInventoryListItem } from "#/test/builders/build-inventory-list-item";
 import type { RecipeConsumptionOperation } from "../application/consume-recipe-ingredients";
 import type { RecipeEditorIngredientNode } from "../domain/recipe-editor-document";
@@ -60,6 +61,12 @@ function setup(
 		items: [],
 		unreturnedProduction: 0,
 	}));
+	const correct = vi.fn(async (command: CorrectRecipeConsumptionCommand) => ({
+		status: "applied" as const,
+		consumedQuantity: command.quantity,
+		quantity: 0,
+		lots: [],
+	}));
 
 	render(
 		<RecipeConsumeSection
@@ -69,11 +76,23 @@ function setup(
 			loadInventoryItems={async () => stock}
 			consume={consume}
 			undo={undo}
+			correct={correct}
 			{...overrides}
 		/>,
 	);
 
-	return { consume, undo };
+	return { consume, undo, correct };
+}
+
+// 1行を戻す：「直す」の欄を開いて「使わなかった」を押す。
+async function returnRow(
+	user: ReturnType<typeof userEvent.setup>,
+	name: string,
+) {
+	await user.click(
+		await screen.findByRole("button", { name: `${name}の量を直す` }),
+	);
+	await user.click(screen.getByRole("button", { name: "使わなかった" }));
 }
 
 describe("RecipeConsumeSection", () => {
@@ -265,9 +284,7 @@ describe("RecipeConsumeSection", () => {
 		const { consume, undo } = setup();
 
 		await user.click(screen.getByRole("button", { name: /つくった/u }));
-		await user.click(
-			await screen.findByRole("button", { name: "玉ねぎを戻す" }),
-		);
+		await returnRow(user, "玉ねぎ");
 
 		const sourceId = consume.mock.calls[0]?.[0].sourceId;
 		const deducted = screen.getByRole("list", { name: "引いたもの" });
@@ -277,9 +294,11 @@ describe("RecipeConsumeSection", () => {
 			inventoryItemIds: ["inv-onion"],
 		});
 		expect(await within(deducted).findByText("戻しました")).toBeInTheDocument();
-		expect(screen.queryByRole("button", { name: "玉ねぎを戻す" })).toBeNull();
 		expect(
-			screen.getByRole("button", { name: "卵を戻す" }),
+			screen.queryByRole("button", { name: "玉ねぎの量を直す" }),
+		).toBeNull();
+		expect(
+			screen.getByRole("button", { name: "卵の量を直す" }),
 		).toBeInTheDocument();
 		expect(
 			screen.getByRole("button", { name: "元に戻す" }),
@@ -307,10 +326,8 @@ describe("RecipeConsumeSection", () => {
 		setup();
 
 		await user.click(screen.getByRole("button", { name: /つくった/u }));
-		await user.click(
-			await screen.findByRole("button", { name: "玉ねぎを戻す" }),
-		);
-		await user.click(await screen.findByRole("button", { name: "卵を戻す" }));
+		await returnRow(user, "玉ねぎ");
+		await returnRow(user, "卵");
 
 		await waitFor(() =>
 			expect(screen.queryByRole("button", { name: "元に戻す" })).toBeNull(),
@@ -324,15 +341,13 @@ describe("RecipeConsumeSection", () => {
 		undo.mockRejectedValueOnce(new Error("offline"));
 
 		await user.click(screen.getByRole("button", { name: /つくった/u }));
-		await user.click(
-			await screen.findByRole("button", { name: "玉ねぎを戻す" }),
-		);
+		await returnRow(user, "玉ねぎ");
 
 		expect(
 			await screen.findByText(/玉ねぎを戻せませんでした/u),
 		).toBeInTheDocument();
 		expect(
-			screen.getByRole("button", { name: "玉ねぎを戻す" }),
+			screen.getByRole("button", { name: "使わなかった" }),
 		).toBeInTheDocument();
 	});
 
@@ -828,5 +843,127 @@ describe("RecipeConsumeSection（ロットの換算）", () => {
 		expect(screen.getByRole("list", { name: "引いたもの" })).toHaveTextContent(
 			"1個＝110gを2個（切り上げ）",
 		);
+	});
+});
+
+describe("RecipeConsumeSection（引いた量を直す）", () => {
+	it("「直す」で量を変えると、その食材を同じ操作の印で直し、行に直したことを出す", async () => {
+		const user = userEvent.setup();
+		const { consume, correct } = setup();
+
+		await user.click(screen.getByRole("button", { name: /つくった/u }));
+		await user.click(
+			await screen.findByRole("button", { name: "玉ねぎの量を直す" }),
+		);
+		const field = screen.getByRole("textbox", { name: "玉ねぎの使った量" });
+
+		await user.clear(field);
+		await user.type(field, "3");
+		await user.click(screen.getByRole("button", { name: "この量にする" }));
+
+		const deducted = screen.getByRole("list", { name: "引いたもの" });
+
+		expect(correct).toHaveBeenCalledWith(
+			expect.objectContaining({
+				sourceId: consume.mock.calls[0]?.[0].sourceId,
+				inventoryItemId: "inv-onion",
+				quantity: 3,
+			}),
+		);
+		expect(
+			await within(deducted).findByText("2個から直しました"),
+		).toBeInTheDocument();
+		expect(within(deducted).getByText("3個")).toBeInTheDocument();
+		expect(
+			screen.queryByRole("textbox", { name: "玉ねぎの使った量" }),
+		).toBeNull();
+	});
+
+	it("引く前の在庫より多い量には直さない", async () => {
+		const user = userEvent.setup();
+		const { correct } = setup();
+
+		await user.click(screen.getByRole("button", { name: /つくった/u }));
+		await user.click(
+			await screen.findByRole("button", { name: "玉ねぎの量を直す" }),
+		);
+		const field = screen.getByRole("textbox", { name: "玉ねぎの使った量" });
+
+		await user.clear(field);
+		await user.type(field, "4");
+		await user.click(screen.getByRole("button", { name: "この量にする" }));
+
+		expect(screen.getByText("在庫は3個までです")).toBeInTheDocument();
+		expect(correct).not.toHaveBeenCalled();
+	});
+
+	it("ロットの換算の単位（g）で打つと、換算で在庫の単位にして直す", async () => {
+		const user = userEvent.setup();
+		const { correct } = setup({
+			ingredients: [ingredient("i1", "冷凍うどん", 200, "g")],
+			loadInventoryItems: async () => [
+				buildInventoryListItem({
+					inventoryItemId: "inv-udon",
+					name: "冷凍うどん",
+					quantity: 5,
+					lots: [
+						{
+							id: "lot-1",
+							quantity: 5,
+							acquiredOn: "2026-11-01",
+							storage: "freezer",
+							expiresOn: null,
+							expiryKind: null,
+							expirySource: null,
+							purchaseUnit: {
+								label: "個",
+								quantity: 110,
+								quantityUnitLabel: "g",
+							},
+							createdAt: "2026-11-01T00:00:00.000Z",
+						},
+					],
+				}),
+			],
+		});
+
+		await user.click(screen.getByRole("button", { name: /つくった/u }));
+		await user.click(
+			await screen.findByRole("button", { name: "冷凍うどんの量を直す" }),
+		);
+		await user.click(screen.getByRole("button", { name: "g" }));
+		await user.type(
+			screen.getByRole("textbox", { name: "冷凍うどんの使った量" }),
+			"330",
+		);
+		await user.click(screen.getByRole("button", { name: "この量にする" }));
+
+		expect(correct).toHaveBeenCalledWith(
+			expect.objectContaining({ inventoryItemId: "inv-udon", quantity: 3 }),
+		);
+	});
+
+	it("直せなかったときは、サーバーの理由を出し、欄を残す", async () => {
+		const user = userEvent.setup();
+		const { correct } = setup();
+
+		correct.mockRejectedValueOnce(
+			new Error("戻したあとの食材は、量を直せません"),
+		);
+
+		await user.click(screen.getByRole("button", { name: /つくった/u }));
+		await user.click(
+			await screen.findByRole("button", { name: "玉ねぎの量を直す" }),
+		);
+		const field = screen.getByRole("textbox", { name: "玉ねぎの使った量" });
+
+		await user.clear(field);
+		await user.type(field, "1");
+		await user.click(screen.getByRole("button", { name: "この量にする" }));
+
+		expect(
+			await screen.findByText("戻したあとの食材は、量を直せません"),
+		).toBeInTheDocument();
+		expect(field).toBeInTheDocument();
 	});
 });

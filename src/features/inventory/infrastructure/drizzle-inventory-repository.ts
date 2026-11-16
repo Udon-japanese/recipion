@@ -15,9 +15,11 @@ import {
 import { recipe } from "#/features/recipes/infrastructure/recipe.sql";
 import { createIngredientRegistration } from "../application/create-ingredient-registration";
 import type {
+	CorrectRecipeConsumptionCommand,
 	InventoryAdjustmentCommand,
 	InventoryAdjustmentRepository,
 	MadeRecipeStockRepository,
+	RecipeConsumptionCorrectionRepository,
 	RecipeConsumptionUndoRepository,
 } from "../application/inventory-adjustment-repository";
 import type {
@@ -70,6 +72,10 @@ import {
 	madeRecipeUnitLabel,
 } from "../domain/made-recipe-ingredient";
 import { planStockUnitChange } from "../domain/plan-stock-unit-change";
+import {
+	planRecipeConsumptionCorrection,
+	sumConsumedByLot,
+} from "../domain/recipe-consumption-correction";
 import {
 	inventoryItem,
 	inventoryLot,
@@ -191,6 +197,7 @@ export function createDrizzleInventoryRepository(
 ): InventoryAdjustmentRepository &
 	MadeRecipeStockRepository &
 	RecipeConsumptionUndoRepository &
+	RecipeConsumptionCorrectionRepository &
 	InventoryTrackingModeRepository &
 	InventoryItemManagementRepository &
 	InventoryItemResolver &
@@ -1036,9 +1043,11 @@ export function createDrizzleInventoryRepository(
 				);
 
 				let unreturnedProduction = 0;
+				const matchesCurrentUnit = (row: (typeof consumed)[number]) =>
+					currentUnits.get(row.inventoryItemId) === row.stockUnitCode;
 
 				for (const row of consumed) {
-					if (currentUnits.get(row.inventoryItemId) !== row.stockUnitCode) {
+					if (!matchesCurrentUnit(row)) {
 						continue;
 					}
 
@@ -1100,53 +1109,65 @@ export function createDrizzleInventoryRepository(
 								});
 							}
 						}
+					}
+				}
 
+				// 引いた分は、食材ごとに、ロットごとの合計（「直す」で増減した分も含む）を戻す。
+				// ロットが消えている（引いたあとで削除された）履歴は、戻す先がないので、合計に入らない。
+				for (const itemId of itemIds) {
+					const rows = consumed.filter(
+						(row) =>
+							row.inventoryItemId === itemId &&
+							row.reason === "recipe-consumption" &&
+							matchesCurrentUnit(row),
+					);
+					const stockUnitCode = rows[0]?.stockUnitCode;
+
+					if (stockUnitCode === undefined) {
 						continue;
 					}
 
-					// ロットが消えている（引いたあとで削除された）履歴は、戻す先がないので、飛ばす。
-					if (row.inventoryLotId === null) {
-						continue;
+					const { byLot } = sumConsumedByLot(
+						rows.map((row) => ({
+							inventoryLotId: row.inventoryLotId,
+							quantityDelta: Number(row.quantityDelta),
+						})),
+					);
+
+					for (const [lotId, restored] of byLot) {
+						const [updatedLot] = await transaction
+							.update(inventoryLot)
+							.set({
+								quantity: sql`${inventoryLot.quantity} + ${toNumeric(restored)}`,
+							})
+							.where(
+								and(
+									eq(inventoryLot.id, lotId),
+									eq(inventoryLot.userId, userId),
+								),
+							)
+							.returning({ quantity: inventoryLot.quantity });
+
+						if (!updatedLot) {
+							continue;
+						}
+
+						await transaction.insert(inventoryTransaction).values({
+							userId,
+							inventoryItemId: itemId,
+							inventoryLotId: lotId,
+							inputQuantity: toNumeric(restored),
+							inputUnitCode: stockUnitCode,
+							requestedQuantityDelta: toNumeric(restored),
+							quantityDelta: toNumeric(restored),
+							resultingQuantity: updatedLot.quantity,
+							stockUnitCode,
+							reason: "recipe-consumption-undo",
+							sourceType: "recipe",
+							sourceId,
+							occurredAt: now,
+						});
 					}
-
-					const restored = Math.abs(Number(row.quantityDelta));
-
-					if (restored === 0) {
-						continue;
-					}
-
-					const [updatedLot] = await transaction
-						.update(inventoryLot)
-						.set({
-							quantity: sql`${inventoryLot.quantity} + ${toNumeric(restored)}`,
-						})
-						.where(
-							and(
-								eq(inventoryLot.id, row.inventoryLotId),
-								eq(inventoryLot.userId, userId),
-							),
-						)
-						.returning({ quantity: inventoryLot.quantity });
-
-					if (!updatedLot) {
-						continue;
-					}
-
-					await transaction.insert(inventoryTransaction).values({
-						userId,
-						inventoryItemId: row.inventoryItemId,
-						inventoryLotId: row.inventoryLotId,
-						inputQuantity: toNumeric(restored),
-						inputUnitCode: row.stockUnitCode,
-						requestedQuantityDelta: toNumeric(restored),
-						quantityDelta: toNumeric(restored),
-						resultingQuantity: updatedLot.quantity,
-						stockUnitCode: row.stockUnitCode,
-						reason: "recipe-consumption-undo",
-						sourceType: "recipe",
-						sourceId,
-						occurredAt: now,
-					});
 				}
 
 				return {
@@ -1154,6 +1175,205 @@ export function createDrizzleInventoryRepository(
 					items: await loadItems(),
 					unreturnedProduction: round6(unreturnedProduction),
 				};
+			});
+		},
+
+		async correctRecipeConsumption(command: CorrectRecipeConsumptionCommand) {
+			return db.transaction(async (transaction) => {
+				const loadHistory = () =>
+					transaction
+						.select({
+							inventoryLotId: inventoryTransaction.inventoryLotId,
+							quantityDelta: inventoryTransaction.quantityDelta,
+							stockUnitCode: inventoryTransaction.stockUnitCode,
+							reason: inventoryTransaction.reason,
+						})
+						.from(inventoryTransaction)
+						.where(
+							and(
+								eq(inventoryTransaction.userId, userId),
+								eq(
+									inventoryTransaction.inventoryItemId,
+									command.inventoryItemId,
+								),
+								eq(inventoryTransaction.sourceId, command.sourceId),
+								inArray(inventoryTransaction.reason, [
+									"recipe-consumption",
+									"recipe-consumption-undo",
+								]),
+							),
+						);
+				const toResult = async (
+					status: "applied" | "already-applied",
+					history: Awaited<ReturnType<typeof loadHistory>>,
+				) => {
+					const lots = toStockedLots(
+						await loadLots(transaction, userId, command.inventoryItemId),
+					);
+
+					return {
+						status,
+						consumedQuantity: sumConsumedByLot(
+							history
+								.filter((row) => row.reason === "recipe-consumption")
+								.map((row) => ({
+									inventoryLotId: row.inventoryLotId,
+									quantityDelta: Number(row.quantityDelta),
+								})),
+						).total,
+						quantity: sumLotQuantities(lots),
+						lots,
+					};
+				};
+				const findExistingTransaction = async () => {
+					const [existing] = await transaction
+						.select({
+							inventoryItemId: inventoryTransaction.inventoryItemId,
+						})
+						.from(inventoryTransaction)
+						.where(
+							and(
+								eq(inventoryTransaction.id, command.transactionId),
+								eq(inventoryTransaction.userId, userId),
+							),
+						)
+						.limit(1);
+
+					if (
+						existing &&
+						existing.inventoryItemId !== command.inventoryItemId
+					) {
+						throw new Error("取引IDが別の在庫操作ですでに使用されています");
+					}
+
+					return existing;
+				};
+
+				// 食材の行をロックして、同じ食材への操作を直列にする。
+				const [storedInventoryItem] = await transaction
+					.select({
+						trackingMode: inventoryItem.trackingMode,
+						stockUnitCode: ingredient.stockUnitCode,
+					})
+					.from(inventoryItem)
+					.innerJoin(
+						ingredient,
+						and(
+							eq(ingredient.id, inventoryItem.ingredientId),
+							eq(ingredient.userId, inventoryItem.userId),
+						),
+					)
+					.where(
+						and(
+							eq(inventoryItem.id, command.inventoryItemId),
+							eq(inventoryItem.userId, userId),
+						),
+					)
+					.for("update", { of: inventoryItem })
+					.limit(1);
+
+				if (!storedInventoryItem) {
+					throw new UserFacingError("在庫項目が見つかりません");
+				}
+
+				// 再送（同じ取引 ID）は、二重に直さない。
+				if (await findExistingTransaction()) {
+					return toResult("already-applied", await loadHistory());
+				}
+
+				if (
+					parseTrackingMode(storedInventoryItem.trackingMode) === "presence"
+				) {
+					throw new UserFacingError(
+						"「ある」で管理している食材は、量を直せません",
+					);
+				}
+
+				const history = await loadHistory();
+
+				if (history.some((row) => row.reason === "recipe-consumption-undo")) {
+					throw new UserFacingError("戻したあとの食材は、量を直せません");
+				}
+
+				const consumedRows = history.filter(
+					(row) => row.reason === "recipe-consumption",
+				);
+
+				if (consumedRows.length === 0) {
+					throw new UserFacingError("この料理で引いた記録が見つかりません");
+				}
+
+				if (
+					consumedRows.some(
+						(row) => row.stockUnitCode !== storedInventoryItem.stockUnitCode,
+					)
+				) {
+					throw new UserFacingError(
+						"引いたあとで在庫の単位を変えたため、量を直せません",
+					);
+				}
+
+				const allLots = await loadLots(
+					transaction,
+					userId,
+					command.inventoryItemId,
+				);
+				const correction = planRecipeConsumptionCorrection({
+					consumed: sumConsumedByLot(
+						consumedRows.map((row) => ({
+							inventoryLotId: row.inventoryLotId,
+							quantityDelta: Number(row.quantityDelta),
+						})),
+					),
+					lots: allLots,
+					target: command.quantity,
+				});
+
+				if (correction.kind === "none") {
+					return toResult("applied", history);
+				}
+
+				const sign = correction.kind === "take" ? -1 : 1;
+				const now = new Date();
+
+				for (const [index, allocation] of correction.allocations.entries()) {
+					const delta = toNumeric(sign * allocation.quantity);
+					const [updatedLot] = await transaction
+						.update(inventoryLot)
+						.set({ quantity: sql`${inventoryLot.quantity} + ${delta}` })
+						.where(
+							and(
+								eq(inventoryLot.id, allocation.lotId),
+								eq(inventoryLot.userId, userId),
+							),
+						)
+						.returning({ quantity: inventoryLot.quantity });
+
+					if (!updatedLot) {
+						throw new UserFacingError("ロットが見つかりません");
+					}
+
+					// 引いた分と同じ reason で、符号つきで残す（「元に戻す」は、合計を戻す）。
+					await transaction.insert(inventoryTransaction).values({
+						// 最初の履歴の ID を、操作の取引 ID にする（再送のとき、これで二重適用を防ぐ）。
+						id: index === 0 ? command.transactionId : crypto.randomUUID(),
+						userId,
+						inventoryItemId: command.inventoryItemId,
+						inventoryLotId: allocation.lotId,
+						inputQuantity: toNumeric(allocation.quantity),
+						inputUnitCode: storedInventoryItem.stockUnitCode,
+						requestedQuantityDelta: delta,
+						quantityDelta: delta,
+						resultingQuantity: updatedLot.quantity,
+						stockUnitCode: storedInventoryItem.stockUnitCode,
+						reason: "recipe-consumption",
+						sourceType: "recipe",
+						sourceId: command.sourceId,
+						occurredAt: now,
+					});
+				}
+
+				return toResult("applied", await loadHistory());
 			});
 		},
 

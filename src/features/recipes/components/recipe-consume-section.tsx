@@ -2,8 +2,13 @@ import { useMemo, useState } from "react";
 import { Button } from "#/components/button/button";
 import { CornerSheet } from "#/components/corner-sheet/corner-sheet";
 import { Note } from "#/components/note/note";
+import { describeError } from "#/errors/user-facing-error";
 import type { IngredientDictionary } from "#/features/ingredients/domain/ingredient-dictionary";
-import type { UndoRecipeConsumptionResult } from "#/features/inventory/application/inventory-adjustment-repository";
+import type {
+	CorrectRecipeConsumptionCommand,
+	CorrectRecipeConsumptionResult,
+	UndoRecipeConsumptionResult,
+} from "#/features/inventory/application/inventory-adjustment-repository";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import type { InventoryListItem } from "#/features/inventory/application/inventory-query-repository";
 import { describePurchaseUnit } from "#/features/inventory/domain/inventory-lot";
@@ -54,6 +59,7 @@ import {
 	summarizeConsumptionRows,
 } from "../domain/summarize-consumption-rows";
 import { standInModeItem } from "../infrastructure/stand-in-mode-storage";
+import { RecipeConsumeCorrection } from "./recipe-consume-correction";
 import { RecipeMadeOptions } from "./recipe-made-options";
 import * as styles from "./recipe-shopping-section.css";
 
@@ -74,6 +80,10 @@ type RecipeConsumeSectionProps = {
 	undo: (
 		target: RecipeConsumptionUndoTarget,
 	) => Promise<UndoRecipeConsumptionResult>;
+	// 結果のシートで、1つの食材の引いた量を直す。
+	correct: (
+		command: CorrectRecipeConsumptionCommand,
+	) => Promise<CorrectRecipeConsumptionResult>;
 	// 人数を変えたときの割合（材料・リンク先・できあがりに掛ける。省略は 1）。変えたら、作り直す（key）。
 	ratio?: number;
 	// 「つくった！」の記録（つくった一覧と、回数・最後の日）。sourceId は、在庫の操作と同じ印。
@@ -108,6 +118,10 @@ type Outcome = {
 	unreturnedProduction: number;
 	// 1行ずつ戻した、在庫の食材。
 	returnedItemIds: ReadonlySet<string>;
+	// 引く前の在庫（量を直すときの、換算と上限に使う）。
+	stockItems: readonly InventoryListItem[];
+	// 量を直した、在庫の食材（from：はじめに引いた量、to：直したあとの量。在庫の単位）。
+	corrections: ReadonlyMap<string, { from: number; to: number }>;
 	// リンク先のレシピが読めない・見つからないため、引く材料に入れなかったことの知らせ。
 	linkProblem: string | null;
 };
@@ -206,6 +220,7 @@ export function RecipeConsumeSection({
 	dictionary,
 	consume,
 	undo,
+	correct,
 	ratio = 1,
 	cookLog,
 	madeRecipe,
@@ -214,6 +229,8 @@ export function RecipeConsumeSection({
 	const [isUndoing, setIsUndoing] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [outcome, setOutcome] = useState<Outcome | null>(null);
+	// 量を直す欄を開いている行（need.id）。
+	const [editingNeedId, setEditingNeedId] = useState<string | null>(null);
 	const [putInStock, setPutInStock] = useState(
 		madeRecipe?.defaultChecked ?? false,
 	);
@@ -322,6 +339,7 @@ export function RecipeConsumeSection({
 		setIsWorking(true);
 		setErrorMessage(null);
 		setOutcome(null);
+		setEditingNeedId(null);
 
 		try {
 			const stockItems = await loadInventoryItems();
@@ -360,6 +378,8 @@ export function RecipeConsumeSection({
 					: null,
 				unreturnedProduction: 0,
 				returnedItemIds: new Set(),
+				stockItems,
+				corrections: new Map(),
 				linkProblem,
 			});
 		} catch {
@@ -457,6 +477,7 @@ export function RecipeConsumeSection({
 		try {
 			await undo({ sourceId: outcome.operation.sourceId, inventoryItemIds });
 
+			setEditingNeedId(null);
 			setOutcome({
 				...outcome,
 				returnedItemIds: new Set([
@@ -467,6 +488,53 @@ export function RecipeConsumeSection({
 		} catch {
 			setErrorMessage(
 				`${row.need.name}を戻せませんでした。通信を確認して、もう一度お試しください`,
+			);
+		} finally {
+			setIsWorking(false);
+		}
+	}
+
+	// 1つの食材の引いた量を、quantity（在庫の単位）に直す。
+	async function handleCorrect(
+		row: RecipeConsumptionRow,
+		inventoryItemId: string,
+		quantity: number,
+	) {
+		if (!outcome) {
+			return;
+		}
+
+		setIsWorking(true);
+		setErrorMessage(null);
+
+		try {
+			const result = await correct({
+				transactionId: crypto.randomUUID(),
+				sourceId: outcome.operation.sourceId,
+				inventoryItemId,
+				quantity,
+			});
+			const from =
+				outcome.corrections.get(inventoryItemId)?.from ?? row.deduct ?? 0;
+			const corrections = new Map(outcome.corrections);
+
+			if (Math.abs(result.consumedQuantity - from) < 1e-9) {
+				corrections.delete(inventoryItemId);
+			} else {
+				corrections.set(inventoryItemId, {
+					from,
+					to: result.consumedQuantity,
+				});
+			}
+
+			setEditingNeedId(null);
+			setOutcome({ ...outcome, corrections });
+		} catch (error) {
+			setErrorMessage(
+				describeError(
+					error,
+					`${row.need.name}の量を直せませんでした。通信を確認して、もう一度お試しください`,
+				),
 			);
 		} finally {
 			setIsWorking(false);
@@ -486,6 +554,7 @@ export function RecipeConsumeSection({
 			const result = await undo({ sourceId: outcome.operation.sourceId });
 			await cookLog?.cancel(outcome.operation.sourceId);
 
+			setEditingNeedId(null);
 			setOutcome({
 				...outcome,
 				isUndone: true,
@@ -521,6 +590,29 @@ export function RecipeConsumeSection({
 	).length;
 	// 引いた材料が1つだけなら、1行の「戻す」は出さない（全体の「元に戻す」と同じになるため）。
 	const canReturnRows = summary.deducted.length > 1;
+	// 量を直せる行の、在庫の食材（引く前の在庫）。1つの食材から引いた行で、ほかの行と食材を分け合わないものだけ。
+	const correctableItemOf = (row: RecipeConsumptionRow) => {
+		if (!outcome || outcome.failedNeedIds.has(row.need.id)) {
+			return null;
+		}
+
+		const [itemId, ...others] = itemIdsOf(outcome.operation, row);
+		const isShared = summary.deducted.some(
+			(other) =>
+				other.need.id !== row.need.id &&
+				itemIdsOf(outcome.operation, other).includes(itemId ?? ""),
+		);
+
+		if (itemId === undefined || others.length > 0 || isShared) {
+			return null;
+		}
+
+		const item = outcome.stockItems.find(
+			(candidate) => candidate.inventoryItemId === itemId,
+		);
+
+		return item && item.trackingMode !== "presence" ? item : null;
+	};
 	const hasUndoableWork =
 		summary.deducted.some((row) => !isReturned(row)) ||
 		outcome?.production?.isDone === true ||
@@ -689,13 +781,28 @@ export function RecipeConsumeSection({
 								{summary.deducted.length > 0 ? (
 									<ul className={styles.list} aria-label="引いたもの">
 										{summary.deducted.map((row) => {
-											const { amount, note } = describeDeducted(row);
 											const returned = isReturned(row);
+											const correctable = returned
+												? null
+												: correctableItemOf(row);
+											const correction = correctable
+												? outcome.corrections.get(correctable.inventoryItemId)
+												: undefined;
+											const { amount, note } = describeDeducted(
+												correction ? { ...row, deduct: correction.to } : row,
+											);
+											const correctionNote =
+												correction && row.target
+													? `${formatStockAmountWithUnit(correction.from, row.target.stockUnitCode, row.target.stockUnitLabel)}から直しました`
+													: null;
+											const notes = correction ? correctionNote : note;
+											const hasAction =
+												returned || canReturnRows || correctable !== null;
 
 											return (
 												<li
 													className={
-														canReturnRows
+														hasAction
 															? `${styles.amountRow} ${styles.amountRowWithAction}`
 															: styles.amountRow
 													}
@@ -711,9 +818,24 @@ export function RecipeConsumeSection({
 													>
 														{amount}
 													</span>
-													{!canReturnRows ? null : returned ? (
+													{returned ? (
 														<span className={styles.status}>戻しました</span>
-													) : (
+													) : correctable ? (
+														<Button
+															variant="secondary"
+															size="sm"
+															aria-label={`${row.need.name}の量を直す`}
+															aria-expanded={editingNeedId === row.need.id}
+															disabled={isWorking}
+															onClick={() =>
+																setEditingNeedId((current) =>
+																	current === row.need.id ? null : row.need.id,
+																)
+															}
+														>
+															直す
+														</Button>
+													) : canReturnRows ? (
 														<Button
 															variant="secondary"
 															size="sm"
@@ -723,9 +845,28 @@ export function RecipeConsumeSection({
 														>
 															戻す
 														</Button>
-													)}
-													{note ? (
-														<span className={styles.note}>{note}</span>
+													) : null}
+													{notes ? (
+														<span className={styles.note}>{notes}</span>
+													) : null}
+													{correctable && editingNeedId === row.need.id ? (
+														<RecipeConsumeCorrection
+															name={row.need.name}
+															stock={correctable}
+															lotsBeforeCooking={correctable.lots}
+															current={correction?.to ?? row.deduct ?? 0}
+															max={correctable.quantity}
+															isWorking={isWorking}
+															onSubmit={(quantity) =>
+																void handleCorrect(
+																	row,
+																	correctable.inventoryItemId,
+																	quantity,
+																)
+															}
+															onReturn={() => void handleReturnRow(row)}
+															onCancel={() => setEditingNeedId(null)}
+														/>
 													) : null}
 												</li>
 											);
