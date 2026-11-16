@@ -21,6 +21,7 @@ function tile(overrides: Partial<InventoryTile> = {}): InventoryTile {
 		approximate: true,
 		sortExpiresOn: null,
 		sortReading: "とりむね",
+		sortAddedAt: null,
 		...overrides,
 	};
 }
