@@ -207,6 +207,38 @@ describe("recordInventoryPurchase", () => {
 			expect(applyAdjustment).not.toHaveBeenCalled();
 		});
 
+		// 在庫で決めた「1袋＝6枚」（在庫が袋）が、買い物メモの記憶になったもの。枚を袋に直さず、買った袋の数を足す。
+		it("在庫が袋の食材を「1袋（1袋＝6枚）」で買うと、1袋のまま足し、1袋＝6枚 をロットに残す", async () => {
+			const { dependencies, applyAdjustment } = setup({
+				stockUnitCode: "count",
+				stockUnitLabel: "袋",
+			});
+
+			await recordInventoryPurchase(
+				{
+					...gramsPurchase,
+					ingredientName: "米粉パン",
+					stockUnitCode: "count",
+					stockUnitLabel: "枚",
+					inputQuantity: 2,
+					inputUnitCode: "袋",
+					stockQuantityPerInputUnit: 6,
+				},
+				dependencies,
+			);
+
+			expect(applyAdjustment).toHaveBeenCalledWith(
+				expect.objectContaining({
+					inputQuantity: 2,
+					inputUnitCode: "count",
+					stockQuantityPerInputUnit: 1,
+					lot: {
+						purchaseUnit: { label: "袋", quantity: 6, quantityUnitLabel: "枚" },
+					},
+				}),
+			);
+		});
+
 		it("有無だけの食材は、換算しない（量を使わない）", async () => {
 			const { dependencies, applyAdjustment } = setup({
 				stockUnitCode: "ml",

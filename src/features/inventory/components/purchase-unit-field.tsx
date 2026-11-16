@@ -2,6 +2,7 @@ import { useId, useState } from "react";
 import { Button } from "#/components/button/button";
 import { Chip, ChipGroup } from "#/components/chip/chip";
 import { SelectBox, TextInput } from "#/components/field/field";
+import { maxStockUnitLabelLength } from "#/features/ingredients/domain/list-stock-unit-options";
 import { withLargerMeasureUnits } from "#/features/quantity/domain/measure-units";
 import { rememberMeasureUnit } from "#/features/quantity/infrastructure/measure-unit-preference-storage";
 import {
@@ -39,6 +40,9 @@ function summarize(draft: PurchaseUnitDraft, stockUnitLabel: string): string {
 	}
 }
 
+// 1つあたりの単位の選択で、「その他」（呼び名を入れる）を選んだときの値。
+const otherUnitValue = "other";
+
 // 換算（1個＝110g など）の行。保存方法・期限の種類と同じ、「状態＋［変える］」のたたんだ行で、押すと入力が開く。
 // 量を空にすると、換算なし。ロットの数量は変えない（数量は、ほかの欄で決める）。
 export function PurchaseUnitField({
@@ -55,9 +59,8 @@ export function PurchaseUnitField({
 	const detailsId = useId();
 	// g・ml には、kg・L も並べる（在庫には g・ml で入る）。
 	const unitOptions = withLargerMeasureUnits(quantityUnitOptions);
-	const options = unitOptions.includes(draft.quantityUnitLabel)
-		? unitOptions
-		: [...unitOptions, draft.quantityUnitLabel];
+	// 選択肢にない単位（枚など）は、「その他」で呼び名を入れる（在庫が袋で「1袋＝6枚」）。
+	const isOtherUnit = !unitOptions.includes(draft.quantityUnitLabel);
 
 	return (
 		<div className={expiryStyles.group}>
@@ -132,21 +135,47 @@ export function PurchaseUnitField({
 						<div className={styles.unitSelect}>
 							<SelectBox
 								aria-label={`${itemName}の換算の、1つあたりの単位`}
-								value={draft.quantityUnitLabel}
+								value={isOtherUnit ? otherUnitValue : draft.quantityUnitLabel}
 								disabled={disabled}
 								onChange={(event) => {
+									const value = event.target.value;
+
+									if (value === otherUnitValue) {
+										onChange({ ...draft, quantityUnitLabel: "" });
+
+										return;
+									}
+
 									// g・kg などは、次の既定にする（この端末だけ）。
-									rememberMeasureUnit(itemName, event.target.value);
-									onChange({ ...draft, quantityUnitLabel: event.target.value });
+									rememberMeasureUnit(itemName, value);
+									onChange({ ...draft, quantityUnitLabel: value });
 								}}
 							>
-								{options.map((option) => (
+								{unitOptions.map((option) => (
 									<option value={option} key={option}>
 										{option}
 									</option>
 								))}
+								<option value={otherUnitValue}>その他</option>
 							</SelectBox>
 						</div>
+						{isOtherUnit ? (
+							<div className={styles.labelInput}>
+								<TextInput
+									aria-label={`${itemName}の換算の、1つあたりの単位の呼び名`}
+									placeholder="例：枚"
+									maxLength={maxStockUnitLabelLength}
+									value={draft.quantityUnitLabel}
+									disabled={disabled}
+									onChange={(event) =>
+										onChange({
+											...draft,
+											quantityUnitLabel: event.target.value,
+										})
+									}
+								/>
+							</div>
+						) : null}
 					</div>
 
 					<p className={styles.hint}>

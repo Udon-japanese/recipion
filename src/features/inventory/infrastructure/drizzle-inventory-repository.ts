@@ -459,6 +459,33 @@ export function createDrizzleInventoryRepository(
 							),
 						);
 				} else {
+					// 在庫がない食材（削除した・まだ入れていない）は、入れ直す単位で作り直す（前の単位に読み替えない）。
+					// 在庫が空なので、読み替える量はない。
+					if (
+						storedIngredient.stockUnitCode !== registration.stockUnitCode ||
+						storedIngredient.stockUnitLabel !== registration.stockUnitLabel
+					) {
+						const ingredientId = storedIngredient.id;
+
+						await transaction
+							.update(ingredient)
+							.set({
+								stockUnitCode: registration.stockUnitCode,
+								stockUnitLabel: registration.stockUnitLabel,
+							})
+							.where(
+								and(
+									eq(ingredient.id, ingredientId),
+									eq(ingredient.userId, userId),
+								),
+							);
+						storedIngredient = {
+							...storedIngredient,
+							stockUnitCode: registration.stockUnitCode,
+							stockUnitLabel: registration.stockUnitLabel,
+						};
+					}
+
 					[resolvedInventoryItem] = await transaction
 						.insert(inventoryItem)
 						.values({

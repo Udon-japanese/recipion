@@ -2,11 +2,11 @@ import { Icon } from "#/components/icon/icon";
 import type { RegisterInventoryItemInput } from "../../application/register-inventory-item";
 import type { IngredientExpiryDefaults } from "../../domain/build-expiry-prefill";
 import type { ExpiryEstimateLevel } from "../../domain/estimate-lot-expiry";
-import type { InventoryLotPurchaseUnit } from "../../domain/inventory-lot";
 import type { PurchaseUnitMemory } from "../../hooks/use-purchase-unit-memory";
 import { InventoryRegistrationPanel } from "./registration-panel";
 import * as styles from "./registration-panel.css";
 import {
+	type ExistingInventoryItem,
 	type RegisteredInfo,
 	useInventoryRegistration,
 } from "./use-inventory-registration";
@@ -34,10 +34,8 @@ type InventoryRegistrationControllerProps = {
 	fabOnScene?: boolean;
 	// 換算の候補と、決めた換算を覚える先（買い物メモの記憶）。
 	purchaseUnitMemory?: PurchaseUnitMemory;
-	// すでにある同じ食材の、ロットの換算（新しい順）。
-	lookupLotPurchaseUnits?: (
-		ingredientName: string,
-	) => readonly InventoryLotPurchaseUnit[];
+	// 在庫にすでにある同じ食材（単位とロットの換算）。
+	findExistingItem?: (ingredientName: string) => ExistingInventoryItem | null;
 };
 
 // 登録のパネル・右下の「在庫に追加」。入力の状態は、ここで持つ（パネルを閉じても残る）。
@@ -49,7 +47,7 @@ export function InventoryRegistrationController({
 	showFab,
 	fabOnScene = false,
 	purchaseUnitMemory,
-	lookupLotPurchaseUnits,
+	findExistingItem,
 }: InventoryRegistrationControllerProps) {
 	const registration = useInventoryRegistration({
 		registerInventoryItem: config.registerInventoryItem,
@@ -57,7 +55,7 @@ export function InventoryRegistrationController({
 		expiryEstimateLevel: config.expiryEstimateLevel,
 		lookupIngredientDefaults: config.lookupIngredientDefaults,
 		purchaseUnitMemory,
-		lookupLotPurchaseUnits,
+		findExistingItem,
 	});
 
 	return (

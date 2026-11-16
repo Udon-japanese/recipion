@@ -108,6 +108,22 @@ export const hint = style({
 	lineHeight: "var(--line-height-normal)",
 });
 
+// 入力の誤り（ロットの換算が読めないなど）。追加パネルのエラーと同じ見た目。文が長くなるので、アイコンは1行目にそろえる。
+export const error = style({
+	margin: 0,
+	display: "flex",
+	alignItems: "flex-start",
+	gap: 8,
+	color: "var(--color-error)",
+	fontSize: "var(--font-size-sm)",
+	lineHeight: "var(--line-height-normal)",
+});
+
+export const errorIcon = style({
+	flexShrink: 0,
+	marginTop: 2,
+});
+
 export const quantityLine = style({
 	display: "flex",
 	alignItems: "flex-start",

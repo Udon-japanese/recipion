@@ -6,6 +6,7 @@ import {
 	type InventoryLotPurchaseUnit,
 	toPurchaseUnit,
 } from "../domain/inventory-lot";
+import { isSameStockUnit } from "../domain/inventory-unit";
 import type { CreateIngredientRegistrationInput } from "./create-ingredient-registration";
 import type {
 	InventoryAdjustmentRepository,
@@ -93,26 +94,20 @@ function toStockUnitQuantity(
 		return { ...asIs, purchaseUnit: null };
 	}
 
-	const isSameUnit =
-		resolved.stockUnitCode === input.stockUnitCode &&
-		(resolved.stockUnitCode !== "count" ||
-			resolved.stockUnitLabel === input.stockUnitLabel);
-
-	if (isSameUnit) {
+	if (isSameStockUnit(resolved, input)) {
 		return asIs;
 	}
 
-	// 在庫の単位が個数で、個数の単位（個・玉など）で買い、1つあたりを g・ml で決めたとき（1個＝110g など）：
-	// 買った個数のまま足す（重さから個数に直さない）。1つあたりの重さは、ロットの換算に残す。
+	// 在庫の単位が個数で、その単位で買ったとき：買った数のまま足し（重さ・ほかの数え方から直さない）、1つあたりはロットの換算に残す。
+	// - 1つあたりを g・ml で決めた（1個＝110g）。個数の単位（個・玉など）で買ったときも同じ。
+	// - 1つあたりを別の数え方で決めた（在庫が袋で、1袋＝6枚）。在庫で決めた換算が、買い物メモの記憶になったもの。
 	const isCountPurchase =
-		input.inputUnitCode === "count" ||
-		input.inputUnitCode === resolved.stockUnitLabel;
+		input.stockUnitCode === "count"
+			? input.inputUnitCode === resolved.stockUnitLabel
+			: input.inputUnitCode === "count" ||
+				input.inputUnitCode === resolved.stockUnitLabel;
 
-	if (
-		resolved.stockUnitCode === "count" &&
-		input.stockUnitCode !== "count" &&
-		isCountPurchase
-	) {
+	if (resolved.stockUnitCode === "count" && isCountPurchase) {
 		return {
 			inputQuantity: input.inputQuantity,
 			inputUnitCode: resolved.stockUnitCode,

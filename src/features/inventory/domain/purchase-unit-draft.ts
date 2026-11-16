@@ -37,11 +37,30 @@ export function toPurchaseUnitDraft(
 }
 
 /**
+ * 換算が、在庫の量に直せる形か（ロットの換算で引く・買い物メモから入れるときに使える形）。
+ * - 買った単位が、在庫の単位（在庫が袋で「1袋＝6枚」「1袋＝300g」）。右は何でもよい（枚で打った量を、袋に直して引く）。
+ * - 1つあたりの量が、在庫の単位か g・ml（在庫が枚で「1袋＝6枚」、在庫が g で「1パック＝300g」）。
+ * 在庫が g で「1袋＝6枚」のように、どちらでもないものは、枚が何 g かわからないので、直せない。
+ */
+export function fitsStockUnit(
+	unit: InventoryLotPurchaseUnit,
+	stockUnitLabel: string,
+): boolean {
+	return (
+		unit.label === stockUnitLabel ||
+		unit.quantityUnitLabel === stockUnitLabel ||
+		unit.quantityUnitLabel === "g" ||
+		unit.quantityUnitLabel === "ml"
+	);
+}
+
+/**
  * 入力欄の中身を、ロットの換算にする。量が空なら、換算なし（null）。
- * 量が読めない・0以下、単位の呼び名が空のときは、理由つきで throw する。
+ * 量が読めない・0以下、単位の呼び名が空、在庫の量に直せない（fitsStockUnit）ときは、理由つきで throw する。
  */
 export function parsePurchaseUnitDraft(
 	draft: PurchaseUnitDraft,
+	stockUnitLabel: string,
 ): InventoryLotPurchaseUnit | null {
 	if (draft.quantityText.trim() === "") {
 		return null;
@@ -59,17 +78,29 @@ export function parsePurchaseUnitDraft(
 		throw new UserFacingError("買った単位を入力してください（例：個）");
 	}
 
+	if (draft.quantityUnitLabel.trim() === "") {
+		throw new UserFacingError("1つあたりの単位を入力してください（例：枚）");
+	}
+
 	// kg・L で打った量は、g・ml で持つ（1袋＝1.5kg → 1500g）。
 	const base = toBaseMeasureAmount({
 		quantity,
 		unitLabel: draft.quantityUnitLabel,
 	});
 
-	return {
+	const unit = {
 		label,
 		quantity: base.quantity,
-		quantityUnitLabel: base.unitLabel,
+		quantityUnitLabel: base.unitLabel.trim(),
 	};
+
+	if (!fitsStockUnit(unit, stockUnitLabel)) {
+		throw new UserFacingError(
+			`在庫は${stockUnitLabel}で数えるので、1${label}＝◯${unit.quantityUnitLabel}は使えません（左を${stockUnitLabel}にするか、右を${stockUnitLabel}・g・mlにしてください）`,
+		);
+	}
+
+	return unit;
 }
 
 /**
@@ -81,7 +112,7 @@ export function summarizePurchaseUnitDraft(
 	draft: PurchaseUnitDraft,
 	stockUnitLabel: string,
 ): string {
-	const unit = parsePurchaseUnitDraft(draft);
+	const unit = parsePurchaseUnitDraft(draft, stockUnitLabel);
 	const saved =
 		unit &&
 		toPurchaseUnit({

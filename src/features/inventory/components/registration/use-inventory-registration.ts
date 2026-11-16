@@ -45,6 +45,7 @@ import { inventoryTrackingModeSchema } from "../../domain/inventory-tracking-mod
 import {
 	collectPurchaseUnitCandidates,
 	emptyPurchaseUnitDraft,
+	fitsStockUnit,
 	type PurchaseUnitDraft,
 	parsePurchaseUnitDraft,
 } from "../../domain/purchase-unit-draft";
@@ -97,10 +98,14 @@ type UseInventoryRegistrationOptions = {
 	) => IngredientExpiryDefaults | null;
 	// 買い物メモの換算の記憶（候補と、決めた換算を覚える先）。
 	purchaseUnitMemory?: PurchaseUnitMemory;
-	// すでにある同じ食材の、ロットの換算（新しい順）。候補になる。
-	lookupLotPurchaseUnits?: (
-		ingredientName: string,
-	) => readonly InventoryLotPurchaseUnit[];
+	// 在庫にすでにある同じ食材（なければ null）。その単位に固定し、ロットの換算（新しい順）を候補にする。
+	findExistingItem?: (ingredientName: string) => ExistingInventoryItem | null;
+};
+
+// 在庫にすでにある食材の、登録に使うところ。
+export type ExistingInventoryItem = StockUnitOption & {
+	// ロットの換算（新しい順）。
+	purchaseUnits: readonly InventoryLotPurchaseUnit[];
 };
 
 function readInventoryItemId(result: unknown): string | null {
@@ -127,7 +132,7 @@ export function useInventoryRegistration({
 	expiryEstimateLevel = "reliable",
 	lookupIngredientDefaults,
 	purchaseUnitMemory,
-	lookupLotPurchaseUnits,
+	findExistingItem,
 }: UseInventoryRegistrationOptions) {
 	const [ingredientName, setIngredientName] = useState("");
 	// 在庫の単位の選択（"g:g" の形。マスタにない食材は、"custom"＝自分で入力した呼び名の個数）。
@@ -267,11 +272,27 @@ export function useInventoryRegistration({
 	}
 
 	// マスタにある単位だけを、選べる。マスタにない食材は、自分で呼び名を入力することもできる（空なら「個」）。
-	const allowsCustomUnit = allowsCustomStockUnit(ingredientName);
-	const unitOptions = listStockUnitOptions(ingredientName);
+	// 在庫にすでにある食材は、その単位に固定する（違う単位で打った数を、その単位の数として足さないように）。
+	// 単位を変えるのは、在庫の「単位を変える」から。
+	const existingItem =
+		ingredientName.trim() === ""
+			? null
+			: (findExistingItem?.(ingredientName) ?? null);
+	const existingUnit: StockUnitOption | null = existingItem
+		? {
+				stockUnitCode: existingItem.stockUnitCode,
+				stockUnitLabel: existingItem.stockUnitLabel,
+			}
+		: null;
+	const allowsCustomUnit =
+		!existingUnit && allowsCustomStockUnit(ingredientName);
+	const unitOptions = existingUnit
+		? [existingUnit]
+		: listStockUnitOptions(ingredientName);
 	// 「g:kg」のような選択は、在庫の単位は g のまま、量を kg で打つ。
 	const { baseChoice, inputUnit } = splitLargerChoice(unitChoice);
 	const stockUnit: StockUnitOption =
+		existingUnit ??
 		resolveStockUnitChoice(
 			ingredientName,
 			baseChoice,
@@ -297,7 +318,7 @@ export function useInventoryRegistration({
 			: [base];
 	});
 	const unitSelectValue =
-		unitChoice === customStockUnitValue
+		unitChoice === customStockUnitValue && !existingUnit
 			? customStockUnitValue
 			: inputUnitLabel === stockUnit.stockUnitLabel
 				? toStockUnitValue(stockUnit)
@@ -310,10 +331,14 @@ export function useInventoryRegistration({
 		? { ...purchaseUnitDraft, label: stockUnit.stockUnitLabel }
 		: purchaseUnitDraft;
 	const purchaseUnitCandidates = collectPurchaseUnitCandidates([
-		...(lookupLotPurchaseUnits?.(ingredientName) ?? []),
+		...(existingItem?.purchaseUnits ?? []),
 		...(purchaseUnitMemory?.candidates(ingredientName) ?? []),
-	]).filter((unit) => !isCountStock || unit.label === stockUnit.stockUnitLabel);
-	// 1つあたりの量の単位。個数の食材に「1個＝1個」はないので、g・ml だけ。
+	]).filter(
+		(unit) =>
+			(!isCountStock || unit.label === stockUnit.stockUnitLabel) &&
+			fitsStockUnit(unit, stockUnit.stockUnitLabel),
+	);
+	// 1つあたりの量の単位。個数の食材に「1個＝1個」はないので、g・ml（ほかの呼び名は「その他」で、1袋＝6枚）。
 	const purchaseUnitQuantityUnits = isCountStock
 		? ["g", "ml"]
 		: ["g", "ml", stockUnit.stockUnitLabel];
@@ -349,7 +374,10 @@ export function useInventoryRegistration({
 		try {
 			purchaseUnit = markAsAvailable
 				? null
-				: parsePurchaseUnitDraft(effectivePurchaseUnitDraft);
+				: parsePurchaseUnitDraft(
+						effectivePurchaseUnitDraft,
+						stockUnit.stockUnitLabel,
+					);
 			input = parseRegisterInventoryItemInput({
 				transactionId: crypto.randomUUID(),
 				ingredientName,
@@ -416,8 +444,13 @@ export function useInventoryRegistration({
 			onRegistered({ inventoryItemId: readInventoryItemId(result) });
 
 			return true;
-		} catch {
-			setErrorMessage("在庫に追加できませんでした。通信を確認してください");
+		} catch (error) {
+			setErrorMessage(
+				describeError(
+					error,
+					"在庫に追加できませんでした。通信を確認してください",
+				),
+			);
 
 			return false;
 		}
@@ -451,6 +484,7 @@ export function useInventoryRegistration({
 		setCustomUnitLabel,
 		stockUnit,
 		allowsCustomUnit,
+		isStockUnitLocked: existingUnit !== null,
 		trackingMode,
 		changeTrackingMode,
 		initialQuantity,

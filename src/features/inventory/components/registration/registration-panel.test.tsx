@@ -104,10 +104,14 @@ describe("InventoryRegistrationPanel", () => {
 				registerInventoryItem={registerInventoryItem}
 				onRegistered={() => {}}
 				purchaseUnitMemory={{ candidates: () => [], remember }}
-				lookupLotPurchaseUnits={() => [
-					{ label: "個", quantity: 200, quantityUnitLabel: "g" },
-					{ label: "パック", quantity: 3, quantityUnitLabel: "個" },
-				]}
+				findExistingItem={() => ({
+					stockUnitCode: "count",
+					stockUnitLabel: "個",
+					purchaseUnits: [
+						{ label: "個", quantity: 200, quantityUnitLabel: "g" },
+						{ label: "パック", quantity: 3, quantityUnitLabel: "個" },
+					],
+				})}
 			/>,
 		);
 
@@ -147,6 +151,103 @@ describe("InventoryRegistrationPanel", () => {
 		);
 	});
 
+	it("在庫が袋なら、換算の右の「その他」で「1袋＝6枚」を決めて登録できる", async () => {
+		const user = userEvent.setup();
+		const registerInventoryItem = vi.fn().mockResolvedValue({});
+
+		render(
+			<Harness
+				registerInventoryItem={registerInventoryItem}
+				onRegistered={() => {}}
+			/>,
+		);
+
+		await user.type(screen.getByLabelText("食材名"), "米粉パン");
+		await user.selectOptions(
+			screen.getByRole("combobox", { name: "在庫の単位" }),
+			"袋",
+		);
+		await user.type(screen.getByLabelText(/^数量/u), "1");
+		await user.click(screen.getByRole("button", { name: /^換算/u }));
+		await user.type(
+			screen.getByLabelText("米粉パンの換算の、1つあたりの量"),
+			"6",
+		);
+		await user.selectOptions(
+			screen.getByLabelText("米粉パンの換算の、1つあたりの単位"),
+			"その他",
+		);
+		await user.type(
+			screen.getByLabelText("米粉パンの換算の、1つあたりの単位の呼び名"),
+			"枚",
+		);
+
+		// たたんだ行の要約も、保存されるとおりに見せる。
+		expect(
+			screen.getByRole("button", { name: /^換算1袋＝6枚/u }),
+		).toBeVisible();
+
+		await user.click(screen.getByRole("button", { name: "追加" }));
+
+		await waitFor(() =>
+			expect(registerInventoryItem).toHaveBeenCalledWith(
+				expect.objectContaining({
+					stockUnitLabel: "袋",
+					initialQuantity: 1,
+					lot: expect.objectContaining({
+						purchaseUnit: { label: "袋", quantity: 6, quantityUnitLabel: "枚" },
+					}),
+				}),
+			),
+		);
+	});
+
+	it("在庫にある食材は、在庫の単位をその単位に固定する（違う単位の数を、その単位の数として足さない）", async () => {
+		const user = userEvent.setup();
+		const registerInventoryItem = vi.fn().mockResolvedValue({});
+
+		render(
+			<Harness
+				registerInventoryItem={registerInventoryItem}
+				onRegistered={() => {}}
+				findExistingItem={(name) =>
+					name === "米粉パン"
+						? {
+								stockUnitCode: "count",
+								stockUnitLabel: "袋",
+								purchaseUnits: [],
+							}
+						: null
+				}
+			/>,
+		);
+
+		await user.type(screen.getByLabelText("食材名"), "米粉パン");
+
+		const unit = screen.getByRole("combobox", { name: "在庫の単位" });
+
+		expect(unit).toHaveValue("count:袋");
+		expect(
+			within(unit)
+				.getAllByRole("option")
+				.map((option) => option.textContent),
+		).toEqual(["袋"]);
+		expect(unit).toHaveAccessibleDescription(/在庫にあるので、単位は袋/u);
+
+		await user.type(screen.getByLabelText(/^数量/u), "1");
+		await user.click(screen.getByRole("button", { name: "追加" }));
+
+		await waitFor(() =>
+			expect(registerInventoryItem).toHaveBeenCalledWith(
+				expect.objectContaining({
+					stockUnitCode: "count",
+					stockUnitLabel: "袋",
+					initialQuantity: 1,
+				}),
+			),
+		);
+	});
+
 	it("換算を決めないときは、ロットに換算を付けない。有無だけで管理する食材には、換算の行を出さない", async () => {
 		const user = userEvent.setup();
 		const registerInventoryItem = vi.fn().mockResolvedValue({});
@@ -176,9 +277,13 @@ describe("InventoryRegistrationPanel", () => {
 			<Harness
 				registerInventoryItem={registerInventoryItem}
 				onRegistered={() => {}}
-				lookupLotPurchaseUnits={() => [
-					{ label: "枚", quantity: 250, quantityUnitLabel: "g" },
-				]}
+				findExistingItem={() => ({
+					stockUnitCode: "g",
+					stockUnitLabel: "g",
+					purchaseUnits: [
+						{ label: "枚", quantity: 250, quantityUnitLabel: "g" },
+					],
+				})}
 			/>,
 		);
 
@@ -246,7 +351,7 @@ describe("InventoryRegistrationPanel", () => {
 				within(screen.getByLabelText(`${name}の換算の、1つあたりの単位`))
 					.getAllByRole("option")
 					.map((option) => option.textContent),
-			).toEqual(["g", "kg", "ml", "L"]);
+			).toEqual(["g", "kg", "ml", "L", "その他"]);
 		},
 	);
 
