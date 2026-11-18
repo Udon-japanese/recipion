@@ -42,10 +42,11 @@ it("しきい値まで引いて離すと、更新を1回頼む", async () => {
 	await vi.waitFor(() => expect(onRefresh).toHaveBeenCalledTimes(1));
 });
 
-// 指の動きを自分で使う場所（シート・モーダル、指で消すお知らせ）の上では、引っ張り更新を始めない。
+// 指の動きを自分で使う場所（シート・モーダル、指で消すお知らせ、並べ替えのつかみ）の上では、引っ張り更新を始めない。
 it.each([
 	{ name: "ダイアログ", attributes: { role: "dialog" } },
 	{ name: "お知らせ", attributes: { "data-toast-viewport": "" } },
+	{ name: "並べ替えのつかみ", attributes: { "data-drag-handle": "" } },
 ])("$name の上で引いたときは、更新を頼まない", async ({ attributes }) => {
 	const onRefresh = vi.fn(() => Promise.resolve());
 
