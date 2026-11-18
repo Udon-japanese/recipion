@@ -147,6 +147,8 @@ export function IconButton({
 				else if (ref) ref.current = element;
 			}}
 			className={styles.button({ size, tone, dragHandle })}
+			// 引っ張り更新は、つかみの上の指の動きでは始めない（pull-refresh.tsx）。
+			data-drag-handle={dragHandle ? "" : undefined}
 			type={type}
 			aria-label={label}
 			onClick={handleClick}

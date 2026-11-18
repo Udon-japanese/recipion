@@ -24,10 +24,10 @@ type Phase = "idle" | "pulling" | "loading" | "leaving";
 // 白丸の中の mascot の大きさ（px）。丸（48px）に対して小さめにして、中で跳ねられるようにする。
 const MASCOT_SIZE_PX = 20;
 
-// ダイアログ（シート・モーダル）とお知らせ（toast）の上の指の動きでは、引っ張り更新を始めない。
-// お知らせは、指で動かして消すため（toast-viewport.tsx）。
+// ダイアログ（シート・モーダル）・お知らせ（toast）・並べ替えのつかみの上の指の動きでは、引っ張り更新を始めない。
+// お知らせは、指で動かして消すため（toast-viewport.tsx）。つかみは、長押しのあと指で動かして並べ替えるため（IconButton の dragHandle）。
 const noPullSelector =
-	'[role="dialog"], [aria-modal="true"], [data-toast-viewport]';
+	'[role="dialog"], [aria-modal="true"], [data-toast-viewport], [data-drag-handle]';
 
 type PullRefreshProps = {
 	// 更新の中身。失敗しても、丸は必ず戻す（例外は握りつぶす）。
