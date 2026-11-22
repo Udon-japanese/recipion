@@ -25,7 +25,7 @@ function rethrowUniqueViolation(error: unknown): never {
 	if (
 		isUniqueViolation(error, "ingredient_alias_user_normalized_name_unique")
 	) {
-		throw new UserFacingError(takenMessage);
+		throw new UserFacingError(takenMessage, { code: "CONFLICT" });
 	}
 
 	throw error;
@@ -167,7 +167,9 @@ export function createDrizzleIngredientDictionaryRepository(
 						.returning({ id: ingredient.id });
 
 					if (updated.length === 0) {
-						throw new UserFacingError("材料が見つかりません");
+						throw new UserFacingError("材料が見つかりません", {
+							code: "NOT_FOUND",
+						});
 					}
 
 					await transaction
@@ -265,6 +267,7 @@ export function createDrizzleIngredientDictionaryRepository(
 			if (stocked) {
 				throw new UserFacingError(
 					"在庫にあるため消せません。先に在庫から消してください",
+					{ code: "CONFLICT" },
 				);
 			}
 

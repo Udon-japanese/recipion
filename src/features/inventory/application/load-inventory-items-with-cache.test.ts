@@ -90,7 +90,11 @@ describe("loadInventoryItemsWithCache", () => {
 	it("サーバーの中の失敗なら、保存済みの在庫を返し、理由を分ける", async () => {
 		const result = await loadInventoryItemsWithCache(
 			"user:user-id",
-			vi.fn().mockRejectedValue(new UserFacingError(GENERIC_ERROR_MESSAGE)),
+			vi
+				.fn()
+				.mockRejectedValue(
+					new UserFacingError(GENERIC_ERROR_MESSAGE, { code: "INTERNAL" }),
+				),
 			createFakeInventoryCacheRepository([
 				{
 					ownerScope: "user:user-id",
@@ -107,7 +111,11 @@ describe("loadInventoryItemsWithCache", () => {
 		await expect(
 			loadInventoryItemsWithCache(
 				"user:user-id",
-				vi.fn().mockRejectedValue(new UserFacingError(ACCOUNT_CHANGED_MESSAGE)),
+				vi.fn().mockRejectedValue(
+					new UserFacingError(ACCOUNT_CHANGED_MESSAGE, {
+						code: "ACCOUNT_CHANGED",
+					}),
+				),
 				createFakeInventoryCacheRepository([
 					{
 						ownerScope: "user:user-id",

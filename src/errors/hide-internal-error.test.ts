@@ -9,7 +9,9 @@ import {
 describe("hideInternalError", () => {
 	it("利用者向けのエラーは、そのまま通し、ログに残さない", () => {
 		const log = vi.fn();
-		const error = new UserFacingError("レシピが見つかりません");
+		const error = new UserFacingError("レシピが見つかりません", {
+			code: "INVALID_INPUT",
+		});
 
 		expect(hideInternalError(error, log)).toBe(error);
 		expect(log).not.toHaveBeenCalled();

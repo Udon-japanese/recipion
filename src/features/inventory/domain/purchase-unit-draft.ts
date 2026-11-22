@@ -69,17 +69,23 @@ export function parsePurchaseUnitDraft(
 	const quantity = parseQuantityInput(draft.quantityText);
 
 	if (quantity === null || quantity <= 0) {
-		throw new UserFacingError("1つあたりの量を確認してください（例：200）");
+		throw new UserFacingError("1つあたりの量を確認してください（例：200）", {
+			code: "INVALID_INPUT",
+		});
 	}
 
 	const label = draft.label.trim();
 
 	if (label === "") {
-		throw new UserFacingError("買った単位を入力してください（例：個）");
+		throw new UserFacingError("買った単位を入力してください（例：個）", {
+			code: "INVALID_INPUT",
+		});
 	}
 
 	if (draft.quantityUnitLabel.trim() === "") {
-		throw new UserFacingError("1つあたりの単位を入力してください（例：枚）");
+		throw new UserFacingError("1つあたりの単位を入力してください（例：枚）", {
+			code: "INVALID_INPUT",
+		});
 	}
 
 	// kg・L で打った量は、g・ml で持つ（1袋＝1.5kg → 1500g）。
@@ -97,6 +103,7 @@ export function parsePurchaseUnitDraft(
 	if (!fitsStockUnit(unit, stockUnitLabel)) {
 		throw new UserFacingError(
 			`在庫は${stockUnitLabel}で数えるので、1${label}＝◯${unit.quantityUnitLabel}は使えません（左を${stockUnitLabel}にするか、右を${stockUnitLabel}・g・mlにしてください）`,
+			{ code: "INVALID_INPUT" },
 		);
 	}
 

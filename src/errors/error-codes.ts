@@ -20,9 +20,6 @@ export const errorCodeStatuses = {
 	RATE_LIMITED: 429,
 	// アプリ・画面が古く、API が受け付けない。
 	CLIENT_UPDATE_REQUIRED: 426,
-	// まだコードを付けていない、利用者に見せてよい文のエラー。
-	// 移行のコード：機能を Hono に移すときに、それぞれのコードを付ける。すべての機能を移し終えたら、このコードは消す。
-	USER_FACING: 400,
 	// 内部のエラー（文は汎用のものに替える）。
 	INTERNAL: 500,
 } as const;

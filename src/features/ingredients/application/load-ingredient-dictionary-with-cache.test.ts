@@ -45,7 +45,9 @@ describe("loadIngredientDictionaryWithCache", () => {
 		},
 		{
 			title: "アカウントが変わった → 保存済みも使わない",
-			error: new UserFacingError(ACCOUNT_CHANGED_MESSAGE),
+			error: new UserFacingError(ACCOUNT_CHANGED_MESSAGE, {
+				code: "ACCOUNT_CHANGED",
+			}),
 			expected: [],
 		},
 	])("$title", async ({ error, expected }) => {

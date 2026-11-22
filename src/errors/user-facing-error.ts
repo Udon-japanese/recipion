@@ -2,15 +2,14 @@ import type { ErrorCode } from "./error-codes";
 
 // 利用者にそのまま見せてよい文のエラー（入力の誤り・見つからない・上限・ログインが必要 など）。
 // これ以外のエラー（DB・ネットワーク・設定・外部サービスの失敗）は、内部の事情を含むので、画面に出さない。
-// code は、API（Hono）の応答で使う。サーバー関数の画面は、これまでどおり文で見分ける
-// （サーバー関数の応答で、Error の独自の項目が画面まで届くかは確かめていないため）。
+// code は、API（Hono）の応答の HTTP の状態と、画面での見分け（classify-request-error）に使う。
 export class UserFacingError extends Error {
 	readonly code: ErrorCode;
 
-	constructor(message: string, options?: ErrorOptions & { code?: ErrorCode }) {
+	constructor(message: string, options: ErrorOptions & { code: ErrorCode }) {
 		super(message, options);
 		this.name = "UserFacingError";
-		this.code = options?.code ?? "USER_FACING";
+		this.code = options.code;
 	}
 }
 

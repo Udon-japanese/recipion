@@ -19,7 +19,7 @@ describe("classifyRequestError", () => {
 		},
 		{
 			label: "端末がオフライン（文が日本語でも）",
-			error: new UserFacingError(GENERIC_ERROR_MESSAGE),
+			error: new UserFacingError(GENERIC_ERROR_MESSAGE, { code: "INTERNAL" }),
 			isOnline: false,
 			kind: "offline",
 		},
@@ -31,25 +31,31 @@ describe("classifyRequestError", () => {
 		},
 		{
 			label: "ログインが必要",
-			error: new UserFacingError(AUTH_REQUIRED_MESSAGE),
+			error: new UserFacingError(AUTH_REQUIRED_MESSAGE, {
+				code: "AUTH_REQUIRED",
+			}),
 			isOnline: true,
 			kind: "account",
 		},
 		{
 			label: "アカウントが変わった",
-			error: new UserFacingError(ACCOUNT_CHANGED_MESSAGE),
+			error: new UserFacingError(ACCOUNT_CHANGED_MESSAGE, {
+				code: "ACCOUNT_CHANGED",
+			}),
 			isOnline: true,
 			kind: "account",
 		},
 		{
 			label: "停止中",
-			error: new UserFacingError(ACCOUNT_SUSPENDED_MESSAGE),
+			error: new UserFacingError(ACCOUNT_SUSPENDED_MESSAGE, {
+				code: "ACCOUNT_SUSPENDED",
+			}),
 			isOnline: true,
 			kind: "account",
 		},
 		{
 			label: "サーバーの汎用の文",
-			error: new UserFacingError(GENERIC_ERROR_MESSAGE),
+			error: new UserFacingError(GENERIC_ERROR_MESSAGE, { code: "INTERNAL" }),
 			isOnline: true,
 			kind: "server",
 		},
@@ -57,6 +63,7 @@ describe("classifyRequestError", () => {
 			label: "見せてよい内容の文",
 			error: new UserFacingError(
 				"卵の在庫の単位（g）に買った量を換算できません",
+				{ code: "INVALID_INPUT" },
 			),
 			isOnline: true,
 			kind: "rejected",

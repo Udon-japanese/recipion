@@ -31,17 +31,6 @@ describe("toErrorResponse", () => {
 		});
 	});
 
-	it("コードのない UserFacingError は、USER_FACING（文はそのまま）", async () => {
-		const response = await appThrowing(
-			new UserFacingError("レシピが見つかりません"),
-		).request("/");
-
-		expect(response.status).toBe(400);
-		expect(await response.json()).toEqual({
-			error: { code: "USER_FACING", message: "レシピが見つかりません" },
-		});
-	});
-
 	it("内部のエラーは、汎用の文と INTERNAL にし、中身を出さない", async () => {
 		const spy = vi.spyOn(console, "error").mockImplementation(() => {});
 		const response = await appThrowing(
