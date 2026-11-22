@@ -35,6 +35,8 @@ function readBlocks(path: string): string[] {
 
 // 判定に失敗した理由ごとの、回数。
 const judgeErrors = new Map<string, number>();
+// AI の応答が読めず、聞き直した回数（聞き直しても読めなければ、judgeErrors にも数える）。
+let judgeRetries = 0;
 // 消費した Neurons（Workers AI の無料枠は、1日 10,000）。
 let usedNeurons = 0;
 // 無料枠の上限に達したら、無駄な呼び出しをやめて、評価全体を止める。
@@ -84,11 +86,18 @@ function createEvalJudge(): AiJudge {
 		}
 
 		try {
-			return await createAiJudge(async (request) => {
-				response = await runner(request);
+			return await createAiJudge(
+				async (request) => {
+					response = await runner(request);
 
-				return response;
-			})(items);
+					return response;
+				},
+				undefined,
+				undefined,
+				() => {
+					judgeRetries += 1;
+				},
+			)(items);
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 
@@ -514,6 +523,7 @@ describe.skipIf(!isEnabled)("文章の判定の評価", () => {
 				`AI の抜き出し：AI が止めた・怪しいとした ${aiReasons.length} 件のうち、原文にあった ${locatedAiReasons} 件（${aiReasons.length === 0 ? "-" : `${Math.round((locatedAiReasons / aiReasons.length) * 100)}%`}）`,
 				"",
 				`消費した Neurons：約${Math.round(usedNeurons)}（無料枠は、1日 10,000）`,
+				`AI の応答が読めず、聞き直した：${judgeRetries}回（聞き直しても読めなかったものは、下の「判定できなかった」に入る）`,
 				`## 判定できなかった（unavailable）：${unavailable.length}件`,
 				...[...judgeErrors.entries()]
 					.sort((a, b) => b[1] - a[1])
