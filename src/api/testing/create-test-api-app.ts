@@ -17,6 +17,7 @@ export function createTestApiApp(overrides: Partial<ApiDependencies> = {}) {
 			resolveSession: vi.fn(),
 			createRepository: vi.fn(),
 		},
+		backup: { resolveSession: vi.fn(), createOperations: vi.fn() },
 		...overrides,
 	});
 }

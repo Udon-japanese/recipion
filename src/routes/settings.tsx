@@ -10,21 +10,13 @@ import type {
 import { BackupSettingsSection } from "#/features/backup/components/backup-settings-section";
 import { ShoppingBackupSection } from "#/features/backup/components/shopping-backup-section";
 import {
+	backupExportApi,
+	backupImportApi,
+} from "#/features/backup/infrastructure/backup-api";
+import {
 	readShoppingData,
 	replaceShoppingData,
 } from "#/features/backup/infrastructure/dexie-shopping-backup";
-import {
-	exportBackupDictionaryServerFn,
-	exportBackupInventoryServerFn,
-	exportBackupRecipesServerFn,
-} from "#/features/backup/server/export-backup";
-import {
-	importBackupRecipeLinksServerFn,
-	importBackupRecipesServerFn,
-	inspectBackupServerFn,
-	mergeBackupDictionaryServerFn,
-	replaceBackupInventoryServerFn,
-} from "#/features/backup/server/import-backup";
 import { IngredientDictionarySection } from "#/features/ingredients/components/ingredient-dictionary-section";
 import * as ingredientDictionaryApi from "#/features/ingredients/infrastructure/ingredient-dictionary-api";
 import { createDexieInventoryPurchaseOutboxRepository } from "#/features/inventory/infrastructure/dexie-inventory-purchase-outbox-repository";
@@ -63,23 +55,11 @@ function saveHouseholdSize(householdSize: number | null) {
 	return recipesApi.updateHouseholdSize(householdSize);
 }
 
-const exportDependencies: BackupExportDependencies = {
-	loadRecipePage: (offset) => exportBackupRecipesServerFn({ data: { offset } }),
-	loadInventory: () => exportBackupInventoryServerFn(),
-	loadDictionary: () => exportBackupDictionaryServerFn(),
-};
+const exportDependencies: BackupExportDependencies = backupExportApi;
 
 function createImportDependencies(userId: string): BackupImportDependencies {
 	return {
-		inspect: (publicIds) => inspectBackupServerFn({ data: { publicIds } }),
-		importRecipes: (recipes) =>
-			importBackupRecipesServerFn({ data: { recipes } }),
-		importLinks: (recipes) =>
-			importBackupRecipeLinksServerFn({ data: { recipes } }),
-		replaceInventory: (items) =>
-			replaceBackupInventoryServerFn({ data: { items } }),
-		mergeDictionary: (entries) =>
-			mergeBackupDictionaryServerFn({ data: { entries } }),
+		...backupImportApi,
 		countPendingPurchases: async () =>
 			(
 				await createDexieInventoryPurchaseOutboxRepository().list(

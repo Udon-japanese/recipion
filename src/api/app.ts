@@ -1,6 +1,7 @@
 import { createApiApp } from "#/api/create-api-app";
 import { minimumClientVersions } from "#/config/client-versions";
 import { createDb } from "#/db/client";
+import { createBackupOperations } from "#/features/backup/api/backup-operations";
 import { createDrizzleIngredientDictionaryRepository } from "#/features/ingredients/infrastructure/drizzle-ingredient-dictionary-repository";
 import { createDrizzleInventoryRepository } from "#/features/inventory/infrastructure/drizzle-inventory-repository";
 import { createModerationOperations } from "#/features/moderation/api/moderation-operations";
@@ -38,4 +39,5 @@ export const apiApp = createApiApp({
 		createRepository: ({ db, userId }) =>
 			createDrizzleIngredientDictionaryRepository(db, userId),
 	},
+	backup: { resolveSession, createOperations: createBackupOperations },
 });
