@@ -5,6 +5,8 @@ import type { ResolveSession } from "#/api/middleware/session";
 import { validate } from "#/api/validate";
 import type { ResolvedSession } from "#/integrations/better-auth/resolve-session";
 import { prepareRecipeForStorage } from "../application/prepare-recipe-for-storage";
+import { maxHouseholdSize, minHouseholdSize } from "../domain/household-size";
+import { maxSearchQueryLength } from "../domain/public-recipe-search";
 import { recipeSnapshotSchema } from "../domain/recipe-snapshot";
 import { maxRecipeYieldLength } from "../domain/recipe-yield";
 import {
@@ -40,6 +42,33 @@ const updateRecipeInputSchema = v.object({
 const forkRecipeInputSchema = v.object({
 	parentPublicId: publicIdSchema,
 	document: recipeEditorDocumentSchema,
+});
+
+const searchTagSchema = v.pipe(v.string(), v.maxLength(40));
+
+const searchPublicQuerySchema = v.object({
+	query: v.pipe(v.string(), v.maxLength(maxSearchQueryLength)),
+	cursor: v.optional(v.pipe(v.string(), v.maxLength(100))),
+	// 公開用のタグのキー（語の一覧にないものは、無視する）。
+	// クエリの値は、1つなら文字列、2つ以上なら配列で届くため、どちらも配列にそろえる。
+	tags: v.optional(
+		v.pipe(
+			v.union([searchTagSchema, v.array(searchTagSchema)]),
+			v.transform((tags) => (Array.isArray(tags) ? tags : [tags])),
+			v.maxLength(20),
+		),
+	),
+});
+
+const householdSizeInputSchema = v.object({
+	householdSize: v.nullable(
+		v.pipe(
+			v.number(),
+			v.integer(),
+			v.minValue(minHouseholdSize),
+			v.maxValue(maxHouseholdSize),
+		),
+	),
 });
 
 const unlockInputSchema = v.object({
@@ -130,6 +159,41 @@ export function createRecipeRoutes(dependencies: RecipeRouteDependencies) {
 
 				return c.json(await (await operationsFor(c)).getOwn(publicId), 200);
 			})
+			// みんなのレシピ（全体公開）の一覧と検索。
+			.get("/public", validate("query", searchPublicQuerySchema), async (c) => {
+				const { query, cursor, tags } = c.req.valid("query");
+
+				return c.json(
+					await (await operationsFor(c)).searchPublic({
+						query,
+						cursor: cursor ?? null,
+						tags: tags ?? [],
+					}),
+					200,
+				);
+			})
+			// うちの人数（「人分」のレシピを、この人数の量で見る・買い物メモに入れる）。
+			.get("/household-size", async (c) =>
+				c.json(
+					{
+						householdSize: await (await operationsFor(c)).getHouseholdSize(),
+					},
+					200,
+				),
+			)
+			.post(
+				"/household-size",
+				validate("json", householdSizeInputSchema),
+				async (c) =>
+					c.json(
+						{
+							householdSize: await (await operationsFor(c)).updateHouseholdSize(
+								c.req.valid("json").householdSize,
+							),
+						},
+						200,
+					),
+			)
 			// レシピの画面に出す分（中身・作者・日付・もとにしたレシピ）。
 			.get("/view", validate("query", publicIdQuerySchema), async (c) => {
 				const { publicId } = c.req.valid("query");

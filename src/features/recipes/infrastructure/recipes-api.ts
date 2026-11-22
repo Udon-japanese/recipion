@@ -115,3 +115,26 @@ export async function dismissParentChanges(
 		await recipes["parent-merge"].dismiss.$post({ json: input }),
 	);
 }
+
+// みんなのレシピ（全体公開）の一覧と検索。
+export async function searchPublicRecipes(input: {
+	query: string;
+	tags?: string[];
+	cursor?: string;
+}) {
+	return readApiResponse(await recipes.public.$get({ query: input }));
+}
+
+// 本人のうちの人数（設定していなければ null）。
+export async function getHouseholdSize() {
+	return (await readApiResponse(await recipes["household-size"].$get()))
+		.householdSize;
+}
+
+export async function updateHouseholdSize(householdSize: number | null) {
+	return (
+		await readApiResponse(
+			await recipes["household-size"].$post({ json: { householdSize } }),
+		)
+	).householdSize;
+}

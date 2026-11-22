@@ -1,9 +1,16 @@
 import { env } from "cloudflare:workers";
 
+import { eq } from "drizzle-orm";
+
 import { UserFacingError } from "#/errors/user-facing-error";
+import { user } from "#/integrations/better-auth/auth.sql";
 import type { ResolvedSession } from "#/integrations/better-auth/resolve-session";
 import { loadLinkedRecipeTree } from "../application/load-linked-recipe-tree";
 import type { PreparedRecipeForStorage } from "../application/prepare-recipe-for-storage";
+import {
+	parseRecipeSearchTerms,
+	parseSearchTags,
+} from "../domain/public-recipe-search";
 import { RECIPE_CHANGED_ELSEWHERE_MESSAGE } from "../domain/recipe-revision";
 import {
 	createRecipeSnapshot,
@@ -13,6 +20,7 @@ import {
 	listPublicRecipesOfUser,
 	searchLinkableUsers,
 } from "../infrastructure/drizzle-linkable-recipes";
+import { searchPublicRecipes } from "../infrastructure/drizzle-public-recipe-search";
 import { createDrizzleRecipeCookLogRepository } from "../infrastructure/drizzle-recipe-cook-log-repository";
 import { createDrizzleRecipeRepository } from "../infrastructure/drizzle-recipe-repository";
 import { createDrizzleRecipeSharingRepository } from "../infrastructure/drizzle-recipe-sharing-repository";
@@ -22,14 +30,14 @@ import {
 	findViewableRecipe,
 	loadParentMergeSource,
 } from "../infrastructure/drizzle-recipe-viewer-repository";
-import { guardRecipePublication } from "../server/guard-recipe-publication";
-import { assertParentSnapshotIsCurrent } from "../server/parent-merge";
+import { guardRecipePublication } from "./guard-recipe-publication";
+import { assertParentSnapshotIsCurrent } from "./parent-merge";
 import {
 	createEncryptedPassphrase,
 	readPassphrase,
 	resolvePassphraseCipher,
-} from "../server/resolve-passphrase";
-import { assertWithinSearchLimit } from "../server/search-rate-limit";
+} from "./resolve-passphrase";
+import { assertWithinSearchLimit } from "./search-rate-limit";
 
 const RECIPE_NOT_FOUND_MESSAGE = "レシピが見つかりません";
 
@@ -45,6 +53,41 @@ export function createRecipeOperations({ db, userId }: ResolvedSession) {
 		// 見てよいレシピ（自分のレシピ、全体公開、パスフレーズで開けた限定公開）。存在しない・見てはいけないは、どちらも null。
 		async getViewable(publicId: string) {
 			return (await findViewableRecipe(db, userId, publicId))?.recipe ?? null;
+		},
+
+		// みんなのレシピ（全体公開）の一覧と検索。
+		async searchPublic(input: {
+			query: string;
+			cursor: string | null;
+			tags: string[];
+		}) {
+			await assertWithinSearchLimit(userId);
+
+			return searchPublicRecipes(
+				db,
+				userId,
+				parseRecipeSearchTerms(input.query),
+				input.cursor,
+				parseSearchTags(input.tags),
+			);
+		},
+
+		// 本人のうちの人数（設定していなければ null）。
+		async getHouseholdSize() {
+			const [row] = await db
+				.select({ householdSize: user.householdSize })
+				.from(user)
+				.where(eq(user.id, userId))
+				.limit(1);
+
+			return row?.householdSize ?? null;
+		},
+
+		// 本人のうちの人数を保存する（null は、設定しない）。本人だけが使う値なので、審査の対象にしない。
+		async updateHouseholdSize(householdSize: number | null) {
+			await db.update(user).set({ householdSize }).where(eq(user.id, userId));
+
+			return householdSize;
 		},
 
 		// レシピの画面に出す分（中身・作者・日付・もとにしたレシピ）。見てはいけない・存在しないは、どちらも null。

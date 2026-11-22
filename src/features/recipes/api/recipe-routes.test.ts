@@ -24,6 +24,9 @@ function createOperations(
 		list: vi.fn(async () => []),
 		getViewable: vi.fn(async () => null),
 		getOwn: vi.fn(async () => null),
+		searchPublic: vi.fn(),
+		getHouseholdSize: vi.fn(async () => null),
+		updateHouseholdSize: vi.fn(async (size: number | null) => size),
 		view: vi.fn(async () => null),
 		unlock: vi.fn(async () => "wrong" as const),
 		getPassphrase: vi.fn(async () => null),
@@ -282,5 +285,50 @@ describe("レシピの API", () => {
 		expect(await response.json()).toEqual({
 			error: { code: "CONFLICT", message: PARENT_CHANGED_AGAIN_MESSAGE },
 		});
+	});
+
+	it.each([
+		["タグなし", "query=%E5%8D%B5", []],
+		["タグが1つ（文字列で届く）", "query=&tags=quick", ["quick"]],
+		[
+			"タグが2つ（配列で届く）",
+			"query=&tags=quick&tags=bento",
+			["quick", "bento"],
+		],
+	] as const)(
+		"みんなのレシピの検索：%s も、タグを配列にそろえて渡す",
+		async (_label, search, tags) => {
+			const { app, operations } = createApp();
+
+			await app.request(`/api/v1/recipes/public?${search}`, {
+				headers: { authorization: "Bearer a.b" },
+			});
+
+			expect(operations.searchPublic).toHaveBeenCalledWith({
+				query: search.startsWith("query=%E5%8D%B5") ? "卵" : "",
+				cursor: null,
+				tags,
+			});
+		},
+	);
+
+	it("うちの人数：保存した値を { householdSize } で返す（null は、設定しない）", async () => {
+		const { app, operations } = createApp();
+		const response = await post(app, "/household-size", {
+			householdSize: null,
+		});
+
+		expect(await response.json()).toEqual({ householdSize: null });
+		expect(operations.updateHouseholdSize).toHaveBeenCalledWith(null);
+	});
+
+	it("うちの人数：整数でない値は 400（保存しない）", async () => {
+		const { app, operations } = createApp();
+		const response = await post(app, "/household-size", {
+			householdSize: 2.5,
+		});
+
+		expect(response.status).toBe(400);
+		expect(operations.updateHouseholdSize).not.toHaveBeenCalled();
 	});
 });

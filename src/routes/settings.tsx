@@ -34,10 +34,7 @@ import { createDexieInventoryPurchaseOutboxRepository } from "#/features/invento
 import { syncDexieInventoryPurchaseOutbox } from "#/features/inventory/infrastructure/sync-dexie-inventory-purchase-outbox";
 import { AccountDeletionSection } from "#/features/profile/components/account-deletion-section";
 import { HouseholdSizeSetting } from "#/features/recipes/components/household-size-setting";
-import {
-	getHouseholdSizeServerFn,
-	updateHouseholdSizeServerFn,
-} from "#/features/recipes/server/household-size";
+import * as recipesApi from "#/features/recipes/infrastructure/recipes-api";
 import { AccountSettingsSection } from "#/features/settings/components/account-settings-section";
 import {
 	SettingsPage,
@@ -62,11 +59,11 @@ export const Route = createFileRoute("/settings")({
 
 // うちの人数（画面の外に置く：いつも同じ関数にして、開いたときに1回だけ読む）。
 function loadHouseholdSize() {
-	return getHouseholdSizeServerFn();
+	return recipesApi.getHouseholdSize();
 }
 
 function saveHouseholdSize(householdSize: number | null) {
-	return updateHouseholdSizeServerFn({ data: { householdSize } });
+	return recipesApi.updateHouseholdSize(householdSize);
 }
 
 const exportDependencies: BackupExportDependencies = {

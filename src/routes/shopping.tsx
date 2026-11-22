@@ -15,7 +15,6 @@ import * as inventoryApi from "#/features/inventory/infrastructure/inventory-api
 import { syncDexieInventoryPurchaseOutbox } from "#/features/inventory/infrastructure/sync-dexie-inventory-purchase-outbox";
 import { RecipeToShoppingPicker } from "#/features/recipes/components/recipe-to-shopping-picker";
 import * as recipesApi from "#/features/recipes/infrastructure/recipes-api";
-import { getHouseholdSizeServerFn } from "#/features/recipes/server/household-size";
 import { GuestShoppingMemoAdoption } from "#/features/shopping/components/guest-shopping-memo-adoption";
 import type { RecipePickerContext } from "#/features/shopping/components/recipe-picker-slot";
 import { ShoppingList } from "#/features/shopping/components/shopping-list";
@@ -30,7 +29,7 @@ export const Route = createFileRoute("/shopping")({
 
 // うちの人数（「人分」のレシピは、この人数の量で入れる）。画面の外に置く（いつも同じ関数）。
 function loadHouseholdSize() {
-	return getHouseholdSizeServerFn();
+	return recipesApi.getHouseholdSize();
 }
 
 function ShoppingPage() {

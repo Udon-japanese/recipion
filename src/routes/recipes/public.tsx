@@ -15,7 +15,7 @@ import {
 	parseSearchTags,
 } from "#/features/recipes/domain/public-recipe-search";
 import { useRecipeSearchHistory } from "#/features/recipes/hooks/use-recipe-search-history";
-import { searchPublicRecipesServerFn } from "#/features/recipes/server/search-public-recipes";
+import * as recipesApi from "#/features/recipes/infrastructure/recipes-api";
 
 const defaultSearch = { q: "", tags: [] };
 
@@ -40,8 +40,9 @@ export const Route = createFileRoute("/recipes/public")({
 	search: { middlewares: [stripSearchParams(defaultSearch)] },
 	loaderDeps: ({ search }) => ({ query: search.q, tags: search.tags }),
 	loader: async ({ deps }) => ({
-		page: await searchPublicRecipesServerFn({
-			data: { query: deps.query, tags: deps.tags },
+		page: await recipesApi.searchPublicRecipes({
+			query: deps.query,
+			tags: deps.tags,
 		}),
 		query: deps.query,
 		tags: deps.tags,
@@ -89,7 +90,7 @@ function PublicRecipesPage() {
 					})
 				}
 				loadMore={(cursor) =>
-					searchPublicRecipesServerFn({ data: { query, tags, cursor } })
+					recipesApi.searchPublicRecipes({ query, tags, cursor })
 				}
 			/>
 		</RecipesFrame>

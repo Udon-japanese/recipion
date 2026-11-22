@@ -71,7 +71,6 @@ import {
 	stashSharedPassphrase,
 	takeSharedPassphrase,
 } from "#/features/recipes/infrastructure/shared-passphrase-storage";
-import { getHouseholdSizeServerFn } from "#/features/recipes/server/household-size";
 import { ReportMenu } from "#/features/reports/components/report-menu";
 import { createReportServerFn } from "#/features/reports/server/create-report";
 import { createUserNameReportServerFn } from "#/features/reports/server/create-user-report";
@@ -95,7 +94,7 @@ export const Route = createFileRoute("/recipes/$publicId/")({
 		const [viewable, cookStats, householdSize] = await Promise.all([
 			recipesApi.viewRecipe({ publicId: params.publicId }),
 			recipesApi.getRecipeCookStats({ publicId: params.publicId }),
-			getHouseholdSizeServerFn(),
+			recipesApi.getHouseholdSize(),
 		]);
 
 		if (!viewable) {
