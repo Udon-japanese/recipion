@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
 import { SignOutButton } from "#/features/auth/components/sign-out-button";
 import { useAppSession } from "#/integrations/better-auth/use-app-session";
-import { getAccountStatusServerFn } from "../server/account-status";
-import { submitAppealServerFn } from "../server/submit-appeal";
+import * as moderationApi from "../infrastructure/moderation-api";
 import { SuspendedScreen } from "./suspended-screen";
 
 // ログイン中のアカウントが停止されていれば、アプリの代わりに、停止の画面を出す。
-// 停止の確認は、サーバー関数でも行っている（この画面は、案内のため）。確認できないとき（オフラインなど）は、通常どおり表示する。
+// 停止の確認は、API でも行っている（この画面は、案内のため）。確認できないとき（オフラインなど）は、通常どおり表示する。
 export function SuspensionGate({ children }: { children: React.ReactNode }) {
 	const { data: session } = useAppSession();
 	const userId = session?.user.id ?? null;
@@ -24,7 +23,8 @@ export function SuspensionGate({ children }: { children: React.ReactNode }) {
 
 		let cancelled = false;
 
-		getAccountStatusServerFn()
+		moderationApi
+			.getAccountStatus()
 			.then((value) => {
 				if (!cancelled) {
 					setStatus(value ? { userId, value } : null);
@@ -44,9 +44,7 @@ export function SuspensionGate({ children }: { children: React.ReactNode }) {
 			<>
 				<SuspendedScreen
 					status={status.value}
-					onSubmitAppeal={(message) =>
-						submitAppealServerFn({ data: { message } })
-					}
+					onSubmitAppeal={(message) => moderationApi.submitAppeal({ message })}
 				/>
 				<SignOutButton />
 			</>

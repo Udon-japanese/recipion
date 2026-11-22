@@ -9,6 +9,14 @@ import {
 	type InventoryRouteDependencies,
 } from "#/features/inventory/api/inventory-routes";
 import {
+	createModerationRoutes,
+	type ModerationRouteDependencies,
+} from "#/features/moderation/api/moderation-routes";
+import {
+	createMeRoutes,
+	type MeRouteDependencies,
+} from "#/features/profile/api/me-routes";
+import {
 	createRecipeRoutes,
 	type RecipeRouteDependencies,
 } from "#/features/recipes/api/recipe-routes";
@@ -26,6 +34,8 @@ export type ApiDependencies = {
 	shoppingSync: ShoppingSyncRouteDependencies;
 	inventory: InventoryRouteDependencies;
 	recipes: RecipeRouteDependencies;
+	me: MeRouteDependencies;
+	moderation: ModerationRouteDependencies;
 };
 
 // API（Hono）の本体。外のもの（Better Auth・DB）は引数で受け取る（テストで差し替えるため。cloudflare:workers を読まない）。
@@ -42,7 +52,9 @@ export function createApiApp(dependencies: ApiDependencies) {
 			createShoppingSyncRoutes(dependencies.shoppingSync),
 		)
 		.route("/inventory", createInventoryRoutes(dependencies.inventory))
-		.route("/recipes", createRecipeRoutes(dependencies.recipes));
+		.route("/recipes", createRecipeRoutes(dependencies.recipes))
+		.route("/me", createMeRoutes(dependencies.me))
+		.route("/moderation", createModerationRoutes(dependencies.moderation));
 
 	const app = new Hono()
 		// Better Auth は、自分で Origin を確かめる（trustedOrigins）。

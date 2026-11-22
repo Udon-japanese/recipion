@@ -1,20 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { pageTitle } from "#/config/app";
 import { AvatarField } from "#/features/avatar/components/avatar-field";
-import { updateAvatarServerFn } from "#/features/avatar/server/update-avatar";
 import { ProfileForm } from "#/features/profile/components/profile-form";
 import {
 	ProfilePageLayout,
 	ProfileSettingsLink,
 } from "#/features/profile/components/profile-page-layout";
 import { ProfileRouteError } from "#/features/profile/components/profile-route-error";
-import { getProfileServerFn } from "#/features/profile/server/get-profile";
-import { updateProfileServerFn } from "#/features/profile/server/update-profile";
+import * as meApi from "#/features/profile/infrastructure/me-api";
 import { useAppSession } from "#/integrations/better-auth/use-app-session";
 
 export const Route = createFileRoute("/profile")({
 	head: () => ({ meta: [{ title: pageTitle("プロフィール") }] }),
-	loader: () => getProfileServerFn(),
+	// ブラウザだけで描く（データは API から読む。サーバーの中では API を呼べないため。Web の最終形は SPA）。
+	ssr: false,
+	loader: () => meApi.getProfile(),
 	errorComponent: ProfileRouteError,
 	component: ProfilePage,
 });
@@ -27,7 +27,7 @@ function ProfilePage() {
 		<ProfilePageLayout>
 			<ProfileForm
 				profile={profile}
-				onSave={(input) => updateProfileServerFn({ data: input })}
+				onSave={(input) => meApi.updateProfile(input)}
 				onChanged={() => void refetch()}
 				avatar={
 					session ? (
@@ -36,7 +36,7 @@ function ProfilePage() {
 							avatar={session.user.avatar}
 							onSave={async (avatar) => {
 								try {
-									await updateAvatarServerFn({ data: { avatar } });
+									await meApi.updateAvatar(avatar);
 									// ヘッダーなどの表示を、新しいアバターにする。
 									await refetch();
 

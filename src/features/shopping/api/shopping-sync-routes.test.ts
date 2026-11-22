@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createApiApp } from "#/api/create-api-app";
+import { createTestApiApp } from "#/api/testing/create-test-api-app";
 import { UserFacingError } from "#/errors/user-facing-error";
 import { createShoppingItem } from "../domain/shopping-item";
 import type { ShoppingSyncStore } from "./shopping-sync-routes";
@@ -43,12 +43,8 @@ function createApp(
 			return { db: {} as never, userId: "user-1" };
 		},
 	);
-	const app = createApiApp({
-		handleAuth: vi.fn(),
-		minimumClientVersions: { android: "0.0.0", ios: "0.0.0", web: "0.0.0" },
+	const app = createTestApiApp({
 		shoppingSync: { resolveSession, createStore: () => store },
-		inventory: { resolveSession, createRepository: vi.fn() },
-		recipes: { resolveSession, createOperations: vi.fn() },
 	});
 
 	return { app, store, resolveSession };

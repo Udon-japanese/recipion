@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createApiApp } from "./create-api-app";
+import { createTestApiApp } from "./testing/create-test-api-app";
 
 const minimumClientVersions = { android: "1.2.0", ios: "1.0.0", web: "0.0.0" };
 
@@ -7,15 +7,9 @@ function createApp() {
 	const handleAuth = vi.fn(async () => new Response("auth"));
 
 	return {
-		app: createApiApp({
+		app: createTestApiApp({
 			handleAuth,
 			minimumClientVersions,
-			shoppingSync: {
-				resolveSession: vi.fn(),
-				createStore: vi.fn(),
-			},
-			inventory: { resolveSession: vi.fn(), createRepository: vi.fn() },
-			recipes: { resolveSession: vi.fn(), createOperations: vi.fn() },
 		}),
 		handleAuth,
 	};

@@ -2,6 +2,8 @@ import { createApiApp } from "#/api/create-api-app";
 import { minimumClientVersions } from "#/config/client-versions";
 import { createDb } from "#/db/client";
 import { createDrizzleInventoryRepository } from "#/features/inventory/infrastructure/drizzle-inventory-repository";
+import { createModerationOperations } from "#/features/moderation/api/moderation-operations";
+import { createMeOperations } from "#/features/profile/api/me-operations";
 import { createRecipeOperations } from "#/features/recipes/api/recipe-operations";
 import { createDrizzleShoppingSyncRepository } from "#/features/shopping/infrastructure/drizzle-shopping-sync-repository";
 import { createAuth } from "#/integrations/better-auth/auth";
@@ -26,4 +28,6 @@ export const apiApp = createApiApp({
 			createDrizzleInventoryRepository(db, userId),
 	},
 	recipes: { resolveSession, createOperations: createRecipeOperations },
+	me: { resolveSession, createOperations: createMeOperations },
+	moderation: { resolveSession, createOperations: createModerationOperations },
 });

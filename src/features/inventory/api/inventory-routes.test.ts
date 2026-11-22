@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createApiApp } from "#/api/create-api-app";
+import { createTestApiApp } from "#/api/testing/create-test-api-app";
 import { UserFacingError } from "#/errors/user-facing-error";
 import type { InventoryRepository } from "./inventory-routes";
 
@@ -47,12 +47,8 @@ function createApp(
 
 		return { db: {} as never, userId: "user-1" };
 	});
-	const app = createApiApp({
-		handleAuth: vi.fn(),
-		minimumClientVersions: { android: "0.0.0", ios: "0.0.0", web: "0.0.0" },
-		shoppingSync: { resolveSession, createStore: vi.fn() },
+	const app = createTestApiApp({
 		inventory: { resolveSession, createRepository: () => repository },
-		recipes: { resolveSession, createOperations: vi.fn() },
 	});
 
 	return { app, repository, resolveSession };
