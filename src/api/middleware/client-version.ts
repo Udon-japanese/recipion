@@ -5,7 +5,7 @@ import { errorResponse } from "#/api/error-response";
 import type { ClientPlatform } from "#/config/client-versions";
 
 export const CLIENT_UPDATE_REQUIRED_MESSAGE =
-	"このアプリの版は古くなりました。最新の版に更新してください";
+	"アプリが新しくなりました。更新してから、もう一度お試しください";
 
 const INVALID_CLIENT_MESSAGE = "クライアントの種類と版を読み取れませんでした";
 
@@ -28,8 +28,9 @@ export function clientVersionMiddleware(
 			return errorResponse(c, "INVALID_INPUT", INVALID_CLIENT_MESSAGE);
 		}
 
-		// 移行のコード：今の Web の画面は、このヘッダーを送らない。ヘッダーのない要求は、当面は通す。
-		// Web の画面がヘッダーを送るようになり、送らない古い画面がなくなったら、"missing" も 400 にする。
+		// 移行のコード：ヘッダーを送る前の Web の画面（開いたままのタブ・古い Service Worker のキャッシュ）のため、
+		// ヘッダーのない要求は、当面は通す。Web はヘッダーを送るようにした（2026-11-22）。
+		// 消す条件：そのデプロイから2週間たったら（2026-12-07 以降）、"missing" も 400 にする（docs/todo.md）。
 		await next();
 	});
 }

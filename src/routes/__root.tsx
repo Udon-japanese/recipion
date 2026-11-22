@@ -15,6 +15,7 @@ import {
 import { requestAppRefresh } from "#/features/pull-refresh/infrastructure/app-refresh-request";
 import { PwaRegister } from "#/features/pwa/components/pwa-register";
 import { AppShell } from "#/features/shell/components/app-shell";
+import { ClientUpdateDialog } from "#/features/shell/components/client-update-dialog";
 import { ShoppingSyncRunner } from "#/features/shopping/components/shopping-sync-runner";
 import { useShoppingOwnerScope } from "#/features/shopping/hooks/use-shopping-owner-scope";
 import { syncDexieShoppingMemo } from "#/features/shopping/infrastructure/sync-dexie-shopping-memo";
@@ -52,6 +53,7 @@ function RootLayout() {
 					<ToastViewport />
 				</AppShell>
 			</SuspensionGate>
+			<ClientUpdateDialog />
 			<PwaRegister />
 		</>
 	);
