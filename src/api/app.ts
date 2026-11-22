@@ -1,6 +1,7 @@
 import { createApiApp } from "#/api/create-api-app";
 import { minimumClientVersions } from "#/config/client-versions";
 import { createDb } from "#/db/client";
+import { createAdminOperations } from "#/features/admin/api/admin-operations";
 import { createBackupOperations } from "#/features/backup/api/backup-operations";
 import { createDrizzleIngredientDictionaryRepository } from "#/features/ingredients/infrastructure/drizzle-ingredient-dictionary-repository";
 import { createDrizzleInventoryRepository } from "#/features/inventory/infrastructure/drizzle-inventory-repository";
@@ -11,6 +12,7 @@ import { createReportOperations } from "#/features/reports/api/report-operations
 import { createDrizzleShoppingSyncRepository } from "#/features/shopping/infrastructure/drizzle-shopping-sync-repository";
 import { createAuth } from "#/integrations/better-auth/auth";
 import { resolveSession } from "#/integrations/better-auth/resolve-session";
+import { requireAdmin } from "#/integrations/cloudflare-access/require-admin";
 
 // 本番の API。Better Auth と DB をつなぐ（テストは create-api-app を使う）。
 export const apiApp = createApiApp({
@@ -40,4 +42,8 @@ export const apiApp = createApiApp({
 			createDrizzleIngredientDictionaryRepository(db, userId),
 	},
 	backup: { resolveSession, createOperations: createBackupOperations },
+	admin: {
+		resolveAdmin: requireAdmin,
+		createOperations: createAdminOperations,
+	},
 });

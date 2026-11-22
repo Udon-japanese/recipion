@@ -1,5 +1,4 @@
 import { env } from "cloudflare:workers";
-import { getRequestHeaders } from "@tanstack/react-start/server";
 import { createRemoteJWKSet, type JWTVerifyGetKey } from "jose";
 
 import { createDb } from "#/db/client";
@@ -26,16 +25,20 @@ function getAccessKeys(teamDomain: string): JWTVerifyGetKey {
 	return cachedKeys.getKey;
 }
 
-// 管理者の画面のサーバー関数の入口。
+// 管理者でない人には、管理者の API があることを知らせない（ほかの「見つからない」と同じ形にする）。
+function notAdmin(): UserFacingError {
+	return new UserFacingError("見つかりませんでした", { code: "NOT_FOUND" });
+}
+
+// 管理者の API の入口（/api/v1/admin）。
 // 本番：Cloudflare Access のトークンを検証し、そのメールが ADMIN_EMAILS にあるときだけ通す。
 //   設定（CF_ACCESS_TEAM_DOMAIN・CF_ACCESS_AUD・ADMIN_EMAILS）が足りないときは、誰も通さない。
 // 開発：Access の設定がなければ、ログイン中のメールが ADMIN_EMAILS にあるときだけ通す（開発サーバーだけ）。
-export async function requireAdmin() {
-	const headers = getRequestHeaders();
+export async function requireAdmin(headers: Headers) {
 	const adminEmails = parseAdminEmails(env.ADMIN_EMAILS);
 
 	if (adminEmails.length === 0) {
-		throw new UserFacingError("管理者として確認できません");
+		throw notAdmin();
 	}
 
 	const teamDomain = env.CF_ACCESS_TEAM_DOMAIN?.replace(/\/+$/u, "");
@@ -52,7 +55,7 @@ export async function requireAdmin() {
 			: null;
 
 		if (!verified || !isAdminEmail(verified.email, adminEmails)) {
-			throw new UserFacingError("管理者として確認できません");
+			throw notAdmin();
 		}
 
 		const { db } = await createDb();
@@ -69,5 +72,5 @@ export async function requireAdmin() {
 		}
 	}
 
-	throw new UserFacingError("管理者として確認できません");
+	throw notAdmin();
 }
