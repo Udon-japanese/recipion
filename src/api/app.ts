@@ -1,10 +1,12 @@
 import { createApiApp } from "#/api/create-api-app";
 import { minimumClientVersions } from "#/config/client-versions";
 import { createDb } from "#/db/client";
+import { createDrizzleIngredientDictionaryRepository } from "#/features/ingredients/infrastructure/drizzle-ingredient-dictionary-repository";
 import { createDrizzleInventoryRepository } from "#/features/inventory/infrastructure/drizzle-inventory-repository";
 import { createModerationOperations } from "#/features/moderation/api/moderation-operations";
 import { createMeOperations } from "#/features/profile/api/me-operations";
 import { createRecipeOperations } from "#/features/recipes/api/recipe-operations";
+import { createReportOperations } from "#/features/reports/api/report-operations";
 import { createDrizzleShoppingSyncRepository } from "#/features/shopping/infrastructure/drizzle-shopping-sync-repository";
 import { createAuth } from "#/integrations/better-auth/auth";
 import { resolveSession } from "#/integrations/better-auth/resolve-session";
@@ -30,4 +32,10 @@ export const apiApp = createApiApp({
 	recipes: { resolveSession, createOperations: createRecipeOperations },
 	me: { resolveSession, createOperations: createMeOperations },
 	moderation: { resolveSession, createOperations: createModerationOperations },
+	reports: { resolveSession, createOperations: createReportOperations },
+	ingredientDictionary: {
+		resolveSession,
+		createRepository: ({ db, userId }) =>
+			createDrizzleIngredientDictionaryRepository(db, userId),
+	},
 });

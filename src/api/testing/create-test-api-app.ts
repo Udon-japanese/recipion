@@ -12,6 +12,11 @@ export function createTestApiApp(overrides: Partial<ApiDependencies> = {}) {
 		recipes: { resolveSession: vi.fn(), createOperations: vi.fn() },
 		me: { resolveSession: vi.fn(), createOperations: vi.fn() },
 		moderation: { resolveSession: vi.fn(), createOperations: vi.fn() },
+		reports: { resolveSession: vi.fn(), createOperations: vi.fn() },
+		ingredientDictionary: {
+			resolveSession: vi.fn(),
+			createRepository: vi.fn(),
+		},
 		...overrides,
 	});
 }

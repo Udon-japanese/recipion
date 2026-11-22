@@ -7,6 +7,8 @@ export const userReportReasons = [
 	"other",
 ] as const;
 
+export type UserReportReason = (typeof userReportReasons)[number];
+
 // 通報の理由。auto-detected は、公開のときの自動の判定で、怪しいとされたもの（利用者は選べない）。
 export const reportReasons = [...userReportReasons, "auto-detected"] as const;
 

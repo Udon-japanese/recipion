@@ -72,8 +72,7 @@ import {
 	takeSharedPassphrase,
 } from "#/features/recipes/infrastructure/shared-passphrase-storage";
 import { ReportMenu } from "#/features/reports/components/report-menu";
-import { createReportServerFn } from "#/features/reports/server/create-report";
-import { createUserNameReportServerFn } from "#/features/reports/server/create-user-report";
+import * as reportsApi from "#/features/reports/infrastructure/reports-api";
 
 // 前もって取るリンク先の数の上限（API の /recipes/linked の入力の上限と同じ）。
 const maxPreloadedLinkTargets = 30;
@@ -598,14 +597,13 @@ function SharedRecipePage({
 								: []
 						}
 						onReportRecipe={(input) =>
-							createReportServerFn({
-								data: { recipePublicId: recipe.publicId, ...input },
+							reportsApi.reportRecipe({
+								recipePublicId: recipe.publicId,
+								...input,
 							})
 						}
 						onReportUser={(input) =>
-							createUserNameReportServerFn({
-								data: { handle: author.handle, ...input },
-							})
+							reportsApi.reportUserName({ handle: author.handle, ...input })
 						}
 					/>
 				}

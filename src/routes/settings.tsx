@@ -26,10 +26,7 @@ import {
 	replaceBackupInventoryServerFn,
 } from "#/features/backup/server/import-backup";
 import { IngredientDictionarySection } from "#/features/ingredients/components/ingredient-dictionary-section";
-import {
-	listIngredientDictionaryServerFn,
-	manageIngredientDictionaryServerFn,
-} from "#/features/ingredients/server/ingredient-dictionary";
+import * as ingredientDictionaryApi from "#/features/ingredients/infrastructure/ingredient-dictionary-api";
 import { createDexieInventoryPurchaseOutboxRepository } from "#/features/inventory/infrastructure/dexie-inventory-purchase-outbox-repository";
 import { syncDexieInventoryPurchaseOutbox } from "#/features/inventory/infrastructure/sync-dexie-inventory-purchase-outbox";
 import { AccountDeletionSection } from "#/features/profile/components/account-deletion-section";
@@ -107,13 +104,14 @@ function SettingsRoute() {
 				session ? (
 					<IngredientDictionarySection
 						loadEntries={() =>
-							listIngredientDictionaryServerFn({
-								data: { expectedUserId: session.user.id },
+							ingredientDictionaryApi.listIngredientDictionary({
+								expectedUserId: session.user.id,
 							})
 						}
 						runCommand={(command) =>
-							manageIngredientDictionaryServerFn({
-								data: { expectedUserId: session.user.id, command },
+							ingredientDictionaryApi.manageIngredientDictionary({
+								expectedUserId: session.user.id,
+								command,
 							})
 						}
 					/>

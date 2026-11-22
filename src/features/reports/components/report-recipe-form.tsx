@@ -1,15 +1,15 @@
 import type { CreateReportResult } from "../application/report-repository";
 import {
-	type ReportReason,
 	reportDetailMaxLength,
 	reportReasonLabels,
+	type UserReportReason,
 	userReportReasons,
 } from "../domain/report";
 import { ReportForm } from "./report-form";
 
 type ReportRecipeFormProps = {
 	onReport: (input: {
-		reason: ReportReason;
+		reason: UserReportReason;
 		detail: string;
 	}) => Promise<CreateReportResult>;
 	onClose: () => void;
