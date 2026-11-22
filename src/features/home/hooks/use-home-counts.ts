@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { loadInventoryItemsWithCache } from "#/features/inventory/application/load-inventory-items-with-cache";
 import { toDateString } from "#/features/inventory/domain/inventory-lot";
 import { createDexieInventoryCacheRepository } from "#/features/inventory/infrastructure/dexie-inventory-cache-repository";
-import { listInventoryItemsServerFn } from "#/features/inventory/server/list-inventory-items";
+import * as inventoryApi from "#/features/inventory/infrastructure/inventory-api";
 import { listRecipesServerFn } from "#/features/recipes/server/list-recipes";
 import { useShoppingOwnerScope } from "#/features/shopping/hooks/use-shopping-owner-scope";
 import { createDexieShoppingRepository } from "#/features/shopping/infrastructure/dexie-shopping-repository";
@@ -63,7 +63,7 @@ export function useInventoryExpiry(
 		setState(loading);
 		loadInventoryItemsWithCache(
 			`user:${userId}`,
-			() => listInventoryItemsServerFn({ data: { expectedUserId: userId } }),
+			() => inventoryApi.listInventoryItems({ expectedUserId: userId }),
 			createDexieInventoryCacheRepository(),
 		).then(
 			(result) => {

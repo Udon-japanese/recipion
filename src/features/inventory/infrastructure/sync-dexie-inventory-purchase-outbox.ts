@@ -4,8 +4,8 @@ import {
 	type SyncInventoryPurchaseOutboxResult,
 	syncInventoryPurchaseOutbox,
 } from "../application/sync-inventory-purchase-outbox";
+import { apiInventoryPurchaseSender } from "./api-inventory-purchase-sender";
 import { createDexieInventoryPurchaseOutboxRepository } from "./dexie-inventory-purchase-outbox-repository";
-import { tanstackInventoryPurchaseSender } from "./tanstack-inventory-purchase-sender";
 
 const lockName = "recipion:inventory-purchase-outbox";
 
@@ -19,7 +19,7 @@ function syncOnce(ownerScope: InventoryPurchaseOwnerScope) {
 	return syncInventoryPurchaseOutbox(
 		ownerScope,
 		createDexieInventoryPurchaseOutboxRepository(),
-		tanstackInventoryPurchaseSender,
+		apiInventoryPurchaseSender,
 	);
 }
 

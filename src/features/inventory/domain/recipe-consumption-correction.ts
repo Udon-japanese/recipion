@@ -91,6 +91,7 @@ export function planRecipeConsumptionCorrection(input: {
 		if (diff > available + epsilon) {
 			throw new UserFacingError(
 				"在庫が足りないため、その量には直せません。在庫を確かめてください",
+				{ code: "CONFLICT" },
 			);
 		}
 
@@ -120,6 +121,7 @@ export function planRecipeConsumptionCorrection(input: {
 	if (rest > epsilon) {
 		throw new UserFacingError(
 			"引いたときの在庫が消えているため、その量には直せません",
+			{ code: "CONFLICT" },
 		);
 	}
 

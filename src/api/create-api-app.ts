@@ -5,6 +5,10 @@ import { clientVersionMiddleware } from "#/api/middleware/client-version";
 import { cookieSameOriginMiddleware } from "#/api/middleware/cookie-same-origin";
 import type { ClientPlatform } from "#/config/client-versions";
 import {
+	createInventoryRoutes,
+	type InventoryRouteDependencies,
+} from "#/features/inventory/api/inventory-routes";
+import {
 	createShoppingSyncRoutes,
 	type ShoppingSyncRouteDependencies,
 } from "#/features/shopping/api/shopping-sync-routes";
@@ -16,6 +20,7 @@ export type ApiDependencies = {
 	handleAuth: (request: Request) => Promise<Response>;
 	minimumClientVersions: Record<ClientPlatform, string>;
 	shoppingSync: ShoppingSyncRouteDependencies;
+	inventory: InventoryRouteDependencies;
 };
 
 // API（Hono）の本体。外のもの（Better Auth・DB）は引数で受け取る（テストで差し替えるため。cloudflare:workers を読まない）。
@@ -30,7 +35,8 @@ export function createApiApp(dependencies: ApiDependencies) {
 		.route(
 			"/shopping/sync",
 			createShoppingSyncRoutes(dependencies.shoppingSync),
-		);
+		)
+		.route("/inventory", createInventoryRoutes(dependencies.inventory));
 
 	const app = new Hono()
 		// Better Auth は、自分で Origin を確かめる（trustedOrigins）。

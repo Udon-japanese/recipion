@@ -16,7 +16,7 @@ const requiredTextSchema = v.pipe(
 	v.minLength(1, "値を入力してください"),
 );
 
-const recordInventoryPurchaseInputSchema = v.object({
+export const recordInventoryPurchaseInputSchema = v.object({
 	transactionId: v.pipe(v.string(), v.uuid("取引IDが不正です")),
 	shoppingItemId: v.pipe(v.string(), v.uuid("買い物項目IDが不正です")),
 	ingredientName: requiredTextSchema,

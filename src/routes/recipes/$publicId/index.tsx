@@ -20,12 +20,7 @@ import { userIdOfOwnerScope } from "#/features/inventory/application/inventory-p
 import { loadInventoryItemsWithCache } from "#/features/inventory/application/load-inventory-items-with-cache";
 import { useOwnerScope } from "#/features/inventory/hooks/use-owner-scope";
 import { createDexieInventoryCacheRepository } from "#/features/inventory/infrastructure/dexie-inventory-cache-repository";
-import { adjustInventory as adjustInventoryServerFn } from "#/features/inventory/server/adjust-inventory";
-import { correctRecipeConsumptionServerFn } from "#/features/inventory/server/correct-recipe-consumption";
-import { listInventoryItemsServerFn } from "#/features/inventory/server/list-inventory-items";
-import { registerInventoryItemServerFn } from "#/features/inventory/server/register-inventory-item";
-import { stockMadeRecipeServerFn } from "#/features/inventory/server/stock-made-recipe";
-import { undoRecipeConsumptionServerFn } from "#/features/inventory/server/undo-recipe-consumption";
+import * as inventoryApi from "#/features/inventory/infrastructure/inventory-api";
 import type {
 	RecipeConsumptionEntryResult,
 	RecipeConsumptionOperation,
@@ -264,8 +259,8 @@ function useRecipeViewSupport(
 		const result = await loadInventoryItemsWithCache(
 			ownerScope,
 			() =>
-				listInventoryItemsServerFn({
-					data: { expectedUserId: userIdOfOwnerScope(ownerScope) },
+				inventoryApi.listInventoryItems({
+					expectedUserId: userIdOfOwnerScope(ownerScope),
 				}),
 			createDexieInventoryCacheRepository(),
 		);
@@ -283,17 +278,15 @@ function useRecipeViewSupport(
 				throw new Error("在庫に登録できるユーザーではありません");
 			}
 
-			await registerInventoryItemServerFn({
-				data: {
-					expectedUserId: userIdOfOwnerScope(ownerScope),
-					transactionId: crypto.randomUUID(),
-					ingredientName,
-					stockUnitCode,
-					stockUnitLabel: getDefaultStockUnitLabel(stockUnitCode),
-					trackingMode: entry?.defaultTrackingMode ?? "estimated",
-					initialQuantity: 0,
-					markAsAvailable: true,
-				},
+			await inventoryApi.registerInventoryItem({
+				expectedUserId: userIdOfOwnerScope(ownerScope),
+				transactionId: crypto.randomUUID(),
+				ingredientName,
+				stockUnitCode,
+				stockUnitLabel: getDefaultStockUnitLabel(stockUnitCode),
+				trackingMode: entry?.defaultTrackingMode ?? "estimated",
+				initialQuantity: 0,
+				markAsAvailable: true,
 			});
 		},
 		[ownerScope],
@@ -312,7 +305,7 @@ function useRecipeViewSupport(
 			return runRecipeConsumption(
 				ownerScope,
 				operation,
-				(command) => adjustInventoryServerFn({ data: command }),
+				(command) => inventoryApi.adjustInventory(command),
 				createDexieInventoryCacheRepository(),
 				onlyNeedIds,
 			);
@@ -330,13 +323,11 @@ function useRecipeViewSupport(
 				ownerScope,
 				target,
 				({ sourceId, inventoryItemIds }) =>
-					undoRecipeConsumptionServerFn({
-						data: {
-							sourceId,
-							...(inventoryItemIds
-								? { inventoryItemIds: [...inventoryItemIds] }
-								: {}),
-						},
+					inventoryApi.undoRecipeConsumption({
+						sourceId,
+						...(inventoryItemIds
+							? { inventoryItemIds: [...inventoryItemIds] }
+							: {}),
 					}),
 				createDexieInventoryCacheRepository(),
 			);
@@ -354,7 +345,7 @@ function useRecipeViewSupport(
 			return correctRecipeConsumptionWithCache(
 				ownerScope,
 				command,
-				(data) => correctRecipeConsumptionServerFn({ data }),
+				(data) => inventoryApi.correctRecipeConsumption(data),
 				createDexieInventoryCacheRepository(),
 			);
 		},
@@ -368,8 +359,9 @@ function useRecipeViewSupport(
 			transactionId: string;
 			quantity: number;
 		}) => {
-			await stockMadeRecipeServerFn({
-				data: { recipePublicId: recipe.publicId, ...input },
+			await inventoryApi.stockMadeRecipe({
+				recipePublicId: recipe.publicId,
+				...input,
 			});
 		},
 		[recipe.publicId],

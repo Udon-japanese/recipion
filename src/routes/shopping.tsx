@@ -11,9 +11,8 @@ import { userIdOfOwnerScope } from "#/features/inventory/application/inventory-p
 import { loadInventoryItemsWithCache } from "#/features/inventory/application/load-inventory-items-with-cache";
 import { PurchaseOutboxSync } from "#/features/inventory/components/purchase-outbox-sync";
 import { createDexieInventoryCacheRepository } from "#/features/inventory/infrastructure/dexie-inventory-cache-repository";
+import * as inventoryApi from "#/features/inventory/infrastructure/inventory-api";
 import { syncDexieInventoryPurchaseOutbox } from "#/features/inventory/infrastructure/sync-dexie-inventory-purchase-outbox";
-import { listInventoryItemsServerFn } from "#/features/inventory/server/list-inventory-items";
-import { registerInventoryItemServerFn } from "#/features/inventory/server/register-inventory-item";
 import { RecipeToShoppingPicker } from "#/features/recipes/components/recipe-to-shopping-picker";
 import { getRecipeServerFn } from "#/features/recipes/server/get-recipe";
 import { getHouseholdSizeServerFn } from "#/features/recipes/server/household-size";
@@ -68,8 +67,8 @@ function ShoppingPage() {
 		const result = await loadInventoryItemsWithCache(
 			ownerScope,
 			() =>
-				listInventoryItemsServerFn({
-					data: { expectedUserId: userIdOfOwnerScope(ownerScope) },
+				inventoryApi.listInventoryItems({
+					expectedUserId: userIdOfOwnerScope(ownerScope),
 				}),
 			createDexieInventoryCacheRepository(),
 		);
@@ -87,17 +86,15 @@ function ShoppingPage() {
 				throw new Error("在庫に登録できるユーザーではありません");
 			}
 
-			await registerInventoryItemServerFn({
-				data: {
-					expectedUserId: userIdOfOwnerScope(ownerScope),
-					transactionId: crypto.randomUUID(),
-					ingredientName,
-					stockUnitCode,
-					stockUnitLabel: getDefaultStockUnitLabel(stockUnitCode),
-					trackingMode: entry?.defaultTrackingMode ?? "estimated",
-					initialQuantity: 0,
-					markAsAvailable: true,
-				},
+			await inventoryApi.registerInventoryItem({
+				expectedUserId: userIdOfOwnerScope(ownerScope),
+				transactionId: crypto.randomUUID(),
+				ingredientName,
+				stockUnitCode,
+				stockUnitLabel: getDefaultStockUnitLabel(stockUnitCode),
+				trackingMode: entry?.defaultTrackingMode ?? "estimated",
+				initialQuantity: 0,
+				markAsAvailable: true,
 			});
 		},
 		[ownerScope],

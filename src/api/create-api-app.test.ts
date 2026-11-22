@@ -14,6 +14,7 @@ function createApp() {
 				resolveSession: vi.fn(),
 				createStore: vi.fn(),
 			},
+			inventory: { resolveSession: vi.fn(), createRepository: vi.fn() },
 		}),
 		handleAuth,
 	};

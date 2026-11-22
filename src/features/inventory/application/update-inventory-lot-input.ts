@@ -7,7 +7,7 @@ import {
 } from "./inventory-lot-input";
 import type { UpdateInventoryLotCommand } from "./inventory-lot-repository";
 
-const updateInventoryLotInputSchema = v.object({
+export const updateInventoryLotInputSchema = v.object({
 	lotId: v.pipe(v.string(), v.uuid("ロットIDが不正です")),
 	expiresOn: v.nullable(dateStringSchema),
 	expirySource: v.optional(v.nullable(v.picklist(["entered", "estimated"]))),
