@@ -9,6 +9,8 @@ export type ModerationCategory =
 	| "spam"
 	| "personal-info"
 	| "irrelevant"
+	// 審査への指示（注意する語で見つけたもの。AI には選ばせない）。
+	| "manipulation"
 	| "other";
 
 export const moderationCategoryLabels: Record<ModerationCategory, string> = {
@@ -19,6 +21,7 @@ export const moderationCategoryLabels: Record<ModerationCategory, string> = {
 	spam: "勧誘・広告",
 	"personal-info": "個人情報",
 	irrelevant: "レシピと関係のない内容",
+	manipulation: "内容の確認への指示",
 	other: "不適切な内容",
 };
 

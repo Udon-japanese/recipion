@@ -10,7 +10,9 @@ export type LexiconCategory =
 	// 侮辱・嫌がらせ
 	| "harassment"
 	// 連絡先・勧誘など（スパム・個人情報）
-	| "spam";
+	| "spam"
+	// 審査への指示（AI をだまして通そうとする言い回し）。注意する語だけに使う
+	| "manipulation";
 
 export type LexiconEntry = {
 	category: LexiconCategory;

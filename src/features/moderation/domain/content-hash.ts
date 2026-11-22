@@ -4,7 +4,8 @@ import type { ModerationItem } from "./moderation-target";
 // 判定の結果を覚えておくときの版。語の一覧やプロンプトを大きく変えたら上げる（古い結果を使わなくなる）。
 // 2：名前の欄（表示名・ハンドル）で、レシピとの関係（irrelevant）を問わなくした。
 // 3：判定の理由に、当たった場所（何番目の文章の、何文字目か）を持たせた。
-export const moderationVersion = "3";
+// 4：審査への指示の言い回しを、注意する語にした（前に通った同じ文章も、判定し直す）。
+export const moderationVersion = "4";
 
 async function sha256Hex(text: string): Promise<string> {
 	const digest = await crypto.subtle.digest(
