@@ -1,20 +1,35 @@
+import { env } from "cloudflare:workers";
+
 import { UserFacingError } from "#/errors/user-facing-error";
 import type { ResolvedSession } from "#/integrations/better-auth/resolve-session";
+import { loadLinkedRecipeTree } from "../application/load-linked-recipe-tree";
 import type { PreparedRecipeForStorage } from "../application/prepare-recipe-for-storage";
 import { RECIPE_CHANGED_ELSEWHERE_MESSAGE } from "../domain/recipe-revision";
 import {
 	createRecipeSnapshot,
 	type RecipeSnapshot,
 } from "../domain/recipe-snapshot";
+import {
+	listPublicRecipesOfUser,
+	searchLinkableUsers,
+} from "../infrastructure/drizzle-linkable-recipes";
 import { createDrizzleRecipeCookLogRepository } from "../infrastructure/drizzle-recipe-cook-log-repository";
 import { createDrizzleRecipeRepository } from "../infrastructure/drizzle-recipe-repository";
+import { createDrizzleRecipeSharingRepository } from "../infrastructure/drizzle-recipe-sharing-repository";
 import {
+	attemptUnlock,
 	findForkableParent,
 	findViewableRecipe,
+	loadParentMergeSource,
 } from "../infrastructure/drizzle-recipe-viewer-repository";
 import { guardRecipePublication } from "../server/guard-recipe-publication";
 import { assertParentSnapshotIsCurrent } from "../server/parent-merge";
-import { resolvePassphraseCipher } from "../server/resolve-passphrase";
+import {
+	createEncryptedPassphrase,
+	readPassphrase,
+	resolvePassphraseCipher,
+} from "../server/resolve-passphrase";
+import { assertWithinSearchLimit } from "../server/search-rate-limit";
 
 const RECIPE_NOT_FOUND_MESSAGE = "レシピが見つかりません";
 
@@ -22,6 +37,7 @@ const RECIPE_NOT_FOUND_MESSAGE = "レシピが見つかりません";
 export function createRecipeOperations({ db, userId }: ResolvedSession) {
 	const repository = createDrizzleRecipeRepository(db, userId);
 	const cookLogs = createDrizzleRecipeCookLogRepository(db, userId);
+	const sharing = createDrizzleRecipeSharingRepository(db, userId);
 
 	return {
 		list: () => repository.list(),
@@ -29,6 +45,96 @@ export function createRecipeOperations({ db, userId }: ResolvedSession) {
 		// 見てよいレシピ（自分のレシピ、全体公開、パスフレーズで開けた限定公開）。存在しない・見てはいけないは、どちらも null。
 		async getViewable(publicId: string) {
 			return (await findViewableRecipe(db, userId, publicId))?.recipe ?? null;
+		},
+
+		// レシピの画面に出す分（中身・作者・日付・もとにしたレシピ）。見てはいけない・存在しないは、どちらも null。
+		view: (publicId: string) => findViewableRecipe(db, userId, publicId),
+
+		// 限定公開のレシピを、パスフレーズで開ける。違う・存在しない・非公開は、どれも同じ「wrong」。
+		unlock: (input: { publicId: string; passphrase: string }) =>
+			attemptUnlock(db, {
+				viewerUserId: userId,
+				publicId: input.publicId,
+				passphrase: input.passphrase,
+				secret: env.BETTER_AUTH_SECRET,
+				now: new Date(),
+			}),
+
+		// 自分の限定公開レシピの、パスフレーズ（限定公開でなければ null）。
+		async getPassphrase(publicId: string) {
+			const state = await sharing.getSharingState(publicId);
+
+			if (state?.visibility !== "unlisted" || !state.passphraseCipher) {
+				return null;
+			}
+
+			return readPassphrase(state.passphraseCipher);
+		},
+
+		// パスフレーズを作り直す。これまでに開けた人は、新しいパスフレーズを入れないと、見られなくなる。
+		async regeneratePassphrase(publicId: string) {
+			const cipher = await createEncryptedPassphrase();
+
+			if (!(await sharing.replacePassphrase(publicId, cipher))) {
+				throw new UserFacingError("限定公開のレシピが見つかりません", {
+					code: "NOT_FOUND",
+				});
+			}
+
+			return readPassphrase(cipher);
+		},
+
+		// 材料のリンク先のレシピを、リンク先の中のリンクもたどって、まとめて返す（公開 ID → レシピ）。
+		// 存在しない場合と、見てはいけないレシピは、含めない。
+		linked: (publicIds: string[]) =>
+			loadLinkedRecipeTree(
+				publicIds,
+				async (publicId) =>
+					(await findViewableRecipe(db, userId, publicId))?.recipe ?? null,
+			),
+
+		// 他の人のレシピへのリンクのための、ユーザーの検索（全体公開のレシピを持つ人だけ。ハンドルか表示名の前方一致）。
+		async searchLinkableUsers(query: string) {
+			await assertWithinSearchLimit(userId);
+
+			return searchLinkableUsers(db, userId, query);
+		},
+
+		// そのユーザーの、全体公開のレシピの一覧。
+		async listUserPublicRecipes(handle: string) {
+			await assertWithinSearchLimit(userId);
+
+			return listPublicRecipesOfUser(db, userId, handle);
+		},
+
+		// 自分の子のレシピの、親の変更を取り込むための材料（写しと、今の親）。取り込めなければ null。
+		parentMergeSource: (publicId: string) =>
+			loadParentMergeSource(db, userId, publicId),
+
+		// 「今回の変更は取り込まない」：子の中身は変えず、写しだけを、今の親にする（知らせが消える）。
+		async dismissParentChanges(input: {
+			publicId: string;
+			parentSnapshot: RecipeSnapshot;
+		}) {
+			await assertParentSnapshotIsCurrent(
+				db,
+				userId,
+				input.publicId,
+				input.parentSnapshot,
+			);
+
+			if (
+				!(await repository.replaceParentSnapshot(
+					input.publicId,
+					input.parentSnapshot,
+				))
+			) {
+				throw new UserFacingError(RECIPE_NOT_FOUND_MESSAGE, {
+					code: "NOT_FOUND",
+				});
+			}
+
+			return { dismissed: true as const };
 		},
 
 		// 自分のレシピだけ（編集の画面）。内容と、いまの版。存在しない・他の人のレシピは、どちらも null。

@@ -28,15 +28,6 @@ import {
 } from "#/features/recipes/domain/recipe-snapshot";
 import { loadRecipe } from "#/features/recipes/infrastructure/load-recipe";
 import * as recipesApi from "#/features/recipes/infrastructure/recipes-api";
-import { getLinkedRecipesServerFn } from "#/features/recipes/server/get-linked-recipes";
-import {
-	listUserPublicRecipesServerFn,
-	searchLinkableUsersServerFn,
-} from "#/features/recipes/server/linkable-recipes";
-import {
-	dismissParentChangesServerFn,
-	getParentMergeSourceServerFn,
-} from "#/features/recipes/server/parent-merge";
 
 // 保存前の確認で押したリンクのプレビュー。編集中の内容を失わないよう、「レシピを開く」は、新しいタブで開く。
 function loadLinkedRecipe(publicId: string) {
@@ -44,7 +35,7 @@ function loadLinkedRecipe(publicId: string) {
 }
 
 function loadLinkedRecipes(publicIds: string[]) {
-	return getLinkedRecipesServerFn({ data: { publicIds } });
+	return recipesApi.getLinkedRecipes({ publicIds });
 }
 
 function renderOpenLink(publicId: string) {
@@ -62,7 +53,7 @@ function renderOpenLink(publicId: string) {
 	);
 }
 
-// 前もって取るリンク先の数の上限（getLinkedRecipesServerFn の入力の上限と同じ）。
+// 前もって取るリンク先の数の上限（API の /recipes/linked の入力の上限と同じ）。
 const maxPreloadedLinkTargets = 30;
 
 type OwnRecipes = Awaited<ReturnType<typeof recipesApi.listRecipes>>;
@@ -96,10 +87,10 @@ export const Route = createFileRoute("/recipes/$publicId/edit")({
 		const [ownRecipes, linkedRecipes, mergeSource] = await Promise.all([
 			recipesApi.listRecipes(),
 			linkTargetIds.length > 0
-				? getLinkedRecipesServerFn({ data: { publicIds: linkTargetIds } })
+				? recipesApi.getLinkedRecipes({ publicIds: linkTargetIds })
 				: {},
 			deps.merge
-				? getParentMergeSourceServerFn({ data: { publicId: params.publicId } })
+				? recipesApi.getParentMergeSource({ publicId: params.publicId })
 				: Promise.resolve(null),
 		]);
 
@@ -233,11 +224,9 @@ function EditRecipePage() {
 				}
 				onDismiss={async () => {
 					try {
-						await dismissParentChangesServerFn({
-							data: {
-								publicId: recipe.publicId,
-								parentSnapshot: source.current,
-							},
+						await recipesApi.dismissParentChanges({
+							publicId: recipe.publicId,
+							parentSnapshot: source.current,
 						});
 					} catch (error) {
 						if (isParentChangedAgainError(error)) {
@@ -272,10 +261,10 @@ function EditRecipePage() {
 				renderOpenLink={renderOpenLink}
 				loadLinkedRecipes={loadLinkedRecipes}
 				searchLinkableUsers={(query) =>
-					searchLinkableUsersServerFn({ data: { query } })
+					recipesApi.searchLinkableUsers({ query })
 				}
 				loadUserRecipes={(handle) =>
-					listUserPublicRecipesServerFn({ data: { handle } })
+					recipesApi.listUserPublicRecipes({ handle })
 				}
 				loadLinkTargets={() => loadLinkTargets(recipe.publicId)}
 				initialLinkTargets={linkTargets}

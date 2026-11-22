@@ -3,6 +3,10 @@ import { describe, expect, it, vi } from "vitest";
 import { createApiApp } from "#/api/create-api-app";
 import { UserFacingError } from "#/errors/user-facing-error";
 import { createRecipeEditorDocument } from "../domain/recipe-editor-document";
+import {
+	createRecipeSnapshot,
+	PARENT_CHANGED_AGAIN_MESSAGE,
+} from "../domain/recipe-snapshot";
 import type { RecipeOperations } from "./recipe-operations";
 
 function createDocument() {
@@ -20,6 +24,15 @@ function createOperations(
 		list: vi.fn(async () => []),
 		getViewable: vi.fn(async () => null),
 		getOwn: vi.fn(async () => null),
+		view: vi.fn(async () => null),
+		unlock: vi.fn(async () => "wrong" as const),
+		getPassphrase: vi.fn(async () => null),
+		regeneratePassphrase: vi.fn(async () => "あたらしい-あいことば"),
+		linked: vi.fn(async () => ({})),
+		searchLinkableUsers: vi.fn(async () => []),
+		listUserPublicRecipes: vi.fn(async () => []),
+		parentMergeSource: vi.fn(async () => null),
+		dismissParentChanges: vi.fn(async () => ({ dismissed: true as const })),
 		create: vi.fn(async () => ({ id: "id-1", publicId: "new-1" })),
 		update: vi.fn(async () => ({ publicId: "recipe-1", revision: "r2" })),
 		delete: vi.fn(async () => ({ deleted: true as const })),
@@ -196,5 +209,78 @@ describe("レシピの API", () => {
 
 		expect(operations.listCooks).toHaveBeenNthCalledWith(1, "c1");
 		expect(operations.listCooks).toHaveBeenNthCalledWith(2, null);
+	});
+
+	it("合言葉で開ける：結果を { result } で返す（文字列だけを返さない。アプリが読みやすい形）", async () => {
+		const { app, operations } = createApp();
+		const response = await post(app, "/unlock", {
+			publicId: "recipe-1",
+			passphrase: "ちがう",
+		});
+
+		expect(await response.json()).toEqual({ result: "wrong" });
+		expect(operations.unlock).toHaveBeenCalledWith({
+			publicId: "recipe-1",
+			passphrase: "ちがう",
+		});
+	});
+
+	it("合言葉の作り直し：作り直した合言葉を { passphrase } で返す", async () => {
+		const { app } = createApp();
+		const response = await post(app, "/passphrase/regenerate", {
+			publicId: "recipe-1",
+		});
+
+		expect(await response.json()).toEqual({
+			passphrase: "あたらしい-あいことば",
+		});
+	});
+
+	it("リンク先：31 個以上は 400（たどらない）", async () => {
+		const { app, operations } = createApp();
+		const response = await post(app, "/linked", {
+			publicIds: Array.from({ length: 31 }, (_, index) => `r-${index}`),
+		});
+
+		expect(response.status).toBe(400);
+		expect(operations.linked).not.toHaveBeenCalled();
+	});
+
+	it("リンクのためのユーザー検索：回数の制限は 429", async () => {
+		const operations = createOperations({
+			searchLinkableUsers: vi.fn(async () => {
+				throw new UserFacingError("検索の回数が多すぎます。", {
+					code: "RATE_LIMITED",
+				});
+			}),
+		});
+		const { app } = createApp({ operations });
+		const response = await app.request(
+			"/api/v1/recipes/linkable-users?query=%E3%81%9F",
+			{ headers: { authorization: "Bearer a.b" } },
+		);
+
+		expect(response.status).toBe(429);
+		expect(operations.searchLinkableUsers).toHaveBeenCalledWith("た");
+	});
+
+	it("親の変更を取り込まない：親がまた変わっていれば 409 と、画面が見分ける文", async () => {
+		const operations = createOperations({
+			dismissParentChanges: vi.fn(async () => {
+				throw new UserFacingError(PARENT_CHANGED_AGAIN_MESSAGE, {
+					code: "CONFLICT",
+				});
+			}),
+		});
+		const { app } = createApp({ operations });
+		const response = await post(app, "/parent-merge/dismiss", {
+			publicId: "child-1",
+			parentSnapshot: createRecipeSnapshot(createDocument()),
+		});
+
+		expect(response.status).toBe(409);
+		expect(await response.json()).toEqual({
+			error: { code: "CONFLICT", message: PARENT_CHANGED_AGAIN_MESSAGE },
+		});
 	});
 });

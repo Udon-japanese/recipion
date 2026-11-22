@@ -57,3 +57,61 @@ export async function getRecipeCookStats(input: { publicId: string }) {
 export async function listRecipeCooks(input: { cursor?: string }) {
 	return readApiResponse(await recipes.cooks.$get({ query: input }));
 }
+
+// レシピの画面に出す分（中身・作者・日付・もとにしたレシピ）。見てはいけない・存在しないは null。
+export async function viewRecipe(input: { publicId: string }) {
+	return readApiResponse(await recipes.view.$get({ query: input }));
+}
+
+// 限定公開のレシピを、パスフレーズで開ける。
+export async function unlockRecipe(input: JsonOf<typeof recipes.unlock>) {
+	return (await readApiResponse(await recipes.unlock.$post({ json: input })))
+		.result;
+}
+
+// 自分の限定公開レシピの、パスフレーズ（限定公開でなければ null）。
+export async function getRecipePassphrase(input: { publicId: string }) {
+	return (
+		await readApiResponse(await recipes.passphrase.$get({ query: input }))
+	).passphrase;
+}
+
+export async function regenerateRecipePassphrase(
+	input: JsonOf<typeof recipes.passphrase.regenerate>,
+) {
+	return (
+		await readApiResponse(
+			await recipes.passphrase.regenerate.$post({ json: input }),
+		)
+	).passphrase;
+}
+
+// 材料のリンク先のレシピを、リンク先の中のリンクもたどって、まとめて取る（公開 ID → レシピ）。
+export async function getLinkedRecipes(input: JsonOf<typeof recipes.linked>) {
+	return readApiResponse(await recipes.linked.$post({ json: input }));
+}
+
+export async function searchLinkableUsers(input: { query: string }) {
+	return readApiResponse(
+		await recipes["linkable-users"].$get({ query: input }),
+	);
+}
+
+export async function listUserPublicRecipes(input: { handle: string }) {
+	return readApiResponse(
+		await recipes["linkable-users"].recipes.$get({ query: input }),
+	);
+}
+
+// 自分の子のレシピの、親の変更を取り込むための材料。取り込めなければ null。
+export async function getParentMergeSource(input: { publicId: string }) {
+	return readApiResponse(await recipes["parent-merge"].$get({ query: input }));
+}
+
+export async function dismissParentChanges(
+	input: JsonOf<(typeof recipes)["parent-merge"]["dismiss"]>,
+) {
+	return readApiResponse(
+		await recipes["parent-merge"].dismiss.$post({ json: input }),
+	);
+}

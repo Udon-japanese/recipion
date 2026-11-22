@@ -42,6 +42,32 @@ const forkRecipeInputSchema = v.object({
 	document: recipeEditorDocumentSchema,
 });
 
+const unlockInputSchema = v.object({
+	publicId: publicIdSchema,
+	passphrase: v.pipe(v.string(), v.maxLength(200)),
+});
+
+// 前もって取るリンク先の数の上限（画面の maxPreloadedLinkTargets）と同じ。
+const linkedInputSchema = v.object({
+	publicIds: v.pipe(
+		v.array(v.pipe(v.string(), v.maxLength(100))),
+		v.maxLength(30),
+	),
+});
+
+const linkableUsersQuerySchema = v.object({
+	query: v.pipe(v.string(), v.maxLength(100)),
+});
+
+const userRecipesQuerySchema = v.object({
+	handle: v.pipe(v.string(), v.minLength(1), v.maxLength(40)),
+});
+
+const dismissParentChangesInputSchema = v.object({
+	publicId: publicIdSchema,
+	parentSnapshot: recipeSnapshotSchema,
+});
+
 // 「つくった」の操作の印は「レシピの公開 ID:UUID」（startRecipeConsumption）。別のレシピの印は受け付けない。
 const cookInputSchema = v.pipe(
 	v.object({
@@ -104,6 +130,100 @@ export function createRecipeRoutes(dependencies: RecipeRouteDependencies) {
 
 				return c.json(await (await operationsFor(c)).getOwn(publicId), 200);
 			})
+			// レシピの画面に出す分（中身・作者・日付・もとにしたレシピ）。
+			.get("/view", validate("query", publicIdQuerySchema), async (c) => {
+				const { publicId } = c.req.valid("query");
+
+				return c.json(await (await operationsFor(c)).view(publicId), 200);
+			})
+			.post("/unlock", validate("json", unlockInputSchema), async (c) =>
+				c.json(
+					{
+						result: await (await operationsFor(c)).unlock(c.req.valid("json")),
+					},
+					200,
+				),
+			)
+			.get("/passphrase", validate("query", publicIdQuerySchema), async (c) => {
+				const { publicId } = c.req.valid("query");
+
+				return c.json(
+					{
+						passphrase: await (await operationsFor(c)).getPassphrase(publicId),
+					},
+					200,
+				);
+			})
+			.post(
+				"/passphrase/regenerate",
+				validate("json", publicIdQuerySchema),
+				async (c) => {
+					const { publicId } = c.req.valid("json");
+
+					return c.json(
+						{
+							passphrase: await (await operationsFor(c)).regeneratePassphrase(
+								publicId,
+							),
+						},
+						200,
+					);
+				},
+			)
+			// 読むだけだが、ID が最大 30 個で URL が長くなるため、POST で受ける。
+			.post("/linked", validate("json", linkedInputSchema), async (c) =>
+				c.json(
+					await (await operationsFor(c)).linked(c.req.valid("json").publicIds),
+					200,
+				),
+			)
+			.get(
+				"/linkable-users",
+				validate("query", linkableUsersQuerySchema),
+				async (c) => {
+					const { query } = c.req.valid("query");
+
+					return c.json(
+						await (await operationsFor(c)).searchLinkableUsers(query),
+						200,
+					);
+				},
+			)
+			.get(
+				"/linkable-users/recipes",
+				validate("query", userRecipesQuerySchema),
+				async (c) => {
+					const { handle } = c.req.valid("query");
+
+					return c.json(
+						await (await operationsFor(c)).listUserPublicRecipes(handle),
+						200,
+					);
+				},
+			)
+			.get(
+				"/parent-merge",
+				validate("query", publicIdQuerySchema),
+				async (c) => {
+					const { publicId } = c.req.valid("query");
+
+					return c.json(
+						await (await operationsFor(c)).parentMergeSource(publicId),
+						200,
+					);
+				},
+			)
+			.post(
+				"/parent-merge/dismiss",
+				validate("json", dismissParentChangesInputSchema),
+				async (c) =>
+					c.json(
+						await (await operationsFor(c)).dismissParentChanges(
+							c.req.valid("json"),
+						),
+						200,
+					),
+			)
 			.post(
 				"/update",
 				validate(

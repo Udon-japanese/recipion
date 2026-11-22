@@ -10,11 +10,6 @@ import { RecipeEditor } from "#/features/recipes/components/recipe-editor";
 import { createForkDocument } from "#/features/recipes/domain/create-fork-document";
 import { collectOwnRecipeTags } from "#/features/recipes/domain/filter-own-recipes";
 import * as recipesApi from "#/features/recipes/infrastructure/recipes-api";
-import { getLinkedRecipesServerFn } from "#/features/recipes/server/get-linked-recipes";
-import {
-	listUserPublicRecipesServerFn,
-	searchLinkableUsersServerFn,
-} from "#/features/recipes/server/linkable-recipes";
 
 type OwnRecipes = Awaited<ReturnType<typeof recipesApi.listRecipes>>;
 
@@ -37,7 +32,7 @@ function loadLinkedRecipe(publicId: string) {
 }
 
 function loadLinkedRecipes(publicIds: string[]) {
-	return getLinkedRecipesServerFn({ data: { publicIds } });
+	return recipesApi.getLinkedRecipes({ publicIds });
 }
 
 function renderOpenLink(publicId: string) {
@@ -141,10 +136,10 @@ function NewRecipePage() {
 				initialLinkTargets={linkTargets}
 				personalTagSuggestions={personalTagSuggestions}
 				searchLinkableUsers={(query) =>
-					searchLinkableUsersServerFn({ data: { query } })
+					recipesApi.searchLinkableUsers({ query })
 				}
 				loadUserRecipes={(handle) =>
-					listUserPublicRecipesServerFn({ data: { handle } })
+					recipesApi.listUserPublicRecipes({ handle })
 				}
 				onSave={(document) =>
 					fork

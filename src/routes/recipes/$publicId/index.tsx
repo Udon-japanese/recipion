@@ -71,21 +71,12 @@ import {
 	stashSharedPassphrase,
 	takeSharedPassphrase,
 } from "#/features/recipes/infrastructure/shared-passphrase-storage";
-import { getLinkedRecipesServerFn } from "#/features/recipes/server/get-linked-recipes";
 import { getHouseholdSizeServerFn } from "#/features/recipes/server/household-size";
-import {
-	getRecipePassphraseServerFn,
-	regenerateRecipePassphraseServerFn,
-} from "#/features/recipes/server/recipe-passphrase";
-import {
-	unlockRecipeServerFn,
-	viewRecipeServerFn,
-} from "#/features/recipes/server/view-recipe";
 import { ReportMenu } from "#/features/reports/components/report-menu";
 import { createReportServerFn } from "#/features/reports/server/create-report";
 import { createUserNameReportServerFn } from "#/features/reports/server/create-user-report";
 
-// 前もって取るリンク先の数の上限（getLinkedRecipesServerFn の入力の上限と同じ）。
+// 前もって取るリンク先の数の上限（API の /recipes/linked の入力の上限と同じ）。
 const maxPreloadedLinkTargets = 30;
 
 export const Route = createFileRoute("/recipes/$publicId/")({
@@ -102,7 +93,7 @@ export const Route = createFileRoute("/recipes/$publicId/")({
 	// 在庫は、前もって取らない（「買い物メモへ」「つくった」で使うときに、その時点の在庫を取る）。
 	loader: async ({ params }) => {
 		const [viewable, cookStats, householdSize] = await Promise.all([
-			viewRecipeServerFn({ data: { publicId: params.publicId } }),
+			recipesApi.viewRecipe({ publicId: params.publicId }),
 			recipesApi.getRecipeCookStats({ publicId: params.publicId }),
 			getHouseholdSizeServerFn(),
 		]);
@@ -117,7 +108,7 @@ export const Route = createFileRoute("/recipes/$publicId/")({
 		);
 		const linkedRecipes =
 			linkTargetIds.length > 0
-				? await getLinkedRecipesServerFn({ data: { publicIds: linkTargetIds } })
+				? await recipesApi.getLinkedRecipes({ publicIds: linkTargetIds })
 				: {};
 
 		return { ...viewable, linkedRecipes, cookStats, householdSize };
@@ -226,20 +217,17 @@ function useRecipeViewSupport(
 
 	// 材料のリンク先を、リンク先の中のリンクもたどって、まとめて取る（材料の下に、その場で開く）。
 	const loadLinkedRecipes = useCallback(
-		(publicIds: string[]) => getLinkedRecipesServerFn({ data: { publicIds } }),
+		(publicIds: string[]) => recipesApi.getLinkedRecipes({ publicIds }),
 		[],
 	);
 
 	// 限定公開のパスフレーズ（持ち主だけ）。
 	const loadPassphrase = useCallback(
-		() => getRecipePassphraseServerFn({ data: { publicId: recipe.publicId } }),
+		() => recipesApi.getRecipePassphrase({ publicId: recipe.publicId }),
 		[recipe.publicId],
 	);
 	const regeneratePassphrase = useCallback(
-		() =>
-			regenerateRecipePassphraseServerFn({
-				data: { publicId: recipe.publicId },
-			}),
+		() => recipesApi.regenerateRecipePassphrase({ publicId: recipe.publicId }),
 		[recipe.publicId],
 	);
 
@@ -701,7 +689,7 @@ function RecipePage() {
 			<RecipeUnlockForm
 				key={publicId}
 				onUnlock={(passphrase) =>
-					unlockRecipeServerFn({ data: { publicId, passphrase } })
+					recipesApi.unlockRecipe({ publicId, passphrase })
 				}
 				onUnlocked={() => void router.invalidate()}
 				takeSharedPassphrase={() => takeSharedPassphrase(publicId)}
