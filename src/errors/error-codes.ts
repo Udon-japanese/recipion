@@ -14,6 +14,8 @@ export const errorCodeStatuses = {
 	CONFLICT: 409,
 	// 入力の誤り。
 	INVALID_INPUT: 400,
+	// 公開の審査で、公開できない内容と判定された（文は、理由の説明）。
+	PUBLICATION_REFUSED: 422,
 	// 回数の上限。
 	RATE_LIMITED: 429,
 	// アプリ・画面が古く、API が受け付けない。

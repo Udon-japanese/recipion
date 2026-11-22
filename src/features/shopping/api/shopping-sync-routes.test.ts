@@ -48,6 +48,7 @@ function createApp(
 		minimumClientVersions: { android: "0.0.0", ios: "0.0.0", web: "0.0.0" },
 		shoppingSync: { resolveSession, createStore: () => store },
 		inventory: { resolveSession, createRepository: vi.fn() },
+		recipes: { resolveSession, createOperations: vi.fn() },
 	});
 
 	return { app, store, resolveSession };

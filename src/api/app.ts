@@ -2,6 +2,7 @@ import { createApiApp } from "#/api/create-api-app";
 import { minimumClientVersions } from "#/config/client-versions";
 import { createDb } from "#/db/client";
 import { createDrizzleInventoryRepository } from "#/features/inventory/infrastructure/drizzle-inventory-repository";
+import { createRecipeOperations } from "#/features/recipes/api/recipe-operations";
 import { createDrizzleShoppingSyncRepository } from "#/features/shopping/infrastructure/drizzle-shopping-sync-repository";
 import { createAuth } from "#/integrations/better-auth/auth";
 import { resolveSession } from "#/integrations/better-auth/resolve-session";
@@ -24,4 +25,5 @@ export const apiApp = createApiApp({
 		createRepository: ({ db, userId }) =>
 			createDrizzleInventoryRepository(db, userId),
 	},
+	recipes: { resolveSession, createOperations: createRecipeOperations },
 });

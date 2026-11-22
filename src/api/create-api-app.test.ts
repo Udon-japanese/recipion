@@ -15,6 +15,7 @@ function createApp() {
 				createStore: vi.fn(),
 			},
 			inventory: { resolveSession: vi.fn(), createRepository: vi.fn() },
+			recipes: { resolveSession: vi.fn(), createOperations: vi.fn() },
 		}),
 		handleAuth,
 	};

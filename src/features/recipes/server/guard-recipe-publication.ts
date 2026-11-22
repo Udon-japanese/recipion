@@ -25,7 +25,9 @@ export async function guardRecipePublication(
 	);
 
 	if (enforcement.status === "refused") {
-		throw new UserFacingError(enforcement.message);
+		throw new UserFacingError(enforcement.message, {
+			code: "PUBLICATION_REFUSED",
+		});
 	}
 
 	const flagged = enforcement.flagged;

@@ -5,13 +5,15 @@ import { RecipeRouteError } from "#/features/recipes/components/recipe-route-err
 import { RecipesFrame } from "#/features/recipes/components/recipes-frame";
 import type { OwnRecipeSearch } from "#/features/recipes/domain/recipe-search-history";
 import { useRecipeSearchHistory } from "#/features/recipes/hooks/use-recipe-search-history";
-import { listRecipesServerFn } from "#/features/recipes/server/list-recipes";
+import * as recipesApi from "#/features/recipes/infrastructure/recipes-api";
 
 // 自分のレシピ。検索の条件は、個人用のタグを含むため URL に出さず、履歴（history state）に持つ。
 // みんなのレシピは /recipes/public、つくった記録は /recipes/made。
 export const Route = createFileRoute("/recipes/")({
+	// ブラウザだけで描く（データは API から読む。サーバーの中では API を呼べないため。Web の最終形は SPA）。
+	ssr: false,
 	head: () => ({ meta: [{ title: pageTitle("レシピ") }] }),
-	loader: () => listRecipesServerFn(),
+	loader: () => recipesApi.listRecipes(),
 	errorComponent: RecipeRouteError,
 	component: OwnRecipesPage,
 });

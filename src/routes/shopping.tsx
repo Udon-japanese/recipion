@@ -14,9 +14,8 @@ import { createDexieInventoryCacheRepository } from "#/features/inventory/infras
 import * as inventoryApi from "#/features/inventory/infrastructure/inventory-api";
 import { syncDexieInventoryPurchaseOutbox } from "#/features/inventory/infrastructure/sync-dexie-inventory-purchase-outbox";
 import { RecipeToShoppingPicker } from "#/features/recipes/components/recipe-to-shopping-picker";
-import { getRecipeServerFn } from "#/features/recipes/server/get-recipe";
+import * as recipesApi from "#/features/recipes/infrastructure/recipes-api";
 import { getHouseholdSizeServerFn } from "#/features/recipes/server/household-size";
-import { listRecipesServerFn } from "#/features/recipes/server/list-recipes";
 import { GuestShoppingMemoAdoption } from "#/features/shopping/components/guest-shopping-memo-adoption";
 import type { RecipePickerContext } from "#/features/shopping/components/recipe-picker-slot";
 import { ShoppingList } from "#/features/shopping/components/shopping-list";
@@ -44,7 +43,7 @@ function ShoppingPage() {
 
 	// 自分のレシピの一覧（「レシピから入れる」で選ぶ）。
 	const listRecipes = useCallback(async () => {
-		const recipes = await listRecipesServerFn();
+		const recipes = await recipesApi.listRecipes();
 
 		return recipes.map(({ publicId, name, createdAt }) => ({
 			publicId,
@@ -54,7 +53,7 @@ function ShoppingPage() {
 	}, []);
 
 	const loadRecipe = useCallback(
-		(publicId: string) => getRecipeServerFn({ data: { publicId } }),
+		(publicId: string) => recipesApi.getRecipe({ publicId }),
 		[],
 	);
 

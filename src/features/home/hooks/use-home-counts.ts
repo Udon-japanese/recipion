@@ -3,7 +3,7 @@ import { loadInventoryItemsWithCache } from "#/features/inventory/application/lo
 import { toDateString } from "#/features/inventory/domain/inventory-lot";
 import { createDexieInventoryCacheRepository } from "#/features/inventory/infrastructure/dexie-inventory-cache-repository";
 import * as inventoryApi from "#/features/inventory/infrastructure/inventory-api";
-import { listRecipesServerFn } from "#/features/recipes/server/list-recipes";
+import * as recipesApi from "#/features/recipes/infrastructure/recipes-api";
 import { useShoppingOwnerScope } from "#/features/shopping/hooks/use-shopping-owner-scope";
 import { createDexieShoppingRepository } from "#/features/shopping/infrastructure/dexie-shopping-repository";
 import {
@@ -101,7 +101,7 @@ export function useRecipeCount(userId: string | null): CountState<number> {
 		let cancelled = false;
 
 		setState(loading);
-		listRecipesServerFn().then(
+		recipesApi.listRecipes().then(
 			(recipes) => {
 				if (!cancelled) {
 					setState({ status: "ready", value: recipes.length });

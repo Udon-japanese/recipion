@@ -66,19 +66,13 @@ import {
 	ratioForYield,
 	scaleRecipeYieldText,
 } from "#/features/recipes/domain/recipe-yield";
+import * as recipesApi from "#/features/recipes/infrastructure/recipes-api";
 import {
 	stashSharedPassphrase,
 	takeSharedPassphrase,
 } from "#/features/recipes/infrastructure/shared-passphrase-storage";
-import { deleteRecipeServerFn } from "#/features/recipes/server/delete-recipe";
 import { getLinkedRecipesServerFn } from "#/features/recipes/server/get-linked-recipes";
-import { getRecipeServerFn } from "#/features/recipes/server/get-recipe";
 import { getHouseholdSizeServerFn } from "#/features/recipes/server/household-size";
-import {
-	cancelRecipeCookServerFn,
-	getRecipeCookStatsServerFn,
-	recordRecipeCookServerFn,
-} from "#/features/recipes/server/recipe-cook-log";
 import {
 	getRecipePassphraseServerFn,
 	regenerateRecipePassphraseServerFn,
@@ -95,6 +89,8 @@ import { createUserNameReportServerFn } from "#/features/reports/server/create-u
 const maxPreloadedLinkTargets = 30;
 
 export const Route = createFileRoute("/recipes/$publicId/")({
+	// ブラウザだけで描く（データは API から読む。サーバーの中では API を呼べないため。Web の最終形は SPA）。
+	ssr: false,
 	// n：見る人が選んだ、できあがりの数（「4人分」のレシピを2人分で見る、など）。なければ、レシピの量のまま。
 	validateSearch: v.object({
 		n: v.optional(
@@ -107,7 +103,7 @@ export const Route = createFileRoute("/recipes/$publicId/")({
 	loader: async ({ params }) => {
 		const [viewable, cookStats, householdSize] = await Promise.all([
 			viewRecipeServerFn({ data: { publicId: params.publicId } }),
-			getRecipeCookStatsServerFn({ data: { publicId: params.publicId } }),
+			recipesApi.getRecipeCookStats({ publicId: params.publicId }),
 			getHouseholdSizeServerFn(),
 		]);
 
@@ -155,7 +151,7 @@ type RecipePreload = {
 // こともあるので、前もって取った分は使わず、押したときに取り直す（在庫と同じ。見つからなければ、知らせる）。
 // 画面の中の値を使わないので、コンポーネントの外に置く（いつも同じ関数のまま）。
 function loadCurrentLinkedRecipe(publicId: string) {
-	return getRecipeServerFn({ data: { publicId } });
+	return recipesApi.getRecipe({ publicId });
 }
 
 // 見る人によらない、画面の支え（リンク先の取得、在庫、「ある」の登録）。
@@ -204,19 +200,18 @@ function useRecipeViewSupport(
 	const cookLog = {
 		record: async (sourceId: string) => {
 			setCookStats(
-				await recordRecipeCookServerFn({
-					data: {
-						recipePublicId: recipe.publicId,
-						sourceId,
-						yieldText: scaleRecipeYieldText(recipe.yieldText, ratio),
-					},
+				await recipesApi.recordRecipeCook({
+					recipePublicId: recipe.publicId,
+					sourceId,
+					yieldText: scaleRecipeYieldText(recipe.yieldText, ratio),
 				}),
 			);
 		},
 		cancel: async (sourceId: string) => {
 			setCookStats(
-				await cancelRecipeCookServerFn({
-					data: { recipePublicId: recipe.publicId, sourceId },
+				await recipesApi.cancelRecipeCook({
+					recipePublicId: recipe.publicId,
+					sourceId,
 				}),
 			);
 		},
@@ -225,8 +220,7 @@ function useRecipeViewSupport(
 	// リンク先のレシピ（プレビューで見る分）。前もって取ってあれば、それを使う（すぐに開くため）。
 	const loadLinkedRecipe = useCallback(
 		async (publicId: string) =>
-			linkedRecipes[publicId] ??
-			(await getRecipeServerFn({ data: { publicId } })),
+			linkedRecipes[publicId] ?? (await recipesApi.getRecipe({ publicId })),
 		[linkedRecipes],
 	);
 
@@ -457,9 +451,7 @@ function OwnRecipePage({
 							})
 						}
 						onDelete={async () => {
-							await deleteRecipeServerFn({
-								data: { publicId: recipe.publicId },
-							});
+							await recipesApi.deleteRecipe({ publicId: recipe.publicId });
 							await navigate({ to: "/recipes" });
 						}}
 					/>
