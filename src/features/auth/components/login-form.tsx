@@ -3,7 +3,6 @@ import * as v from "valibot";
 import { Button } from "#/components/button/button";
 import { useButtonAction } from "#/components/button/use-button-action";
 import { Field, TextInput } from "#/components/field/field";
-import { Icon } from "#/components/icon/icon";
 import { Note } from "#/components/note/note";
 import {
 	OTP_EXPIRES_IN_SECONDS,
@@ -26,8 +25,8 @@ const emailSchema = v.pipe(
 
 type Step = "email" | "code";
 
-const captchaPendingMessage =
-	"ボットの判定が完了していません。少し待ってからお試しください。";
+const captchaFailedMessage =
+	"ボットの判定ができませんでした。もう一度お試しください。";
 
 type LoginFormProps = {
 	// ログインできたあとに、セッションを取り直す。
@@ -48,6 +47,8 @@ export function LoginForm({ onLoggedIn, refetchSession }: LoginFormProps) {
 	const [captchaResetKey, setCaptchaResetKey] = useState(0);
 	const [captchaLoadFailed, setCaptchaLoadFailed] = useState(false);
 	const [captchaAttempt, setCaptchaAttempt] = useState(0);
+	// 判定が失敗した（次に送るときに、判定し直す）。
+	const [captchaFailed, setCaptchaFailed] = useState(false);
 	const [cooldown, setCooldown] = useState(0);
 	// コードの送信と確認の状態。成功すると、次の段階・画面へ移るので、見せるのは処理中と失敗だけ。
 	// どちらも、処理中の二度目の実行は止まる（6 桁が揃ったときの自動の確認と、ボタンが重なっても、1 回だけ）。
@@ -56,9 +57,9 @@ export function LoginForm({ onLoggedIn, refetchSession }: LoginFormProps) {
 	const isSubmitting = sendAction.isPending || verifyAction.isPending;
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [notice, setNotice] = useState<string | null>(null);
-	// 再送：メールアドレスの段階に戻り、ボット判定が通ったら、そのまま送る。
-	// （ボット判定は、コードを送るときだけ要る。コードの段階では、回数の制限があるので、出さない）
-	const [isResending, setIsResending] = useState(false);
+	// ボット判定が終わったら、そのまま送る（判定は、画面を開いたときに裏で始まる。終わる前に押したときと、再送のとき）。
+	// 再送は、メールアドレスの段階に戻ってから送る（ボット判定は、コードを送るときだけ要る。コードの段階では、回数の制限があるので、要らない）。
+	const [sendWhenReady, setSendWhenReady] = useState(false);
 
 	useEffect(() => {
 		if (cooldown <= 0) return;
@@ -89,7 +90,13 @@ export function LoginForm({ onLoggedIn, refetchSession }: LoginFormProps) {
 		}
 
 		if (!captchaToken) {
-			setErrorMessage(captchaPendingMessage);
+			// 判定が終わるのを待って送る。失敗していたら、判定し直す。
+			if (captchaFailed) {
+				setCaptchaFailed(false);
+				setCaptchaResetKey((current) => current + 1);
+			}
+
+			setSendWhenReady(true);
 
 			return;
 		}
@@ -160,18 +167,29 @@ export function LoginForm({ onLoggedIn, refetchSession }: LoginFormProps) {
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: sendCode は、描画ごとに作り直す関数。トークンが届いたときだけ動かす。
 	useEffect(() => {
-		if (step !== "email" || !isResending || !captchaToken) return;
+		if (step !== "email" || !sendWhenReady || !captchaToken) return;
 
-		setIsResending(false);
+		setSendWhenReady(false);
 		void sendCode();
-	}, [step, isResending, captchaToken]);
+	}, [step, sendWhenReady, captchaToken]);
+
+	// 待っている間に判定が失敗したら、待つのをやめて、伝える。
+	useEffect(() => {
+		if (!sendWhenReady || !(captchaFailed || captchaLoadFailed)) return;
+
+		setSendWhenReady(false);
+
+		if (captchaFailed) {
+			setErrorMessage(captchaFailedMessage);
+		}
+	}, [sendWhenReady, captchaFailed, captchaLoadFailed]);
 
 	function resend() {
 		setErrorMessage(null);
 		setStep("email");
 		setDigits(createEmptyDigits(OTP_LENGTH));
 		setNotice(null);
-		setIsResending(true);
+		setSendWhenReady(true);
 	}
 
 	function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
@@ -190,15 +208,20 @@ export function LoginForm({ onLoggedIn, refetchSession }: LoginFormProps) {
 
 	const canResend = cooldown === 0 && !isSubmitting;
 
-	const isCaptchaReady = captchaToken !== null;
 	const botCheck = (
 		<BotCheck
 			siteKey={turnstileSiteKey}
-			isReady={isCaptchaReady}
 			loadFailed={captchaLoadFailed}
 			attempt={captchaAttempt}
 			resetKey={captchaResetKey}
-			onToken={setCaptchaToken}
+			onToken={(token) => {
+				setCaptchaToken(token);
+
+				if (token) {
+					setCaptchaFailed(false);
+				}
+			}}
+			onError={() => setCaptchaFailed(true)}
 			onLoadError={() => setCaptchaLoadFailed(true)}
 			onRetry={() => {
 				setCaptchaLoadFailed(false);
@@ -236,15 +259,11 @@ export function LoginForm({ onLoggedIn, refetchSession }: LoginFormProps) {
 						type="submit"
 						size="lg"
 						fullWidth
-						status={isResending ? "pending" : sendAction.status}
+						status={sendWhenReady ? "pending" : sendAction.status}
 						pendingLabel="送信中"
 						successLabel="送りました"
 						errorLabel="送れませんでした"
-						disabled={
-							email.trim() === "" ||
-							turnstileSiteKey === "" ||
-							captchaToken === null
-						}
+						disabled={email.trim() === "" || turnstileSiteKey === ""}
 					>
 						コードを送る
 					</Button>
@@ -311,7 +330,7 @@ export function LoginForm({ onLoggedIn, refetchSession }: LoginFormProps) {
 						disabled={isSubmitting}
 						onClick={() => {
 							setErrorMessage(null);
-							setIsResending(false);
+							setSendWhenReady(false);
 							resetToEmailStep();
 						}}
 					>
@@ -327,23 +346,23 @@ export function LoginForm({ onLoggedIn, refetchSession }: LoginFormProps) {
 
 type BotCheckProps = {
 	siteKey: string;
-	isReady: boolean;
 	loadFailed: boolean;
 	attempt: number;
 	resetKey: number;
 	onToken: (token: string | null) => void;
+	onError: () => void;
 	onLoadError: () => void;
 	onRetry: () => void;
 };
 
-// ボット判定（Cloudflare Turnstile）。通ると「確認できました」。判定のために操作が要るときは、そのまま見える。
+// ボット判定（Cloudflare Turnstile の Invisible モード）。判定は画面に出ない。出すのは、読み込めなかったときだけ。
 function BotCheck({
 	siteKey,
-	isReady,
 	loadFailed,
 	attempt,
 	resetKey,
 	onToken,
+	onError,
 	onLoadError,
 	onRetry,
 }: BotCheckProps) {
@@ -356,7 +375,7 @@ function BotCheck({
 	}
 
 	return (
-		<div className={styles.botCheck}>
+		<>
 			{loadFailed ? (
 				<Note
 					tone="error"
@@ -368,30 +387,18 @@ function BotCheck({
 				>
 					ボットの判定を読み込めませんでした。広告ブロックなどを無効にして、再試行してください。
 				</Note>
-			) : isReady ? (
-				<div className={styles.botCheckDone}>
-					<Icon name="check-circle" size={20} />
-					<output>確認できました</output>
-				</div>
-			) : (
-				<div className={styles.botCheckPending}>
-					<span className={styles.spin_}>
-						<Icon name="spinner" size={20} />
-					</span>
-					<span>ボット判定を確認しています…</span>
-				</div>
-			)}
+			) : null}
 
-			{/* ウィジェットは、判定が済んだら隠す。作り直すときは、また見える。 */}
-			<div hidden={isReady || loadFailed}>
+			<div className={styles.botCheckHost}>
 				<TurnstileWidget
 					key={attempt}
 					siteKey={siteKey}
 					onToken={onToken}
+					onError={onError}
 					onLoadError={onLoadError}
 					resetKey={resetKey}
 				/>
 			</div>
-		</div>
+		</>
 	);
 }

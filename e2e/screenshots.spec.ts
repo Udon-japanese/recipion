@@ -60,7 +60,9 @@ test.describe("ログインしていない画面", () => {
 
 	test("ログイン", async ({ page }) => {
 		await page.goto("/login");
-		await expect(page.getByText("確認できました")).toBeVisible();
+		await expect(
+			page.getByRole("button", { name: "コードを送る" }),
+		).toBeVisible();
 		await expect(page).toHaveScreenshot("login.png", { fullPage: true });
 	});
 });

@@ -34,4 +34,14 @@ describe("PrivacyPage", () => {
 			);
 		}
 	});
+
+	it("Invisible の Turnstile の条件どおり、Cloudflare の Turnstile Privacy Addendum に触れる", () => {
+		render(<PrivacyPage />);
+
+		expect(
+			screen.getByText(
+				/Turnstile Privacy Addendum（https:\/\/www\.cloudflare\.com\/turnstile-privacy-policy\/）/u,
+			),
+		).toBeInTheDocument();
+	});
 });

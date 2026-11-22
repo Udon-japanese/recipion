@@ -35,9 +35,15 @@ describe("TurnstileWidget", () => {
 	it("サイトキーと日本語の設定でウィジェットを作り、得たトークンを知らせる", async () => {
 		const fake = installFakeTurnstile();
 		const onToken = vi.fn();
+		const onError = vi.fn();
 
 		render(
-			<TurnstileWidget siteKey="site-key" onToken={onToken} resetKey={0} />,
+			<TurnstileWidget
+				siteKey="site-key"
+				onToken={onToken}
+				onError={onError}
+				resetKey={0}
+			/>,
 		);
 
 		await vi.waitFor(() => expect(fake.render).toHaveBeenCalledTimes(1));
@@ -53,8 +59,10 @@ describe("TurnstileWidget", () => {
 		// 失効やエラーのときは、トークンを null に戻す
 		params["expired-callback"]();
 		expect(onToken).toHaveBeenLastCalledWith(null);
+		expect(onError).not.toHaveBeenCalled();
 		params["error-callback"]();
 		expect(onToken).toHaveBeenLastCalledWith(null);
+		expect(onError).toHaveBeenCalledOnce();
 	});
 
 	it("resetKey が変わったら、ウィジェットを作り直し、トークンを null に戻す", async () => {

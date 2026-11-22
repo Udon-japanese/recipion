@@ -1,6 +1,4 @@
-import { globalStyle, keyframes, style } from "@vanilla-extract/css";
-
-const spin = keyframes({ to: { transform: "rotate(360deg)" } });
+import { globalStyle, style } from "@vanilla-extract/css";
 
 export const form = style({
 	display: "flex",
@@ -39,39 +37,10 @@ globalStyle(`${consent} a`, {
 	textUnderlineOffset: 3,
 });
 
-export const botCheck = style({
-	display: "flex",
-	flexDirection: "column",
-	gap: 8,
-});
-
-const row = style({
-	display: "flex",
-	alignItems: "center",
-	gap: 12,
-	minHeight: 64,
-	padding: "0 16px",
-	border: "1.5px solid var(--color-border-strong)",
-	borderRadius: 16,
-	background: "var(--color-surface)",
-	fontSize: 14,
-});
-
-export const botCheckPending = style([row]);
-
-export const botCheckDone = style([
-	row,
-	{
-		background: "var(--color-success-soft)",
-		borderColor: "var(--color-success)",
-	},
-]);
-
-export const spin_ = style({
-	display: "inline-flex",
-	animation: `${spin} 1s linear infinite`,
-
-	"@media": {
-		"(prefers-reduced-motion: reduce)": { animation: "none" },
-	},
+// Invisible の Turnstile の置き場。画面には何も出ないので、並びの外に置く（空の要素で、上下の間隔が二重にならないように）。
+export const botCheckHost = style({
+	position: "absolute",
+	width: 0,
+	height: 0,
+	overflow: "hidden",
 });

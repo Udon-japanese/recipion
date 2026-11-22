@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 
 // Cloudflare Turnstile の明示的な描画（https://developers.cloudflare.com/turnstile/get-started/client-side-rendering/）。
 // トークンは、300 秒で失効し、1 回しか検証できない。使ったら、resetKey を変えて、作り直す。
+// ウィジェットは Invisible モード（ダッシュボードの設定。画面には何も出ない）。開いたときに裏で判定する。
 
 type TurnstileRenderParams = {
 	sitekey: string;
@@ -61,6 +62,8 @@ type TurnstileWidgetProps = {
 	onToken: (token: string | null) => void;
 	// 読み込みに失敗したとき（広告ブロックなど）。
 	onLoadError?: () => void;
+	// 判定に失敗したとき（トークンは null になる）。
+	onError?: () => void;
 	// 値を変えると、ウィジェットを作り直す（トークンは 1 回しか使えないため、送信のたびに変える）。
 	resetKey: number;
 };
@@ -69,16 +72,19 @@ export function TurnstileWidget({
 	siteKey,
 	onToken,
 	onLoadError,
+	onError,
 	resetKey,
 }: TurnstileWidgetProps) {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const widgetIdRef = useRef<string | null>(null);
 	const onTokenRef = useRef(onToken);
 	const onLoadErrorRef = useRef(onLoadError);
+	const onErrorRef = useRef(onError);
 
 	useEffect(() => {
 		onTokenRef.current = onToken;
 		onLoadErrorRef.current = onLoadError;
+		onErrorRef.current = onError;
 	});
 
 	useEffect(() => {
@@ -92,7 +98,10 @@ export function TurnstileWidget({
 					sitekey: siteKey,
 					language: "ja",
 					callback: (token) => onTokenRef.current(token),
-					"error-callback": () => onTokenRef.current(null),
+					"error-callback": () => {
+						onTokenRef.current(null);
+						onErrorRef.current?.();
+					},
 					"expired-callback": () => onTokenRef.current(null),
 				});
 			})

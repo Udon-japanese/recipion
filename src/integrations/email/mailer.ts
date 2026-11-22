@@ -6,7 +6,7 @@ export type EmailMessage = {
 	html: string;
 };
 
-// メールを送るもの。本番は Resend、開発中はコンソール（get-mailer.ts が選ぶ）。
+// メールを送るもの。本番は Resend、開発中はコンソール（select-mailer.ts が選ぶ）。
 export type Mailer = {
 	send(message: EmailMessage): Promise<void>;
 };
