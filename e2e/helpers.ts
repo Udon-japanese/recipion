@@ -79,8 +79,7 @@ export async function loginWithDemoCode(page: Page) {
 	const code = process.env.DEMO_LOGIN_CODE as string;
 
 	await page.goto("/login");
-	// 画面が読み込まれ、Turnstile（開発用のテストキー）が通るまで待つ。その前に入力すると、再描画で消える。
-	await expect(page.getByText("確認できました")).toBeVisible();
+	// Turnstile は Invisible（画面に出ない）。判定の前に「コードを送る」を押しても、判定が終わってから送る。
 	await page.getByLabel("メールアドレス").fill(email);
 	await page.getByRole("button", { name: "コードを送る" }).click();
 

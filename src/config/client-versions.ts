@@ -8,7 +8,7 @@ export type ClientPlatform = (typeof clientPlatforms)[number];
 export const minimumClientVersions: Record<ClientPlatform, string> = {
 	android: "0.0.0",
 	ios: "0.0.0",
-	web: "9.0.0",
+	web: "0.0.0",
 };
 
 // 今の Web の画面の版（画面は、API を呼ぶたびに `web/<この版>` を送る）。

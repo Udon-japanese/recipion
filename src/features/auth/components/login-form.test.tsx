@@ -19,23 +19,46 @@ vi.mock("#/integrations/better-auth/auth-client", () => ({
 	},
 }));
 
-// Turnstile は、ボット判定を通ったことにして、トークンを返す。
+// Turnstile は、既定では、ボット判定を通ったことにして、トークンを返す。
+// turnstile.autoToken を false にすると、トークンを返さない（判定の途中）。turnstile.current で、あとから返す・失敗させる。
+const turnstile = vi.hoisted(() => ({
+	autoToken: true,
+	current: null as null | {
+		onToken: (token: string | null) => void;
+		onError: () => void;
+	},
+}));
+
 vi.mock("./turnstile-widget", () => ({
 	TurnstileWidget: ({
 		onToken,
+		onError,
 		resetKey,
 	}: {
 		onToken: (token: string | null) => void;
+		onError: () => void;
 		resetKey: number;
 	}) => {
+		turnstile.current = { onToken, onError };
+
 		// biome-ignore lint/correctness/useExhaustiveDependencies: resetKey が変わるたびに、新しいトークンを返す。
 		useEffect(() => {
-			onToken("captcha-token");
+			if (turnstile.autoToken) {
+				onToken("captcha-token");
+			}
 		}, [resetKey]);
 
 		return <div data-testid="turnstile" />;
 	},
 }));
+
+function currentTurnstile() {
+	if (!turnstile.current) {
+		throw new Error("Turnstile が描かれていません");
+	}
+
+	return turnstile.current;
+}
 
 beforeEach(() => {
 	mocks.sendVerificationOtp.mockResolvedValue({
@@ -49,6 +72,8 @@ beforeEach(() => {
 afterEach(() => {
 	cleanup();
 	vi.clearAllMocks();
+	turnstile.autoToken = true;
+	turnstile.current = null;
 });
 
 async function sendCodeFor(
@@ -385,5 +410,56 @@ describe("LoginForm（メールのワンタイムコード）", () => {
 		expect(
 			await screen.findByText("ログインしました", { selector: "output" }),
 		).toBeInTheDocument();
+	});
+
+	it("ボット判定が終わる前に押しても、送るのは判定が終わってから1回だけ", async () => {
+		turnstile.autoToken = false;
+		const user = userEvent.setup();
+
+		render(<LoginForm refetchSession={mocks.refetch} />);
+		await sendCodeFor(user, "user@example.com");
+
+		expect(mocks.sendVerificationOtp).not.toHaveBeenCalled();
+
+		act(() => currentTurnstile().onToken("late-token"));
+
+		await waitFor(() =>
+			expect(mocks.sendVerificationOtp).toHaveBeenCalledTimes(1),
+		);
+		expect(mocks.sendVerificationOtp).toHaveBeenCalledWith(
+			{ email: "user@example.com", type: "sign-in" },
+			{ headers: { "x-captcha-response": "late-token" } },
+		);
+	});
+
+	it("待っている間にボット判定が失敗したら伝え、押し直すと判定し直して送る", async () => {
+		turnstile.autoToken = false;
+		const user = userEvent.setup();
+
+		render(<LoginForm refetchSession={mocks.refetch} />);
+		await sendCodeFor(user, "user@example.com");
+
+		act(() => {
+			currentTurnstile().onToken(null);
+			currentTurnstile().onError();
+		});
+
+		expect(
+			await screen.findByText(
+				"ボットの判定ができませんでした。もう一度お試しください。",
+			),
+		).toBeTruthy();
+
+		// 押し直すと、判定し直す（作り直した判定が、トークンを返す）。
+		turnstile.autoToken = true;
+		await user.click(screen.getByRole("button", { name: "コードを送る" }));
+
+		await waitFor(() =>
+			expect(mocks.sendVerificationOtp).toHaveBeenCalledTimes(1),
+		);
+		expect(mocks.sendVerificationOtp).toHaveBeenCalledWith(
+			{ email: "user@example.com", type: "sign-in" },
+			{ headers: { "x-captcha-response": "captcha-token" } },
+		);
 	});
 });
