@@ -6,18 +6,26 @@ import { useAppSession } from "#/integrations/better-auth/use-app-session";
 import { LoginForm } from "./login-form";
 import * as styles from "./login-page.css";
 
-// ログインの画面（メール → 6桁のコード）。ログインできたら、ホームに移る。
-// ログイン済みの人が開いたときも、ホームに移る。
-export function LoginPage() {
+// ログインの画面（メール → 6桁のコード）。ログインできたら、redirectTo（なければホーム）に移る。
+// ログイン済みの人が開いたときも、同じく移る。
+// redirectTo は、確かめ済みの、アプリの中のパス（toSafeRedirectPath）。
+export function LoginPage({ redirectTo }: { redirectTo?: string }) {
 	const { data: session, refetch } = useAppSession();
 	const navigate = useNavigate();
 	const router = useRouter();
 
 	useEffect(() => {
-		if (session) {
-			void navigate({ to: "/", replace: true });
+		if (!session) {
+			return;
 		}
-	}, [session, navigate]);
+
+		if (redirectTo === undefined) {
+			void navigate({ to: "/", replace: true });
+		} else {
+			// 戻り先は、文字列のパス（型のあるルートではない）なので、履歴に直接入れる（ルーターは履歴の変化で移る）。
+			router.history.replace(redirectTo);
+		}
+	}, [session, navigate, router, redirectTo]);
 
 	function goBack() {
 		if (router.history.canGoBack()) {

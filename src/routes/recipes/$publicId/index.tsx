@@ -1,9 +1,10 @@
+import type { ErrorComponentProps } from "@tanstack/react-router";
 import {
 	createFileRoute,
 	useNavigate,
 	useRouter,
 } from "@tanstack/react-router";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import * as v from "valibot";
 import { ButtonLink } from "#/components/button/button-link";
 import { Tag } from "#/components/tag/tag";
@@ -70,6 +71,10 @@ import {
 	ratioForYield,
 	scaleRecipeYieldText,
 } from "#/features/recipes/domain/recipe-yield";
+import {
+	stashSharedPassphrase,
+	takeSharedPassphrase,
+} from "#/features/recipes/infrastructure/shared-passphrase-storage";
 import { deleteRecipeServerFn } from "#/features/recipes/server/delete-recipe";
 import { getLinkedRecipesServerFn } from "#/features/recipes/server/get-linked-recipes";
 import { getRecipeServerFn } from "#/features/recipes/server/get-recipe";
@@ -137,7 +142,7 @@ export const Route = createFileRoute("/recipes/$publicId/")({
 			},
 		],
 	}),
-	errorComponent: RecipeRouteError,
+	errorComponent: RecipePageError,
 	component: RecipePage,
 });
 
@@ -488,6 +493,8 @@ function OwnRecipePage({
 							) : null}
 							{recipe.visibility === "unlisted" ? (
 								<RecipePassphraseSection
+									recipeName={recipe.name}
+									publicId={recipe.publicId}
 									loadPassphrase={loadPassphrase}
 									regeneratePassphrase={regeneratePassphrase}
 								/>
@@ -681,10 +688,29 @@ function renderOpenLink(publicId: string, wanted?: number) {
 	);
 }
 
+// 読み込めなかったとき（ログインしていない、など）。共有リンクのパスフレーズは、ログインして戻るまで預ける。
+function RecipePageError(props: ErrorComponentProps) {
+	const { publicId } = Route.useParams();
+
+	useEffect(() => {
+		stashSharedPassphrase(publicId);
+	}, [publicId]);
+
+	return <RecipeRouteError {...props} />;
+}
+
 function RecipePage() {
 	const viewable = Route.useLoaderData();
 	const router = useRouter();
 	const { publicId } = Route.useParams();
+	const isViewable = viewable !== null;
+
+	// すでに見られるレシピ（自分のレシピ・開けたことがある）なら、共有リンクのパスフレーズは要らない。URL から消して、捨てる。
+	useEffect(() => {
+		if (isViewable) {
+			takeSharedPassphrase(publicId);
+		}
+	}, [isViewable, publicId]);
 
 	if (!viewable) {
 		return (
@@ -694,6 +720,7 @@ function RecipePage() {
 					unlockRecipeServerFn({ data: { publicId, passphrase } })
 				}
 				onUnlocked={() => void router.invalidate()}
+				takeSharedPassphrase={() => takeSharedPassphrase(publicId)}
 			/>
 		);
 	}
