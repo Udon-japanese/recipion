@@ -74,6 +74,31 @@ describe("parseJudgeResponse", () => {
 		]);
 	});
 
+	it.each([
+		[
+			"ng の抜き出しは、前後の空白を除いて返す",
+			"ng",
+			" だめな行 ",
+			{ quote: "だめな行" },
+		],
+		["ok の抜き出しは、捨てる", "ok", "だめな行", {}],
+		["空の抜き出しは、捨てる", "ng", "", {}],
+		["長すぎる抜き出しは、捨てる", "ng", "あ".repeat(61), {}],
+	] as const)("抜き出し（quote）：%s", (_label, verdict, quote, expected) => {
+		const [result] = parseJudgeResponse(
+			JSON.stringify({
+				results: [{ index: 0, verdict, category: "sexual", quote }],
+			}),
+			1,
+		);
+
+		expect(result).toEqual({
+			verdict,
+			category: verdict === "ok" ? "other" : "sexual",
+			...expected,
+		});
+	});
+
 	it("ng・unsure でカテゴリがなければ、other。unsure は、そのまま返す", () => {
 		expect(
 			parseJudgeResponse('{"results":[{"index":0,"verdict":"unsure"}]}', 1),

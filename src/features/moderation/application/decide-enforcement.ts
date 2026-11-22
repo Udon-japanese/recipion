@@ -1,5 +1,8 @@
 import type { ModerationReason } from "../domain/moderation-result";
-import type { ModerationTargetKind } from "../domain/moderation-target";
+import type {
+	ModerationItem,
+	ModerationTargetKind,
+} from "../domain/moderation-target";
 import { moderationTargets } from "../domain/moderation-target";
 import type { PublishGuardResult } from "./publish-guard";
 import {
@@ -22,10 +25,12 @@ export type ModerationEnforcement =
 			targets: ModerationTargetKind[];
 	  };
 
+// items：審査に出した文章（断る文に、当たった行を見せるため）。
 export function decideEnforcement(
 	result: PublishGuardResult,
+	items: readonly ModerationItem[] = [],
 ): ModerationEnforcement {
-	const refusal = describePublishRefusal(result);
+	const refusal = describePublishRefusal(result, items);
 
 	if (refusal !== null) {
 		return {
@@ -50,7 +55,7 @@ export function decideEnforcement(
 	if (rejecting.length > 0) {
 		return {
 			status: "refused",
-			message: describeFlagRefusal(rejecting),
+			message: describeFlagRefusal(rejecting, items),
 			targets: [...new Set(rejecting.map((reason) => reason.target))],
 		};
 	}

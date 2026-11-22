@@ -18,11 +18,8 @@ export async function guardRecipePublication(
 		return { recordFlag: async () => {} };
 	}
 
-	const enforcement = await enforceModeration(
-		db,
-		userId,
-		collectRecipeModerationItems(recipe),
-	);
+	const items = collectRecipeModerationItems(recipe);
+	const enforcement = await enforceModeration(db, userId, items);
 
 	if (enforcement.status === "refused") {
 		throw new UserFacingError(enforcement.message, {
@@ -41,7 +38,7 @@ export async function guardRecipePublication(
 			const result = await createDrizzleReportRepository(db).createAutoDetected(
 				{
 					recipePublicId: publicId,
-					detail: describeFlagReasons(flagged),
+					detail: describeFlagReasons(flagged, items),
 					now: new Date(),
 				},
 			);

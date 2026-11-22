@@ -1,3 +1,4 @@
+import type { ModerationLocation } from "./moderation-location";
 import type { ModerationTargetKind } from "./moderation-target";
 
 export type ModerationCategory =
@@ -26,6 +27,8 @@ export type ModerationReason = {
 	// 判定の手段（lexicon: 確定の語、emoji: 絵文字の組み合わせ、ai: AI）。
 	source: "lexicon" | "emoji" | "ai";
 	category: ModerationCategory;
+	// 当たった場所（利用者に、どの行かを見せるため）。分からないときは、欄だけを示す。
+	location?: ModerationLocation;
 };
 
 export type ModerationResult =

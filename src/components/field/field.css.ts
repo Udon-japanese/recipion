@@ -121,4 +121,6 @@ export const error = style({
 	fontSize: "var(--font-size-sm)",
 	color: "var(--color-error)",
 	lineHeight: 1.45,
+	// 改行は、そのまま出す（審査で止めた理由を、行に分けて出す）。
+	whiteSpace: "pre-line",
 });

@@ -10,6 +10,11 @@ import {
 	hardBlockLexicon,
 } from "../domain/lexicon/hard-block";
 import type { LexiconCategory, LexiconEntry } from "../domain/lexicon/types";
+import {
+	listJudgedItems,
+	locateInText,
+	type ModerationLocation,
+} from "../domain/moderation-location";
 import type {
 	ModerationCategory,
 	ModerationReason,
@@ -27,6 +32,19 @@ const maxJudgeChunkLength = 3000;
 
 function toCategory(category: LexiconCategory): ModerationCategory {
 	return category;
+}
+
+// AI が抜き出した部分の場所。原文にそのままないとき（書き換えた・作った）は、文章の場所だけにする。
+function locateQuote(
+	itemIndex: number,
+	text: string,
+	quote: string | undefined,
+): ModerationLocation {
+	const start = quote === undefined ? -1 : text.indexOf(quote);
+
+	return start < 0 || quote === undefined
+		? { item: itemIndex }
+		: { item: itemIndex, start, end: start + quote.length };
 }
 
 function splitLongText(text: string): string[] {
@@ -98,15 +116,12 @@ export async function moderateContent(
 ): Promise<ModerationResult> {
 	const judgeItems: (JudgeItem & {
 		source: ModerationItem;
+		itemIndex: number;
 		hintCategory: ModerationCategory | undefined;
 	})[] = [];
 	const blockReasons: ModerationReason[] = [];
 
-	for (const item of items) {
-		if (item.text.trim() === "") {
-			continue;
-		}
-
+	for (const [itemIndex, item] of listJudgedItems(items).entries()) {
 		const normalized = normalizeForModeration(item.text);
 		const hardHits = [
 			...findLexiconHits(normalized, lexicons.hard, {
@@ -117,12 +132,29 @@ export async function moderateContent(
 		];
 
 		for (const hit of hardHits) {
+			const isEmoji = /\p{Extended_Pictographic}/u.test(hit.term);
+
 			blockReasons.push({
 				target: item.target,
-				source: hit.term.match(/\p{Extended_Pictographic}/u)
-					? "emoji"
-					: "lexicon",
+				source: isEmoji ? "emoji" : "lexicon",
 				category: toCategory(hit.category),
+				location: {
+					item: itemIndex,
+					...locateInText(item.text, (part) =>
+						isEmoji
+							? findEmojiHits(
+									normalizeForModeration(part),
+									lexicons.hardEmoji.filter(
+										(combination) => combination.emoji.join("") === hit.term,
+									),
+								).length > 0
+							: findLexiconHits(
+									normalizeForModeration(part),
+									[{ category: hit.category, terms: [hit.term] }],
+									{ allowMask: true, hiraganaBoundary: true },
+								).length > 0,
+					),
+				},
 			});
 		}
 
@@ -147,6 +179,7 @@ export async function moderateContent(
 				normalizedText: normalizeForModeration(chunk).text,
 				hints,
 				source: item,
+				itemIndex,
 				hintCategory,
 			});
 		}
@@ -165,7 +198,12 @@ export async function moderateContent(
 	try {
 		verdicts = await judge(
 			judgeItems.map(
-				({ source: _source, hintCategory: _category, ...item }) => item,
+				({
+					source: _source,
+					itemIndex: _itemIndex,
+					hintCategory: _category,
+					...item
+				}) => item,
 			),
 		);
 
@@ -197,6 +235,7 @@ export async function moderateContent(
 					target: item.target,
 					source: "lexicon",
 					category: item.hintCategory,
+					location: { item: item.itemIndex },
 				});
 			}
 
@@ -207,6 +246,7 @@ export async function moderateContent(
 			target: item.target,
 			source: "ai",
 			category: verdict.category,
+			location: locateQuote(item.itemIndex, item.source.text, verdict.quote),
 		};
 
 		(verdict.verdict === "ng" ? blocked : flagged).push(reason);

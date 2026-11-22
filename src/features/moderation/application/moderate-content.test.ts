@@ -32,7 +32,13 @@ describe("moderateContent", () => {
 		expect(result).toEqual({
 			decision: "block",
 			reasons: [
-				{ target: "recipe-note", source: "lexicon", category: "violence" },
+				{
+					target: "recipe-note",
+					source: "lexicon",
+					category: "violence",
+					// 2番目の文章の「ぴ.よ.ぴ.よ」（原文の位置。区切りも含む）。
+					location: { item: 1, start: 3, end: 10 },
+				},
 			],
 		});
 		expect(judge).not.toHaveBeenCalled();
@@ -70,7 +76,14 @@ describe("moderateContent", () => {
 			),
 		).toEqual({
 			decision: "block",
-			reasons: [{ target: "recipe-note", source: "ai", category: "spam" }],
+			reasons: [
+				{
+					target: "recipe-note",
+					source: "ai",
+					category: "spam",
+					location: { item: 1 },
+				},
+			],
 		});
 		expect(
 			await moderateContent(
@@ -81,7 +94,12 @@ describe("moderateContent", () => {
 		).toEqual({
 			decision: "flag",
 			reasons: [
-				{ target: "recipe-title", source: "ai", category: "harassment" },
+				{
+					target: "recipe-title",
+					source: "ai",
+					category: "harassment",
+					location: { item: 0 },
+				},
 			],
 		});
 	});
@@ -127,7 +145,12 @@ describe("moderateContent", () => {
 			expect(result).toEqual(
 				decision === "allow"
 					? { decision: "allow" }
-					: { decision, reasons: [{ target, source: "ai", category }] },
+					: {
+							decision,
+							reasons: [
+								{ target, source: "ai", category, location: { item: 0 } },
+							],
+						},
 			);
 		},
 	);
@@ -193,7 +216,12 @@ describe("moderateContent", () => {
 		expect(flagged).toEqual({
 			decision: "flag",
 			reasons: [
-				{ target: "recipe-note", source: "lexicon", category: "harassment" },
+				{
+					target: "recipe-note",
+					source: "lexicon",
+					category: "harassment",
+					location: { item: 0 },
+				},
 			],
 		});
 		expect(
@@ -203,6 +231,70 @@ describe("moderateContent", () => {
 				lexicons,
 			),
 		).toEqual({ decision: "allow" });
+	});
+
+	it.each([
+		[
+			"原文にある部分は、その範囲",
+			"1. 玉ねぎを切る\n2. あやしい一文",
+			"あやしい一文",
+			{ start: 13, end: 19 },
+		],
+		[
+			"原文にない（書き換えた）部分は、文章の場所だけ",
+			"1. 玉ねぎを切る",
+			"あやしい",
+			{},
+		],
+		["抜き出しがなければ、文章の場所だけ", "1. 玉ねぎを切る", undefined, {}],
+	] as const)("AI の抜き出し：%s", async (_label, text, quote, range) => {
+		const result = await moderateContent(
+			[
+				{ target: "recipe-title", text: "カレー" },
+				{ target: "recipe-instruction", text },
+			],
+			judgeReturning(ok, {
+				verdict: "ng",
+				category: "sexual",
+				...(quote === undefined ? {} : { quote }),
+			}),
+			lexicons,
+		);
+
+		expect(result).toEqual({
+			decision: "block",
+			reasons: [
+				{
+					target: "recipe-instruction",
+					source: "ai",
+					category: "sexual",
+					location: { item: 1, ...range },
+				},
+			],
+		});
+	});
+
+	it("確定の語が行をまたぐときは、またいだ範囲（両方の行）。空の文章は、番号に数えない", async () => {
+		const result = await moderateContent(
+			[
+				{ target: "recipe-preparation", text: "  " },
+				{ target: "recipe-note", text: "下ごしらえ\nぴよ\nぴよ" },
+			],
+			judgeReturning(),
+			lexicons,
+		);
+
+		expect(result).toEqual({
+			decision: "block",
+			reasons: [
+				{
+					target: "recipe-note",
+					source: "lexicon",
+					category: "violence",
+					location: { item: 0, start: 6, end: 11 },
+				},
+			],
+		});
 	});
 
 	it("長い文章は、分けて渡す（後ろの部分も、見落とさない）", async () => {
@@ -234,7 +326,12 @@ describe("moderateContent", () => {
 		).toEqual({
 			decision: "block",
 			reasons: [
-				{ target: "recipe-note", source: "emoji", category: "discrimination" },
+				{
+					target: "recipe-note",
+					source: "emoji",
+					category: "discrimination",
+					location: { item: 0, start: 0, end: 5 },
+				},
 			],
 		});
 		expect(

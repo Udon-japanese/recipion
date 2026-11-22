@@ -14,5 +14,8 @@ export async function enforceModeration(
 	userId: string,
 	items: readonly ModerationItem[],
 ): Promise<ModerationEnforcement> {
-	return decideEnforcement(await checkBeforePublish(db, { userId, items }));
+	return decideEnforcement(
+		await checkBeforePublish(db, { userId, items }),
+		items,
+	);
 }

@@ -1,8 +1,10 @@
+import { listJudgedItems } from "./moderation-location";
 import type { ModerationItem } from "./moderation-target";
 
 // 判定の結果を覚えておくときの版。語の一覧やプロンプトを大きく変えたら上げる（古い結果を使わなくなる）。
 // 2：名前の欄（表示名・ハンドル）で、レシピとの関係（irrelevant）を問わなくした。
-export const moderationVersion = "2";
+// 3：判定の理由に、当たった場所（何番目の文章の、何文字目か）を持たせた。
+export const moderationVersion = "3";
 
 async function sha256Hex(text: string): Promise<string> {
 	const digest = await crypto.subtle.digest(
@@ -22,9 +24,7 @@ export async function hashModerationItems(
 	return sha256Hex(
 		JSON.stringify([
 			moderationVersion,
-			items
-				.filter((item) => item.text.trim() !== "")
-				.map((item) => [item.target, item.text]),
+			listJudgedItems(items).map((item) => [item.target, item.text]),
 		]),
 	);
 }
