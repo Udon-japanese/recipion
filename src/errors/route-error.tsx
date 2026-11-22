@@ -1,5 +1,5 @@
 import type { ErrorComponentProps } from "@tanstack/react-router";
-import { useRouter } from "@tanstack/react-router";
+import { useLocation, useRouter } from "@tanstack/react-router";
 import { Button } from "#/components/button/button";
 import { ButtonLink } from "#/components/button/button-link";
 import { Note } from "#/components/note/note";
@@ -26,13 +26,19 @@ export function RouteError({
 	loginMessage = "ログインすると利用できます",
 }: RouteErrorProps) {
 	const router = useRouter();
+	// ログインのあとに、この画面へ戻る（フラグメントは持ち越さない）。
+	const location = useLocation();
 
 	if (isAuthRequiredError(error)) {
 		return (
 			<Note
 				tone="info"
 				action={
-					<ButtonLink to="/login" size="sm">
+					<ButtonLink
+						to="/login"
+						search={{ redirect: `${location.pathname}${location.searchStr}` }}
+						size="sm"
+					>
 						ログイン
 					</ButtonLink>
 				}

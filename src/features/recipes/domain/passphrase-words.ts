@@ -4,6 +4,9 @@
 // 4語を選ぶので、組み合わせは、語の数の4乗になる。
 // 禁止語の一覧のほか、手元で別に用意した追加の語（料理で使う語は一覧から外してあるため）でも、同じ検査をして除いてある。
 
+// 語に使う文字（ひらがな）。共有リンクから、パスフレーズだけを切り出すのにも使う（unlisted-share-link.ts）。
+export const passphraseCharacterClass = "[ぁ-ゖ]";
+
 export const passphraseWords: readonly string[] = [
 	"いぬ",
 	"うさぎ",

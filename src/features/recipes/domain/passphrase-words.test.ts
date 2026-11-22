@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { generatePassphrase, normalizePassphraseInput } from "./passphrase";
-import { passphraseWords } from "./passphrase-words";
+import { passphraseCharacterClass, passphraseWords } from "./passphrase-words";
 
 describe("passphraseWords", () => {
 	it("語は、重複のない、ひらがなの2〜5文字。語数は十分にある", () => {
@@ -8,7 +8,9 @@ describe("passphraseWords", () => {
 		expect(passphraseWords.length).toBeGreaterThanOrEqual(400);
 
 		for (const word of passphraseWords) {
-			expect(word).toMatch(/^[ぁ-ゖ]{2,5}$/u);
+			expect(word).toMatch(
+				new RegExp(`^${passphraseCharacterClass}{2,5}$`, "u"),
+			);
 		}
 	});
 });

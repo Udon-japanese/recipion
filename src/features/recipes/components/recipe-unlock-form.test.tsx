@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { RecipeUnlockForm } from "./recipe-unlock-form";
@@ -42,5 +42,46 @@ describe("RecipeUnlockForm", () => {
 		await user.click(screen.getByRole("button", { name: "開く" }));
 
 		expect(onUnlock).not.toHaveBeenCalled();
+	});
+
+	it("共有リンクのパスフレーズがあれば、入れて、1回だけ自動で開く", async () => {
+		const onUnlocked = vi.fn();
+		const onUnlock = vi.fn(async () => "unlocked" as const);
+		const takeSharedPassphrase = vi
+			.fn<() => string | null>()
+			.mockReturnValueOnce("ねこりんご")
+			.mockReturnValue(null);
+
+		render(
+			<RecipeUnlockForm
+				onUnlock={onUnlock}
+				onUnlocked={onUnlocked}
+				takeSharedPassphrase={takeSharedPassphrase}
+			/>,
+		);
+
+		await waitFor(() => expect(onUnlocked).toHaveBeenCalledTimes(1));
+		expect(onUnlock).toHaveBeenCalledTimes(1);
+		expect(onUnlock).toHaveBeenCalledWith("ねこりんご");
+		expect(screen.getByLabelText("パスフレーズ")).toHaveValue("ねこりんご");
+	});
+
+	it("共有リンクのパスフレーズが違えば、入れたまま、違うと知らせる", async () => {
+		const onUnlock = vi.fn(async () => "wrong" as const);
+
+		render(
+			<RecipeUnlockForm
+				onUnlock={onUnlock}
+				onUnlocked={vi.fn()}
+				takeSharedPassphrase={() => "ふるいぱすふれーず"}
+			/>,
+		);
+
+		expect(
+			await screen.findByText("パスフレーズが違うか、レシピが見つかりません。"),
+		).toBeInTheDocument();
+		expect(screen.getByLabelText("パスフレーズ")).toHaveValue(
+			"ふるいぱすふれーず",
+		);
 	});
 });
