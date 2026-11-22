@@ -115,6 +115,10 @@ const systemPrompt = `あなたは、日本語の家庭料理のレシピ共有�
 ・verdict には、ok / ng / unsure の3つのどれかだけを入れる。種類（spam など）は、verdict ではなく、category に入れる。
 ・category は、ng または unsure のとき、violence / sexual / discrimination / harassment / spam / personal-info / irrelevant / other のどれか。ok のときは other。`;
 
+// 名前の欄（登録簿の judgesRelevance: false）に添える注意。レシピとの関係や、意味が分かるかは、問わない。
+const nameFieldNote =
+	"この欄の注意：名前の欄です。造語、あだ名、キャラクターの口調（「〜でごわす」など）、意味の分からない語でも、それだけで ng・unsure にしない。レシピと関係があるか（irrelevant）は、問わない";
+
 // データの区切りに、毎回違う目印（nonce）を入れる。利用者が、区切りを真似て、指示を紛れ込ませるのを防ぐ。
 export function buildJudgeMessages(
 	items: readonly JudgeItem[],
@@ -124,6 +128,7 @@ export function buildJudgeMessages(
 	const blocks = items.map((item, index) =>
 		[
 			`[index ${index}] 種類：${moderationTargets[item.target].description}`,
+			moderationTargets[item.target].judgesRelevance ? "" : nameFieldNote,
 			`注意する語：${item.hints.length === 0 ? "なし" : item.hints.join("、")}`,
 			`原文：`,
 			item.text,

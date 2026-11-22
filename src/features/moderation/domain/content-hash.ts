@@ -1,7 +1,8 @@
 import type { ModerationItem } from "./moderation-target";
 
 // 判定の結果を覚えておくときの版。語の一覧やプロンプトを大きく変えたら上げる（古い結果を使わなくなる）。
-export const moderationVersion = "1";
+// 2：名前の欄（表示名・ハンドル）で、レシピとの関係（irrelevant）を問わなくした。
+export const moderationVersion = "2";
 
 async function sha256Hex(text: string): Promise<string> {
 	const digest = await crypto.subtle.digest(

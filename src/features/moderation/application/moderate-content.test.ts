@@ -86,6 +86,52 @@ describe("moderateContent", () => {
 		});
 	});
 
+	it.each([
+		[
+			"表示名で ng（irrelevant）",
+			"profile-display-name",
+			"ng",
+			"irrelevant",
+			"allow",
+		],
+		[
+			"ハンドルで unsure（irrelevant）",
+			"profile-handle",
+			"unsure",
+			"irrelevant",
+			"allow",
+		],
+		[
+			"表示名でも、irrelevant 以外の ng は止める",
+			"profile-display-name",
+			"ng",
+			"harassment",
+			"block",
+		],
+		[
+			"レシピの欄の irrelevant は止める",
+			"recipe-title",
+			"ng",
+			"irrelevant",
+			"block",
+		],
+	] as const)(
+		"名前の欄は、レシピとの関係（irrelevant）を問わない：%s",
+		async (_label, target, verdict, category, decision) => {
+			const result = await moderateContent(
+				[{ target, text: "れしぴょなーでごわす" }],
+				judgeReturning({ verdict, category }),
+				lexicons,
+			);
+
+			expect(result).toEqual(
+				decision === "allow"
+					? { decision: "allow" }
+					: { decision, reasons: [{ target, source: "ai", category }] },
+			);
+		},
+	);
+
 	it("ng と unsure が混ざれば、block（ng を優先）", async () => {
 		const result = await moderateContent(
 			[

@@ -15,7 +15,10 @@ import type {
 	ModerationReason,
 	ModerationResult,
 } from "../domain/moderation-result";
-import type { ModerationItem } from "../domain/moderation-target";
+import {
+	type ModerationItem,
+	moderationTargets,
+} from "../domain/moderation-target";
 import { normalizeForModeration } from "../domain/normalize-text";
 import type { AiJudge, JudgeItem } from "./ai-judge";
 
@@ -183,7 +186,12 @@ export async function moderateContent(
 			continue;
 		}
 
-		if (verdict.verdict === "ok") {
+		// 名前の欄では、レシピとの関係（irrelevant）を問わない（プロンプトでも伝えるが、AI が守らなくても、通す）。
+		const ignoresVerdict =
+			verdict.category === "irrelevant" &&
+			!moderationTargets[item.target].judgesRelevance;
+
+		if (verdict.verdict === "ok" || ignoresVerdict) {
 			if (item.hintCategory) {
 				flagged.push({
 					target: item.target,

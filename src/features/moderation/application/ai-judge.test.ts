@@ -31,6 +31,17 @@ describe("buildJudgeMessages", () => {
 		// 利用者が書いた、偽の終わりの目印は、本物の目印と、違う
 		expect(user.match(/<<<END-nonce-1>>>/gu)).toHaveLength(2);
 	});
+
+	it("名前の欄にだけ、レシピとの関係を問わない注意を添える", () => {
+		const name = buildJudgeMessages(
+			[{ ...item, target: "profile-display-name" }],
+			"n",
+		)[1]?.content;
+		const recipe = buildJudgeMessages([item], "n")[1]?.content;
+
+		expect(name).toContain("名前の欄です");
+		expect(recipe).not.toContain("名前の欄です");
+	});
 });
 
 describe("追加の注意（手元だけの指示）", () => {

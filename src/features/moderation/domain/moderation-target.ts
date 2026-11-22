@@ -1,7 +1,7 @@
 // 審査する対象（利用者が書く、他の人に見える文章）の登録簿。
 //
 // 【ユーザーが入力する欄を足すときの手順】
-// 1. 他の人に見える文章なら、ここに1行足す（description・label・onFlag）。
+// 1. 他の人に見える文章なら、ここに1行足す（description・label・onFlag・judgesRelevance）。
 // 2. その欄を保存する、サーバー関数の中で、保存の前に enforceModeration（moderation/server/enforce-moderation.ts）を呼ぶ。
 //    項目は { target, text } の配列。値が変わった欄だけを渡す（変わらない欄で、AI の枠を使わない）。
 // 3. 長さの上限も、その機能の limits（例：recipes/domain/recipe-limits.ts）に足す。
@@ -12,6 +12,8 @@
 // onFlag：「怪しい」と判定されたときの扱い。
 //   allow：公開は通し、管理者の画面に、自動検知として載せる（レシピなど、載せる先がある文章）。
 //   reject：その場で断る（表示名のように、短く、目立ち、載せる先がない文章）。違反の回数には、数えない。
+// judgesRelevance：レシピと関係があるか（irrelevant）を問う欄か。
+//   名前（表示名・ハンドル）は、造語・あだ名・キャラクターの口調が普通なので、問わない（AI が irrelevant としても、通す）。
 
 export type FlagPolicy = "allow" | "reject";
 
@@ -20,50 +22,64 @@ export const moderationTargets = {
 		description: "レシピのタイトル",
 		label: "タイトル",
 		onFlag: "allow",
+		judgesRelevance: true,
 	},
 	"recipe-yield": {
 		description: "レシピのできあがりの量（「4人分」「18cmの型1台」など）",
 		label: "できあがりの量",
 		onFlag: "allow",
+		judgesRelevance: true,
 	},
 	"recipe-ingredient": {
 		description: "レシピの材料の名前・分量",
 		label: "材料",
 		onFlag: "allow",
+		judgesRelevance: true,
 	},
 	"recipe-preparation": {
 		description: "レシピの下準備の文章",
 		label: "下準備",
 		onFlag: "allow",
+		judgesRelevance: true,
 	},
 	"recipe-instruction": {
 		description: "レシピの作り方の文章",
 		label: "作り方",
 		onFlag: "allow",
+		judgesRelevance: true,
 	},
 	"recipe-note": {
 		description: "レシピのメモ",
 		label: "メモ",
 		onFlag: "allow",
+		judgesRelevance: true,
 	},
 	"recipe-link-label": {
 		description: "レシピ内の、他のレシピへのリンクの名前",
 		label: "リンクの名前",
 		onFlag: "allow",
+		judgesRelevance: true,
 	},
 	"profile-display-name": {
 		description: "利用者の表示名（他の利用者に見える名前）",
 		label: "表示名",
 		onFlag: "reject",
+		judgesRelevance: false,
 	},
 	"profile-handle": {
 		description: "利用者のハンドル（@で始まる、他の利用者に見える名前）",
 		label: "ハンドル",
 		onFlag: "reject",
+		judgesRelevance: false,
 	},
 } as const satisfies Record<
 	string,
-	{ description: string; label: string; onFlag: FlagPolicy }
+	{
+		description: string;
+		label: string;
+		onFlag: FlagPolicy;
+		judgesRelevance: boolean;
+	}
 >;
 
 export type ModerationTargetKind = keyof typeof moderationTargets;
