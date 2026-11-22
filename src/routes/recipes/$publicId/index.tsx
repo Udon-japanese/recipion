@@ -78,8 +78,6 @@ import * as reportsApi from "#/features/reports/infrastructure/reports-api";
 const maxPreloadedLinkTargets = 30;
 
 export const Route = createFileRoute("/recipes/$publicId/")({
-	// ブラウザだけで描く（データは API から読む。サーバーの中では API を呼べないため。Web の最終形は SPA）。
-	ssr: false,
 	// n：見る人が選んだ、できあがりの数（「4人分」のレシピを2人分で見る、など）。なければ、レシピの量のまま。
 	validateSearch: v.object({
 		n: v.optional(

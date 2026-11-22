@@ -13,8 +13,6 @@ export const Route = createFileRoute("/admin/users")({
 	head: () => ({ meta: [{ title: pageTitle("ユーザー（管理者）") }] }),
 	validateSearch: (search) =>
 		v.parse(v.object({ q: v.optional(v.string(), "") }), search),
-	// ブラウザだけで描く（データは API から読む。サーバーの中では API を呼べないため。Web の最終形は SPA）。
-	ssr: false,
 	loaderDeps: ({ search }) => ({ query: search.q }),
 	loader: async ({ deps }) => ({
 		query: deps.query,

@@ -13,7 +13,6 @@ export interface FileRoutesByFullPath {
   '/recipes/new': typeof RecipesNewRoute
   '/recipes/$publicId': typeof RecipesPublicIdIndexRoute
   '/recipes/$publicId/edit': typeof RecipesPublicIdEditRoute
-  '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesByTo {
   '/ignored': typeof X
@@ -29,7 +28,6 @@ describe("parseRoutePaths", () => {
 			"/recipes/new",
 			"/recipes/$publicId",
 			"/recipes/$publicId/edit",
-			"/api/auth/$",
 		]);
 	});
 
@@ -47,22 +45,21 @@ describe("buildWafAllowlist", () => {
 	});
 
 	it("動的なルートは前方一致、静的なルートと公開ファイルは完全一致にする", () => {
+		// /api/ は、画面のルート定義になくても許可する（Hono の API と Better Auth）。
 		expect(allowlist.prefixes).toEqual([
-			"/_serverFn/",
-			"/api/auth/",
+			"/api/",
 			"/assets/",
 			"/cdn-cgi/",
 			"/recipes/",
 		]);
 		expect(allowlist.exactPaths).toEqual([
 			"/",
-			"/_shell",
-			"/_shell.html",
 			"/manifest.webmanifest",
 			"/recipes",
 			"/robots.txt",
 			"/shopping",
 			"/sw-build.js",
+			"/teapot",
 		]);
 	});
 

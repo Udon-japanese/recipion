@@ -23,7 +23,6 @@ import { useShoppingOwnerScope } from "#/features/shopping/hooks/use-shopping-ow
 
 export const Route = createFileRoute("/shopping")({
 	head: () => ({ meta: [{ title: pageTitle("買い物メモ") }] }),
-	ssr: false,
 	component: ShoppingPage,
 });
 

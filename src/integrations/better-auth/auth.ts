@@ -3,7 +3,6 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { bearer, captcha, emailOTP } from "better-auth/plugins";
-import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { eq } from "drizzle-orm";
 import {
 	OTP_ALLOWED_ATTEMPTS,
@@ -235,8 +234,6 @@ export function createAuth(db: DB) {
 			// アプリ用：`Authorization: Bearer <token>` をセッションとして受け付け、ログインの応答に `set-auth-token` を付ける。
 			// Cookie のない要求は、Better Auth の Origin の確認の対象外なので、アプリから Origin なしで呼べる。
 			bearer(),
-			// Cookie を扱うプラグインは、最後に置く（後ろに after の hook があると、Cookie が渡らない）。
-			tanstackStartCookies(),
 		],
 	});
 }

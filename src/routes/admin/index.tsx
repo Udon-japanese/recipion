@@ -6,8 +6,6 @@ import * as adminApi from "#/features/admin/infrastructure/admin-api";
 
 export const Route = createFileRoute("/admin/")({
 	head: () => ({ meta: [{ title: pageTitle("管理者") }] }),
-	// ブラウザだけで描く（データは API から読む。サーバーの中では API を呼べないため。Web の最終形は SPA）。
-	ssr: false,
 	loader: () => adminApi.getSummary(),
 	errorComponent: AdminRouteError,
 	component: AdminIndexRoute,

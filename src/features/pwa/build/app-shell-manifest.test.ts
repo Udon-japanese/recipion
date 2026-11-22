@@ -41,7 +41,7 @@ describe("createBuildId", () => {
 
 describe("renderBuildScript", () => {
 	it("サービスワーカーが読める形で、ビルド ID と一覧を出力する", () => {
-		const script = renderBuildScript("abc123", ["/assets/a.js"], ["/shopping"]);
+		const script = renderBuildScript("abc123", ["/assets/a.js"]);
 		const self: { __APP_BUILD__?: unknown } = {};
 
 		new Function("self", script)(self);
@@ -49,31 +49,24 @@ describe("renderBuildScript", () => {
 		expect(self.__APP_BUILD__).toEqual({
 			id: "abc123",
 			urls: ["/assets/a.js"],
-			shellPages: ["/shopping"],
 		});
 	});
 });
 
 describe("findShellProblems", () => {
-	const shell =
-		"<html><body><nav></nav><script>l:{initialSession:void 0}</script></body></html>";
-
-	it("ルートだけの骨組みなら、問題なしとする", () => {
-		expect(findShellProblems(shell)).toEqual([]);
-	});
-
-	it("ページの内容、ユーザーの情報、null の初期セッションを検出する", () => {
-		expect(
-			findShellProblems(`${shell}<div data-page="home"></div>`),
-		).toHaveLength(1);
-		expect(
-			findShellProblems(
-				'<html>{initialSession:{user:{id:"u1",name:"山田"}}}</html>',
-			),
-		).toHaveLength(1);
-		expect(
-			findShellProblems("<html>{initialSession:null}</html>"),
-		).toHaveLength(1);
-		expect(findShellProblems("not html")).toHaveLength(1);
+	it.each([
+		[
+			"ビルドした index.html は、問題なし",
+			'<div id="app"></div><script type="module" crossorigin src="/assets/main-abc.js"></script>',
+			0,
+		],
+		[
+			"入口が、ビルド前の /src/main.tsx のまま",
+			'<div id="app"></div><script type="module" src="/src/main.tsx"></script>',
+			1,
+		],
+		["描く場所も、JS もない", "<html></html>", 2],
+	] as const)("%s", (_label, html, count) => {
+		expect(findShellProblems(html)).toHaveLength(count);
 	});
 });

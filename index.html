@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ja">
+	<head>
+		<meta charset="utf-8" />
+		<!-- cover：画面の端（Android のジェスチャーナビゲーション・iPhone のホームバーの領域）まで、ページで描く。
+		     端の余白は、各部品が env(safe-area-inset-*) で取る（下のナビ・上のヘッダー・シートなど）。 -->
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1, viewport-fit=cover"
+		/>
+		<!-- 他人のレシピは、ログインした人だけが見られるため、検索エンジンに載せない。 -->
+		<meta name="robots" content="noindex, nofollow" />
+		<!-- 上のヘッダーと同じ色にして、OS のバーとひと続きに見せる（styles.css の --color-background）。 -->
+		<meta name="theme-color" content="#fffdf7" />
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+		<link rel="manifest" href="/manifest.webmanifest" />
+		<link rel="icon" href="/recipion-icon.svg" type="image/svg+xml" />
+		<!-- 題名は、画面ごとに HeadContent が付ける（TanStack Router の SPA の手順どおり、ここには書かない）。 -->
+	</head>
+	<body>
+		<div id="app"></div>
+		<script type="module" src="/src/main.tsx"></script>
+	</body>
+</html>

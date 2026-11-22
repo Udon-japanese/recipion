@@ -11,7 +11,6 @@ export const routePendingOptions = {
 } as const;
 
 // 全画面に共通の、読み込み中の表示（ルーターの defaultPendingComponent）。
-// 静的シェル（dist/client/_shell.html）でも、JS が動くまで、中身の場所にこれが出る。
 // アプリを開いて最初の読み込みでは、ヘッダー・ナビも覆う全画面にする（OS のスプラッシュから、つなげて見せる）。
 export function RoutePending() {
 	const router = useRouter();

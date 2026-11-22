@@ -6,8 +6,6 @@ import { AdminReportsPage } from "#/features/reports/components/admin-reports-pa
 
 export const Route = createFileRoute("/admin/reports")({
 	head: () => ({ meta: [{ title: pageTitle("通報（管理者）") }] }),
-	// ブラウザだけで描く（データは API から読む。サーバーの中では API を呼べないため。Web の最終形は SPA）。
-	ssr: false,
 	loader: async () => {
 		const [open, resolved] = await Promise.all([
 			adminApi.listOpenReports(),

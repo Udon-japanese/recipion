@@ -108,7 +108,7 @@ nr deploy
 - `wrangler.jsonc` に、次のバインディングが入っている：`hyperdrive`、`ai`（Workers AI）、`ratelimits`（ログイン用 3 つと、`LINK_SEARCH_LIMITER`）。
 - ビルドは、数秒で終わる（後処理のプレビューは、`vite.config.ts` の `remoteBindings: !isPreview` で、リモートのバインディング（Workers AI）を使わない。公式のオプション。デプロイされる設定の `ai` には、影響しない）。ビルドが終わらないときは、この設定が外れていないかを確認する。
 - ビルドのたびに、サービスワーカーのビルド ID が変わる（想定どおり）。
-- ビルドの後処理が、静的ページ（`terms.html`・`privacy.html`）と、シェルのコピー（`shopping.html`・`inventory.html`・`recipes/new.html`）を、`dist/client` に作る（`dist` は、ビルドのたびに作り直される）。デプロイは、必ず `nr deploy`（ビルド込み）で行う。規約・ポリシーの文面を変えたら、デプロイで、静的ファイルが更新される。
+- 画面は SPA（`dist/client/index.html` と JS）。ビルドの後処理は、サービスワーカー用の `sw-build.js` だけを作る。デプロイは、必ず `nr deploy`（ビルド込み）で行う。
 
 ## 9. WAF の許可リストを更新する
 
@@ -120,6 +120,7 @@ nr waf:allowlist
 
 - Cloudflare ダッシュボード → Security → Security rules → カスタムルール（許可リスト以外を Block）の式を、出力で置き換える。
 - 前回から増えたパス：`/profile`、`/terms`、`/privacy`、`/account-deleted`、`/admin`、`/admin/reports`、`/admin/appeals`、`/admin/users`、`/admin/user-reports` ほか（式は、出力が正）。
+- **API（`/api/`）は、前方一致で許可する**（2026-11-22 から。Hono の API `/api/v1/` と Better Auth `/api/auth/`）。以前の式は `/api/auth/` だけを許可していたので、**API を Hono に移した版をデプロイする前に、必ず式を貼り替える**（貼り替えないと、`/api/v1/` が WAF の 403 になり、ログイン以外のすべての読み書きが止まる）。`/_serverFn/` と `/_shell` は、許可リストから消えた。
 
 ## 10. デプロイ後の確認
 

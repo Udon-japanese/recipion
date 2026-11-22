@@ -41,8 +41,6 @@ export const Route = createFileRoute("/settings")({
 	validateSearch: v.object({
 		tab: v.optional(v.picklist(settingsTabs), "inventory"),
 	}),
-	// 設定は、この端末の保存（localStorage）から読む。
-	ssr: false,
 	component: SettingsRoute,
 });
 

@@ -22,8 +22,6 @@ const defaultSearch = { q: "", tags: [] };
 // みんなのレシピ。検索の条件（q：検索語、tags：公開用のタグ）は URL に持ち、そのまま共有できる。
 // 空の条件は、URL に出さない（/recipes/public だけにする）。
 export const Route = createFileRoute("/recipes/public")({
-	// ブラウザだけで描く（データは API から読む。サーバーの中では API を呼べないため。Web の最終形は SPA）。
-	ssr: false,
 	head: () => ({ meta: [{ title: pageTitle("みんなのレシピ") }] }),
 	validateSearch: v.object({
 		q: v.optional(v.pipe(v.string(), v.maxLength(maxSearchQueryLength)), ""),

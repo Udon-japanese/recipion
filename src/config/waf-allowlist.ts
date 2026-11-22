@@ -1,6 +1,6 @@
 // Cloudflare の WAF カスタムルール（アクションは Block）に貼る式を作る。
 // このアプリが提供するパスだけを許可し、それ以外（/wp-login.php、/.env など、bot のスキャン）は、
-// Worker を起動する前に、ゾーンで遮断する。Worker の起動、SSR、DB への接続を、避けられる。
+// Worker を起動する前に、ゾーンで遮断する。Worker の起動と、DB への接続を、避けられる。
 //
 // 許可するパスは、ルート定義（routeTree.gen.ts）と public/ のファイルから作る。
 // ルートや公開ファイルを足したら、`nr waf:allowlist` で式を作り直して、ダッシュボードのルールを更新すること。
@@ -26,9 +26,11 @@ export type WafAllowlist = {
 };
 
 // アプリの内部で、ルート定義や public/ には現れないが、配信するパス。
-const internalExactPaths = ["/sw-build.js", "/_shell", "/_shell.html"];
+// /sw-build.js：ビルドのあとに作る。/teapot：Worker（src/server.ts）が返す 418 のページ。
+const internalExactPaths = ["/sw-build.js", "/teapot"];
+// `/api/`：Worker（Hono）の API と Better Auth。画面のルート定義には現れない。
 // `/cdn-cgi/` は、Cloudflare 自身が使う（チャレンジ、Turnstile など）。遮断すると、これらが壊れる。
-const internalPrefixes = ["/assets/", "/_serverFn/", "/cdn-cgi/"];
+const internalPrefixes = ["/api/", "/assets/", "/cdn-cgi/"];
 
 export function buildWafAllowlist(input: {
 	routePaths: readonly string[];

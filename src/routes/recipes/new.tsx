@@ -73,7 +73,6 @@ async function loadForkSource(publicId: string | undefined) {
 
 export const Route = createFileRoute("/recipes/new")({
 	head: () => ({ meta: [{ title: pageTitle("レシピを登録") }] }),
-	ssr: false,
 	// from：もとにするレシピの公開 ID（「このレシピをもとに作る」）。
 	validateSearch: v.object({
 		from: v.optional(v.pipe(v.string(), v.minLength(1), v.maxLength(100))),
