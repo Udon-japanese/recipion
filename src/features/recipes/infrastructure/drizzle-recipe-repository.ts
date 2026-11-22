@@ -152,7 +152,9 @@ async function replaceRecipeLinks(
 	);
 
 	if (links.length + keptRows.length > maxLinksPerRecipe) {
-		throw new UserFacingError(`リンクは${maxLinksPerRecipe}個までです。`);
+		throw new UserFacingError(`リンクは${maxLinksPerRecipe}個までです。`, {
+			code: "INVALID_INPUT",
+		});
 	}
 
 	await transaction.delete(recipeLink).where(eq(recipeLink.recipeId, recipeId));
@@ -197,11 +199,14 @@ async function replaceRecipeLinks(
 		) {
 			throw new UserFacingError(
 				`リンク先のレシピが見つかりません：${link.label}`,
+				{ code: "INVALID_INPUT" },
 			);
 		}
 
 		if (target.id === recipeId) {
-			throw new UserFacingError("このレシピ自身へはリンクできません");
+			throw new UserFacingError("このレシピ自身へはリンクできません", {
+				code: "INVALID_INPUT",
+			});
 		}
 
 		return {
@@ -361,7 +366,7 @@ export function createDrizzleRecipeRepository(
 				const countViolation = findRecipeCountViolation(owned?.total ?? 0);
 
 				if (countViolation) {
-					throw new UserFacingError(countViolation);
+					throw new UserFacingError(countViolation, { code: "CONFLICT" });
 				}
 
 				const [createdRecipe] = await transaction

@@ -1,8 +1,8 @@
+import type { AdjustInventoryInput } from "#/features/inventory/application/adjust-inventory-input";
 import { adjustInventoryWithCache } from "#/features/inventory/application/adjust-inventory-with-cache";
 import type {
 	CorrectRecipeConsumptionCommand,
 	CorrectRecipeConsumptionResult,
-	InventoryAdjustmentCommand,
 	InventoryAdjustmentRepositoryResult,
 	UndoRecipeConsumptionResult,
 } from "#/features/inventory/application/inventory-adjustment-repository";
@@ -102,7 +102,7 @@ export function addAlternativeConsumption(
 }
 
 type AdjustRemoteInventory = (
-	command: InventoryAdjustmentCommand,
+	command: AdjustInventoryInput,
 ) => Promise<InventoryAdjustmentRepositoryResult>;
 
 /**

@@ -104,7 +104,9 @@ export function applyInventoryAdjustment(
 
 	if (resultingQuantity < 0) {
 		if (parsedInput.trackingMode === "exact") {
-			throw new UserFacingError("在庫数量が不足しています");
+			throw new UserFacingError("在庫数量が不足しています", {
+				code: "CONFLICT",
+			});
 		}
 
 		quantityDelta = Number((-parsedInput.currentQuantity).toFixed(6));

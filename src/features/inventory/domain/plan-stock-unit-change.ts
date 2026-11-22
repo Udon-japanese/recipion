@@ -30,11 +30,15 @@ export function planStockUnitChange(input: {
 
 	for (const { lotId, quantity } of input.lotQuantities ?? []) {
 		if (!stockedIds.has(lotId)) {
-			throw new UserFacingError("在庫のあるロットを指定してください");
+			throw new UserFacingError("在庫のあるロットを指定してください", {
+				code: "INVALID_INPUT",
+			});
 		}
 
 		if (!(quantity >= 0) || !Number.isFinite(quantity)) {
-			throw new UserFacingError("ロットの数量は0以上にしてください");
+			throw new UserFacingError("ロットの数量は0以上にしてください", {
+				code: "INVALID_INPUT",
+			});
 		}
 
 		entered.set(lotId, round(quantity));
@@ -48,6 +52,7 @@ export function planStockUnitChange(input: {
 		if (quantity === null) {
 			throw new UserFacingError(
 				"この単位には換算できないため、ロットごとの量を入力してください",
+				{ code: "INVALID_INPUT" },
 			);
 		}
 

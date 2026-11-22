@@ -158,7 +158,9 @@ describe("IngredientDictionarySection", () => {
 			<IngredientDictionarySection
 				loadEntries={async () => [dashi]}
 				runCommand={async () => {
-					throw new UserFacingError("材料は500個までです");
+					throw new UserFacingError("材料は500個までです", {
+						code: "INVALID_INPUT",
+					});
 				}}
 			/>,
 		);

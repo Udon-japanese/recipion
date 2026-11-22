@@ -39,7 +39,9 @@ async function renderError(error: Error) {
 
 describe("RouteError", () => {
 	it("ログインが必要なときは、ログインへの案内を出し、読み込み直しは出さない", async () => {
-		await renderError(new UserFacingError(AUTH_REQUIRED_MESSAGE));
+		await renderError(
+			new UserFacingError(AUTH_REQUIRED_MESSAGE, { code: "AUTH_REQUIRED" }),
+		);
 
 		expect(
 			screen.getByText("ログインすると、レシピを作成・閲覧できます"),
@@ -72,7 +74,11 @@ describe("RouteError", () => {
 	});
 
 	it("伝えてよい原因があるときは、それを添える", async () => {
-		await renderError(new UserFacingError("このレシピは、見られません"));
+		await renderError(
+			new UserFacingError("このレシピは、見られません", {
+				code: "INVALID_INPUT",
+			}),
+		);
 
 		expect(
 			screen.getByText(

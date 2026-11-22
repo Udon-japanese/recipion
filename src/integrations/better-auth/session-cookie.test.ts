@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hasSessionCookie } from "./session-cookie";
+import { hasSessionCookie, hasSessionCredential } from "./session-cookie";
 
 describe("hasSessionCookie", () => {
 	it("セッション Cookie があれば、true（https の __Secure- 付きも）", () => {
@@ -23,5 +23,19 @@ describe("hasSessionCookie", () => {
 		expect(hasSessionCookie("x-better-auth.session_token=abc")).toBe(false);
 		expect(hasSessionCookie("better-auth.session_data=abc")).toBe(false);
 		expect(hasSessionCookie("better-auth.session_token=")).toBe(false);
+	});
+});
+
+describe("hasSessionCredential", () => {
+	it.each([
+		[{ cookie: "better-auth.session_token=abc.def" }, true],
+		[{ authorization: "Bearer abc.def" }, true],
+		[{ authorization: "bearer abc" }, true],
+		[{ authorization: "Bearer " }, false],
+		[{ authorization: "Basic abc" }, false],
+		[{ cookie: "theme=dark" }, false],
+		[{}, false],
+	])("%j は %s", (headers, expected) => {
+		expect(hasSessionCredential(new Headers(headers))).toBe(expected);
 	});
 });

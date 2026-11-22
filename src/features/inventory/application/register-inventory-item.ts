@@ -22,7 +22,7 @@ const requiredTextSchema = v.pipe(
 	v.minLength(1, "値を入力してください"),
 );
 
-const registerInventoryItemInputSchema = v.object({
+export const registerInventoryItemInputSchema = v.object({
 	transactionId: v.pipe(v.string(), v.uuid("取引IDが不正です")),
 	ingredientName: v.pipe(
 		v.string(),
@@ -116,6 +116,7 @@ export async function registerInventoryItem(
 	if (!input.markAsAvailable && !isSameStockUnit(inventoryItem, input)) {
 		throw new UserFacingError(
 			`${inventoryItem.name}は、在庫の単位が${inventoryItem.stockUnitLabel}です。${inventoryItem.stockUnitLabel}で入れてください（単位を変えるときは、在庫の「単位を変える」から）`,
+			{ code: "CONFLICT" },
 		);
 	}
 

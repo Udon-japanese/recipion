@@ -9,17 +9,9 @@ import { useOwnerScope } from "#/features/inventory/hooks/use-owner-scope";
 import { RecipeEditor } from "#/features/recipes/components/recipe-editor";
 import { createForkDocument } from "#/features/recipes/domain/create-fork-document";
 import { collectOwnRecipeTags } from "#/features/recipes/domain/filter-own-recipes";
-import { createRecipeServerFn } from "#/features/recipes/server/create-recipe";
-import { forkRecipeServerFn } from "#/features/recipes/server/fork-recipe";
-import { getLinkedRecipesServerFn } from "#/features/recipes/server/get-linked-recipes";
-import { getRecipeServerFn } from "#/features/recipes/server/get-recipe";
-import {
-	listUserPublicRecipesServerFn,
-	searchLinkableUsersServerFn,
-} from "#/features/recipes/server/linkable-recipes";
-import { listRecipesServerFn } from "#/features/recipes/server/list-recipes";
+import * as recipesApi from "#/features/recipes/infrastructure/recipes-api";
 
-type OwnRecipes = Awaited<ReturnType<typeof listRecipesServerFn>>;
+type OwnRecipes = Awaited<ReturnType<typeof recipesApi.listRecipes>>;
 
 function toLinkTargets(recipes: OwnRecipes) {
 	return recipes.map(({ publicId, name, createdAt }) => ({
@@ -31,16 +23,16 @@ function toLinkTargets(recipes: OwnRecipes) {
 
 // リンクできるレシピ（自分のレシピ）。
 async function loadLinkTargets() {
-	return toLinkTargets(await listRecipesServerFn());
+	return toLinkTargets(await recipesApi.listRecipes());
 }
 
 // 保存前の確認で押したリンクのプレビュー。編集中の内容を失わないよう、「レシピを開く」は、新しいタブで開く。
 function loadLinkedRecipe(publicId: string) {
-	return getRecipeServerFn({ data: { publicId } });
+	return recipesApi.getRecipe({ publicId });
 }
 
 function loadLinkedRecipes(publicIds: string[]) {
-	return getLinkedRecipesServerFn({ data: { publicIds } });
+	return recipesApi.getLinkedRecipes({ publicIds });
 }
 
 function renderOpenLink(publicId: string) {
@@ -64,9 +56,7 @@ async function loadForkSource(publicId: string | undefined) {
 		return null;
 	}
 
-	const parent = await getRecipeServerFn({ data: { publicId } }).catch(
-		() => null,
-	);
+	const parent = await recipesApi.getRecipe({ publicId }).catch(() => null);
 
 	if (!parent || (parent.author && parent.visibility !== "public")) {
 		return { status: "unavailable" as const };
@@ -92,7 +82,7 @@ export const Route = createFileRoute("/recipes/new")({
 	// リンクできるレシピは、前もって取る（ログインしていなければ、取らない）。
 	loader: async ({ deps }) => {
 		const [recipes, fork] = await Promise.all([
-			listRecipesServerFn().catch(() => undefined),
+			recipesApi.listRecipes().catch(() => undefined),
 			loadForkSource(deps.from),
 		]);
 
@@ -146,17 +136,15 @@ function NewRecipePage() {
 				initialLinkTargets={linkTargets}
 				personalTagSuggestions={personalTagSuggestions}
 				searchLinkableUsers={(query) =>
-					searchLinkableUsersServerFn({ data: { query } })
+					recipesApi.searchLinkableUsers({ query })
 				}
 				loadUserRecipes={(handle) =>
-					listUserPublicRecipesServerFn({ data: { handle } })
+					recipesApi.listUserPublicRecipes({ handle })
 				}
 				onSave={(document) =>
 					fork
-						? forkRecipeServerFn({
-								data: { parentPublicId: fork.publicId, document },
-							})
-						: createRecipeServerFn({ data: document })
+						? recipesApi.forkRecipe({ parentPublicId: fork.publicId, document })
+						: recipesApi.createRecipe(document)
 				}
 				onSaved={(recipe) =>
 					void navigate({

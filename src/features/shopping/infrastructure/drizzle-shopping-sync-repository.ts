@@ -112,7 +112,7 @@ export function createDrizzleShoppingSyncRepository(db: DB, userId: string) {
 
 					// 送信ごと断る（1つのトランザクションなので、何も書かない）。
 					if (problem) {
-						throw new UserFacingError(problem);
+						throw new UserFacingError(problem, { code: "CONFLICT" });
 					}
 
 					await transaction

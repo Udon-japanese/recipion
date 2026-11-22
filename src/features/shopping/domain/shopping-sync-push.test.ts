@@ -1,3 +1,4 @@
+import * as v from "valibot";
 import { describe, expect, it } from "vitest";
 import {
 	decideShoppingPush,
@@ -5,6 +6,7 @@ import {
 	parseShoppingPushRecord,
 	type ShoppingPushRecord,
 	type StoredShoppingRecord,
+	shoppingPushRecordsSchema,
 } from "./shopping-sync-push";
 import type { ShoppingSyncRecord } from "./shopping-sync-record";
 
@@ -62,6 +64,35 @@ describe("decideShoppingPush", () => {
 });
 
 describe("parseShoppingPushRecord", () => {
+	const deletedStore = {
+		kind: "store",
+		id: "store-1",
+		deleted: true,
+		data: null,
+		changeId: "change-1",
+		baseVersion: 3,
+		unackedChangeIds: ["change-0"],
+	};
+
+	it("行と、送るときの印（変更の ID・もとの版・届いたか分からない変更）を、まとめて読む", () => {
+		expect(parseShoppingPushRecord(deletedStore)).toEqual(deletedStore);
+	});
+
+	it("1回に送れるのは100行まで（101行は、形の確認で断る）", () => {
+		const rows = (count: number) =>
+			Array.from({ length: count }, (_, index) => ({
+				...deletedStore,
+				id: `store-${index}`,
+			}));
+
+		expect(v.safeParse(shoppingPushRecordsSchema, rows(100)).success).toBe(
+			true,
+		);
+		expect(v.safeParse(shoppingPushRecordsSchema, rows(101)).success).toBe(
+			false,
+		);
+	});
+
 	it("変更の ID・もとの版がない行は、断る", () => {
 		expect(() =>
 			parseShoppingPushRecord({

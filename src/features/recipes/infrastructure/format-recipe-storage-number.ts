@@ -7,13 +7,17 @@ function formatPositiveStorageNumber(
 	label: string,
 ): string {
 	if (!Number.isFinite(value) || value <= 0 || value >= upperBound) {
-		throw new UserFacingError(`${label}を保存できる範囲で指定してください`);
+		throw new UserFacingError(`${label}を保存できる範囲で指定してください`, {
+			code: "INVALID_INPUT",
+		});
 	}
 
 	const formatted = value.toFixed(scale);
 
 	if (Number(formatted) <= 0) {
-		throw new UserFacingError(`${label}が小さすぎます`);
+		throw new UserFacingError(`${label}が小さすぎます`, {
+			code: "INVALID_INPUT",
+		});
 	}
 
 	return formatted;

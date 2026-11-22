@@ -79,85 +79,52 @@ const idSchema = v.pipe(
 	v.maxLength(shoppingRecordLimits.maxConversionMemoryKeyLength),
 );
 
-const recordSchema = v.variant("deleted", [
-	v.object({
-		kind: v.picklist(shoppingRecordKinds),
-		id: idSchema,
-		deleted: v.literal(true),
-		data: v.null(),
-	}),
-	v.object({
-		kind: v.picklist(shoppingRecordKinds),
+// 消した行（中身なし）。
+const deletedRecordSchema = v.object({
+	kind: v.picklist(shoppingRecordKinds),
+	id: idSchema,
+	deleted: v.literal(true),
+	data: v.null(),
+});
+
+function liveRecordSchema<
+	Kind extends ShoppingRecordKind,
+	Data extends (typeof dataSchemas)[Kind],
+>(kind: Kind, data: Data) {
+	return v.object({
+		kind: v.literal(kind),
 		id: idSchema,
 		deleted: v.literal(false),
-		data: v.unknown(),
-	}),
+		data,
+	});
+}
+
+// 同期する1行の形（種類ごとの中身まで、すべて書く。API の契約にも、この形が出る）。
+export const shoppingSyncRecordSchema = v.variant("deleted", [
+	deletedRecordSchema,
+	v.variant("kind", [
+		liveRecordSchema("item", dataSchemas.item),
+		liveRecordSchema("store", dataSchemas.store),
+		liveRecordSchema("branch", dataSchemas.branch),
+		liveRecordSchema("storeDefault", dataSchemas.storeDefault),
+		liveRecordSchema("conversionMemory", dataSchemas.conversionMemory),
+		liveRecordSchema("itemMemory", dataSchemas.itemMemory),
+	]),
 ]);
+
+// 形を確かめた1行が、行の ID と中身の ID で食い違っていないか（違う行を、別の ID で上書きしない）。
+// 形では書けない規則なので、スキーマの外で確かめる（合わなければ、例外）。
+export function assertShoppingRecordId(record: ShoppingSyncRecord): void {
+	if (!record.deleted && shoppingRecordIdOf(record) !== record.id) {
+		throw new Error("同期する行の ID が、中身と合いません");
+	}
+}
 
 // 送られてきた・受け取った1行を、種類ごとの形で確かめる（合わなければ、例外）。
 export function parseShoppingSyncRecord(input: unknown): ShoppingSyncRecord {
-	const record = v.parse(recordSchema, input);
+	const record: ShoppingSyncRecord = v.parse(shoppingSyncRecordSchema, input);
 
-	if (record.deleted) {
-		return record;
-	}
+	assertShoppingRecordId(record);
 
-	const parsed = parseLiveRecord(record.kind, record.id, record.data);
-
-	if (shoppingRecordIdOf(parsed) !== record.id) {
-		throw new Error("同期する行の ID が、中身と合いません");
-	}
-
-	return parsed;
-}
-
-function parseLiveRecord(
-	kind: ShoppingRecordKind,
-	id: string,
-	data: unknown,
-): Extract<ShoppingSyncRecord, { deleted: false }> {
-	switch (kind) {
-		case "item":
-			return {
-				kind,
-				id,
-				deleted: false,
-				data: v.parse(dataSchemas.item, data),
-			};
-		case "store":
-			return {
-				kind,
-				id,
-				deleted: false,
-				data: v.parse(dataSchemas.store, data),
-			};
-		case "branch":
-			return {
-				kind,
-				id,
-				deleted: false,
-				data: v.parse(dataSchemas.branch, data),
-			};
-		case "storeDefault":
-			return {
-				kind,
-				id,
-				deleted: false,
-				data: v.parse(dataSchemas.storeDefault, data),
-			};
-		case "conversionMemory":
-			return {
-				kind,
-				id,
-				deleted: false,
-				data: v.parse(dataSchemas.conversionMemory, data),
-			};
-		case "itemMemory":
-			return {
-				kind,
-				id,
-				deleted: false,
-				data: v.parse(dataSchemas.itemMemory, data),
-			};
-	}
+	return record;
 }

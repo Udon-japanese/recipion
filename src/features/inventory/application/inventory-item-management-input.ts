@@ -13,11 +13,11 @@ const inventoryItemIdSchema = v.pipe(
 	v.uuid("在庫項目IDが不正です"),
 );
 
-const deleteInventoryItemInputSchema = v.object({
+export const deleteInventoryItemInputSchema = v.object({
 	inventoryItemId: inventoryItemIdSchema,
 });
 
-const renameInventoryItemInputSchema = v.object({
+export const renameInventoryItemInputSchema = v.object({
 	inventoryItemId: inventoryItemIdSchema,
 	displayName: v.nullable(
 		v.pipe(
@@ -32,7 +32,7 @@ const renameInventoryItemInputSchema = v.object({
 });
 
 // 絵は、レシピの絵と同じ検証（部品の数・位置・大きさの上限）。空の絵は送らず、null で戻す。
-const setInventoryItemArtInputSchema = v.object({
+export const setInventoryItemArtInputSchema = v.object({
 	inventoryItemId: inventoryItemIdSchema,
 	art: v.nullable(dishPlacementsSchema),
 });
@@ -43,7 +43,7 @@ export function parseSetInventoryItemArtInput(
 	return v.parse(setInventoryItemArtInputSchema, input);
 }
 
-const changeStockUnitInputSchema = v.object({
+export const changeStockUnitInputSchema = v.object({
 	inventoryItemId: inventoryItemIdSchema,
 	stockUnitCode: v.picklist(["count", "g", "ml"]),
 	stockUnitLabel: v.pipe(

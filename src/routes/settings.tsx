@@ -10,34 +10,20 @@ import type {
 import { BackupSettingsSection } from "#/features/backup/components/backup-settings-section";
 import { ShoppingBackupSection } from "#/features/backup/components/shopping-backup-section";
 import {
+	backupExportApi,
+	backupImportApi,
+} from "#/features/backup/infrastructure/backup-api";
+import {
 	readShoppingData,
 	replaceShoppingData,
 } from "#/features/backup/infrastructure/dexie-shopping-backup";
-import {
-	exportBackupDictionaryServerFn,
-	exportBackupInventoryServerFn,
-	exportBackupRecipesServerFn,
-} from "#/features/backup/server/export-backup";
-import {
-	importBackupRecipeLinksServerFn,
-	importBackupRecipesServerFn,
-	inspectBackupServerFn,
-	mergeBackupDictionaryServerFn,
-	replaceBackupInventoryServerFn,
-} from "#/features/backup/server/import-backup";
 import { IngredientDictionarySection } from "#/features/ingredients/components/ingredient-dictionary-section";
-import {
-	listIngredientDictionaryServerFn,
-	manageIngredientDictionaryServerFn,
-} from "#/features/ingredients/server/ingredient-dictionary";
+import * as ingredientDictionaryApi from "#/features/ingredients/infrastructure/ingredient-dictionary-api";
 import { createDexieInventoryPurchaseOutboxRepository } from "#/features/inventory/infrastructure/dexie-inventory-purchase-outbox-repository";
 import { syncDexieInventoryPurchaseOutbox } from "#/features/inventory/infrastructure/sync-dexie-inventory-purchase-outbox";
 import { AccountDeletionSection } from "#/features/profile/components/account-deletion-section";
 import { HouseholdSizeSetting } from "#/features/recipes/components/household-size-setting";
-import {
-	getHouseholdSizeServerFn,
-	updateHouseholdSizeServerFn,
-} from "#/features/recipes/server/household-size";
+import * as recipesApi from "#/features/recipes/infrastructure/recipes-api";
 import { AccountSettingsSection } from "#/features/settings/components/account-settings-section";
 import {
 	SettingsPage,
@@ -62,30 +48,18 @@ export const Route = createFileRoute("/settings")({
 
 // うちの人数（画面の外に置く：いつも同じ関数にして、開いたときに1回だけ読む）。
 function loadHouseholdSize() {
-	return getHouseholdSizeServerFn();
+	return recipesApi.getHouseholdSize();
 }
 
 function saveHouseholdSize(householdSize: number | null) {
-	return updateHouseholdSizeServerFn({ data: { householdSize } });
+	return recipesApi.updateHouseholdSize(householdSize);
 }
 
-const exportDependencies: BackupExportDependencies = {
-	loadRecipePage: (offset) => exportBackupRecipesServerFn({ data: { offset } }),
-	loadInventory: () => exportBackupInventoryServerFn(),
-	loadDictionary: () => exportBackupDictionaryServerFn(),
-};
+const exportDependencies: BackupExportDependencies = backupExportApi;
 
 function createImportDependencies(userId: string): BackupImportDependencies {
 	return {
-		inspect: (publicIds) => inspectBackupServerFn({ data: { publicIds } }),
-		importRecipes: (recipes) =>
-			importBackupRecipesServerFn({ data: { recipes } }),
-		importLinks: (recipes) =>
-			importBackupRecipeLinksServerFn({ data: { recipes } }),
-		replaceInventory: (items) =>
-			replaceBackupInventoryServerFn({ data: { items } }),
-		mergeDictionary: (entries) =>
-			mergeBackupDictionaryServerFn({ data: { entries } }),
+		...backupImportApi,
 		countPendingPurchases: async () =>
 			(
 				await createDexieInventoryPurchaseOutboxRepository().list(
@@ -110,13 +84,14 @@ function SettingsRoute() {
 				session ? (
 					<IngredientDictionarySection
 						loadEntries={() =>
-							listIngredientDictionaryServerFn({
-								data: { expectedUserId: session.user.id },
+							ingredientDictionaryApi.listIngredientDictionary({
+								expectedUserId: session.user.id,
 							})
 						}
 						runCommand={(command) =>
-							manageIngredientDictionaryServerFn({
-								data: { expectedUserId: session.user.id, command },
+							ingredientDictionaryApi.manageIngredientDictionary({
+								expectedUserId: session.user.id,
+								command,
 							})
 						}
 					/>

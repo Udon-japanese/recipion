@@ -54,7 +54,8 @@ const ingredientSchema: v.GenericSchema<RecipeEditorIngredientNode> = v.lazy(
 			}),
 		]),
 );
-const documentSchema = v.object({
+// レシピの文書の形（API の契約にも出る）。具体的な上限と、形では書けない規則は、validateRecipeEditorDocument。
+export const recipeEditorDocumentSchema = v.object({
 	name: requiredText,
 	yieldText: v.pipe(
 		v.string(),
@@ -117,26 +118,36 @@ function validateIngredientIds(
 ): void {
 	for (const node of nodes) {
 		if (ids.has(node.id)) {
-			throw new UserFacingError("レシピ内でIDが重複しています");
+			throw new UserFacingError("レシピ内でIDが重複しています", {
+				code: "INVALID_INPUT",
+			});
 		}
 		ids.add(node.id);
 
 		if (node.type === "group") {
 			if (node.children.length === 0) {
-				throw new UserFacingError("空の材料グループは保存できません");
+				throw new UserFacingError("空の材料グループは保存できません", {
+					code: "INVALID_INPUT",
+				});
 			}
 			validateIngredientIds(node.children, ids);
 		}
 	}
 }
 
+// レシピの形が合わないときの文（API の入力の確認でも使う）。
+export const INVALID_RECIPE_DOCUMENT_MESSAGE =
+	"レシピの入力内容を確認してください";
+
 export function validateRecipeEditorDocument(
 	input: unknown,
 ): RecipeEditorDocument {
-	const result = v.safeParse(documentSchema, input);
+	const result = v.safeParse(recipeEditorDocumentSchema, input);
 
 	if (!result.success) {
-		throw new UserFacingError("レシピの入力内容を確認してください");
+		throw new UserFacingError(INVALID_RECIPE_DOCUMENT_MESSAGE, {
+			code: "INVALID_INPUT",
+		});
 	}
 
 	// 再帰的な材料スキーマは GenericSchema として宣言しているため、
@@ -150,34 +161,44 @@ export function validateRecipeEditorDocument(
 	const limitViolation = findRecipeLimitViolation(document);
 
 	if (limitViolation) {
-		throw new UserFacingError(limitViolation);
+		throw new UserFacingError(limitViolation, { code: "INVALID_INPUT" });
 	}
 
 	// 引用元のあるレシピは、公開できない（他のサイトの転載を避ける。DB の制約と同じ）。
 	if (document.visibility !== "private" && document.sourceUrl !== null) {
-		throw new UserFacingError("引用元のURLがあるレシピは公開できません");
+		throw new UserFacingError("引用元のURLがあるレシピは公開できません", {
+			code: "INVALID_INPUT",
+		});
 	}
 
 	if (new Set(document.publicTags).size !== document.publicTags.length) {
-		throw new UserFacingError("公開用のタグが重複しています");
+		throw new UserFacingError("公開用のタグが重複しています", {
+			code: "INVALID_INPUT",
+		});
 	}
 
 	if (new Set(document.personalTags).size !== document.personalTags.length) {
-		throw new UserFacingError("個人用のタグが重複しています");
+		throw new UserFacingError("個人用のタグが重複しています", {
+			code: "INVALID_INPUT",
+		});
 	}
 
 	const linkLabels = new Set<string>();
 
 	for (const link of document.links) {
 		if (linkLabels.has(link.label)) {
-			throw new UserFacingError("リンクのラベルが重複しています");
+			throw new UserFacingError("リンクのラベルが重複しています", {
+				code: "INVALID_INPUT",
+			});
 		}
 		linkLabels.add(link.label);
 	}
 
 	for (const preparation of document.preparations) {
 		if (ids.has(preparation.id)) {
-			throw new UserFacingError("レシピ内でIDが重複しています");
+			throw new UserFacingError("レシピ内でIDが重複しています", {
+				code: "INVALID_INPUT",
+			});
 		}
 		ids.add(preparation.id);
 	}
@@ -186,7 +207,9 @@ export function validateRecipeEditorDocument(
 
 	for (const instruction of document.instructions) {
 		if (ids.has(instruction.id)) {
-			throw new UserFacingError("レシピ内でIDが重複しています");
+			throw new UserFacingError("レシピ内でIDが重複しています", {
+				code: "INVALID_INPUT",
+			});
 		}
 		ids.add(instruction.id);
 
@@ -194,10 +217,14 @@ export function validateRecipeEditorDocument(
 
 		for (const referenceId of instruction.referencedInstructionIds) {
 			if (!precedingInstructionIds.has(referenceId)) {
-				throw new UserFacingError("前の工程だけを参照してください");
+				throw new UserFacingError("前の工程だけを参照してください", {
+					code: "INVALID_INPUT",
+				});
 			}
 			if (references.has(referenceId)) {
-				throw new UserFacingError("同じ工程への参照が重複しています");
+				throw new UserFacingError("同じ工程への参照が重複しています", {
+					code: "INVALID_INPUT",
+				});
 			}
 			references.add(referenceId);
 		}

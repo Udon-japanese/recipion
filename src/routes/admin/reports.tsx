@@ -1,20 +1,17 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { pageTitle } from "#/config/app";
 import { AdminRouteError } from "#/features/admin/components/admin-route-error";
+import * as adminApi from "#/features/admin/infrastructure/admin-api";
 import { AdminReportsPage } from "#/features/reports/components/admin-reports-page";
-import {
-	getReportedRecipeServerFn,
-	listOpenReportsServerFn,
-	listResolvedReportsServerFn,
-	resolveReportServerFn,
-} from "#/features/reports/server/admin-reports";
 
 export const Route = createFileRoute("/admin/reports")({
 	head: () => ({ meta: [{ title: pageTitle("通報（管理者）") }] }),
+	// ブラウザだけで描く（データは API から読む。サーバーの中では API を呼べないため。Web の最終形は SPA）。
+	ssr: false,
 	loader: async () => {
 		const [open, resolved] = await Promise.all([
-			listOpenReportsServerFn(),
-			listResolvedReportsServerFn(),
+			adminApi.listOpenReports(),
+			adminApi.listResolvedReports(),
 		]);
 
 		return { open, resolved };
@@ -31,13 +28,9 @@ function AdminReportsRoute() {
 		<AdminReportsPage
 			reports={reports}
 			resolved={resolved}
-			loadRecipe={(reportId) =>
-				getReportedRecipeServerFn({ data: { reportId } })
-			}
+			loadRecipe={(reportId) => adminApi.getReportedRecipe({ reportId })}
 			onResolve={async (reportId, action) => {
-				const result = await resolveReportServerFn({
-					data: { reportId, action },
-				});
+				const result = await adminApi.resolveReport({ reportId, action });
 
 				void router.invalidate();
 

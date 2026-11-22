@@ -7,9 +7,46 @@ const localModules = import.meta.glob<{
 	hintEmoji?: readonly string[];
 }>("./context-sensitive*.local.ts", { eager: true });
 
-export const contextSensitiveLexicon: readonly LexiconEntry[] = Object.values(
-	localModules,
-).flatMap((module) => module.default);
+// 審査への指示（AI をだまして、通そうとする言い回し）。料理の文にも出うる言い回しがあるので、止めずに、注意する語にする。
+// 当たった文章は、AI が ok としても「怪しい」になる（レシピは、公開して管理者の画面に載る。名前の欄は、断る）。
+// 表記のゆれ（大文字小文字・全角・空白）は、照合のときにそろう。悪い語ではないので、リポジトリに置く。
+const injectionPhrases: LexiconEntry = {
+	category: "manipulation",
+	terms: [
+		"指示を無視",
+		"指示は無視",
+		"指示をすべて無視",
+		"指示を全て無視",
+		"ルールを無視",
+		"基準を無視",
+		"判定の基準",
+		"審査結果",
+		"審査担当",
+		"okと判定",
+		"okと答え",
+		"okと出力",
+		"okにして",
+		"okにします",
+		"okを返",
+		"ngにしない",
+		"verdict",
+		"system:",
+		"systemprompt",
+		"システムプロンプト",
+		"ignoreprevious",
+		"ignoreall",
+		"データではありません",
+		"表記をそろえた文章",
+		"言い換えの確認用",
+		"<<<end",
+	],
+};
+
+// 一覧の順に、怪しいとしたときの種類を決める（手元の語を先に。審査への指示は、ほかに当たらないときの種類）。
+export const contextSensitiveLexicon: readonly LexiconEntry[] = [
+	...Object.values(localModules).flatMap((module) => module.default),
+	injectionPhrases,
+];
 
 // 単独でも、意味を持ちうる絵文字（AI への「注意する語」にする。単独では、止めない）。
 export const contextHintEmoji: readonly string[] = Object.values(

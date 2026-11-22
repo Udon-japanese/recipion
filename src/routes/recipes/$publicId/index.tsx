@@ -20,12 +20,7 @@ import { userIdOfOwnerScope } from "#/features/inventory/application/inventory-p
 import { loadInventoryItemsWithCache } from "#/features/inventory/application/load-inventory-items-with-cache";
 import { useOwnerScope } from "#/features/inventory/hooks/use-owner-scope";
 import { createDexieInventoryCacheRepository } from "#/features/inventory/infrastructure/dexie-inventory-cache-repository";
-import { adjustInventory as adjustInventoryServerFn } from "#/features/inventory/server/adjust-inventory";
-import { correctRecipeConsumptionServerFn } from "#/features/inventory/server/correct-recipe-consumption";
-import { listInventoryItemsServerFn } from "#/features/inventory/server/list-inventory-items";
-import { registerInventoryItemServerFn } from "#/features/inventory/server/register-inventory-item";
-import { stockMadeRecipeServerFn } from "#/features/inventory/server/stock-made-recipe";
-import { undoRecipeConsumptionServerFn } from "#/features/inventory/server/undo-recipe-consumption";
+import * as inventoryApi from "#/features/inventory/infrastructure/inventory-api";
 import type {
 	RecipeConsumptionEntryResult,
 	RecipeConsumptionOperation,
@@ -71,35 +66,20 @@ import {
 	ratioForYield,
 	scaleRecipeYieldText,
 } from "#/features/recipes/domain/recipe-yield";
+import * as recipesApi from "#/features/recipes/infrastructure/recipes-api";
 import {
 	stashSharedPassphrase,
 	takeSharedPassphrase,
 } from "#/features/recipes/infrastructure/shared-passphrase-storage";
-import { deleteRecipeServerFn } from "#/features/recipes/server/delete-recipe";
-import { getLinkedRecipesServerFn } from "#/features/recipes/server/get-linked-recipes";
-import { getRecipeServerFn } from "#/features/recipes/server/get-recipe";
-import { getHouseholdSizeServerFn } from "#/features/recipes/server/household-size";
-import {
-	cancelRecipeCookServerFn,
-	getRecipeCookStatsServerFn,
-	recordRecipeCookServerFn,
-} from "#/features/recipes/server/recipe-cook-log";
-import {
-	getRecipePassphraseServerFn,
-	regenerateRecipePassphraseServerFn,
-} from "#/features/recipes/server/recipe-passphrase";
-import {
-	unlockRecipeServerFn,
-	viewRecipeServerFn,
-} from "#/features/recipes/server/view-recipe";
 import { ReportMenu } from "#/features/reports/components/report-menu";
-import { createReportServerFn } from "#/features/reports/server/create-report";
-import { createUserNameReportServerFn } from "#/features/reports/server/create-user-report";
+import * as reportsApi from "#/features/reports/infrastructure/reports-api";
 
-// 前もって取るリンク先の数の上限（getLinkedRecipesServerFn の入力の上限と同じ）。
+// 前もって取るリンク先の数の上限（API の /recipes/linked の入力の上限と同じ）。
 const maxPreloadedLinkTargets = 30;
 
 export const Route = createFileRoute("/recipes/$publicId/")({
+	// ブラウザだけで描く（データは API から読む。サーバーの中では API を呼べないため。Web の最終形は SPA）。
+	ssr: false,
 	// n：見る人が選んだ、できあがりの数（「4人分」のレシピを2人分で見る、など）。なければ、レシピの量のまま。
 	validateSearch: v.object({
 		n: v.optional(
@@ -111,9 +91,9 @@ export const Route = createFileRoute("/recipes/$publicId/")({
 	// 在庫は、前もって取らない（「買い物メモへ」「つくった」で使うときに、その時点の在庫を取る）。
 	loader: async ({ params }) => {
 		const [viewable, cookStats, householdSize] = await Promise.all([
-			viewRecipeServerFn({ data: { publicId: params.publicId } }),
-			getRecipeCookStatsServerFn({ data: { publicId: params.publicId } }),
-			getHouseholdSizeServerFn(),
+			recipesApi.viewRecipe({ publicId: params.publicId }),
+			recipesApi.getRecipeCookStats({ publicId: params.publicId }),
+			recipesApi.getHouseholdSize(),
 		]);
 
 		if (!viewable) {
@@ -124,12 +104,23 @@ export const Route = createFileRoute("/recipes/$publicId/")({
 			0,
 			maxPreloadedLinkTargets,
 		);
-		const linkedRecipes =
+		// 限定公開の持ち主には、パスフレーズも、画面を出す前に取る（帯に、読み込み中を挟まない）。
+		const [linkedRecipes, passphrase] = await Promise.all([
 			linkTargetIds.length > 0
-				? await getLinkedRecipesServerFn({ data: { publicIds: linkTargetIds } })
-				: {};
+				? recipesApi.getLinkedRecipes({ publicIds: linkTargetIds })
+				: {},
+			viewable.isOwn && viewable.recipe.visibility === "unlisted"
+				? recipesApi.getRecipePassphrase({ publicId: params.publicId })
+				: null,
+		]);
 
-		return { ...viewable, linkedRecipes, cookStats, householdSize };
+		return {
+			...viewable,
+			linkedRecipes,
+			cookStats,
+			householdSize,
+			passphrase,
+		};
 	},
 	head: ({ loaderData }) => ({
 		meta: [
@@ -154,13 +145,15 @@ type RecipePreload = {
 	householdSize: number | null;
 	// もとにしたレシピ（継承していなければ null）。
 	parent: RecipeParentView | null;
+	// 限定公開の持ち主に出す、パスフレーズ（ほかは null）。
+	passphrase: string | null;
 };
 
 // 「買い物メモへ」「つくった」で、リンク先の材料を使うとき。画面を開いたあとに、リンク先が消された・見られなくなった
 // こともあるので、前もって取った分は使わず、押したときに取り直す（在庫と同じ。見つからなければ、知らせる）。
 // 画面の中の値を使わないので、コンポーネントの外に置く（いつも同じ関数のまま）。
 function loadCurrentLinkedRecipe(publicId: string) {
-	return getRecipeServerFn({ data: { publicId } });
+	return recipesApi.getRecipe({ publicId });
 }
 
 // 見る人によらない、画面の支え（リンク先の取得、在庫、「ある」の登録）。
@@ -209,19 +202,18 @@ function useRecipeViewSupport(
 	const cookLog = {
 		record: async (sourceId: string) => {
 			setCookStats(
-				await recordRecipeCookServerFn({
-					data: {
-						recipePublicId: recipe.publicId,
-						sourceId,
-						yieldText: scaleRecipeYieldText(recipe.yieldText, ratio),
-					},
+				await recipesApi.recordRecipeCook({
+					recipePublicId: recipe.publicId,
+					sourceId,
+					yieldText: scaleRecipeYieldText(recipe.yieldText, ratio),
 				}),
 			);
 		},
 		cancel: async (sourceId: string) => {
 			setCookStats(
-				await cancelRecipeCookServerFn({
-					data: { recipePublicId: recipe.publicId, sourceId },
+				await recipesApi.cancelRecipeCook({
+					recipePublicId: recipe.publicId,
+					sourceId,
 				}),
 			);
 		},
@@ -230,27 +222,19 @@ function useRecipeViewSupport(
 	// リンク先のレシピ（プレビューで見る分）。前もって取ってあれば、それを使う（すぐに開くため）。
 	const loadLinkedRecipe = useCallback(
 		async (publicId: string) =>
-			linkedRecipes[publicId] ??
-			(await getRecipeServerFn({ data: { publicId } })),
+			linkedRecipes[publicId] ?? (await recipesApi.getRecipe({ publicId })),
 		[linkedRecipes],
 	);
 
 	// 材料のリンク先を、リンク先の中のリンクもたどって、まとめて取る（材料の下に、その場で開く）。
 	const loadLinkedRecipes = useCallback(
-		(publicIds: string[]) => getLinkedRecipesServerFn({ data: { publicIds } }),
+		(publicIds: string[]) => recipesApi.getLinkedRecipes({ publicIds }),
 		[],
 	);
 
-	// 限定公開のパスフレーズ（持ち主だけ）。
-	const loadPassphrase = useCallback(
-		() => getRecipePassphraseServerFn({ data: { publicId: recipe.publicId } }),
-		[recipe.publicId],
-	);
+	// 限定公開のパスフレーズの作り直し（持ち主だけ）。
 	const regeneratePassphrase = useCallback(
-		() =>
-			regenerateRecipePassphraseServerFn({
-				data: { publicId: recipe.publicId },
-			}),
+		() => recipesApi.regenerateRecipePassphrase({ publicId: recipe.publicId }),
 		[recipe.publicId],
 	);
 
@@ -264,8 +248,8 @@ function useRecipeViewSupport(
 		const result = await loadInventoryItemsWithCache(
 			ownerScope,
 			() =>
-				listInventoryItemsServerFn({
-					data: { expectedUserId: userIdOfOwnerScope(ownerScope) },
+				inventoryApi.listInventoryItems({
+					expectedUserId: userIdOfOwnerScope(ownerScope),
 				}),
 			createDexieInventoryCacheRepository(),
 		);
@@ -283,17 +267,15 @@ function useRecipeViewSupport(
 				throw new Error("在庫に登録できるユーザーではありません");
 			}
 
-			await registerInventoryItemServerFn({
-				data: {
-					expectedUserId: userIdOfOwnerScope(ownerScope),
-					transactionId: crypto.randomUUID(),
-					ingredientName,
-					stockUnitCode,
-					stockUnitLabel: getDefaultStockUnitLabel(stockUnitCode),
-					trackingMode: entry?.defaultTrackingMode ?? "estimated",
-					initialQuantity: 0,
-					markAsAvailable: true,
-				},
+			await inventoryApi.registerInventoryItem({
+				expectedUserId: userIdOfOwnerScope(ownerScope),
+				transactionId: crypto.randomUUID(),
+				ingredientName,
+				stockUnitCode,
+				stockUnitLabel: getDefaultStockUnitLabel(stockUnitCode),
+				trackingMode: entry?.defaultTrackingMode ?? "estimated",
+				initialQuantity: 0,
+				markAsAvailable: true,
 			});
 		},
 		[ownerScope],
@@ -312,7 +294,7 @@ function useRecipeViewSupport(
 			return runRecipeConsumption(
 				ownerScope,
 				operation,
-				(command) => adjustInventoryServerFn({ data: command }),
+				(command) => inventoryApi.adjustInventory(command),
 				createDexieInventoryCacheRepository(),
 				onlyNeedIds,
 			);
@@ -330,13 +312,11 @@ function useRecipeViewSupport(
 				ownerScope,
 				target,
 				({ sourceId, inventoryItemIds }) =>
-					undoRecipeConsumptionServerFn({
-						data: {
-							sourceId,
-							...(inventoryItemIds
-								? { inventoryItemIds: [...inventoryItemIds] }
-								: {}),
-						},
+					inventoryApi.undoRecipeConsumption({
+						sourceId,
+						...(inventoryItemIds
+							? { inventoryItemIds: [...inventoryItemIds] }
+							: {}),
 					}),
 				createDexieInventoryCacheRepository(),
 			);
@@ -354,7 +334,7 @@ function useRecipeViewSupport(
 			return correctRecipeConsumptionWithCache(
 				ownerScope,
 				command,
-				(data) => correctRecipeConsumptionServerFn({ data }),
+				(data) => inventoryApi.correctRecipeConsumption(data),
 				createDexieInventoryCacheRepository(),
 			);
 		},
@@ -368,8 +348,9 @@ function useRecipeViewSupport(
 			transactionId: string;
 			quantity: number;
 		}) => {
-			await stockMadeRecipeServerFn({
-				data: { recipePublicId: recipe.publicId, ...input },
+			await inventoryApi.stockMadeRecipe({
+				recipePublicId: recipe.publicId,
+				...input,
 			});
 		},
 		[recipe.publicId],
@@ -385,7 +366,6 @@ function useRecipeViewSupport(
 		cookLog,
 		loadLinkedRecipe,
 		loadLinkedRecipes,
-		loadPassphrase,
 		regeneratePassphrase,
 		loadInventoryItems,
 		registerAvailable,
@@ -414,7 +394,6 @@ function OwnRecipePage({
 		cookLog,
 		loadLinkedRecipe,
 		loadLinkedRecipes,
-		loadPassphrase,
 		regeneratePassphrase,
 		loadInventoryItems,
 		registerAvailable,
@@ -465,9 +444,7 @@ function OwnRecipePage({
 							})
 						}
 						onDelete={async () => {
-							await deleteRecipeServerFn({
-								data: { publicId: recipe.publicId },
-							});
+							await recipesApi.deleteRecipe({ publicId: recipe.publicId });
 							await navigate({ to: "/recipes" });
 						}}
 					/>
@@ -495,7 +472,7 @@ function OwnRecipePage({
 								<RecipePassphraseSection
 									recipeName={recipe.name}
 									publicId={recipe.publicId}
-									loadPassphrase={loadPassphrase}
+									initialPassphrase={preload.passphrase}
 									regeneratePassphrase={regeneratePassphrase}
 								/>
 							) : null}
@@ -620,14 +597,13 @@ function SharedRecipePage({
 								: []
 						}
 						onReportRecipe={(input) =>
-							createReportServerFn({
-								data: { recipePublicId: recipe.publicId, ...input },
+							reportsApi.reportRecipe({
+								recipePublicId: recipe.publicId,
+								...input,
 							})
 						}
 						onReportUser={(input) =>
-							createUserNameReportServerFn({
-								data: { handle: author.handle, ...input },
-							})
+							reportsApi.reportUserName({ handle: author.handle, ...input })
 						}
 					/>
 				}
@@ -717,7 +693,7 @@ function RecipePage() {
 			<RecipeUnlockForm
 				key={publicId}
 				onUnlock={(passphrase) =>
-					unlockRecipeServerFn({ data: { publicId, passphrase } })
+					recipesApi.unlockRecipe({ publicId, passphrase })
 				}
 				onUnlocked={() => void router.invalidate()}
 				takeSharedPassphrase={() => takeSharedPassphrase(publicId)}

@@ -9,7 +9,9 @@ import {
 describe("hideInternalError", () => {
 	it("利用者向けのエラーは、そのまま通し、ログに残さない", () => {
 		const log = vi.fn();
-		const error = new UserFacingError("レシピが見つかりません");
+		const error = new UserFacingError("レシピが見つかりません", {
+			code: "INVALID_INPUT",
+		});
 
 		expect(hideInternalError(error, log)).toBe(error);
 		expect(log).not.toHaveBeenCalled();
@@ -25,6 +27,7 @@ describe("hideInternalError", () => {
 		expect(result).toBeInstanceOf(UserFacingError);
 		expect((result as Error).message).toBe(GENERIC_ERROR_MESSAGE);
 		expect((result as Error).message).not.toContain("Failed query");
+		expect((result as UserFacingError).code).toBe("INTERNAL");
 		expect(log).toHaveBeenCalledWith(expect.any(String), internal);
 	});
 

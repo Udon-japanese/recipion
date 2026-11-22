@@ -31,6 +31,17 @@ describe("buildJudgeMessages", () => {
 		// 利用者が書いた、偽の終わりの目印は、本物の目印と、違う
 		expect(user.match(/<<<END-nonce-1>>>/gu)).toHaveLength(2);
 	});
+
+	it("名前の欄にだけ、レシピとの関係を問わない注意を添える", () => {
+		const name = buildJudgeMessages(
+			[{ ...item, target: "profile-display-name" }],
+			"n",
+		)[1]?.content;
+		const recipe = buildJudgeMessages([item], "n")[1]?.content;
+
+		expect(name).toContain("名前の欄です");
+		expect(recipe).not.toContain("名前の欄です");
+	});
 });
 
 describe("追加の注意（手元だけの指示）", () => {
@@ -61,6 +72,31 @@ describe("parseJudgeResponse", () => {
 			{ verdict: "ok", category: "other" },
 			{ verdict: "ng", category: "sexual" },
 		]);
+	});
+
+	it.each([
+		[
+			"ng の抜き出しは、前後の空白を除いて返す",
+			"ng",
+			" だめな行 ",
+			{ quote: "だめな行" },
+		],
+		["ok の抜き出しは、捨てる", "ok", "だめな行", {}],
+		["空の抜き出しは、捨てる", "ng", "", {}],
+		["長すぎる抜き出しは、捨てる", "ng", "あ".repeat(61), {}],
+	] as const)("抜き出し（quote）：%s", (_label, verdict, quote, expected) => {
+		const [result] = parseJudgeResponse(
+			JSON.stringify({
+				results: [{ index: 0, verdict, category: "sexual", quote }],
+			}),
+			1,
+		);
+
+		expect(result).toEqual({
+			verdict,
+			category: verdict === "ok" ? "other" : "sexual",
+			...expected,
+		});
 	});
 
 	it("ng・unsure でカテゴリがなければ、other。unsure は、そのまま返す", () => {

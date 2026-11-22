@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { loadInventoryItemsWithCache } from "#/features/inventory/application/load-inventory-items-with-cache";
 import { toDateString } from "#/features/inventory/domain/inventory-lot";
 import { createDexieInventoryCacheRepository } from "#/features/inventory/infrastructure/dexie-inventory-cache-repository";
-import { listInventoryItemsServerFn } from "#/features/inventory/server/list-inventory-items";
-import { listRecipesServerFn } from "#/features/recipes/server/list-recipes";
+import * as inventoryApi from "#/features/inventory/infrastructure/inventory-api";
+import * as recipesApi from "#/features/recipes/infrastructure/recipes-api";
 import { useShoppingOwnerScope } from "#/features/shopping/hooks/use-shopping-owner-scope";
 import { createDexieShoppingRepository } from "#/features/shopping/infrastructure/dexie-shopping-repository";
 import {
@@ -63,7 +63,7 @@ export function useInventoryExpiry(
 		setState(loading);
 		loadInventoryItemsWithCache(
 			`user:${userId}`,
-			() => listInventoryItemsServerFn({ data: { expectedUserId: userId } }),
+			() => inventoryApi.listInventoryItems({ expectedUserId: userId }),
 			createDexieInventoryCacheRepository(),
 		).then(
 			(result) => {
@@ -101,7 +101,7 @@ export function useRecipeCount(userId: string | null): CountState<number> {
 		let cancelled = false;
 
 		setState(loading);
-		listRecipesServerFn().then(
+		recipesApi.listRecipes().then(
 			(recipes) => {
 				if (!cancelled) {
 					setState({ status: "ready", value: recipes.length });

@@ -55,6 +55,7 @@ select id, created_at from drizzle.__drizzle_migrations order by id;
 
 - Zero Trust → Access → Applications で、**セルフホストのアプリケーション**を作る。
   - 対象（パブリックのホスト名）は、**2つ登録する**：`recipion.app/admin` と `recipion.app/admin/*`。`/admin/*` だけだと、`/admin` そのものが対象にならないことがある。
+  - 管理者の画面のデータは、API（`/api/v1/admin/*`）から読む。API は、Access が付ける Cookie（`CF_Authorization`）のトークンを、自分で検証する（管理者でなければ 404）。守りを重ねるなら、`recipion.app/api/v1/admin/*` も、同じアプリの対象に足す（任意）。
   - ポリシー：許可（Allow）は、運営者のメールだけ。**ここのメールは、Access のログインで使う ID プロバイダーが返すメール**（ワンタイム PIN なら、PIN を受け取るアドレス。ID プロバイダーが「Cloudflare」なら、Cloudflare アカウントのメール）。アプリ（Better Auth）のログインとは、別。
   - ログイン方法（Login methods）に、使う方法が有効になっていること。
 - 作ったあと、**Audience（AUD）タグ**と、**チーム名のドメイン**を控えて、4 のシークレットに設定する。

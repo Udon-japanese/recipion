@@ -1,19 +1,17 @@
-import type {
-	InventoryAdjustmentCommand,
-	InventoryAdjustmentRepositoryResult,
-} from "./inventory-adjustment-repository";
+import type { AdjustInventoryInput } from "./adjust-inventory-input";
+import type { InventoryAdjustmentRepositoryResult } from "./inventory-adjustment-repository";
 import type {
 	InventoryCacheOwnerScope,
 	InventoryCacheRepository,
 } from "./inventory-cache-repository";
 
 type AdjustRemoteInventory = (
-	command: InventoryAdjustmentCommand,
+	command: AdjustInventoryInput,
 ) => Promise<InventoryAdjustmentRepositoryResult>;
 
 export async function adjustInventoryWithCache(
 	ownerScope: InventoryCacheOwnerScope,
-	command: InventoryAdjustmentCommand,
+	command: AdjustInventoryInput,
 	adjustRemoteInventory: AdjustRemoteInventory,
 	cacheRepository: InventoryCacheRepository,
 	now = new Date(),

@@ -40,9 +40,14 @@ export const adjustInventoryInputSchema = v.object({
 	),
 });
 
+// 画面・アプリが送る増減（API の入力）。理由は、画面から送れるものだけ（できあがりを入れる recipe-production は、サーバーの中だけで使う）。
+export type AdjustInventoryInput = v.InferOutput<
+	typeof adjustInventoryInputSchema
+>;
+
 export function parseAdjustInventoryInput(
 	input: unknown,
-): InventoryAdjustmentCommand {
+): AdjustInventoryInput & InventoryAdjustmentCommand {
 	const command = v.parse(adjustInventoryInputSchema, input);
 
 	// ロットを指定して増やすのは、入れた分の編集から、1つのロットに足すときだけ。
@@ -51,12 +56,15 @@ export function parseAdjustInventoryInput(
 		command.operation === "increase" &&
 		(command.allocations.length !== 1 || command.lot)
 	) {
-		throw new UserFacingError("増やすときに指定できるロットは、1つだけです");
+		throw new UserFacingError("増やすときに指定できるロットは、1つだけです", {
+			code: "INVALID_INPUT",
+		});
 	}
 
 	if (command.lot && command.operation !== "increase") {
 		throw new UserFacingError(
 			"ロットの条件を指定できるのは、追加するときだけです",
+			{ code: "INVALID_INPUT" },
 		);
 	}
 

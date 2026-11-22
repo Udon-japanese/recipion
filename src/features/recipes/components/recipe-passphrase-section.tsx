@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "#/components/button/button";
 import { useButtonAction } from "#/components/button/use-button-action";
 import { ConfirmDialog } from "#/components/dialog/confirm-dialog";
@@ -13,7 +13,8 @@ import * as styles from "./recipe-passphrase-section.css";
 type RecipePassphraseSectionProps = {
 	recipeName: string;
 	publicId: string;
-	loadPassphrase: () => Promise<string | null>;
+	// 画面を出す前に取った、パスフレーズ（読めなかったときは null）。読み込み中の表示を挟まない。
+	initialPassphrase: string | null;
 	regeneratePassphrase: () => Promise<string | null>;
 };
 
@@ -21,30 +22,14 @@ type RecipePassphraseSectionProps = {
 export function RecipePassphraseSection({
 	recipeName,
 	publicId,
-	loadPassphrase,
+	initialPassphrase,
 	regeneratePassphrase,
 }: RecipePassphraseSectionProps) {
-	const [passphrase, setPassphrase] = useState<string | null>(null);
+	const [passphrase, setPassphrase] = useState(initialPassphrase);
 	const [isConfirming, setIsConfirming] = useState(false);
 	const action = useButtonAction();
 	// 失敗したとき（できたことは、画面の上のお知らせで伝える）。
 	const [message, setMessage] = useState<string | null>(null);
-
-	useEffect(() => {
-		let isCancelled = false;
-
-		loadPassphrase()
-			.then((value) => {
-				if (!isCancelled) setPassphrase(value);
-			})
-			.catch(() => {
-				if (!isCancelled) setMessage("パスフレーズを読み込めませんでした");
-			});
-
-		return () => {
-			isCancelled = true;
-		};
-	}, [loadPassphrase]);
 
 	async function regenerate() {
 		setMessage(null);

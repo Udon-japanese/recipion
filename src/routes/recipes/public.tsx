@@ -15,13 +15,15 @@ import {
 	parseSearchTags,
 } from "#/features/recipes/domain/public-recipe-search";
 import { useRecipeSearchHistory } from "#/features/recipes/hooks/use-recipe-search-history";
-import { searchPublicRecipesServerFn } from "#/features/recipes/server/search-public-recipes";
+import * as recipesApi from "#/features/recipes/infrastructure/recipes-api";
 
 const defaultSearch = { q: "", tags: [] };
 
 // みんなのレシピ。検索の条件（q：検索語、tags：公開用のタグ）は URL に持ち、そのまま共有できる。
 // 空の条件は、URL に出さない（/recipes/public だけにする）。
 export const Route = createFileRoute("/recipes/public")({
+	// ブラウザだけで描く（データは API から読む。サーバーの中では API を呼べないため。Web の最終形は SPA）。
+	ssr: false,
 	head: () => ({ meta: [{ title: pageTitle("みんなのレシピ") }] }),
 	validateSearch: v.object({
 		q: v.optional(v.pipe(v.string(), v.maxLength(maxSearchQueryLength)), ""),
@@ -38,8 +40,9 @@ export const Route = createFileRoute("/recipes/public")({
 	search: { middlewares: [stripSearchParams(defaultSearch)] },
 	loaderDeps: ({ search }) => ({ query: search.q, tags: search.tags }),
 	loader: async ({ deps }) => ({
-		page: await searchPublicRecipesServerFn({
-			data: { query: deps.query, tags: deps.tags },
+		page: await recipesApi.searchPublicRecipes({
+			query: deps.query,
+			tags: deps.tags,
 		}),
 		query: deps.query,
 		tags: deps.tags,
@@ -87,7 +90,7 @@ function PublicRecipesPage() {
 					})
 				}
 				loadMore={(cursor) =>
-					searchPublicRecipesServerFn({ data: { query, tags, cursor } })
+					recipesApi.searchPublicRecipes({ query, tags, cursor })
 				}
 			/>
 		</RecipesFrame>

@@ -32,7 +32,9 @@ test.describe("レシピの「つくった」と在庫", () => {
 		await openRecipe(page, "豚の生姜焼き");
 		await pressMade(page);
 
-		await page.getByRole("button", { name: "玉ねぎを戻す" }).click();
+		// 1行を戻す：「直す」の欄を開いて「使わなかった」を押す。
+		await page.getByRole("button", { name: "玉ねぎの量を直す" }).click();
+		await page.getByRole("button", { name: "使わなかった" }).click();
 		await expect(
 			page.getByRole("list", { name: "引いたもの" }).getByText("戻しました"),
 		).toBeVisible();

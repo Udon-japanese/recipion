@@ -65,6 +65,7 @@ function findTarget(
 	if (!target) {
 		throw new UserFacingError(
 			"材料が見つかりません。画面を読み込み直してください",
+			{ code: "NOT_FOUND" },
 		);
 	}
 
@@ -75,7 +76,9 @@ function rejectProblem(
 	problem: ReturnType<typeof findIngredientNameProblem>,
 ): void {
 	if (problem) {
-		throw new UserFacingError(describeIngredientNameProblem(problem));
+		throw new UserFacingError(describeIngredientNameProblem(problem), {
+			code: "INVALID_INPUT",
+		});
 	}
 }
 
@@ -92,6 +95,7 @@ export async function manageIngredientDictionary(
 			if (entries.length >= ingredientDictionaryLimits.maxIngredients) {
 				throw new UserFacingError(
 					`材料は${ingredientDictionaryLimits.maxIngredients}個までです`,
+					{ code: "CONFLICT" },
 				);
 			}
 
@@ -129,7 +133,9 @@ export async function manageIngredientDictionary(
 
 			// カタログの別名は、在庫の照合に使うので、消さない。
 			if (!isUserAlias) {
-				throw new UserFacingError("この呼び名は消せません");
+				throw new UserFacingError("この呼び名は消せません", {
+					code: "INVALID_INPUT",
+				});
 			}
 
 			await repository.removeAlias(target.id, command.alias);
@@ -140,7 +146,9 @@ export async function manageIngredientDictionary(
 			const target = findTarget(entries, command.ingredientId);
 
 			if (command.unmanaged && target.hasInventory) {
-				throw new UserFacingError(unmanagedWithInventoryMessage);
+				throw new UserFacingError(unmanagedWithInventoryMessage, {
+					code: "CONFLICT",
+				});
 			}
 
 			await repository.setUnmanaged(target.id, command.unmanaged);
@@ -153,7 +161,9 @@ export async function manageIngredientDictionary(
 
 			if (existing) {
 				if (existing.hasInventory) {
-					throw new UserFacingError(unmanagedWithInventoryMessage);
+					throw new UserFacingError(unmanagedWithInventoryMessage, {
+						code: "CONFLICT",
+					});
 				}
 
 				await repository.setUnmanaged(existing.id, true);
@@ -164,6 +174,7 @@ export async function manageIngredientDictionary(
 			if (entries.length >= ingredientDictionaryLimits.maxIngredients) {
 				throw new UserFacingError(
 					`材料は${ingredientDictionaryLimits.maxIngredients}個までです`,
+					{ code: "CONFLICT" },
 				);
 			}
 
@@ -191,6 +202,7 @@ export async function manageIngredientDictionary(
 			if (target.hasInventory) {
 				throw new UserFacingError(
 					"在庫にあるため消せません。先に在庫から消してください",
+					{ code: "CONFLICT" },
 				);
 			}
 
@@ -221,12 +233,14 @@ async function mergeNames(
 		if (!catalogEntry) {
 			throw new UserFacingError(
 				"材料が見つかりません。画面を読み込み直してください",
+				{ code: "NOT_FOUND" },
 			);
 		}
 
 		if (entries.length >= ingredientDictionaryLimits.maxIngredients) {
 			throw new UserFacingError(
 				`材料は${ingredientDictionaryLimits.maxIngredients}個までです`,
+				{ code: "CONFLICT" },
 			);
 		}
 
@@ -237,7 +251,9 @@ async function mergeNames(
 		target = entries.find((entry) => entry.id === createdId);
 
 		if (!target) {
-			throw new UserFacingError("材料を作成できませんでした");
+			throw new UserFacingError("材料を作成できませんでした", {
+				code: "CONFLICT",
+			});
 		}
 	}
 
@@ -260,6 +276,7 @@ async function mergeNames(
 			target.hasInventory
 				? "どちらにも在庫があるため、まとめられません"
 				: `「${source.name}」に在庫があるため、まとめられません。「${target.name}」を「${source.name}」の呼び名にしてください`,
+			{ code: "CONFLICT" },
 		);
 	}
 
@@ -275,6 +292,7 @@ async function mergeNames(
 	) {
 		throw new UserFacingError(
 			`呼び名は、1つの材料に${ingredientDictionaryLimits.maxUserAliases}個までです`,
+			{ code: "CONFLICT" },
 		);
 	}
 

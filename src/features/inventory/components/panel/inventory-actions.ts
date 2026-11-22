@@ -1,7 +1,5 @@
-import type {
-	InventoryAdjustmentCommand,
-	InventoryAdjustmentRepositoryResult,
-} from "../../application/inventory-adjustment-repository";
+import type { AdjustInventoryInput } from "../../application/adjust-inventory-input";
+import type { InventoryAdjustmentRepositoryResult } from "../../application/inventory-adjustment-repository";
 import type {
 	ChangeStockUnitCommand,
 	ChangeStockUnitResult,
@@ -22,7 +20,7 @@ import type {
 // 在庫の食材に対する操作。渡されたものだけ、パネルにボタンが出る。
 export type InventoryActions = {
 	adjustInventoryItem?: (
-		command: InventoryAdjustmentCommand,
+		command: AdjustInventoryInput,
 	) => Promise<InventoryAdjustmentRepositoryResult>;
 	updateInventoryLot?: (
 		command: UpdateInventoryLotCommand,

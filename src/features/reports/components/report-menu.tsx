@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Modal } from "#/components/dialog/modal";
 import { Menu, type MenuItem } from "#/components/menu/menu";
 import type { CreateReportResult } from "../application/report-repository";
-import type { ReportReason } from "../domain/report";
+import type { UserReportReason } from "../domain/report";
 import type {
 	CreateUserNameReportResult,
 	UserNameReportReason,
@@ -12,7 +12,7 @@ import { ReportUserForm } from "./report-user-form";
 
 type ReportMenuProps = {
 	onReportRecipe: (input: {
-		reason: ReportReason;
+		reason: UserReportReason;
 		detail: string;
 	}) => Promise<CreateReportResult>;
 	onReportUser: (input: {

@@ -225,7 +225,7 @@ export function allocateDecrease(
 	);
 
 	if (sumLotQuantities(stockedLots) < quantity && trackingMode === "exact") {
-		throw new UserFacingError("在庫数量が不足しています");
+		throw new UserFacingError("在庫数量が不足しています", { code: "CONFLICT" });
 	}
 
 	const allocations: InventoryLotAllocation[] = [];
@@ -271,21 +271,29 @@ export function validateManualAllocations(
 		const lot = lotsById.get(allocation.lotId);
 
 		if (!lot) {
-			throw new UserFacingError("ロットが見つかりません");
+			throw new UserFacingError("ロットが見つかりません", {
+				code: "NOT_FOUND",
+			});
 		}
 
 		if (seenLotIds.has(allocation.lotId)) {
-			throw new UserFacingError("同じロットが重複して指定されています");
+			throw new UserFacingError("同じロットが重複して指定されています", {
+				code: "INVALID_INPUT",
+			});
 		}
 
 		seenLotIds.add(allocation.lotId);
 
 		if (!(allocation.quantity > 0) || !Number.isFinite(allocation.quantity)) {
-			throw new UserFacingError("ロットの数量は0より大きくしてください");
+			throw new UserFacingError("ロットの数量は0より大きくしてください", {
+				code: "INVALID_INPUT",
+			});
 		}
 
 		if (trackingMode === "exact" && allocation.quantity > lot.quantity) {
-			throw new UserFacingError("在庫数量が不足しています");
+			throw new UserFacingError("在庫数量が不足しています", {
+				code: "CONFLICT",
+			});
 		}
 	}
 

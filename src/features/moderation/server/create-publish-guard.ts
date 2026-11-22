@@ -16,6 +16,11 @@ export function checkBeforePublish(
 	db: DB,
 	input: { userId: string; items: readonly ModerationItem[] },
 ): Promise<PublishGuardResult> {
+	// ローカル（nr dev・e2e）では、審査しない（Workers AI の無料枠を使わない。開発中の試し書きで、違反に数えない）。
+	if (import.meta.env.DEV) {
+		return Promise.resolve({ status: "ok" });
+	}
+
 	return guardPublish(
 		{ ...input, now: new Date() },
 		{

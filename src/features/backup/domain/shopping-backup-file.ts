@@ -148,23 +148,28 @@ export function parseShoppingBackupFile(text: string): ShoppingBackupFile {
 	} catch (error) {
 		throw new UserFacingError(
 			"ファイルを読めませんでした（JSON ではありません）",
-			{ cause: error },
+			{ code: "INVALID_INPUT", cause: error },
 		);
 	}
 
 	if (!v.is(v.object({ format: v.literal(shoppingBackupFormat) }), json)) {
-		throw new UserFacingError("買い物メモのファイルではありません");
+		throw new UserFacingError("買い物メモのファイルではありません", {
+			code: "INVALID_INPUT",
+		});
 	}
 
 	const parsed = v.safeParse(fileSchema, json);
 
 	if (!parsed.success) {
-		throw new UserFacingError("ファイルの形が正しくありません");
+		throw new UserFacingError("ファイルの形が正しくありません", {
+			code: "INVALID_INPUT",
+		});
 	}
 
 	if (parsed.output.version !== shoppingBackupVersion) {
 		throw new UserFacingError(
 			`この版のファイルは読めません（版 ${parsed.output.version}）`,
+			{ code: "INVALID_INPUT" },
 		);
 	}
 
@@ -176,7 +181,7 @@ export function parseShoppingBackupFile(text: string): ShoppingBackupFile {
 	const problem = findReferenceProblem(file);
 
 	if (problem) {
-		throw new UserFacingError(problem);
+		throw new UserFacingError(problem, { code: "INVALID_INPUT" });
 	}
 
 	return file;

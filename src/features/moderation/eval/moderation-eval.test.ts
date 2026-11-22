@@ -326,24 +326,16 @@ describe.skipIf(!isEnabled)("文章の判定の評価", () => {
 						},
 					);
 
+					// 1文ごとの結果は、本番と同じ moderateContent に、その文の AI の判定を渡して作り直す
+					// （注意する語で「怪しい」にする・名前の欄の扱い・抜き出しの場所も、本番と同じに数える）。
 					for (const [position, index] of batch.entries()) {
 						const verdict = captured[position];
+						const entry = entries[index] as Entry;
 
 						results[index] =
 							result.decision === "unavailable" || !verdict
 								? { decision: "unavailable" }
-								: verdict.verdict === "ok"
-									? { decision: "allow" }
-									: {
-											decision: verdict.verdict === "ng" ? "block" : "flag",
-											reasons: [
-												{
-													target: (entries[index] as Entry).target,
-													source: "ai",
-													category: verdict.category,
-												},
-											],
-										};
+								: await moderateContent([entry], async () => [verdict]);
 					}
 				});
 
@@ -479,6 +471,15 @@ describe.skipIf(!isEnabled)("文章の判定の評価", () => {
 			const unavailable = [...okResults, ...ngResults].filter(
 				(entry) => entry.result.decision === "unavailable",
 			);
+			// AI が止めた・怪しいとした理由のうち、抜き出した部分が原文にあったもの（利用者に、どの行かを見せられる）。
+			const aiReasons = ngResults.flatMap((entry) =>
+				entry.result.decision === "block" || entry.result.decision === "flag"
+					? entry.result.reasons.filter((reason) => reason.source === "ai")
+					: [],
+			);
+			const locatedAiReasons = aiReasons.filter(
+				(reason) => reason.location?.start !== undefined,
+			).length;
 
 			const lines = [
 				`# 判定の評価（${new Date().toISOString()}）`,
@@ -509,6 +510,8 @@ describe.skipIf(!isEnabled)("文章の判定の評価", () => {
 				`- 止めた（block）：${count(ngResults, "block")}`,
 				`- 怪しいとした（flag）：${flagged.length}`,
 				`- **通した（allow）：${misses.length}**`,
+				"",
+				`AI の抜き出し：AI が止めた・怪しいとした ${aiReasons.length} 件のうち、原文にあった ${locatedAiReasons} 件（${aiReasons.length === 0 ? "-" : `${Math.round((locatedAiReasons / aiReasons.length) * 100)}%`}）`,
 				"",
 				`消費した Neurons：約${Math.round(usedNeurons)}（無料枠は、1日 10,000）`,
 				`## 判定できなかった（unavailable）：${unavailable.length}件`,

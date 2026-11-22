@@ -180,7 +180,9 @@ export function parseBackupRecipe(input: unknown): BackupRecipe {
 	const envelope = v.safeParse(backupRecipeEnvelopeSchema, input);
 
 	if (!envelope.success) {
-		throw new UserFacingError("ファイルのレシピの形が正しくありません");
+		throw new UserFacingError("ファイルのレシピの形が正しくありません", {
+			code: "INVALID_INPUT",
+		});
 	}
 
 	try {
@@ -197,7 +199,7 @@ export function parseBackupRecipe(input: unknown): BackupRecipe {
 
 		throw new UserFacingError(
 			name === null ? `レシピ：${reason}` : `レシピ「${name}」：${reason}`,
-			{ cause: error },
+			{ code: "INVALID_INPUT", cause: error },
 		);
 	}
 }
@@ -221,9 +223,7 @@ export function parseBackupFile(text: string): BackupFile {
 	} catch (error) {
 		throw new UserFacingError(
 			"ファイルを読めませんでした（JSON ではありません）",
-			{
-				cause: error,
-			},
+			{ code: "INVALID_INPUT", cause: error },
 		);
 	}
 
@@ -233,18 +233,23 @@ export function parseBackupFile(text: string): BackupFile {
 	);
 
 	if (!envelope.success) {
-		throw new UserFacingError("在庫とレシピのファイルではありません");
+		throw new UserFacingError("在庫とレシピのファイルではありません", {
+			code: "INVALID_INPUT",
+		});
 	}
 
 	const parsed = v.safeParse(backupEnvelopeSchema, json);
 
 	if (!parsed.success) {
-		throw new UserFacingError("ファイルの形が正しくありません");
+		throw new UserFacingError("ファイルの形が正しくありません", {
+			code: "INVALID_INPUT",
+		});
 	}
 
 	if (parsed.output.version !== backupVersion) {
 		throw new UserFacingError(
 			`この版のファイルは読めません（版 ${parsed.output.version}）`,
+			{ code: "INVALID_INPUT" },
 		);
 	}
 
@@ -253,7 +258,10 @@ export function parseBackupFile(text: string): BackupFile {
 
 	for (const recipe of recipes) {
 		if (publicIds.has(recipe.publicId)) {
-			throw new UserFacingError("ファイルの中で、レシピの ID が重複しています");
+			throw new UserFacingError(
+				"ファイルの中で、レシピの ID が重複しています",
+				{ code: "INVALID_INPUT" },
+			);
 		}
 
 		publicIds.add(recipe.publicId);
@@ -262,7 +270,9 @@ export function parseBackupFile(text: string): BackupFile {
 	const inventory = v.safeParse(backupInventorySchema, parsed.output.inventory);
 
 	if (!inventory.success) {
-		throw new UserFacingError("ファイルの在庫の形が正しくありません");
+		throw new UserFacingError("ファイルの在庫の形が正しくありません", {
+			code: "INVALID_INPUT",
+		});
 	}
 
 	const dictionary = v.safeParse(
@@ -271,7 +281,9 @@ export function parseBackupFile(text: string): BackupFile {
 	);
 
 	if (!dictionary.success) {
-		throw new UserFacingError("ファイルの材料の形が正しくありません");
+		throw new UserFacingError("ファイルの材料の形が正しくありません", {
+			code: "INVALID_INPUT",
+		});
 	}
 
 	return {

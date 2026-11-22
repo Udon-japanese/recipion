@@ -20,5 +20,5 @@ export function hideInternalError(
 
 	log("[server-function] internal error", error);
 
-	return new UserFacingError(GENERIC_ERROR_MESSAGE);
+	return new UserFacingError(GENERIC_ERROR_MESSAGE, { code: "INTERNAL" });
 }

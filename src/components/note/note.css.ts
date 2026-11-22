@@ -53,7 +53,8 @@ export const icon = recipe({
 	defaultVariants: { tone: "neutral" },
 });
 
-export const text = style({ flex: 1, minWidth: 0 });
+// 改行は、そのまま出す（審査で止めた行の一覧など、文の中の改行で、行を分けるもの）。
+export const text = style({ flex: 1, minWidth: 0, whiteSpace: "pre-line" });
 
 // props の型は、スタイルの定義から作る（種類を足すときは、ここだけを直す）。
 export type NoteTone = NonNullable<

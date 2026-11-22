@@ -2,7 +2,7 @@ import * as v from "valibot";
 import { inventoryTrackingModeSchema } from "../domain/inventory-tracking-mode";
 import type { ChangeInventoryTrackingModeCommand } from "./inventory-tracking-mode-repository";
 
-const changeInventoryTrackingModeInputSchema = v.object({
+export const changeInventoryTrackingModeInputSchema = v.object({
 	inventoryItemId: v.pipe(v.string(), v.uuid("在庫項目IDが不正です")),
 	trackingMode: inventoryTrackingModeSchema,
 	currentQuantity: v.optional(

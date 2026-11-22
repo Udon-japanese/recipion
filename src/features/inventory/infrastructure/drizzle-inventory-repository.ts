@@ -434,7 +434,9 @@ export function createDrizzleInventoryRepository(
 				}
 
 				if (!storedIngredient) {
-					throw new UserFacingError("食材が見つかりません");
+					throw new UserFacingError("食材が見つかりません", {
+						code: "NOT_FOUND",
+					});
 				}
 
 				const [existingInventoryItem] = await transaction
@@ -546,7 +548,9 @@ export function createDrizzleInventoryRepository(
 					.limit(1);
 
 				if (!madeRecipe) {
-					throw new UserFacingError("レシピが見つかりません");
+					throw new UserFacingError("レシピが見つかりません", {
+						code: "NOT_FOUND",
+					});
 				}
 
 				const [existingItem] = await transaction
@@ -696,7 +700,9 @@ export function createDrizzleInventoryRepository(
 					.limit(1);
 
 				if (!storedInventoryItem) {
-					throw new UserFacingError("在庫項目が見つかりません");
+					throw new UserFacingError("在庫項目が見つかりません", {
+						code: "NOT_FOUND",
+					});
 				}
 
 				/*
@@ -785,7 +791,9 @@ export function createDrizzleInventoryRepository(
 					);
 
 					if (!lot) {
-						throw new UserFacingError("ロットが見つかりません");
+						throw new UserFacingError("ロットが見つかりません", {
+							code: "NOT_FOUND",
+						});
 					}
 
 					await applyToLot(lot, {
@@ -897,7 +905,9 @@ export function createDrizzleInventoryRepository(
 						const lot = lotsById.get(allocation.lotId);
 
 						if (!lot) {
-							throw new UserFacingError("ロットが見つかりません");
+							throw new UserFacingError("ロットが見つかりません", {
+								code: "NOT_FOUND",
+							});
 						}
 
 						await applyToLot(lot, {
@@ -1300,7 +1310,9 @@ export function createDrizzleInventoryRepository(
 					.limit(1);
 
 				if (!storedInventoryItem) {
-					throw new UserFacingError("在庫項目が見つかりません");
+					throw new UserFacingError("在庫項目が見つかりません", {
+						code: "NOT_FOUND",
+					});
 				}
 
 				// 再送（同じ取引 ID）は、二重に直さない。
@@ -1313,13 +1325,16 @@ export function createDrizzleInventoryRepository(
 				) {
 					throw new UserFacingError(
 						"「ある」で管理している食材は、量を直せません",
+						{ code: "CONFLICT" },
 					);
 				}
 
 				const history = await loadHistory();
 
 				if (history.some((row) => row.reason === "recipe-consumption-undo")) {
-					throw new UserFacingError("戻したあとの食材は、量を直せません");
+					throw new UserFacingError("戻したあとの食材は、量を直せません", {
+						code: "CONFLICT",
+					});
 				}
 
 				const consumedRows = history.filter(
@@ -1327,7 +1342,9 @@ export function createDrizzleInventoryRepository(
 				);
 
 				if (consumedRows.length === 0) {
-					throw new UserFacingError("この料理で引いた記録が見つかりません");
+					throw new UserFacingError("この料理で引いた記録が見つかりません", {
+						code: "NOT_FOUND",
+					});
 				}
 
 				if (
@@ -1337,6 +1354,7 @@ export function createDrizzleInventoryRepository(
 				) {
 					throw new UserFacingError(
 						"引いたあとで在庫の単位を変えたため、量を直せません",
+						{ code: "CONFLICT" },
 					);
 				}
 
@@ -1377,7 +1395,9 @@ export function createDrizzleInventoryRepository(
 						.returning({ quantity: inventoryLot.quantity });
 
 					if (!updatedLot) {
-						throw new UserFacingError("ロットが見つかりません");
+						throw new UserFacingError("ロットが見つかりません", {
+							code: "NOT_FOUND",
+						});
 					}
 
 					// 引いた分と同じ reason で、符号つきで残す（「元に戻す」は、合計を戻す）。
@@ -1448,12 +1468,15 @@ export function createDrizzleInventoryRepository(
 					.limit(1);
 
 				if (!storedItem) {
-					throw new UserFacingError("在庫項目が見つかりません");
+					throw new UserFacingError("在庫項目が見つかりません", {
+						code: "NOT_FOUND",
+					});
 				}
 
 				if (parseTrackingMode(storedItem.trackingMode) === "presence") {
 					throw new UserFacingError(
 						"有無だけで管理している食材は、単位を変えられません",
+						{ code: "CONFLICT" },
 					);
 				}
 
@@ -1559,7 +1582,9 @@ export function createDrizzleInventoryRepository(
 				});
 
 			if (!updated) {
-				throw new UserFacingError("在庫項目が見つかりません");
+				throw new UserFacingError("在庫項目が見つかりません", {
+					code: "NOT_FOUND",
+				});
 			}
 
 			return updated;
@@ -1581,7 +1606,9 @@ export function createDrizzleInventoryRepository(
 				});
 
 			if (!updated) {
-				throw new UserFacingError("在庫項目が見つかりません");
+				throw new UserFacingError("在庫項目が見つかりません", {
+					code: "NOT_FOUND",
+				});
 			}
 
 			return {
@@ -1616,7 +1643,9 @@ export function createDrizzleInventoryRepository(
 					.limit(1);
 
 				if (!storedItem) {
-					throw new UserFacingError("在庫項目が見つかりません");
+					throw new UserFacingError("在庫項目が見つかりません", {
+						code: "NOT_FOUND",
+					});
 				}
 
 				const previousMode = parseTrackingMode(storedItem.trackingMode);
@@ -1744,7 +1773,9 @@ export function createDrizzleInventoryRepository(
 					.limit(1);
 
 				if (!storedLot) {
-					throw new UserFacingError("ロットが見つかりません");
+					throw new UserFacingError("ロットが見つかりません", {
+						code: "NOT_FOUND",
+					});
 				}
 
 				// 食材の行をロックして、加減算と直列にする。

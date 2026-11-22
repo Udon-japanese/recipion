@@ -9,10 +9,7 @@ import {
 	type IngredientDictionaryEntry,
 } from "../domain/ingredient-dictionary";
 import { createDexieIngredientDictionaryCache } from "../infrastructure/dexie-ingredient-dictionary-cache";
-import {
-	listIngredientDictionaryServerFn,
-	manageIngredientDictionaryServerFn,
-} from "../server/ingredient-dictionary";
+import * as ingredientDictionaryApi from "../infrastructure/ingredient-dictionary-api";
 
 type LoadEntries = (
 	ownerScope: `user:${string}`,
@@ -22,8 +19,8 @@ function loadEntries(ownerScope: `user:${string}`) {
 	return loadIngredientDictionaryWithCache(
 		ownerScope,
 		() =>
-			listIngredientDictionaryServerFn({
-				data: { expectedUserId: userIdOfOwnerScope(ownerScope) },
+			ingredientDictionaryApi.listIngredientDictionary({
+				expectedUserId: userIdOfOwnerScope(ownerScope),
 			}),
 		createDexieIngredientDictionaryCache(),
 	);
@@ -96,8 +93,9 @@ export function useIngredientDictionaryWithActions(
 				throw new Error("ログインしていません");
 			}
 
-			await manageIngredientDictionaryServerFn({
-				data: { expectedUserId: userIdOfOwnerScope(ownerScope), command },
+			await ingredientDictionaryApi.manageIngredientDictionary({
+				expectedUserId: userIdOfOwnerScope(ownerScope),
+				command,
 			});
 			setReloadKey((current) => current + 1);
 		},

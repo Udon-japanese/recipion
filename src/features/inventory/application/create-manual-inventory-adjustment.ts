@@ -1,8 +1,10 @@
 import type { InventoryOperation } from "../domain/apply-inventory-adjustment";
 import type { InventoryLotAllocation } from "../domain/inventory-lot";
 import type { InventoryUnitCode } from "../domain/inventory-unit";
-import { parseAdjustInventoryInput } from "./adjust-inventory-input";
-import type { InventoryAdjustmentCommand } from "./inventory-adjustment-repository";
+import {
+	type AdjustInventoryInput,
+	parseAdjustInventoryInput,
+} from "./adjust-inventory-input";
 
 export type CreateManualInventoryAdjustmentInput = {
 	inventoryItemId: string;
@@ -16,7 +18,7 @@ export type CreateManualInventoryAdjustmentInput = {
 export function createManualInventoryAdjustment(
 	input: CreateManualInventoryAdjustmentInput,
 	transactionId: string = crypto.randomUUID(),
-): InventoryAdjustmentCommand {
+): AdjustInventoryInput {
 	return parseAdjustInventoryInput({
 		transactionId,
 		inventoryItemId: input.inventoryItemId,

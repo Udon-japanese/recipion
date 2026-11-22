@@ -100,14 +100,18 @@ describe("syncInventoryPurchaseOutbox", () => {
 		},
 		{
 			label: "ログインしていない",
-			error: new UserFacingError(AUTH_REQUIRED_MESSAGE),
+			error: new UserFacingError(AUTH_REQUIRED_MESSAGE, {
+				code: "AUTH_REQUIRED",
+			}),
 			stoppedBy: "account",
 			marked: false,
 			sendsSecond: false,
 		},
 		{
 			label: "別のアカウントになった",
-			error: new UserFacingError(ACCOUNT_CHANGED_MESSAGE),
+			error: new UserFacingError(ACCOUNT_CHANGED_MESSAGE, {
+				code: "ACCOUNT_CHANGED",
+			}),
 			stoppedBy: "account",
 			marked: false,
 			sendsSecond: false,
@@ -116,6 +120,7 @@ describe("syncInventoryPurchaseOutbox", () => {
 			label: "内容で断られた（換算できない）",
 			error: new UserFacingError(
 				"卵の在庫の単位（g）に買った量を換算できません",
+				{ code: "INVALID_INPUT" },
 			),
 			stoppedBy: null,
 			marked: true,
@@ -123,7 +128,7 @@ describe("syncInventoryPurchaseOutbox", () => {
 		},
 		{
 			label: "サーバーの中の失敗",
-			error: new UserFacingError(GENERIC_ERROR_MESSAGE),
+			error: new UserFacingError(GENERIC_ERROR_MESSAGE, { code: "INTERNAL" }),
 			stoppedBy: null,
 			marked: true,
 			sendsSecond: true,
@@ -162,7 +167,9 @@ describe("syncInventoryPurchaseOutbox", () => {
 		const sender: InventoryPurchaseSender = {
 			send: vi
 				.fn()
-				.mockRejectedValueOnce(new UserFacingError(message))
+				.mockRejectedValueOnce(
+					new UserFacingError(message, { code: "INVALID_INPUT" }),
+				)
 				.mockResolvedValueOnce(undefined),
 		};
 

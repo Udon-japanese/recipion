@@ -3,10 +3,11 @@ import { maxShoppingBranchCount } from "./shopping-branch";
 import { shoppingRecordLimits } from "./shopping-record-schemas";
 import { maxShoppingStoreCount } from "./shopping-store";
 import {
-	parseShoppingSyncRecord,
+	assertShoppingRecordId,
 	type ShoppingRecordKind,
 	type ShoppingSyncRecord,
 	shoppingSyncLimits,
+	shoppingSyncRecordSchema,
 } from "./shopping-sync-record";
 
 // 端末が送る1行。中身のほかに、どの変更か（changeId）と、どの版をもとに変えたか（baseVersion）を持つ。
@@ -174,15 +175,23 @@ const pushMetaSchema = v.object({
 	),
 });
 
+// 端末が送る1行の形（同期する1行＋送るときの印）。
+export const shoppingPushRecordSchema = v.intersect([
+	shoppingSyncRecordSchema,
+	pushMetaSchema,
+]);
+
 // 送られてきた1行を確かめる（合わなければ、例外）。
 export function parseShoppingPushRecord(input: unknown): ShoppingPushRecord {
-	return {
-		...parseShoppingSyncRecord(input),
-		...v.parse(pushMetaSchema, input),
-	};
+	const record: ShoppingPushRecord = v.parse(shoppingPushRecordSchema, input);
+
+	assertShoppingRecordId(record);
+
+	return record;
 }
 
+// 1回に送る行（形をすべて書く。行の ID と中身の食い違いは、受け取ったあとに assertShoppingRecordId で確かめる）。
 export const shoppingPushRecordsSchema = v.pipe(
-	v.array(v.unknown()),
+	v.array(shoppingPushRecordSchema),
 	v.maxLength(shoppingSyncLimits.maxPushRecords),
 );

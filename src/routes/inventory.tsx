@@ -3,9 +3,9 @@ import { useCallback, useEffect, useState } from "react";
 import { pageTitle } from "#/config/app";
 import { IngredientDictionaryScope } from "#/features/ingredients/components/ingredient-dictionary-context";
 import { useIngredientDictionaryWithActions } from "#/features/ingredients/hooks/use-ingredient-dictionary";
+import type { AdjustInventoryInput } from "#/features/inventory/application/adjust-inventory-input";
 import { adjustInventoryWithCache } from "#/features/inventory/application/adjust-inventory-with-cache";
 import { changeInventoryTrackingModeWithCache } from "#/features/inventory/application/change-inventory-tracking-mode-with-cache";
-import type { InventoryAdjustmentCommand } from "#/features/inventory/application/inventory-adjustment-repository";
 import type {
 	ChangeStockUnitCommand,
 	RenameInventoryItemCommand,
@@ -30,18 +30,8 @@ import { useExpiryEstimateLevel } from "#/features/inventory/hooks/use-expiry-es
 import { useIngredientExpiryDefaults } from "#/features/inventory/hooks/use-ingredient-expiry-defaults";
 import { useOwnerScope } from "#/features/inventory/hooks/use-owner-scope";
 import { createDexieInventoryCacheRepository } from "#/features/inventory/infrastructure/dexie-inventory-cache-repository";
+import * as inventoryApi from "#/features/inventory/infrastructure/inventory-api";
 import { syncDexieInventoryPurchaseOutbox } from "#/features/inventory/infrastructure/sync-dexie-inventory-purchase-outbox";
-import { adjustInventory as adjustInventoryServerFn } from "#/features/inventory/server/adjust-inventory";
-import { changeInventoryTrackingModeServerFn } from "#/features/inventory/server/change-inventory-tracking-mode";
-import { listInventoryItemsServerFn } from "#/features/inventory/server/list-inventory-items";
-import {
-	changeStockUnitServerFn,
-	deleteInventoryItemServerFn,
-	renameInventoryItemServerFn,
-	setInventoryItemArtServerFn,
-} from "#/features/inventory/server/manage-inventory-item";
-import { registerInventoryItemServerFn } from "#/features/inventory/server/register-inventory-item";
-import { updateInventoryLotServerFn } from "#/features/inventory/server/update-inventory-lot";
 import { onAppRefreshRequest } from "#/features/pull-refresh/infrastructure/app-refresh-request";
 
 export const Route = createFileRoute("/inventory")({
@@ -80,15 +70,15 @@ function InventoryPage() {
 		return loadInventoryItemsWithCache(
 			ownerScope,
 			() =>
-				listInventoryItemsServerFn({
-					data: { expectedUserId: userIdOfOwnerScope(ownerScope) },
+				inventoryApi.listInventoryItems({
+					expectedUserId: userIdOfOwnerScope(ownerScope),
 				}),
 			createDexieInventoryCacheRepository(),
 		);
 	}, [ownerScope]);
 
 	const adjustInventoryItem = useCallback(
-		async (command: InventoryAdjustmentCommand) => {
+		async (command: AdjustInventoryInput) => {
 			if (!ownerScope || ownerScope === "guest") {
 				throw new Error("在庫を調整できるユーザーではありません");
 			}
@@ -96,10 +86,7 @@ function InventoryPage() {
 			return adjustInventoryWithCache(
 				ownerScope,
 				command,
-				(adjustmentCommand) =>
-					adjustInventoryServerFn({
-						data: adjustmentCommand,
-					}),
+				(adjustmentCommand) => inventoryApi.adjustInventory(adjustmentCommand),
 				createDexieInventoryCacheRepository(),
 			);
 		},
@@ -115,7 +102,7 @@ function InventoryPage() {
 			return updateInventoryLotWithCache(
 				ownerScope,
 				command,
-				(updateCommand) => updateInventoryLotServerFn({ data: updateCommand }),
+				(updateCommand) => inventoryApi.updateInventoryLot(updateCommand),
 				createDexieInventoryCacheRepository(),
 			);
 		},
@@ -132,7 +119,7 @@ function InventoryPage() {
 				ownerScope,
 				command,
 				(changeCommand) =>
-					changeInventoryTrackingModeServerFn({ data: changeCommand }),
+					inventoryApi.changeInventoryTrackingMode(changeCommand),
 				createDexieInventoryCacheRepository(),
 			);
 		},
@@ -148,7 +135,7 @@ function InventoryPage() {
 			return deleteInventoryItemWithCache(
 				ownerScope,
 				inventoryItemId,
-				(id) => deleteInventoryItemServerFn({ data: { inventoryItemId: id } }),
+				(id) => inventoryApi.deleteInventoryItem({ inventoryItemId: id }),
 				createDexieInventoryCacheRepository(),
 			);
 		},
@@ -164,7 +151,7 @@ function InventoryPage() {
 			return setInventoryItemArtWithCache(
 				ownerScope,
 				command,
-				(artCommand) => setInventoryItemArtServerFn({ data: artCommand }),
+				(artCommand) => inventoryApi.setInventoryItemArt(artCommand),
 				createDexieInventoryCacheRepository(),
 			);
 		},
@@ -180,7 +167,7 @@ function InventoryPage() {
 			return renameInventoryItemWithCache(
 				ownerScope,
 				command,
-				(renameCommand) => renameInventoryItemServerFn({ data: renameCommand }),
+				(renameCommand) => inventoryApi.renameInventoryItem(renameCommand),
 				createDexieInventoryCacheRepository(),
 			);
 		},
@@ -196,7 +183,7 @@ function InventoryPage() {
 			return changeStockUnitWithCache(
 				ownerScope,
 				command,
-				(changeCommand) => changeStockUnitServerFn({ data: changeCommand }),
+				(changeCommand) => inventoryApi.changeStockUnit(changeCommand),
 				createDexieInventoryCacheRepository(),
 			);
 		},
@@ -222,8 +209,9 @@ function InventoryPage() {
 				throw new Error("在庫に登録できるユーザーではありません");
 			}
 
-			return registerInventoryItemServerFn({
-				data: { ...input, expectedUserId: userIdOfOwnerScope(ownerScope) },
+			return inventoryApi.registerInventoryItem({
+				...input,
+				expectedUserId: userIdOfOwnerScope(ownerScope),
 			});
 		},
 		[ownerScope],

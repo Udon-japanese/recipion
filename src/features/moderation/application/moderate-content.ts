@@ -10,12 +10,20 @@ import {
 	hardBlockLexicon,
 } from "../domain/lexicon/hard-block";
 import type { LexiconCategory, LexiconEntry } from "../domain/lexicon/types";
+import {
+	listJudgedItems,
+	locateInText,
+	type ModerationLocation,
+} from "../domain/moderation-location";
 import type {
 	ModerationCategory,
 	ModerationReason,
 	ModerationResult,
 } from "../domain/moderation-result";
-import type { ModerationItem } from "../domain/moderation-target";
+import {
+	type ModerationItem,
+	moderationTargets,
+} from "../domain/moderation-target";
 import { normalizeForModeration } from "../domain/normalize-text";
 import type { AiJudge, JudgeItem } from "./ai-judge";
 
@@ -24,6 +32,19 @@ const maxJudgeChunkLength = 3000;
 
 function toCategory(category: LexiconCategory): ModerationCategory {
 	return category;
+}
+
+// AI が抜き出した部分の場所。原文にそのままないとき（書き換えた・作った）は、文章の場所だけにする。
+function locateQuote(
+	itemIndex: number,
+	text: string,
+	quote: string | undefined,
+): ModerationLocation {
+	const start = quote === undefined ? -1 : text.indexOf(quote);
+
+	return start < 0 || quote === undefined
+		? { item: itemIndex }
+		: { item: itemIndex, start, end: start + quote.length };
 }
 
 function splitLongText(text: string): string[] {
@@ -68,6 +89,7 @@ function splitLongText(text: string): string[] {
  * 1. 確定で弾く語・絵文字の組み合わせ（hard-block）が、1つでもあれば、AI に聞かずに block。
  * 2. それ以外は、すべて AI に判定させる（文脈で意味が変わる語は、注意する語として渡す）。
  * 3. AI が ng なら block、unsure なら flag（公開は通し、管理者に知らせる）、使えなければ unavailable。
+ *    審査への指示を含む文章は、AI が ok でも flag。
  */
 // 判定に使う語の一覧。ふだんは、手元の一覧（hard-block.local.ts など）を取り込んだもの。テストでは、架空の語を渡す。
 export type ModerationLexicons = {
@@ -95,15 +117,12 @@ export async function moderateContent(
 ): Promise<ModerationResult> {
 	const judgeItems: (JudgeItem & {
 		source: ModerationItem;
+		itemIndex: number;
 		hintCategory: ModerationCategory | undefined;
 	})[] = [];
 	const blockReasons: ModerationReason[] = [];
 
-	for (const item of items) {
-		if (item.text.trim() === "") {
-			continue;
-		}
-
+	for (const [itemIndex, item] of listJudgedItems(items).entries()) {
 		const normalized = normalizeForModeration(item.text);
 		const hardHits = [
 			...findLexiconHits(normalized, lexicons.hard, {
@@ -114,12 +133,29 @@ export async function moderateContent(
 		];
 
 		for (const hit of hardHits) {
+			const isEmoji = /\p{Extended_Pictographic}/u.test(hit.term);
+
 			blockReasons.push({
 				target: item.target,
-				source: hit.term.match(/\p{Extended_Pictographic}/u)
-					? "emoji"
-					: "lexicon",
+				source: isEmoji ? "emoji" : "lexicon",
 				category: toCategory(hit.category),
+				location: {
+					item: itemIndex,
+					...locateInText(item.text, (part) =>
+						isEmoji
+							? findEmojiHits(
+									normalizeForModeration(part),
+									lexicons.hardEmoji.filter(
+										(combination) => combination.emoji.join("") === hit.term,
+									),
+								).length > 0
+							: findLexiconHits(
+									normalizeForModeration(part),
+									[{ category: hit.category, terms: [hit.term] }],
+									{ allowMask: true, hiraganaBoundary: true },
+								).length > 0,
+					),
+				},
 			});
 		}
 
@@ -130,12 +166,13 @@ export async function moderateContent(
 			normalized.text.includes(emoji),
 		);
 		const hints = [...contextHits.map((hit) => hit.term), ...hintEmoji];
-		// 注意する語に当たった文章は、AI が ok としても、flag にする（公開は通し、管理者の画面に載せる）。
-		const hintCategory: ModerationCategory | undefined = contextHits[0]
-			? toCategory(contextHits[0].category)
-			: hintEmoji.length > 0
-				? "other"
-				: undefined;
+		// 審査への指示に当たった文章は、AI が ok としても、flag にする（AI がだまされうるのは、指示を混ぜた文だから）。
+		// ほかの注意する語は、AI に渡したうえで、AI の判定に任せる（ok なら通す。料理の文の「つぶす」などを、怪しくしない）。
+		const hintCategory: ModerationCategory | undefined = contextHits.some(
+			(hit) => hit.category === "manipulation",
+		)
+			? "manipulation"
+			: undefined;
 
 		for (const chunk of splitLongText(item.text)) {
 			judgeItems.push({
@@ -144,6 +181,7 @@ export async function moderateContent(
 				normalizedText: normalizeForModeration(chunk).text,
 				hints,
 				source: item,
+				itemIndex,
 				hintCategory,
 			});
 		}
@@ -162,7 +200,12 @@ export async function moderateContent(
 	try {
 		verdicts = await judge(
 			judgeItems.map(
-				({ source: _source, hintCategory: _category, ...item }) => item,
+				({
+					source: _source,
+					itemIndex: _itemIndex,
+					hintCategory: _category,
+					...item
+				}) => item,
 			),
 		);
 
@@ -183,12 +226,18 @@ export async function moderateContent(
 			continue;
 		}
 
-		if (verdict.verdict === "ok") {
+		// 名前の欄では、レシピとの関係（irrelevant）を問わない（プロンプトでも伝えるが、AI が守らなくても、通す）。
+		const ignoresVerdict =
+			verdict.category === "irrelevant" &&
+			!moderationTargets[item.target].judgesRelevance;
+
+		if (verdict.verdict === "ok" || ignoresVerdict) {
 			if (item.hintCategory) {
 				flagged.push({
 					target: item.target,
 					source: "lexicon",
 					category: item.hintCategory,
+					location: { item: item.itemIndex },
 				});
 			}
 
@@ -199,6 +248,7 @@ export async function moderateContent(
 			target: item.target,
 			source: "ai",
 			category: verdict.category,
+			location: locateQuote(item.itemIndex, item.source.text, verdict.quote),
 		};
 
 		(verdict.verdict === "ng" ? blocked : flagged).push(reason);

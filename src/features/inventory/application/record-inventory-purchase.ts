@@ -141,6 +141,7 @@ function toStockUnitQuantity(
 	if (converted === null) {
 		throw new UserFacingError(
 			`${resolved.name}の在庫の単位（${resolved.stockUnitLabel}）に買った量を換算できません`,
+			{ code: "CONFLICT" },
 		);
 	}
 

@@ -14,3 +14,13 @@ export function checkExpectedUser(
 ): boolean {
 	return expectedUserId === undefined || expectedUserId === sessionUserId;
 }
+
+// API の入力に、画面が思っているユーザー（省略可）を足す。セッションのユーザーと違えば、resolveSession が断る。
+export function withExpectedUserId<Entries extends v.ObjectEntries>(
+	entries: Entries,
+) {
+	return v.object({
+		...entries,
+		expectedUserId: v.optional(expectedUserIdSchema),
+	});
+}
