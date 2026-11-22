@@ -89,6 +89,7 @@ function splitLongText(text: string): string[] {
  * 1. 確定で弾く語・絵文字の組み合わせ（hard-block）が、1つでもあれば、AI に聞かずに block。
  * 2. それ以外は、すべて AI に判定させる（文脈で意味が変わる語は、注意する語として渡す）。
  * 3. AI が ng なら block、unsure なら flag（公開は通し、管理者に知らせる）、使えなければ unavailable。
+ *    審査への指示を含む文章は、AI が ok でも flag。
  */
 // 判定に使う語の一覧。ふだんは、手元の一覧（hard-block.local.ts など）を取り込んだもの。テストでは、架空の語を渡す。
 export type ModerationLexicons = {
@@ -165,12 +166,13 @@ export async function moderateContent(
 			normalized.text.includes(emoji),
 		);
 		const hints = [...contextHits.map((hit) => hit.term), ...hintEmoji];
-		// 注意する語に当たった文章は、AI が ok としても、flag にする（公開は通し、管理者の画面に載せる）。
-		const hintCategory: ModerationCategory | undefined = contextHits[0]
-			? toCategory(contextHits[0].category)
-			: hintEmoji.length > 0
-				? "other"
-				: undefined;
+		// 審査への指示に当たった文章は、AI が ok としても、flag にする（AI がだまされうるのは、指示を混ぜた文だから）。
+		// ほかの注意する語は、AI に渡したうえで、AI の判定に任せる（ok なら通す。料理の文の「つぶす」などを、怪しくしない）。
+		const hintCategory: ModerationCategory | undefined = contextHits.some(
+			(hit) => hit.category === "manipulation",
+		)
+			? "manipulation"
+			: undefined;
 
 		for (const chunk of splitLongText(item.text)) {
 			judgeItems.push({

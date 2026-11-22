@@ -206,27 +206,10 @@ describe("moderateContent", () => {
 		expect(second?.hints).toEqual([]);
 	});
 
-	it("注意する語に当たった文章は、AI が ok でも flag（調理の言葉は除く）", async () => {
-		const flagged = await moderateContent(
-			[{ target: "recipe-note", text: "これはぽんぽこだ" }],
-			judgeReturning(ok),
-			lexicons,
-		);
-
-		expect(flagged).toEqual({
-			decision: "flag",
-			reasons: [
-				{
-					target: "recipe-note",
-					source: "lexicon",
-					category: "harassment",
-					location: { item: 0 },
-				},
-			],
-		});
+	it("注意する語に当たっても、AI が ok なら通す（AI には、注意する語として渡している）", async () => {
 		expect(
 			await moderateContent(
-				[{ target: "recipe-note", text: "ぽんぽこ山に登る" }],
+				[{ target: "recipe-note", text: "これはぽんぽこだ" }],
 				judgeReturning(ok),
 				lexicons,
 			),

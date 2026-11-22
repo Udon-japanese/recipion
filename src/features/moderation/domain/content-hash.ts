@@ -5,7 +5,8 @@ import type { ModerationItem } from "./moderation-target";
 // 2：名前の欄（表示名・ハンドル）で、レシピとの関係（irrelevant）を問わなくした。
 // 3：判定の理由に、当たった場所（何番目の文章の、何文字目か）を持たせた。
 // 4：審査への指示の言い回しを、注意する語にした（前に通った同じ文章も、判定し直す）。
-export const moderationVersion = "4";
+// 5：注意する語で、AI が ok でも怪しいにするのは、審査への指示だけにした。
+export const moderationVersion = "5";
 
 async function sha256Hex(text: string): Promise<string> {
 	const digest = await crypto.subtle.digest(
