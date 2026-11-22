@@ -25,6 +25,7 @@ describe("hideInternalError", () => {
 		expect(result).toBeInstanceOf(UserFacingError);
 		expect((result as Error).message).toBe(GENERIC_ERROR_MESSAGE);
 		expect((result as Error).message).not.toContain("Failed query");
+		expect((result as UserFacingError).code).toBe("INTERNAL");
 		expect(log).toHaveBeenCalledWith(expect.any(String), internal);
 	});
 

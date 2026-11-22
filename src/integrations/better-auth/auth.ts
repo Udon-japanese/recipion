@@ -2,13 +2,15 @@ import { env, waitUntil } from "cloudflare:workers";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { APIError, createAuthMiddleware } from "better-auth/api";
-import { captcha, emailOTP } from "better-auth/plugins";
+import { bearer, captcha, emailOTP } from "better-auth/plugins";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { eq } from "drizzle-orm";
 import {
 	OTP_ALLOWED_ATTEMPTS,
 	OTP_EXPIRES_IN_SECONDS,
 	OTP_LENGTH,
+	SESSION_EXPIRES_IN_SECONDS,
+	SESSION_UPDATE_AGE_SECONDS,
 } from "#/config/auth";
 import { TURNSTILE_TEST_SECRET_KEY } from "#/config/turnstile";
 import type { DB } from "#/db/client";
@@ -72,6 +74,12 @@ export function createAuth(db: DB) {
 			provider: "pg",
 			schema: authSchema,
 		}),
+		// セッションは、使うたびに（前回の延長から1日たっていれば）「今から30日後」まで延びる。30日間使わなければ切れる。
+		// 期限は全体で1つ（Web とアプリで分けられない）。2026-11-22 に、既定の7日から30日にした。
+		session: {
+			expiresIn: SESSION_EXPIRES_IN_SECONDS,
+			updateAge: SESSION_UPDATE_AGE_SECONDS,
+		},
 		// パスワードは使わない。メールのワンタイムコードだけでログインする（emailOTP プラグイン）。
 		advanced: {
 			// メールの送信を await せず、応答を返したあとに続ける（応答時間の差による、アカウントの有無の推測を避ける）。
@@ -224,6 +232,10 @@ export function createAuth(db: DB) {
 					(isDevelopment ? TURNSTILE_TEST_SECRET_KEY : ""),
 				endpoints: [SEND_CODE_PATH],
 			}),
+			// アプリ用：`Authorization: Bearer <token>` をセッションとして受け付け、ログインの応答に `set-auth-token` を付ける。
+			// Cookie のない要求は、Better Auth の Origin の確認の対象外なので、アプリから Origin なしで呼べる。
+			bearer(),
+			// Cookie を扱うプラグインは、最後に置く（後ろに after の hook があると、Cookie が渡らない）。
 			tanstackStartCookies(),
 		],
 	});

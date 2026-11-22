@@ -43,7 +43,7 @@
 	],
 	"compatibility_date": "2025-09-02",
 	"compatibility_flags": ["nodejs_compat"],
-	"main": "@tanstack/react-start/server-entry",
+	"main": "src/server.ts",
 	// 公開しようとする文章の審査に使う Workers AI（features/moderation）。無料枠は 1 日 10,000 Neurons。
 	"ai": { "binding": "AI" },
 	"hyperdrive": [
