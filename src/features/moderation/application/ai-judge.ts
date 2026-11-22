@@ -223,20 +223,36 @@ export function parseJudgeResponse(
 	});
 }
 
+// 1回の判定で、モデルに聞く回数の上限。応答の形が崩れたとき（JSON が壊れた・件数が合わない など）だけ、聞き直す。
+// 崩れ方は偶然なので、1回聞き直せば、ほとんど読める。通信の失敗・枠の上限は、聞き直さない（枠を無駄に使わない）。
+const maxJudgeAttempts = 2;
+
 export function createAiJudge(
 	runner: AiRunner,
 	createNonce: () => string = () => crypto.randomUUID(),
 	extraInstructions: string = promptExtra,
+	// 応答が読めず、聞き直すとき（評価で、回数を数える）。
+	onRetry: (error: unknown) => void = () => {},
 ): AiJudge {
 	return async (items) => {
 		if (items.length === 0) {
 			return [];
 		}
 
-		const response = await runner({
-			messages: buildJudgeMessages(items, createNonce(), extraInstructions),
-		});
+		for (let attempt = 1; ; attempt += 1) {
+			const response = await runner({
+				messages: buildJudgeMessages(items, createNonce(), extraInstructions),
+			});
 
-		return parseJudgeResponse(response, items.length);
+			try {
+				return parseJudgeResponse(response, items.length);
+			} catch (error) {
+				if (attempt >= maxJudgeAttempts) {
+					throw error;
+				}
+
+				onRetry(error);
+			}
+		}
 	};
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+	type AiRunner,
 	buildJudgeMessages,
 	createAiJudge,
 	type JudgeItem,
@@ -157,6 +158,54 @@ describe("createAiJudge", () => {
 		expect(await createAiJudge(runner, () => "n")([item])).toEqual([
 			{ verdict: "ok", category: "other" },
 		]);
+		expect(runner).toHaveBeenCalledTimes(1);
+	});
+
+	const ok = '{"results":[{"index":0,"verdict":"ok"}]}';
+	// 抜き出しのあとに、余計な語が入って、JSON が壊れた応答（評価で実際に出た形）。
+	const broken = '{"results":[{"index":0,"verdict":"ng","quote":"あ" idea}]}';
+
+	it.each([
+		[
+			"1回目が壊れていれば、聞き直して、読めた判定を返す",
+			[broken, ok],
+			2,
+			"ok",
+		],
+		[
+			"2回とも壊れていれば、あきらめて例外（公開を止める）",
+			[broken, broken],
+			2,
+			"throw",
+		],
+	] as const)("%s", async (_label, responses, calls, outcome) => {
+		const runner = vi.fn<AiRunner>();
+		const onRetry = vi.fn();
+
+		for (const response of responses) {
+			runner.mockResolvedValueOnce(response);
+		}
+
+		const judging = createAiJudge(runner, () => "n", "", onRetry)([item]);
+
+		if (outcome === "ok") {
+			expect(await judging).toEqual([{ verdict: "ok", category: "other" }]);
+		} else {
+			await expect(judging).rejects.toThrow();
+		}
+
+		expect(runner).toHaveBeenCalledTimes(calls);
+		expect(onRetry).toHaveBeenCalledTimes(1);
+	});
+
+	it("通信の失敗は、聞き直さない（枠を無駄に使わない）", async () => {
+		const runner = vi.fn<AiRunner>(async () => {
+			throw new Error("network");
+		});
+
+		await expect(createAiJudge(runner, () => "n", "")([item])).rejects.toThrow(
+			"network",
+		);
 		expect(runner).toHaveBeenCalledTimes(1);
 	});
 });
