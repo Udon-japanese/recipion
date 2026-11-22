@@ -12,8 +12,6 @@ import { useAppSession } from "#/integrations/better-auth/use-app-session";
 
 export const Route = createFileRoute("/profile")({
 	head: () => ({ meta: [{ title: pageTitle("プロフィール") }] }),
-	// ブラウザだけで描く（データは API から読む。サーバーの中では API を呼べないため。Web の最終形は SPA）。
-	ssr: false,
 	loader: () => meApi.getProfile(),
 	errorComponent: ProfileRouteError,
 	component: ProfilePage,

@@ -1,15 +1,18 @@
-import handler, { createServerEntry } from "@tanstack/react-start/server-entry";
-
 import { apiApp } from "#/api/app";
+import { createTeapotResponse } from "#/config/teapot-page";
 
-// Worker の入口。/api/ で始まる要求は API（Hono）に、それ以外は TanStack Start（画面・サーバー関数）に渡す。
+// Worker の入口。画面（HTML・JS・CSS）は、Cloudflare の静的ファイルとして配り、Worker は通らない
+// （wrangler.jsonc の assets。知らないパスは index.html を返す）。Worker に来るのは run_worker_first の対象だけ。
 // あとで Durable Objects などを export するときも、このファイルに足す。
-export default createServerEntry({
-	fetch(request, opts) {
-		if (new URL(request.url).pathname.startsWith("/api/")) {
-			return apiApp.fetch(request);
+export default {
+	fetch(request) {
+		const { pathname } = new URL(request.url);
+
+		// 418 I'm a teapot（アプリの画面は読み込まない、そのままの HTML）。
+		if (pathname === "/teapot") {
+			return createTeapotResponse();
 		}
 
-		return handler.fetch(request, opts);
+		return apiApp.fetch(request);
 	},
-});
+} satisfies ExportedHandler;

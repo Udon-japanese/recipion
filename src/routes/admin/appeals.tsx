@@ -6,8 +6,6 @@ import { AdminAppealsPage } from "#/features/moderation/components/admin-appeals
 
 export const Route = createFileRoute("/admin/appeals")({
 	head: () => ({ meta: [{ title: pageTitle("停止の申し立て（管理者）") }] }),
-	// ブラウザだけで描く（データは API から読む。サーバーの中では API を呼べないため。Web の最終形は SPA）。
-	ssr: false,
 	loader: async () => {
 		const [open, resolved] = await Promise.all([
 			adminApi.listOpenAppeals(),

@@ -70,8 +70,6 @@ async function loadLinkTargets(editingPublicId: string) {
 }
 
 export const Route = createFileRoute("/recipes/$publicId/edit")({
-	// ブラウザ専用の処理が多い重い画面なので、サーバーでは描画しない（loader も、ブラウザで実行される）。
-	ssr: false,
 	// merge：もとのレシピの変更を取り込む（取り込みの画面のあとに、結果をエディタで開く）。
 	validateSearch: v.object({
 		merge: v.optional(v.boolean()),

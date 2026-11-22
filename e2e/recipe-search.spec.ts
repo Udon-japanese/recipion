@@ -69,12 +69,11 @@ test("自分のレシピの条件は履歴に、みんなのレシピの条件�
 	await page.goBack();
 	await expect(ownSearch).toHaveValue("親子");
 
-	// 再読み込み：サーバーの HTML には一覧を入れず（全件を一瞬見せない）、動き出してから、履歴の条件で絞る。
-	// （loader のデータは、HTML の末尾の script に入るので、描画された部分だけを見る）
+	// 再読み込み：HTML（SPA の入口）には一覧を入れず（全件を一瞬見せない）、動き出してから、履歴の条件で絞る。
 	const response = await page.reload();
-	const renderedHtml = ((await response?.text()) ?? "").split("<script")[0];
-	expect(renderedHtml).toContain("よみこみ中...");
-	expect(renderedHtml).not.toContain("肉じゃが");
+	const html = (await response?.text()) ?? "";
+	expect(html).toContain('<div id="app">');
+	expect(html).not.toContain("肉じゃが");
 
 	await expect(ownSearch).toHaveValue("親子");
 	await expect(oyakodon).toBeVisible();

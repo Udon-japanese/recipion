@@ -18,7 +18,6 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ShoppingRouteImport } from './routes/shopping'
-import { Route as TeapotRouteImport } from './routes/teapot'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminAppealsRouteImport } from './routes/admin/appeals'
@@ -76,11 +75,6 @@ const SettingsRoute = SettingsRouteImport.update({
 const ShoppingRoute = ShoppingRouteImport.update({
   id: '/shopping',
   path: '/shopping',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TeapotRoute = TeapotRouteImport.update({
-  id: '/teapot',
-  path: '/teapot',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TermsRoute = TermsRouteImport.update({
@@ -159,7 +153,6 @@ export interface FileRoutesByFullPath {
   '/profile': typeof ProfileRoute
   '/settings': typeof SettingsRoute
   '/shopping': typeof ShoppingRoute
-  '/teapot': typeof TeapotRoute
   '/terms': typeof TermsRoute
   '/admin/appeals': typeof AdminAppealsRoute
   '/admin/reports': typeof AdminReportsRoute
@@ -183,7 +176,6 @@ export interface FileRoutesByTo {
   '/profile': typeof ProfileRoute
   '/settings': typeof SettingsRoute
   '/shopping': typeof ShoppingRoute
-  '/teapot': typeof TeapotRoute
   '/terms': typeof TermsRoute
   '/admin/appeals': typeof AdminAppealsRoute
   '/admin/reports': typeof AdminReportsRoute
@@ -209,7 +201,6 @@ export interface FileRoutesById {
   '/profile': typeof ProfileRoute
   '/settings': typeof SettingsRoute
   '/shopping': typeof ShoppingRoute
-  '/teapot': typeof TeapotRoute
   '/terms': typeof TermsRoute
   '/admin/appeals': typeof AdminAppealsRoute
   '/admin/reports': typeof AdminReportsRoute
@@ -236,7 +227,6 @@ export interface FileRouteTypes {
     | '/profile'
     | '/settings'
     | '/shopping'
-    | '/teapot'
     | '/terms'
     | '/admin/appeals'
     | '/admin/reports'
@@ -260,7 +250,6 @@ export interface FileRouteTypes {
     | '/profile'
     | '/settings'
     | '/shopping'
-    | '/teapot'
     | '/terms'
     | '/admin/appeals'
     | '/admin/reports'
@@ -285,7 +274,6 @@ export interface FileRouteTypes {
     | '/profile'
     | '/settings'
     | '/shopping'
-    | '/teapot'
     | '/terms'
     | '/admin/appeals'
     | '/admin/reports'
@@ -311,7 +299,6 @@ export interface RootRouteChildren {
   ProfileRoute: typeof ProfileRoute
   SettingsRoute: typeof SettingsRoute
   ShoppingRoute: typeof ShoppingRoute
-  TeapotRoute: typeof TeapotRoute
   TermsRoute: typeof TermsRoute
   DevUiRoute: typeof DevUiRoute
   RecipesMadeRoute: typeof RecipesMadeRoute
@@ -385,13 +372,6 @@ declare module '@tanstack/react-router' {
       path: '/shopping'
       fullPath: '/shopping'
       preLoaderRoute: typeof ShoppingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/teapot': {
-      id: '/teapot'
-      path: '/teapot'
-      fullPath: '/teapot'
-      preLoaderRoute: typeof TeapotRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/terms': {
@@ -516,7 +496,6 @@ const rootRouteChildren: RootRouteChildren = {
   ProfileRoute: ProfileRoute,
   SettingsRoute: SettingsRoute,
   ShoppingRoute: ShoppingRoute,
-  TeapotRoute: TeapotRoute,
   TermsRoute: TermsRoute,
   DevUiRoute: DevUiRoute,
   RecipesMadeRoute: RecipesMadeRoute,
@@ -529,13 +508,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

@@ -37,39 +37,21 @@ export function createBuildId(parts: readonly string[]): string {
 
 // sw.js が importScripts で読む、ビルドごとのファイル。
 // 中身（ビルド ID）が変わるので、ブラウザがサービスワーカーの更新を検出する。
-// shellPages：ブラウザだけで描画する画面（静的シェルの写し）。中身がビルドで決まるので、サービスワーカーは、キャッシュから先に返す。
-export function renderBuildScript(
-	id: string,
-	urls: readonly string[],
-	shellPages: readonly string[],
-): string {
-	return `self.__APP_BUILD__ = ${JSON.stringify({ id, urls, shellPages })};\n`;
+export function renderBuildScript(id: string, urls: readonly string[]): string {
+	return `self.__APP_BUILD__ = ${JSON.stringify({ id, urls })};\n`;
 }
 
-// 静的シェルが「ルートだけの骨組み」であることの確認。
-// ページの内容（ホームなど。ホームは data-page="home" の印を持つ）や、ユーザーごとの情報が入っていたら、キャッシュしてはいけない。
-// 枠（ヘッダー・ナビ）は、ページの内容ではないので、入っていてよい。
+// オフラインで開く画面（index.html）が、アプリの入口であることの確認。
+// Vite が、入口のスクリプトを書き換えた（ビルドした JS を読む）ことまで確かめる（/src/main.tsx のままなら、開けない）。
 export function findShellProblems(html: string): string[] {
 	const problems: string[] = [];
 
-	if (!html.includes("<html")) {
-		problems.push("HTML ではありません");
+	if (!html.includes('<div id="app">')) {
+		problems.push("アプリを描く場所（#app）がありません");
 	}
 
-	if (html.includes('data-page="home"')) {
-		problems.push(
-			"ページの内容が含まれています（シェルとして描画されていません）",
-		);
-	}
-
-	if (/initialSession:\s*\{\s*user:/u.test(html)) {
-		problems.push("ユーザーのセッション情報が含まれています");
-	}
-
-	if (/initialSession:\s*null/u.test(html)) {
-		problems.push(
-			"initialSession が null です（シェルでは undefined にする必要があります）",
-		);
+	if (!/<script type="module"[^>]*src="\/assets\//u.test(html)) {
+		problems.push("ビルドした JS を読んでいません");
 	}
 
 	return problems;

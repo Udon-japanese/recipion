@@ -36,7 +36,6 @@ import { onAppRefreshRequest } from "#/features/pull-refresh/infrastructure/app-
 
 export const Route = createFileRoute("/inventory")({
 	head: () => ({ meta: [{ title: pageTitle("在庫") }] }),
-	ssr: false,
 	component: InventoryPage,
 });
 
