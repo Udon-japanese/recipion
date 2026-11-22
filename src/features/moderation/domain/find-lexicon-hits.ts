@@ -19,6 +19,15 @@ type FindOptions = {
 	hiraganaBoundary?: boolean;
 };
 
+// 伏せ字の記号を、1文字の代わりとして許す、語の長さ（ふつうの文章の記号を、伏せ字と見間違えないため）。
+// 「●ねぎ」「●セロリ」のような、材料のグループの印は、語の端の1文字の代わりに見えてしまう。
+// 伏せ字は、3文字以上の語の途中だけ。語の端（先頭・末尾）の伏せ字は、4文字以上の語だけ（残りの3文字が合うとき）。
+const minTermLengthForMask = 3;
+const minTermLengthForEdgeMask = 4;
+
+// この長さ以下の語は、行をまたいで探さない（「塩 少し」の次の行の「ねぎ」で、「しね」にならないように）。
+const maxTermLengthWithinLine = 2;
+
 const hiraganaOnly = /^[ぁ-ゖー]+$/u;
 const hiraganaChar = /[ぁ-ゖー]/u;
 
@@ -35,13 +44,15 @@ type PreparedTerm = {
 	chars: readonly string[];
 	// 短いひらがなの語か（前後がひらがなの中の語を、除く対象）。
 	isShortHiragana: boolean;
+	// 行をまたいで探さない、短い語か。
+	staysWithinLine: boolean;
 };
 
 type PreparedLexicon = {
 	// 先頭の文字 → その文字で始まる語。
 	byFirstChar: ReadonlyMap<string, readonly PreparedTerm[]>;
-	// 2文字以上の語すべて（先頭が伏せ字のとき、先頭の文字を問わず、探す）。
-	maskableTerms: readonly PreparedTerm[];
+	// 先頭を伏せ字にしてよい語すべて（先頭が伏せ字のとき、先頭の文字を問わず、探す）。
+	edgeMaskableTerms: readonly PreparedTerm[];
 };
 
 const preparedCache = new WeakMap<readonly LexiconEntry[], PreparedLexicon>();
@@ -54,7 +65,7 @@ function prepareLexicon(entries: readonly LexiconEntry[]): PreparedLexicon {
 	}
 
 	const byFirstChar = new Map<string, PreparedTerm[]>();
-	const maskableTerms: PreparedTerm[] = [];
+	const edgeMaskableTerms: PreparedTerm[] = [];
 	let order = 0;
 
 	for (const entry of entries) {
@@ -72,6 +83,7 @@ function prepareLexicon(entries: readonly LexiconEntry[]): PreparedLexicon {
 				category: entry.category,
 				chars,
 				isShortHiragana: hiraganaOnly.test(folded) && chars.length <= 3,
+				staysWithinLine: chars.length <= maxTermLengthWithinLine,
 			};
 			const first = chars[0] as string;
 			const group = byFirstChar.get(first) ?? [];
@@ -79,20 +91,20 @@ function prepareLexicon(entries: readonly LexiconEntry[]): PreparedLexicon {
 			group.push(prepared);
 			byFirstChar.set(first, group);
 
-			if (chars.length >= 2) {
-				maskableTerms.push(prepared);
+			if (chars.length >= minTermLengthForEdgeMask) {
+				edgeMaskableTerms.push(prepared);
 			}
 		}
 	}
 
-	const prepared = { byFirstChar, maskableTerms };
+	const prepared = { byFirstChar, edgeMaskableTerms };
 
 	preparedCache.set(entries, prepared);
 
 	return prepared;
 }
 
-// text の index から、語と同じ長さの文字列が、一致するか（伏せ字は、1文字まで、何にでも一致）。
+// text の index から、語と同じ長さの文字列が、一致するか（伏せ字は、1文字まで、何にでも一致。許す位置は、語の長さで決まる）。
 function matchesAt(
 	text: readonly string[],
 	index: number,
@@ -111,7 +123,13 @@ function matchesAt(
 		if (allowMask && textChar !== undefined && isMaskCharacter(textChar)) {
 			masked += 1;
 
-			if (masked > 1 || term.length < 2) {
+			const isEdge = offset === 0 || offset === term.length - 1;
+
+			if (
+				masked > 1 ||
+				term.length < minTermLengthForMask ||
+				(isEdge && term.length < minTermLengthForEdgeMask)
+			) {
 				return false;
 			}
 
@@ -121,8 +139,7 @@ function matchesAt(
 		return false;
 	}
 
-	// 伏せ字だけで、一致したもの（元の文字が、1つも合っていない）は、除く。
-	return masked < term.length;
+	return true;
 }
 
 function isInsideHiragana(
@@ -170,6 +187,7 @@ function removeInnocentPhrases(
 }
 
 // 正規化した文章に、一覧の語が含まれるか。区切りを入れた文章と、区切りを除いた文章の、両方で探す。
+// 短い語は、区切りを除いても、行をまたいでは、つなげない（compactByLine）。
 export function findLexiconHits(
 	normalized: NormalizedText,
 	entries: readonly LexiconEntry[],
@@ -179,16 +197,27 @@ export function findLexiconHits(
 	const allowMask = options.allowMask === true;
 	const innocent = options.innocentPhrases ?? [];
 	// 文字の配列に直す作業は、1回だけ行う。
-	const candidates = [normalized.text, normalized.compact].map((candidate) => [
-		...removeInnocentPhrases(candidate, innocent),
-	]);
+	const candidates = [
+		{ text: normalized.text, forShort: true, forLong: true },
+		{ text: normalized.compact, forShort: false, forLong: true },
+		{ text: normalized.compactByLine, forShort: true, forLong: false },
+	].map((candidate) => ({
+		...candidate,
+		chars: [...removeInnocentPhrases(candidate.text, innocent)],
+	}));
 	const found = new Set<PreparedTerm>();
 
 	function test(
-		text: readonly string[],
+		candidate: (typeof candidates)[number],
 		index: number,
 		term: PreparedTerm,
 	): void {
+		const text = candidate.chars;
+
+		if (term.staysWithinLine ? !candidate.forShort : !candidate.forLong) {
+			return;
+		}
+
 		if (found.has(term) || !matchesAt(text, index, term.chars, allowMask)) {
 			return;
 		}
@@ -204,18 +233,18 @@ export function findLexiconHits(
 		found.add(term);
 	}
 
-	for (const text of candidates) {
-		for (let index = 0; index < text.length; index += 1) {
-			const char = text[index] as string;
+	for (const candidate of candidates) {
+		for (let index = 0; index < candidate.chars.length; index += 1) {
+			const char = candidate.chars[index] as string;
 
 			for (const term of prepared.byFirstChar.get(char) ?? []) {
-				test(text, index, term);
+				test(candidate, index, term);
 			}
 
-			// 先頭が伏せ字のとき（「○ね」）は、先頭の文字を問わず、探す。
+			// 先頭が伏せ字のとき（「○よぴよ」）は、先頭の文字を問わず、探す。
 			if (allowMask && isMaskCharacter(char)) {
-				for (const term of prepared.maskableTerms) {
-					test(text, index, term);
+				for (const term of prepared.edgeMaskableTerms) {
+					test(candidate, index, term);
 				}
 			}
 		}

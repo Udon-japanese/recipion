@@ -60,6 +60,8 @@ export type NormalizedText = {
 	text: string;
 	// text から、区切りの文字を除いたもの（「ば.か」「ば か」を、「ばか」にする）。
 	compact: string;
+	// compact と同じだが、改行だけは残したもの（短い語を、行をまたいでつなげて、見つけないため）。
+	compactByLine: string;
 	// 含まれる絵文字（記号）だけを、順に並べたもの。
 	emoji: string;
 };
@@ -71,15 +73,16 @@ export function normalizeForModeration(input: string): NormalizedText {
 
 	// 伏せ字の記号は、記号（P・S）に当たるものがあるので、区切りとは別に扱う。
 	// 絵文字を挟んで、単語を分断する書き方（「ば🙂か」）も、区切りとして除く。
-	const compact = [...text]
-		.filter(
-			(char) =>
-				isMaskCharacter(char) ||
-				!(separatorPattern.test(char) || emojiPattern.test(char)),
-		)
+	const isKept = (char: string) =>
+		isMaskCharacter(char) ||
+		!(separatorPattern.test(char) || emojiPattern.test(char));
+	const chars = [...text];
+	const compact = chars.filter(isKept).join("");
+	const compactByLine = chars
+		.filter((char) => char === "\n" || isKept(char))
 		.join("");
 
 	const emoji = (text.match(/\p{Extended_Pictographic}/gu) ?? []).join("");
 
-	return { text, compact, emoji };
+	return { text, compact, compactByLine, emoji };
 }

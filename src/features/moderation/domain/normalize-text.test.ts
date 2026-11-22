@@ -21,6 +21,13 @@ describe("normalizeForModeration", () => {
 		expect(normalizeForModeration("ば🙂か").emoji).toBe("🙂");
 	});
 
+	it("compactByLine は、区切りを除くが、改行は残す", () => {
+		const normalized = normalizeForModeration("塩 少し\nねぎ 1本");
+
+		expect(normalized.compactByLine).toBe("塩少し\nねぎ1本");
+		expect(normalized.compact).toBe("塩少しねぎ1本");
+	});
+
 	it("絵文字だけを、順に取り出す", () => {
 		expect(normalizeForModeration("あ🖕い🍆う💦").emoji).toBe("🖕🍆💦");
 		expect(normalizeForModeration("ふつうの文章").emoji).toBe("");
