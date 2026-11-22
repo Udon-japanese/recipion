@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { RecipePassphraseSection } from "./recipe-passphrase-section";
 
 describe("RecipePassphraseSection", () => {
-	it("パスフレーズを表示する。作り直しは、確認の2段階", async () => {
+	it("パスフレーズを、最初の描画から表示する（読み込み中を挟まない）。作り直しは、確認の2段階", async () => {
 		const user = userEvent.setup();
 		const regeneratePassphrase = vi.fn(async () => "あたらしいぱすふれーず");
 
@@ -12,12 +12,12 @@ describe("RecipePassphraseSection", () => {
 			<RecipePassphraseSection
 				recipeName="肉じゃが"
 				publicId="abc123"
-				loadPassphrase={async () => "ねこりんごやまくるま"}
+				initialPassphrase="ねこりんごやまくるま"
 				regeneratePassphrase={regeneratePassphrase}
 			/>,
 		);
 
-		expect(await screen.findByText("ねこりんごやまくるま")).toBeInTheDocument();
+		expect(screen.getByText("ねこりんごやまくるま")).toBeInTheDocument();
 
 		await user.click(screen.getByRole("button", { name: "作り直す" }));
 
@@ -48,7 +48,7 @@ describe("RecipePassphraseSection", () => {
 				<RecipePassphraseSection
 					recipeName="肉じゃが"
 					publicId="abc123"
-					loadPassphrase={async () => "ねこりんご"}
+					initialPassphrase="ねこりんご"
 					regeneratePassphrase={async () => null}
 				/>,
 			);

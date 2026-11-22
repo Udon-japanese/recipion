@@ -105,12 +105,23 @@ export const Route = createFileRoute("/recipes/$publicId/")({
 			0,
 			maxPreloadedLinkTargets,
 		);
-		const linkedRecipes =
+		// 限定公開の持ち主には、パスフレーズも、画面を出す前に取る（帯に、読み込み中を挟まない）。
+		const [linkedRecipes, passphrase] = await Promise.all([
 			linkTargetIds.length > 0
-				? await recipesApi.getLinkedRecipes({ publicIds: linkTargetIds })
-				: {};
+				? recipesApi.getLinkedRecipes({ publicIds: linkTargetIds })
+				: {},
+			viewable.isOwn && viewable.recipe.visibility === "unlisted"
+				? recipesApi.getRecipePassphrase({ publicId: params.publicId })
+				: null,
+		]);
 
-		return { ...viewable, linkedRecipes, cookStats, householdSize };
+		return {
+			...viewable,
+			linkedRecipes,
+			cookStats,
+			householdSize,
+			passphrase,
+		};
 	},
 	head: ({ loaderData }) => ({
 		meta: [
@@ -135,6 +146,8 @@ type RecipePreload = {
 	householdSize: number | null;
 	// もとにしたレシピ（継承していなければ null）。
 	parent: RecipeParentView | null;
+	// 限定公開の持ち主に出す、パスフレーズ（ほかは null）。
+	passphrase: string | null;
 };
 
 // 「買い物メモへ」「つくった」で、リンク先の材料を使うとき。画面を開いたあとに、リンク先が消された・見られなくなった
@@ -220,11 +233,7 @@ function useRecipeViewSupport(
 		[],
 	);
 
-	// 限定公開のパスフレーズ（持ち主だけ）。
-	const loadPassphrase = useCallback(
-		() => recipesApi.getRecipePassphrase({ publicId: recipe.publicId }),
-		[recipe.publicId],
-	);
+	// 限定公開のパスフレーズの作り直し（持ち主だけ）。
 	const regeneratePassphrase = useCallback(
 		() => recipesApi.regenerateRecipePassphrase({ publicId: recipe.publicId }),
 		[recipe.publicId],
@@ -358,7 +367,6 @@ function useRecipeViewSupport(
 		cookLog,
 		loadLinkedRecipe,
 		loadLinkedRecipes,
-		loadPassphrase,
 		regeneratePassphrase,
 		loadInventoryItems,
 		registerAvailable,
@@ -387,7 +395,6 @@ function OwnRecipePage({
 		cookLog,
 		loadLinkedRecipe,
 		loadLinkedRecipes,
-		loadPassphrase,
 		regeneratePassphrase,
 		loadInventoryItems,
 		registerAvailable,
@@ -466,7 +473,7 @@ function OwnRecipePage({
 								<RecipePassphraseSection
 									recipeName={recipe.name}
 									publicId={recipe.publicId}
-									loadPassphrase={loadPassphrase}
+									initialPassphrase={preload.passphrase}
 									regeneratePassphrase={regeneratePassphrase}
 								/>
 							) : null}
