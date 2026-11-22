@@ -4,6 +4,10 @@ import { errorResponse, toErrorResponse } from "#/api/error-response";
 import { clientVersionMiddleware } from "#/api/middleware/client-version";
 import { cookieSameOriginMiddleware } from "#/api/middleware/cookie-same-origin";
 import type { ClientPlatform } from "#/config/client-versions";
+import {
+	createShoppingSyncRoutes,
+	type ShoppingSyncRouteDependencies,
+} from "#/features/shopping/api/shopping-sync-routes";
 
 const NOT_FOUND_MESSAGE = "見つかりませんでした";
 
@@ -11,6 +15,7 @@ export type ApiDependencies = {
 	// Better Auth の入口（/api/auth/*）。
 	handleAuth: (request: Request) => Promise<Response>;
 	minimumClientVersions: Record<ClientPlatform, string>;
+	shoppingSync: ShoppingSyncRouteDependencies;
 };
 
 // API（Hono）の本体。外のもの（Better Auth・DB）は引数で受け取る（テストで差し替えるため。cloudflare:workers を読まない）。
@@ -21,7 +26,11 @@ export function createApiApp(dependencies: ApiDependencies) {
 			c.json({ minimumClientVersions: dependencies.minimumClientVersions }),
 		)
 		.use(clientVersionMiddleware(dependencies.minimumClientVersions))
-		.use(cookieSameOriginMiddleware);
+		.use(cookieSameOriginMiddleware)
+		.route(
+			"/shopping/sync",
+			createShoppingSyncRoutes(dependencies.shoppingSync),
+		);
 
 	const app = new Hono()
 		// Better Auth は、自分で Origin を確かめる（trustedOrigins）。
@@ -34,4 +43,5 @@ export function createApiApp(dependencies: ApiDependencies) {
 	return app;
 }
 
+// API の型。画面の型つきクライアント（hc）が、`import type` だけで読む。
 export type ApiApp = ReturnType<typeof createApiApp>;

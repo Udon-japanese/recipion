@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { ApiError } from "./api-error";
 import { classifyRequestError } from "./classify-request-error";
 import {
 	ACCOUNT_CHANGED_MESSAGE,
@@ -62,5 +63,26 @@ describe("classifyRequestError", () => {
 		},
 	])("$label → $kind", ({ error, isOnline, kind }) => {
 		expect(classifyRequestError(error, isOnline)).toBe(kind);
+	});
+});
+
+describe("classifyRequestError（API の失敗はコードで見分ける）", () => {
+	it.each([
+		["AUTH_REQUIRED", "account"],
+		["ACCOUNT_CHANGED", "account"],
+		["ACCOUNT_SUSPENDED", "account"],
+		["INTERNAL", "server"],
+		["INVALID_INPUT", "rejected"],
+		["RATE_LIMITED", "rejected"],
+	] as const)("%s は %s", (code, kind) => {
+		expect(classifyRequestError(new ApiError(code, "文", 400), true)).toBe(
+			kind,
+		);
+	});
+
+	it("端末がオフラインなら、API の失敗でも offline", () => {
+		expect(
+			classifyRequestError(new ApiError("INTERNAL", "文", 500), false),
+		).toBe("offline");
 	});
 });

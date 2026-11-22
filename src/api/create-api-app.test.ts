@@ -7,7 +7,14 @@ function createApp() {
 	const handleAuth = vi.fn(async () => new Response("auth"));
 
 	return {
-		app: createApiApp({ handleAuth, minimumClientVersions }),
+		app: createApiApp({
+			handleAuth,
+			minimumClientVersions,
+			shoppingSync: {
+				resolveSession: vi.fn(),
+				createStore: vi.fn(),
+			},
+		}),
 		handleAuth,
 	};
 }

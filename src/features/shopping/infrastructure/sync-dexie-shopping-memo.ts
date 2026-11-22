@@ -1,31 +1,37 @@
+import { apiClient, readApiResponse } from "#/api/client";
 import { userIdOfOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
 import { createShoppingSyncRequester } from "../application/request-shopping-sync";
 import {
 	type ShoppingSyncRemote,
 	syncShoppingMemo,
 } from "../application/sync-shopping-memo";
-import { pullShoppingRecordsServerFn } from "../server/pull-shopping-records";
-import { pushShoppingRecordsServerFn } from "../server/push-shopping-records";
 import { createDexieShoppingSyncStore } from "./dexie-shopping-sync-store";
 import { setShoppingSyncStatus as setStatus } from "./shopping-sync-status";
 
 type UserScope = `user:${string}`;
 
-const tanstackShoppingSyncRemote: ShoppingSyncRemote = {
+const apiShoppingSyncRemote: ShoppingSyncRemote = {
 	async push(ownerScope, records) {
-		const { results } = await pushShoppingRecordsServerFn({
-			data: {
-				expectedUserId: userIdOfOwnerScope(ownerScope),
-				records: [...records],
-			},
-		});
+		const { results } = await readApiResponse(
+			await apiClient.api.v1.shopping.sync.push.$post({
+				json: {
+					expectedUserId: userIdOfOwnerScope(ownerScope),
+					records: [...records],
+				},
+			}),
+		);
 
 		return results;
 	},
-	pull(ownerScope, after) {
-		return pullShoppingRecordsServerFn({
-			data: { expectedUserId: userIdOfOwnerScope(ownerScope), after },
-		});
+	async pull(ownerScope, after) {
+		return readApiResponse(
+			await apiClient.api.v1.shopping.sync.pull.$get({
+				query: {
+					expectedUserId: userIdOfOwnerScope(ownerScope),
+					after: String(after),
+				},
+			}),
+		);
 	},
 };
 
@@ -34,7 +40,7 @@ function syncOnce(ownerScope: UserScope) {
 		syncShoppingMemo(
 			ownerScope,
 			createDexieShoppingSyncStore(),
-			tanstackShoppingSyncRemote,
+			apiShoppingSyncRemote,
 		);
 	const locks = typeof navigator === "undefined" ? undefined : navigator.locks;
 
@@ -44,7 +50,7 @@ function syncOnce(ownerScope: UserScope) {
 		: run();
 }
 
-// 買い物メモを同期する（サーバー関数を呼ぶので、画面の部品には、ルートから渡す）。
+// 買い物メモを同期する（API を呼ぶので、画面の部品には、ルートから渡す）。
 // 結果は、失敗の種類（成功は null）。例外にはしない。
 export const syncDexieShoppingMemo = createShoppingSyncRequester({
 	syncOnce,

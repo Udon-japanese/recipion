@@ -27,6 +27,10 @@ export const errorCodeStatuses = {
 
 export type ErrorCode = keyof typeof errorCodeStatuses;
 
+export function isErrorCode(value: unknown): value is ErrorCode {
+	return typeof value === "string" && Object.hasOwn(errorCodeStatuses, value);
+}
+
 export type ErrorStatus = (typeof errorCodeStatuses)[ErrorCode];
 
 export function statusForErrorCode(code: ErrorCode): ErrorStatus {
