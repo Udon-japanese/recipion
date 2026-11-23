@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { collectRecipeLinkTargetIds } from "./ingredient-link-target";
-import type { RecipeEditorIngredientNode } from "./recipe-editor-document";
+import type { RecipeEditorIngredientItem } from "./recipe-editor-document";
 
-function ingredient(name: string): RecipeEditorIngredientNode {
+function ingredient(name: string): RecipeEditorIngredientItem {
 	return {
 		type: "ingredient",
 		status: "missing-amount",
