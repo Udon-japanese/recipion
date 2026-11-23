@@ -28,6 +28,19 @@ updates:
       security:
         applies-to: security-updates
         patterns: ["*"]
+  # ネイティブアプリ（KMP）。version catalog（gradle/libs.versions.toml）と Gradle wrapper を更新する。
+  - package-ecosystem: gradle
+    directory: /apps/mobile
+    schedule:
+      interval: weekly
+      timezone: Asia/Tokyo
+    cooldown:
+      default-days: 3
+    groups:
+      # Kotlin とそのプラグイン（Compose の compiler・serialization）は、版をそろえて上げる必要があるので、1 本にまとめる。
+      minor-and-patch:
+        applies-to: version-updates
+        update-types: [minor, patch]
   # Action は .github/workflows/actions.lock で commit に固定している。Dependabot は、ワークフローとロックを同じ PR で更新する。
   - package-ecosystem: github-actions
     directory: /
