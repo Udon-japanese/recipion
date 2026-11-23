@@ -7,3 +7,6 @@ node = "24.22.1"
 # グローバルに入れた pnpm（node の bin 配下）が、mise の pnpm より先に使われる場合がある。
 # その場合は、node のバージョンを新しく入れ直すと、この指定が有効になる。
 "npm:pnpm" = "12.8.1"
+# gradle は、gradlew を作るときだけ使う。
+java = "temurin-21.0.13+9.0.LTS"
+gradle = "9.9.0"

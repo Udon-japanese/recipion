@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { playwright } from "@vitest/browser-playwright";
 import { vanillaExtractPlugin } from "@vanilla-extract/vite-plugin";
 import viteReact from "@vitejs/plugin-react";
+import { kotlinQuantity } from "./kmp/vite-kotlin-quantity.ts";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
@@ -9,6 +10,7 @@ export default defineConfig({
 		tsconfigPaths: true,
 	},
 	plugins: [
+		kotlinQuantity(),
 		viteReact(),
 		vanillaExtractPlugin(),
 		// メンテ中の Worker（wrangler は .html を文字列として読み込む）と同じに、.html を文字列として読み込む。

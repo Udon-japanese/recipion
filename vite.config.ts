@@ -4,6 +4,7 @@ import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import { vanillaExtractPlugin } from "@vanilla-extract/vite-plugin";
 import viteReact from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
+import { kotlinQuantity } from "./kmp/vite-kotlin-quantity.ts";
 
 const config = defineConfig(({ isPreview }) => ({
 	resolve: { tsconfigPaths: true },
@@ -22,6 +23,7 @@ const config = defineConfig(({ isPreview }) => ({
 		tanstackRouter({ target: "react", autoCodeSplitting: true }),
 		viteReact(),
 		vanillaExtractPlugin(),
+		kotlinQuantity(),
 	],
 }));
 
