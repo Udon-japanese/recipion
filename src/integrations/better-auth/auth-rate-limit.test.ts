@@ -31,8 +31,9 @@ function createLimiters(
 	const sendByEmail = createLimiter(overrides.sendByEmail ?? 3);
 	const sendByIp = createLimiter(overrides.sendByIp ?? 6);
 	const verifyByIp = createLimiter(overrides.verifyByIp ?? 15);
+	const sendUnverified = createLimiter(overrides.sendUnverified ?? 10);
 
-	return { sendByEmail, sendByIp, verifyByIp };
+	return { sendByEmail, sendByIp, verifyByIp, sendUnverified };
 }
 
 describe("checkAuthRateLimit", () => {
@@ -99,6 +100,21 @@ describe("checkAuthRateLimit", () => {
 		expect((await send("a@example.com")).allowed).toBe(true);
 		expect((await send("b@example.com")).allowed).toBe(true);
 		expect((await send("c@example.com")).allowed).toBe(false);
+	});
+
+	it("証明のない送信は、宛先も IP も違っても、全体で1つの上限で数える", async () => {
+		const limiters = createLimiters({ sendUnverified: 2 });
+		const send = (email: string, ip: string, unverified: boolean) =>
+			checkAuthRateLimit(
+				{ path: SEND_CODE_PATH, email, ip, unverified },
+				limiters,
+			);
+
+		expect((await send("a@example.com", "1.1.1.1", true)).allowed).toBe(true);
+		expect((await send("b@example.com", "2.2.2.2", true)).allowed).toBe(true);
+		expect((await send("c@example.com", "3.3.3.3", true)).allowed).toBe(false);
+		// 確かめられた送信は、この上限に関係しない。
+		expect((await send("d@example.com", "4.4.4.4", false)).allowed).toBe(true);
 	});
 
 	it("キーに、メールアドレスや IP をそのまま含めない", async () => {

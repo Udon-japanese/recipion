@@ -2,7 +2,7 @@ import { env, waitUntil } from "cloudflare:workers";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { APIError, createAuthMiddleware } from "better-auth/api";
-import { bearer, captcha, emailOTP } from "better-auth/plugins";
+import { bearer, emailOTP } from "better-auth/plugins";
 import { eq } from "drizzle-orm";
 import {
 	OTP_ALLOWED_ATTEMPTS,
@@ -32,6 +32,10 @@ import {
 	SEND_CODE_PATH,
 } from "#/integrations/better-auth/auth-rate-limit";
 import {
+	checkSendCodeRequest,
+	type SendCodeBotCheck,
+} from "#/integrations/better-auth/send-code-bot-check";
+import {
 	generateDemoLoginCode,
 	isDemoLoginEmail,
 	readDemoLoginConfig,
@@ -42,6 +46,12 @@ import {
 } from "#/integrations/email/delete-account-email";
 import { getMailer } from "#/integrations/email/get-mailer";
 import { loginCodeEmail } from "#/integrations/email/login-code-email";
+import {
+	createPlayIntegrityClient,
+	type PlayIntegrityClient,
+} from "#/integrations/play-integrity/play-integrity-client";
+import { verifySendCodeIntegrity } from "#/integrations/play-integrity/verify-send-code-integrity";
+import { verifyTurnstileToken } from "#/integrations/turnstile/verify-turnstile-token";
 
 const isDevelopment = import.meta.env.DEV;
 
@@ -51,13 +61,104 @@ function getRateLimiters(): AuthRateLimiters | null {
 		sendByEmail: env.AUTH_SEND_EMAIL_LIMITER,
 		sendByIp: env.AUTH_SEND_IP_LIMITER,
 		verifyByIp: env.AUTH_VERIFY_IP_LIMITER,
+		sendUnverified: env.AUTH_SEND_UNVERIFIED_LIMITER,
 	};
 
-	if (!limiters.sendByEmail || !limiters.sendByIp || !limiters.verifyByIp) {
+	if (
+		!limiters.sendByEmail ||
+		!limiters.sendByIp ||
+		!limiters.verifyByIp ||
+		!limiters.sendUnverified
+	) {
 		return null;
 	}
 
 	return limiters as AuthRateLimiters;
+}
+
+// Google のアクセストークンを、要求をまたいで使い回すため、Worker の中で1つだけ作る。
+let playIntegrity: {
+	serviceAccount: string;
+	client: PlayIntegrityClient;
+} | null = null;
+
+function getPlayIntegrityClient(): PlayIntegrityClient | null {
+	const serviceAccount = env.PLAY_INTEGRITY_SERVICE_ACCOUNT;
+
+	if (!serviceAccount) return null;
+
+	if (playIntegrity?.serviceAccount !== serviceAccount) {
+		playIntegrity = {
+			serviceAccount,
+			client: createPlayIntegrityClient(serviceAccount),
+		};
+	}
+
+	return playIntegrity.client;
+}
+
+function getTurnstileSecretKey(): string {
+	const secretKey =
+		env.TURNSTILE_SECRET_KEY ??
+		(isDevelopment ? TURNSTILE_TEST_SECRET_KEY : "");
+
+	if (secretKey === "") {
+		throw new Error("Turnstile のシークレットキーがありません");
+	}
+
+	return secretKey;
+}
+
+// コードの送信（メールの爆撃の入口）を、Turnstile（Web）と Play Integrity（Android）で守る。
+// エラーのコードと状態は、前に使っていた Better Auth の captcha プラグインと同じにする（画面のエラーの文が、コードで決まる）。
+async function checkSendCodeBot(
+	headers: Headers,
+	email: string | null,
+	ip: string | null,
+): Promise<SendCodeBotCheck> {
+	let result: SendCodeBotCheck;
+
+	try {
+		result = await checkSendCodeRequest(
+			{ headers, email },
+			{
+				turnstile: (token) =>
+					verifyTurnstileToken({
+						token,
+						secretKey: getTurnstileSecretKey(),
+						remoteIp: ip,
+					}),
+				playIntegrity: async (token, requestEmail) => {
+					const client = getPlayIntegrityClient();
+
+					return client
+						? verifySendCodeIntegrity(client, token, requestEmail)
+						: false;
+				},
+			},
+		);
+	} catch (error) {
+		console.error("[auth] ボットの判定ができませんでした", error);
+
+		throw APIError.from("INTERNAL_SERVER_ERROR", {
+			message: "Something went wrong",
+			code: "UNKNOWN_ERROR",
+		});
+	}
+
+	if (result.status === "rejected") {
+		throw result.code === "MISSING_RESPONSE"
+			? APIError.from("BAD_REQUEST", {
+					message: "Missing CAPTCHA response",
+					code: result.code,
+				})
+			: APIError.from("FORBIDDEN", {
+					message: "Captcha verification failed",
+					code: result.code,
+				});
+	}
+
+	return result;
 }
 
 // 0 以上 size 未満の乱数（ハンドルの自動生成用）。
@@ -171,8 +272,16 @@ export function createAuth(db: DB) {
 			},
 		},
 		hooks: {
-			// コードの送信と検証に、レート制限をかける（メールの爆撃と、総当たりを防ぐ）。
+			// コードの送信と検証に、ボットの判定とレート制限をかける（メールの爆撃と、総当たりを防ぐ）。
 			before: createAuthMiddleware(async (ctx) => {
+				const body = (ctx.body ?? {}) as { email?: unknown };
+				const email = typeof body.email === "string" ? body.email : null;
+				const ip = ctx.request?.headers.get("cf-connecting-ip") ?? null;
+				// サーバーの中からの呼び出し（ctx.request がない）は、判定しない。
+				const botCheck =
+					ctx.path === SEND_CODE_PATH && ctx.request
+						? await checkSendCodeBot(ctx.request.headers, email, ip)
+						: null;
 				const limiters = getRateLimiters();
 
 				if (!limiters) {
@@ -185,12 +294,12 @@ export function createAuth(db: DB) {
 					});
 				}
 
-				const body = (ctx.body ?? {}) as { email?: unknown };
 				const result = await checkAuthRateLimit(
 					{
 						path: ctx.path,
-						email: typeof body.email === "string" ? body.email : null,
-						ip: ctx.request?.headers.get("cf-connecting-ip") ?? "unknown",
+						email,
+						ip: ip ?? "unknown",
+						unverified: botCheck?.status === "unverified",
 					},
 					limiters,
 				);
@@ -222,14 +331,6 @@ export function createAuth(db: DB) {
 
 					await getMailer().send(loginCodeEmail(email, otp));
 				},
-			}),
-			// コードの送信（メールの爆撃の入口）を、Turnstile のトークンで保護する。
-			captcha({
-				provider: "cloudflare-turnstile",
-				secretKey:
-					env.TURNSTILE_SECRET_KEY ??
-					(isDevelopment ? TURNSTILE_TEST_SECRET_KEY : ""),
-				endpoints: [SEND_CODE_PATH],
 			}),
 			// アプリ用：`Authorization: Bearer <token>` をセッションとして受け付け、ログインの応答に `set-auth-token` を付ける。
 			// Cookie のない要求は、Better Auth の Origin の確認の対象外なので、アプリから Origin なしで呼べる。

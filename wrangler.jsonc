@@ -34,6 +34,13 @@
 			"namespace_id": "1003",
 			"simple": { "limit": 15, "period": 60 }
 		},
+		// 証明（Play Integrity）を取れなかったアプリからの送信。偽れる名乗りでも使えるので、宛先・IP を問わず、全体で数える。
+		// 本物の利用者（Play ストアのない端末など）は少ない見込み。超えると、その間は待ってもらう。
+		{
+			"name": "AUTH_SEND_UNVERIFIED_LIMITER",
+			"namespace_id": "1005",
+			"simple": { "limit": 10, "period": 60 }
+		},
 		// 他の人のレシピへのリンクのための、ユーザー・レシピの検索（1人あたり）。入力のたびに検索するので、やや多めに許す。
 		{
 			"name": "LINK_SEARCH_LIMITER",
