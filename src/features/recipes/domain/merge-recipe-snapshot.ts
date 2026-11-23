@@ -2,6 +2,7 @@
 // もと＝写したときの親、相手＝今の親、自分＝今の子。親だけが変えた行は当て、子だけが変えた行は残す。
 // 両方が同じところを違うように変えたときだけ、ぶつかり（どれにするかを、本人が選ぶ）。
 import { diffIndices } from "node-diff3";
+import { mapIngredientItems } from "./edit-recipe-ingredients";
 import type {
 	RecipeEditorDocument,
 	RecipeEditorIngredientNode,
@@ -248,11 +249,7 @@ function applyWeights(
 	nodes: readonly RecipeEditorIngredientNode[],
 	weights: ReadonlyMap<string, number>,
 ): RecipeEditorIngredientNode[] {
-	return nodes.map((node) => {
-		if (node.type === "group") {
-			return { ...node, children: applyWeights(node.children, weights) };
-		}
-
+	return mapIngredientItems(nodes, (node) => {
 		const weight = weights.get(normalizeName(node.name));
 
 		return weight === undefined ? node : { ...node, scaleWeight: weight };

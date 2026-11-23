@@ -133,8 +133,8 @@ describe("reconcileRecipeIngredients", () => {
 		const first = initialState("卵 1個\n☆ソース\nケチャップ 大さじ2");
 		const [egg, sauce] = first.nodes;
 
-		if (sauce.type !== "group") {
-			throw new Error("グループのはず");
+		if (egg.type !== "ingredient" || sauce.type !== "group") {
+			throw new Error("材料とグループのはず");
 		}
 
 		const moved: IngredientSyncState = {

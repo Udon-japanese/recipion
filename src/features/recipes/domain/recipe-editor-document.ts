@@ -23,7 +23,7 @@ export type RecipeEditorIngredientGroup = Omit<
 	"children"
 > & {
 	id: string;
-	children: RecipeEditorIngredientNode[];
+	children: RecipeEditorIngredientItem[];
 };
 
 export type RecipeEditorIngredientNode =
@@ -100,9 +100,7 @@ function createIngredientNode(
 	return {
 		...node,
 		id: createId(),
-		children: node.children.map((child) =>
-			createIngredientNode(child, createId),
-		),
+		children: node.children.map((child) => ({ ...child, id: createId() })),
 	};
 }
 

@@ -17,7 +17,10 @@ function copyIngredients(
 			? {
 					...node,
 					id: createId(),
-					children: copyIngredients(node.children, createId),
+					children: node.children.map((child) => ({
+						...child,
+						id: createId(),
+					})),
 				}
 			: { ...node, id: createId() },
 	);

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { createRecipeEditorDocument } from "../domain/recipe-editor-document";
-import { prepareRecipeForStorage } from "./prepare-recipe-for-storage";
+import {
+	prepareRecipeForStorage,
+	type StoredRecipeIngredientNode,
+} from "./prepare-recipe-for-storage";
 import { restoreRecipeIngredients } from "./restore-recipe-ingredients";
 
 describe("restoreRecipeIngredients", () => {
@@ -45,6 +48,29 @@ describe("restoreRecipeIngredients", () => {
 		expect(restoreRecipeIngredients(stored.ingredients)).toEqual(
 			document.ingredients,
 		);
+	});
+
+	it("グループの中にグループがあるときは、エラーにする", () => {
+		const group: Omit<StoredRecipeIngredientNode, "id"> = {
+			parentId: null,
+			sortOrder: 0,
+			type: "group",
+			name: "たれ",
+			rawText: "たれ",
+			inferred: false,
+			status: null,
+			amountText: null,
+			quantity: null,
+			unitLabel: null,
+			scaleWeight: 1,
+		};
+
+		expect(() =>
+			restoreRecipeIngredients([
+				{ ...group, id: "outer" },
+				{ ...group, id: "inner", parentId: "outer" },
+			]),
+		).toThrow("グループの中に、グループ");
 	});
 
 	it("親をたどれない材料があるときは、捨てずにエラーにする", () => {

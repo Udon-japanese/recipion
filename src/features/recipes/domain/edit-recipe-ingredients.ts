@@ -6,19 +6,23 @@ import type {
 
 // プレビューでの材料の手直し（純粋関数）。
 
+export function mapIngredientItems(
+	nodes: readonly RecipeEditorIngredientNode[],
+	update: (item: RecipeEditorIngredientItem) => RecipeEditorIngredientItem,
+): RecipeEditorIngredientNode[] {
+	return nodes.map((node) =>
+		node.type === "group"
+			? { ...node, children: node.children.map(update) }
+			: update(node),
+	);
+}
+
 export function updateIngredientItem(
 	nodes: readonly RecipeEditorIngredientNode[],
 	id: string,
 	changes: { name?: string; amountText?: string },
 ): RecipeEditorIngredientNode[] {
-	return nodes.map((node) => {
-		if (node.type === "group") {
-			return {
-				...node,
-				children: updateIngredientItem(node.children, id, changes),
-			};
-		}
-
+	return mapIngredientItems(nodes, (node) => {
 		if (node.id !== id) return node;
 
 		const name = changes.name ?? node.name;
@@ -28,7 +32,7 @@ export function updateIngredientItem(
 		const weight =
 			node.scaleWeight === undefined ? {} : { scaleWeight: node.scaleWeight };
 
-		const updated: RecipeEditorIngredientItem = hasAmount
+		return hasAmount
 			? {
 					type: "ingredient",
 					status: "parsed",
@@ -51,8 +55,6 @@ export function updateIngredientItem(
 					unitLabel: null,
 					...weight,
 				};
-
-		return updated;
 	});
 }
 
@@ -62,14 +64,7 @@ export function setIngredientScaleWeight(
 	id: string,
 	weight: number,
 ): RecipeEditorIngredientNode[] {
-	return nodes.map((node) => {
-		if (node.type === "group") {
-			return {
-				...node,
-				children: setIngredientScaleWeight(node.children, id, weight),
-			};
-		}
-
+	return mapIngredientItems(nodes, (node) => {
 		if (node.id !== id) return node;
 
 		const { scaleWeight: _previous, ...rest } = node;
@@ -122,27 +117,28 @@ export function createIngredientGroup(
 	};
 }
 
+function isGroup(
+	node: RecipeEditorIngredientNode,
+	groupId: string,
+): node is RecipeEditorIngredientGroup {
+	return node.type === "group" && node.id === groupId;
+}
+
 export function removeEmptyIngredientGroup(
 	nodes: readonly RecipeEditorIngredientNode[],
 	groupId: string,
 ): RecipeEditorIngredientNode[] {
-	return nodes.flatMap<RecipeEditorIngredientNode>((node) => {
-		if (node.type !== "group") return [node];
-
-		if (node.id === groupId && node.children.length === 0) return [];
-
-		return [
-			{ ...node, children: removeEmptyIngredientGroup(node.children, groupId) },
-		];
-	});
+	return nodes.filter(
+		(node) => !(isGroup(node, groupId) && node.children.length === 0),
+	);
 }
 
-// グループの ID と、その中のすべての材料・グループの ID。
+// グループの ID と、その中のすべての材料の ID。
 export function collectIngredientIds(
 	node: RecipeEditorIngredientNode,
 ): string[] {
 	return node.type === "group"
-		? [node.id, ...node.children.flatMap(collectIngredientIds)]
+		? [node.id, ...node.children.map((child) => child.id)]
 		: [node.id];
 }
 
@@ -150,17 +146,7 @@ export function findIngredientGroup(
 	nodes: readonly RecipeEditorIngredientNode[],
 	groupId: string,
 ): RecipeEditorIngredientGroup | null {
-	for (const node of nodes) {
-		if (node.type !== "group") continue;
-
-		if (node.id === groupId) return node;
-
-		const found = findIngredientGroup(node.children, groupId);
-
-		if (found) return found;
-	}
-
-	return null;
+	return nodes.find((node) => isGroup(node, groupId)) ?? null;
 }
 
 // グループだけを消す。中の材料は、そのグループがあった位置に残る（グループ外へ出る）。
@@ -168,15 +154,9 @@ export function dissolveIngredientGroup(
 	nodes: readonly RecipeEditorIngredientNode[],
 	groupId: string,
 ): RecipeEditorIngredientNode[] {
-	return nodes.flatMap<RecipeEditorIngredientNode>((node) => {
-		if (node.type !== "group") return [node];
-
-		if (node.id === groupId) return node.children;
-
-		return [
-			{ ...node, children: dissolveIngredientGroup(node.children, groupId) },
-		];
-	});
+	return nodes.flatMap<RecipeEditorIngredientNode>((node) =>
+		isGroup(node, groupId) ? node.children : [node],
+	);
 }
 
 // グループと、中の材料を、すべて消す。
@@ -184,24 +164,14 @@ export function removeIngredientGroup(
 	nodes: readonly RecipeEditorIngredientNode[],
 	groupId: string,
 ): RecipeEditorIngredientNode[] {
-	return nodes.flatMap<RecipeEditorIngredientNode>((node) => {
-		if (node.type !== "group") return [node];
-
-		if (node.id === groupId) return [];
-
-		return [
-			{ ...node, children: removeIngredientGroup(node.children, groupId) },
-		];
-	});
+	return nodes.filter((node) => !isGroup(node, groupId));
 }
 
 export function hasEmptyIngredientGroup(
 	nodes: readonly RecipeEditorIngredientNode[],
 ): boolean {
 	return nodes.some(
-		(node) =>
-			node.type === "group" &&
-			(node.children.length === 0 || hasEmptyIngredientGroup(node.children)),
+		(node) => node.type === "group" && node.children.length === 0,
 	);
 }
 
@@ -210,18 +180,9 @@ export function renameIngredientGroup(
 	groupId: string,
 	name: string,
 ): RecipeEditorIngredientNode[] {
-	return nodes.map((node) => {
-		if (node.type !== "group") return node;
-
-		if (node.id === groupId) {
-			return { ...node, name, rawText: name };
-		}
-
-		return {
-			...node,
-			children: renameIngredientGroup(node.children, groupId, name),
-		};
-	});
+	return nodes.map((node) =>
+		isGroup(node, groupId) ? { ...node, name, rawText: name } : node,
+	);
 }
 
 export function removeIngredientItem(
@@ -232,33 +193,35 @@ export function removeIngredientItem(
 	removed: RecipeEditorIngredientItem | null;
 } {
 	let removed: RecipeEditorIngredientItem | null = null;
+	const remaining: RecipeEditorIngredientNode[] = [];
 
-	function remove(
-		current: readonly RecipeEditorIngredientNode[],
-	): RecipeEditorIngredientNode[] {
-		const result: RecipeEditorIngredientNode[] = [];
-
-		for (const node of current) {
-			if (node.type === "ingredient") {
-				if (node.id === itemId) {
-					removed = node;
-				} else {
-					result.push(node);
-				}
-				continue;
+	for (const node of nodes) {
+		if (node.type === "ingredient") {
+			if (node.id === itemId) {
+				removed = node;
+			} else {
+				remaining.push(node);
 			}
+			continue;
+		}
 
-			const children = remove(node.children);
-			// 取り出して空になったグループは消す。もともと空のグループ（作成直後）は残す。
-			if (children.length > 0 || node.children.length === 0) {
-				result.push({ ...node, children });
+		const children: RecipeEditorIngredientItem[] = [];
+
+		for (const child of node.children) {
+			if (child.id === itemId) {
+				removed = child;
+			} else {
+				children.push(child);
 			}
 		}
 
-		return result;
+		// 取り出して空になったグループは消す。もともと空のグループ（作成直後）は残す。
+		if (children.length > 0 || node.children.length === 0) {
+			remaining.push({ ...node, children });
+		}
 	}
 
-	return { remaining: remove(nodes), removed };
+	return { remaining, removed };
 }
 
 export function moveIngredientItem(
@@ -272,22 +235,12 @@ export function moveIngredientItem(
 	if (targetGroupId === null) return [...remaining, movedItem];
 
 	let foundTarget = false;
+	const result = remaining.map((node) => {
+		if (!isGroup(node, targetGroupId)) return node;
 
-	function insert(
-		current: readonly RecipeEditorIngredientNode[],
-	): RecipeEditorIngredientNode[] {
-		return current.map((node) => {
-			if (node.type !== "group") return node;
+		foundTarget = true;
+		return { ...node, children: [...node.children, movedItem] };
+	});
 
-			if (node.id === targetGroupId && movedItem !== null) {
-				foundTarget = true;
-				return { ...node, children: [...node.children, movedItem] };
-			}
-
-			return { ...node, children: insert(node.children) };
-		});
-	}
-
-	const result = insert(remaining);
 	return foundTarget ? result : [...nodes];
 }

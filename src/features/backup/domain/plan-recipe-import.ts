@@ -66,7 +66,10 @@ function renewIngredientIds(
 			? {
 					...node,
 					id: createId(),
-					children: renewIngredientIds(node.children, createId),
+					children: node.children.map((child) => ({
+						...child,
+						id: createId(),
+					})),
 				}
 			: { ...node, id: createId() },
 	);
