@@ -1,0 +1,10 @@
+[
+	{
+		"email": "a@example.com",
+		"expected": "4667e3badaad3f967183f9a25ed557087570dc97f91b671516754f1bc6454231"
+	},
+	{
+		"email": "Taro.Yamada+recipe@example.co.jp",
+		"expected": "e57ffb1d03410f1ff2d6570fe0d1c92505347745663a3804f6e1a223ef5f76a3"
+	}
+]
