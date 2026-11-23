@@ -41,6 +41,7 @@ val generateSharedTestData = registerJsonConstants(
     mapOf(
         "EMAIL_ADDRESS_CASES_JSON" to "test-cases/email-address.json",
         "OTP_DIGITS_CASES_JSON" to "test-cases/otp-digits.json",
+        "SEND_CODE_REQUEST_HASH_CASES_JSON" to "test-cases/send-code-request-hash.json",
     ),
     "commonTest",
 )

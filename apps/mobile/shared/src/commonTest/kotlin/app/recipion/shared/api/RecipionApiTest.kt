@@ -1,5 +1,7 @@
 package app.recipion.shared.api
 
+import app.recipion.shared.attestation.SendCodeAttestation
+import app.recipion.shared.attestation.sendCodeRequestHash
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.test.runTest
@@ -80,14 +82,9 @@ class RecipionApiTest {
     }
 
     @Test
-    fun devHeadersAreSentOnlyWhenConfigured() = runTest {
+    fun devOriginIsSentOnlyWhenConfigured() = runTest {
         val dev = TestApi(
-            settings = ApiSettings(
-                baseUrl = "http://localhost",
-                clientVersion = "1.0.0",
-                devOrigin = "http://localhost:3000",
-                devCaptchaToken = "dummy",
-            ),
+            settings = ApiSettings(baseUrl = "http://localhost", clientVersion = "1.0.0", devOrigin = "http://localhost:3000"),
         ) { respondJson("{}") }
         val release = TestApi { respondJson("{}") }
 
@@ -95,9 +92,32 @@ class RecipionApiTest {
         release.api.sendCode("user@example.com")
 
         assertEquals("http://localhost:3000", dev.requests.single().headers["Origin"])
-        assertEquals("dummy", dev.requests.single().headers["x-captcha-response"])
         assertNull(release.requests.single().headers["Origin"])
-        assertNull(release.requests.single().headers["x-captcha-response"])
+    }
+
+    @Test
+    fun sendCodeAttachesAttestationForThatEmail() = runTest {
+        val hashes = mutableListOf<String>()
+        val test = TestApi(attestation = { hash -> hashes += hash; "integrity-token" }) { respondJson("{}") }
+
+        test.api.sendCode("user@example.com")
+
+        assertEquals(listOf(sendCodeRequestHash("user@example.com")), hashes)
+        assertEquals("integrity-token", test.requests.single().headers["x-recipion-integrity"])
+    }
+
+    @Test
+    fun sendCodeStillSendsWithoutAttestation() = runTest {
+        listOf<SendCodeAttestation>(
+            SendCodeAttestation { null },
+            SendCodeAttestation { throw IllegalStateException("Play Store がない") },
+        ).forEach { attestation ->
+            val test = TestApi(attestation = attestation) { respondJson("{}") }
+
+            test.api.sendCode("user@example.com")
+
+            assertNull(test.requests.single().headers["x-recipion-integrity"])
+        }
     }
 
     @Test

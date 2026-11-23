@@ -1,5 +1,7 @@
 package app.recipion.shared.api
 
+import app.recipion.shared.attestation.SendCodeAttestation
+import app.recipion.shared.attestation.sendCodeRequestHash
 import app.recipion.shared.auth.authErrorMessage
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.HttpClientEngine
@@ -18,6 +20,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,7 +35,6 @@ data class ApiSettings(
     val clientVersion: String,
     // 開発サーバーは sec-fetch-mode を足すため、Better Auth が Origin を確かめる。
     val devOrigin: String? = null,
-    val devCaptchaToken: String? = null,
 )
 
 interface TokenStore {
@@ -55,7 +57,7 @@ private data class SendCodeRequest(val email: String, val type: String)
 private data class SignInRequest(val email: String, val otp: String)
 
 private const val CLIENT_HEADER = "x-recipion-client"
-private const val CAPTCHA_HEADER = "x-captcha-response"
+private const val INTEGRITY_HEADER = "x-recipion-integrity"
 private const val SET_AUTH_TOKEN_HEADER = "set-auth-token"
 private const val AUTH_PATH_PREFIX = "/api/auth/"
 
@@ -63,6 +65,7 @@ class RecipionApi(
     engine: HttpClientEngine,
     private val settings: ApiSettings,
     private val tokenStore: TokenStore,
+    private val attestation: SendCodeAttestation = SendCodeAttestation { null },
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -83,13 +86,25 @@ class RecipionApi(
     suspend fun hasSession(): Boolean = tokenStore.read() != null
 
     suspend fun sendCode(email: String) {
+        val integrity = attestationToken(email)
+
         send(AUTH_PATH_PREFIX + "email-otp/send-verification-otp") { path ->
             client.post(path) {
                 jsonBody(SendCodeRequest(email = email, type = "sign-in"))
-                settings.devCaptchaToken?.let { header(CAPTCHA_HEADER, it) }
+                integrity?.let { header(INTEGRITY_HEADER, it) }
             }
         }
     }
+
+    // 証明が取れなくても、送信は止めない（サーバーが証明なしの枠で受ける）。
+    private suspend fun attestationToken(email: String): String? =
+        try {
+            attestation.token(sendCodeRequestHash(email))
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            null
+        }
 
     suspend fun signIn(email: String, otp: String) {
         val response = send(AUTH_PATH_PREFIX + "sign-in/email-otp") { path ->

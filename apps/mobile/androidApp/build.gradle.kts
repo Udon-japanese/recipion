@@ -13,6 +13,10 @@ android {
         targetSdk = 37
         versionCode = 1
         versionName = "0.1.0"
+
+        // Play Integrity の Cloud のプロジェクト番号。リポジトリに書かず、~/.gradle/gradle.properties に置く（ないと証明を取らない）。
+        val playCloudProjectNumber = providers.gradleProperty("recipion.playCloudProjectNumber").getOrElse("0")
+        buildConfigField("long", "PLAY_CLOUD_PROJECT_NUMBER", "${playCloudProjectNumber}L")
     }
 
     buildTypes {
@@ -44,4 +48,6 @@ dependencies {
     implementation(libs.datastore.preferences)
     implementation(libs.ktor.client.okhttp)
     implementation(libs.coroutines.android)
+    implementation(libs.coroutines.play.services)
+    implementation(libs.play.integrity)
 }

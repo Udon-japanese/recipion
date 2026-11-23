@@ -1,5 +1,6 @@
 package app.recipion.shared.api
 
+import app.recipion.shared.attestation.SendCodeAttestation
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.MockEngineConfig
 import io.ktor.client.engine.mock.MockRequestHandleScope
@@ -28,6 +29,7 @@ class TestApi(
     settings: ApiSettings = ApiSettings(baseUrl = "http://localhost", clientVersion = "1.2.3"),
     val tokens: MemoryTokenStore = MemoryTokenStore(),
     dispatcher: CoroutineDispatcher? = null,
+    attestation: SendCodeAttestation = SendCodeAttestation { null },
     handler: suspend MockRequestHandleScope.(HttpRequestData) -> HttpResponseData,
 ) {
     val requests = mutableListOf<HttpRequestData>()
@@ -44,6 +46,7 @@ class TestApi(
         ),
         settings = settings,
         tokenStore = tokens,
+        attestation = attestation,
     )
 }
 
