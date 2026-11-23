@@ -3,6 +3,7 @@ import { UserFacingError } from "#/errors/user-facing-error";
 import { dishPlacementsSchema } from "#/features/dish-art/domain/dish-cover";
 import type {
 	RecipeEditorDocument,
+	RecipeEditorIngredientItem,
 	RecipeEditorIngredientNode,
 } from "./recipe-editor-document";
 import { findRecipeLimitViolation } from "./recipe-limits";
@@ -18,42 +19,43 @@ const scaleWeightSchema = v.optional(
 	v.picklist(scaleWeightOptions.map((option) => option.weight)),
 );
 
-const ingredientSchema: v.GenericSchema<RecipeEditorIngredientNode> = v.lazy(
-	() =>
-		v.union([
-			v.object({
-				type: v.literal("ingredient"),
-				status: v.literal("parsed"),
-				id: idSchema,
-				rawText: requiredText,
-				name: requiredText,
-				amountText: requiredText,
-				quantity: v.nullable(v.pipe(v.number(), v.finite(), v.gtValue(0))),
-				unitLabel: v.nullable(requiredText),
-				scaleWeight: scaleWeightSchema,
-			}),
-			v.object({
-				type: v.literal("ingredient"),
-				status: v.literal("missing-amount"),
-				id: idSchema,
-				rawText: requiredText,
-				name: requiredText,
-				amountText: v.null(),
-				quantity: v.null(),
-				unitLabel: v.null(),
-				scaleWeight: scaleWeightSchema,
-			}),
-			v.object({
-				type: v.literal("group"),
-				id: idSchema,
-				name: requiredText,
-				rawText: requiredText,
-				inferred: v.boolean(),
-				// 構造の安全弁（巨大な入力の処理を避ける）。ふつうの上限と、具体的な文は、recipe-limits.ts。
-				children: v.pipe(v.array(ingredientSchema), v.maxLength(500)),
-			}),
-		]),
-);
+const ingredientItemSchema: v.GenericSchema<RecipeEditorIngredientItem> =
+	v.union([
+		v.object({
+			type: v.literal("ingredient"),
+			status: v.literal("parsed"),
+			id: idSchema,
+			rawText: requiredText,
+			name: requiredText,
+			amountText: requiredText,
+			quantity: v.nullable(v.pipe(v.number(), v.finite(), v.gtValue(0))),
+			unitLabel: v.nullable(requiredText),
+			scaleWeight: scaleWeightSchema,
+		}),
+		v.object({
+			type: v.literal("ingredient"),
+			status: v.literal("missing-amount"),
+			id: idSchema,
+			rawText: requiredText,
+			name: requiredText,
+			amountText: v.null(),
+			quantity: v.null(),
+			unitLabel: v.null(),
+			scaleWeight: scaleWeightSchema,
+		}),
+	]);
+const ingredientSchema: v.GenericSchema<RecipeEditorIngredientNode> = v.union([
+	ingredientItemSchema,
+	v.object({
+		type: v.literal("group"),
+		id: idSchema,
+		name: requiredText,
+		rawText: requiredText,
+		inferred: v.boolean(),
+		// 構造の安全弁（巨大な入力の処理を避ける）。ふつうの上限と、具体的な文は、recipe-limits.ts。
+		children: v.pipe(v.array(ingredientItemSchema), v.maxLength(500)),
+	}),
+]);
 // レシピの文書の形（API の契約にも出る）。具体的な上限と、形では書けない規則は、validateRecipeEditorDocument。
 export const recipeEditorDocumentSchema = v.object({
 	name: requiredText,

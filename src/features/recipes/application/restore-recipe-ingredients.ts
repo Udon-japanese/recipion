@@ -1,9 +1,22 @@
-import type { RecipeEditorIngredientNode } from "../domain/recipe-editor-document";
+import type {
+	RecipeEditorIngredientItem,
+	RecipeEditorIngredientNode,
+} from "../domain/recipe-editor-document";
 import type { StoredRecipeIngredientNode } from "./prepare-recipe-for-storage";
 
 // 増減のしかた。通常（1）は、持たない（省略は通常）。
 function scaleWeightOf(stored: StoredRecipeIngredientNode) {
 	return stored.scaleWeight === 1 ? {} : { scaleWeight: stored.scaleWeight };
+}
+
+function requireItem(
+	node: RecipeEditorIngredientNode,
+): RecipeEditorIngredientItem {
+	if (node.type === "group") {
+		throw new Error("保存された材料グループの中に、グループがあります");
+	}
+
+	return node;
 }
 
 // prepareRecipeForStorage の逆。parentId と sortOrder の平坦な形から、グループが children を持つ木へ戻す。
@@ -42,7 +55,7 @@ export function restoreRecipeIngredients(
 					name: stored.name,
 					rawText: stored.rawText,
 					inferred: stored.inferred,
-					children: restore(stored.id),
+					children: restore(stored.id).map(requireItem),
 				};
 			}
 

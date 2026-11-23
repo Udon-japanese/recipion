@@ -229,6 +229,25 @@ describe("validateRecipeEditorDocument", () => {
 		).toThrow("レシピの入力内容を確認してください");
 	});
 
+	it("グループの中にグループを入れられない", () => {
+		const document = createDocument();
+		const group = {
+			type: "group",
+			id: "inner",
+			name: "たれ",
+			rawText: "たれ",
+			inferred: false,
+			children: document.ingredients,
+		};
+
+		expect(() =>
+			validateRecipeEditorDocument({
+				...document,
+				ingredients: [{ ...group, id: "outer", children: [group] }],
+			}),
+		).toThrow("レシピの入力内容を確認してください");
+	});
+
 	it("検証済みの値を返し、余分な項目を保存処理へ渡さない", () => {
 		const document = createDocument();
 
