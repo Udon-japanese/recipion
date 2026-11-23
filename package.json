@@ -10,6 +10,7 @@
     "generate-routes": "tsr generate",
     "build": "vite build && node scripts/postbuild-app-shell.ts",
     "preview": "vite preview",
+    "android": "node scripts/android.ts",
     "waf:allowlist": "node scripts/print-waf-allowlist.ts",
     "lighthouse": "node scripts/lighthouse.ts",
     "lighthouse:logged-in": "node scripts/lighthouse-logged-in.ts",

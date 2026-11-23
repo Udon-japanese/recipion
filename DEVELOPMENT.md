@@ -115,10 +115,10 @@ cd apps/mobile
 ./gradlew :shared:allTests :androidApp:assembleDebug
 ```
 
-エミュレーターから開発サーバーにつなぐには、`pnpm dev` を起動したうえで、次を実行します（開発サーバーは IPv6 の `::1` でだけ待つため、エミュレーターの `10.0.2.2` からは届きません）。
+アプリを動かすには、`pnpm dev` を起動したうえで、別のターミナルで次を実行します。エミュレーターが起動していなければ起動し、デバッグ版を入れて開きます（中身は `scripts/android.ts`）。
 
 ```bash
-adb reverse tcp:3000 tcp:3000
+pnpm android
 ```
 
 デバッグ版は `http://localhost:3000` に、リリース版は `https://recipion.app` につなぎます。
