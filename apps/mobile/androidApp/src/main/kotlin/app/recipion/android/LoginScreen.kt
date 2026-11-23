@@ -10,6 +10,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -69,6 +70,11 @@ fun LoginScreen(viewModel: LoginViewModel) {
                 )
                 Button(onClick = viewModel::signIn, enabled = state.canSignIn, modifier = Modifier.fillMaxWidth()) {
                     Text(if (state.isSubmitting) "確認中" else "ログインする")
+                }
+                OutlinedButton(onClick = viewModel::resendCode, enabled = state.canResendCode, modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        if (state.resendCooldownSeconds > 0) "コードを再送（あと${state.resendCooldownSeconds}秒）" else "コードを再送",
+                    )
                 }
                 TextButton(onClick = viewModel::backToEmail, enabled = !state.isSubmitting) {
                     Text("メールアドレスを変更")

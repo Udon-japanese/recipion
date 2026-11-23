@@ -7,6 +7,8 @@ val otpLength: Int get() = authData.otpLength
 
 val otpExpiresInMinutes: Int get() = authData.otpExpiresInSeconds / 60
 
+internal val otpResendCooldownSeconds: Int get() = authData.otpResendCooldownSeconds
+
 // Valibot の email() と同じ形（\w を書き下している）。
 private val emailPattern =
     Regex("""^[A-Za-z0-9_+-]+(?:\.[A-Za-z0-9_+-]+)*@[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*\.[A-Za-z]{2,}$""")

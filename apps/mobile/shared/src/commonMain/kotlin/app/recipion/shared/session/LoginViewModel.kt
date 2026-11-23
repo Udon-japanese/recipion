@@ -6,7 +6,10 @@ import app.recipion.shared.api.RecipionApi
 import app.recipion.shared.api.userMessageOf
 import app.recipion.shared.auth.otpDigitsFromInput
 import app.recipion.shared.auth.otpLength
+import app.recipion.shared.auth.otpResendCooldownSeconds
 import app.recipion.shared.auth.parseEmailAddress
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,10 +24,13 @@ data class LoginUiState(
     val code: String = "",
     val isSubmitting: Boolean = false,
     val errorMessage: String? = null,
+    val resendCooldownSeconds: Int = 0,
 ) {
     val canSendCode: Boolean get() = email.isNotBlank() && !isSubmitting
 
     val canSignIn: Boolean get() = code.length == otpLength && !isSubmitting
+
+    val canResendCode: Boolean get() = step == LoginStep.Code && resendCooldownSeconds == 0 && !isSubmitting
 }
 
 class LoginViewModel(
@@ -34,6 +40,8 @@ class LoginViewModel(
     private val mutableState = MutableStateFlow(LoginUiState())
 
     val state: StateFlow<LoginUiState> = mutableState.asStateFlow()
+
+    private var cooldownJob: Job? = null
 
     fun updateEmail(text: String) {
         mutableState.update { it.copy(email = text, errorMessage = null) }
@@ -58,9 +66,31 @@ class LoginViewModel(
             return
         }
 
+        requestCode(email)
+    }
+
+    fun resendCode() {
+        if (!state.value.canResendCode) return
+
+        requestCode(state.value.email)
+    }
+
+    private fun requestCode(email: String) {
         submit {
             api.sendCode(email)
             mutableState.update { it.copy(step = LoginStep.Code, email = email, code = "") }
+            startResendCooldown()
+        }
+    }
+
+    private fun startResendCooldown() {
+        cooldownJob?.cancel()
+        mutableState.update { it.copy(resendCooldownSeconds = otpResendCooldownSeconds) }
+        cooldownJob = viewModelScope.launch {
+            while (state.value.resendCooldownSeconds > 0) {
+                delay(1_000)
+                mutableState.update { it.copy(resendCooldownSeconds = it.resendCooldownSeconds - 1) }
+            }
         }
     }
 
@@ -71,13 +101,17 @@ class LoginViewModel(
 
         submit(onError = { mutableState.update { it.copy(code = "") } }) {
             api.signIn(current.email, current.code)
+            cooldownJob?.cancel()
             mutableState.value = LoginUiState()
             onSignedIn()
         }
     }
 
     fun backToEmail() {
-        mutableState.update { it.copy(step = LoginStep.Email, code = "", errorMessage = null) }
+        cooldownJob?.cancel()
+        mutableState.update {
+            it.copy(step = LoginStep.Email, code = "", errorMessage = null, resendCooldownSeconds = 0)
+        }
     }
 
     private fun submit(onError: () -> Unit = {}, action: suspend () -> Unit) {
