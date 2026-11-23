@@ -5,6 +5,7 @@
 // そのため、正規のユーザーが不便にならない範囲で、次の3つを組み合わせる。
 // - コードの送信: メールアドレスごと（他人のアドレスへの「メール爆撃」を防ぐ）と、IP ごと。
 // - コードの検証: IP ごと（コード自体の試行回数は、Better Auth の allowedAttempts でも制限される）。
+// - 証明（Turnstile・Play Integrity）のないアプリからの送信: 全体で1つの上限（send-code-bot-check.ts）。
 
 export type RateLimiter = {
 	limit(options: { key: string }): Promise<{ success: boolean }>;
@@ -14,6 +15,7 @@ export type AuthRateLimiters = {
 	sendByEmail: RateLimiter;
 	sendByIp: RateLimiter;
 	verifyByIp: RateLimiter;
+	sendUnverified: RateLimiter;
 };
 
 type AuthRequestInfo = {
@@ -21,6 +23,8 @@ type AuthRequestInfo = {
 	path: string;
 	email: string | null;
 	ip: string;
+	// コードの送信で、人であることを確かめられなかった。
+	unverified?: boolean;
 };
 
 export const SEND_CODE_PATH = "/email-otp/send-verification-otp";
@@ -65,6 +69,10 @@ export async function checkAuthRateLimit(
 					key: await hashedKey("email", normalizeEmail(request.email)),
 				}),
 			);
+		}
+
+		if (request.unverified) {
+			checks.push(limiters.sendUnverified.limit({ key: "unverified" }));
 		}
 
 		const results = await Promise.all(checks);

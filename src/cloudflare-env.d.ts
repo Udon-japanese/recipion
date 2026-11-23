@@ -4,6 +4,9 @@ declare namespace Cloudflare {
 	interface Env {
 		// Cloudflare Turnstile のシークレットキー（`wrangler secret put TURNSTILE_SECRET_KEY`）。
 		TURNSTILE_SECRET_KEY?: string;
+		// Play Integrity のトークンを読み解く、Google Cloud のサービスアカウントの鍵（JSON をそのまま。`wrangler secret put`）。
+		// 未設定のときは、アプリの証明を確かめず、証明なしとして扱う。
+		PLAY_INTEGRITY_SERVICE_ACCOUNT?: string;
 		// 管理者の画面（/admin）。Cloudflare Access のメールが、この一覧（カンマ区切り）にあるときだけ、動く。
 		// いずれも `wrangler secret put` で設定する。未設定のときは、管理者の画面は、使えない。
 		ADMIN_EMAILS?: string;
@@ -18,5 +21,7 @@ declare namespace Cloudflare {
 		AI: Ai;
 		// 他の人のレシピへのリンクのための検索の回数の制限（wrangler.jsonc の `ratelimits`）。
 		LINK_SEARCH_LIMITER: RateLimit;
+		// 証明のないアプリからの、コードの送信（全体で1つ）。
+		AUTH_SEND_UNVERIFIED_LIMITER: RateLimit;
 	}
 }
