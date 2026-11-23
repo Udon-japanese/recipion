@@ -1,0 +1,10 @@
+[
+	{ "input": "123456", "expected": "123456" },
+	{ "input": "１２３４５６", "expected": "123456" },
+	{ "input": "123 456", "expected": "123456" },
+	{ "input": "12-34-56", "expected": "123456" },
+	{ "input": "1234567", "expected": "123456" },
+	{ "input": "12a34", "expected": "1234" },
+	{ "input": "", "expected": "" },
+	{ "input": "コード：９８７６５４", "expected": "987654" }
+]

@@ -48,3 +48,27 @@ jobs:
           CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE: postgres://ci:ci@localhost:5432/ci
           BETTER_AUTH_SECRET: ci-only-secret-not-used-in-production-0000
           BETTER_AUTH_URL: http://localhost:4173
+
+  # アプリ（apps/mobile）。JDK と Gradle の版は mise.toml を正本にする。Android の SDK は、実行環境に入っているものを使う。
+  mobile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: jdx/mise-action@v5.2.8
+      - run: ./gradlew :shared:jvmTest :shared:testAndroidHostTest :androidApp:assembleDebug
+
+  # iOS 向けの共通のコード（NFKC など iOS の実装）は、macOS でだけ確かめられる。
+  mobile-ios:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: jdx/mise-action@v5.2.8
+      - run: ./gradlew :shared:iosSimulatorArm64Test

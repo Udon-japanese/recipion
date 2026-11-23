@@ -1,5 +1,4 @@
 import { type SubmitEvent, useEffect, useState } from "react";
-import * as v from "valibot";
 import { Button } from "#/components/button/button";
 import { useButtonAction } from "#/components/button/use-button-action";
 import { Field, TextInput } from "#/components/field/field";
@@ -12,16 +11,11 @@ import {
 import { getTurnstileSiteKey } from "#/config/turnstile";
 import { authClient } from "#/integrations/better-auth/auth-client";
 import { getAuthErrorMessage } from "#/integrations/better-auth/auth-error-message";
+import { parseEmailAddress } from "../domain/email-address";
 import * as styles from "./login-form.css";
 import { OtpInput } from "./otp-input";
 import { createEmptyDigits, isComplete, joinDigits } from "./otp-input-logic";
 import { TurnstileWidget } from "./turnstile-widget";
-
-const emailSchema = v.pipe(
-	v.string(),
-	v.trim(),
-	v.email("メールアドレスを確認してください"),
-);
 
 type Step = "email" | "code";
 
@@ -79,12 +73,10 @@ export function LoginForm({ onLoggedIn, refetchSession }: LoginFormProps) {
 	async function sendCode() {
 		setErrorMessage(null);
 
-		const parsedEmail = v.safeParse(emailSchema, email);
+		const parsedEmail = parseEmailAddress(email);
 
-		if (!parsedEmail.success) {
-			setErrorMessage(
-				parsedEmail.issues[0]?.message ?? "メールアドレスを確認してください",
-			);
+		if (parsedEmail === null) {
+			setErrorMessage("メールアドレスを確認してください");
 
 			return;
 		}
@@ -104,7 +96,7 @@ export function LoginForm({ onLoggedIn, refetchSession }: LoginFormProps) {
 		await sendAction.run(async () => {
 			try {
 				const result = await authClient.emailOtp.sendVerificationOtp(
-					{ email: parsedEmail.output, type: "sign-in" },
+					{ email: parsedEmail, type: "sign-in" },
 					{ headers: { "x-captcha-response": captchaToken } },
 				);
 
@@ -114,13 +106,13 @@ export function LoginForm({ onLoggedIn, refetchSession }: LoginFormProps) {
 					return false;
 				}
 
-				setEmail(parsedEmail.output);
+				setEmail(parsedEmail);
 				setStep("code");
 				setDigits(createEmptyDigits(OTP_LENGTH));
 				setCooldown(OTP_RESEND_COOLDOWN_SECONDS);
 				setOtpFocusKey((current) => current + 1);
 				setNotice(
-					`${parsedEmail.output} に${OTP_LENGTH}桁のコードを送りました（${Math.floor(OTP_EXPIRES_IN_SECONDS / 60)}分間有効）。届かないときは、迷惑メールのフォルダも確認してください。`,
+					`${parsedEmail} に${OTP_LENGTH}桁のコードを送りました（${Math.floor(OTP_EXPIRES_IN_SECONDS / 60)}分間有効）。届かないときは、迷惑メールのフォルダも確認してください。`,
 				);
 			} catch {
 				setErrorMessage(getAuthErrorMessage(null));

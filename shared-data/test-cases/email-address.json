@@ -1,0 +1,20 @@
+[
+	{ "input": "user@example.com", "expected": "user@example.com" },
+	{ "input": "  user@example.com  ", "expected": "user@example.com" },
+	{ "input": "　user@example.com　", "expected": "user@example.com" },
+	{ "input": "first.last+tag@sub.example.co.jp", "expected": "first.last+tag@sub.example.co.jp" },
+	{ "input": "user_name-1@ex-ample.com", "expected": "user_name-1@ex-ample.com" },
+	{ "input": "", "expected": null },
+	{ "input": "user", "expected": null },
+	{ "input": "user@", "expected": null },
+	{ "input": "@example.com", "expected": null },
+	{ "input": "user@example", "expected": null },
+	{ "input": "user@example.c", "expected": null },
+	{ "input": "user..name@example.com", "expected": null },
+	{ "input": ".user@example.com", "expected": null },
+	{ "input": "user@-example.com", "expected": null },
+	{ "input": "user name@example.com", "expected": null },
+	{ "input": "ユーザー@example.com", "expected": null },
+	{ "input": "user@例え.jp", "expected": null },
+	{ "input": "ｕｓｅｒ@example.com", "expected": null }
+]

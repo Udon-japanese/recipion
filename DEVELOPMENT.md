@@ -97,6 +97,32 @@ Cloudflare の設定は `wrangler.jsonc`、Vite の設定（Cloudflare プラグ
 - `workers_dev: false`、`preview_urls: false`。ゾーンの保護が及ばない入口を残しません。
 - ゾーン側（ダッシュボード）：Bot Fight Mode、WAF のカスタムルール（このアプリのパス以外を遮断。式は `pnpm waf:allowlist` で作ります。**ルートや `public/` のファイルを足したら、作り直して更新します**）、`/api/auth/` のレート制限。ログイン用コードの送信・検証と、リンク検索の制限は、アプリ側（`wrangler.jsonc` の `ratelimits`）にあります。
 
+## Android アプリ（`apps/mobile`）
+
+JDK と Gradle も `mise.toml` で固定しています。Android Studio では、Gradle のルートの `apps/mobile` を開きます（リポジトリの直下や `shared` だけを開くと、プロジェクトとして読み込まれません）。
+
+| モジュール | 中身 |
+|---|---|
+| `shared` | Android と iOS で共有するコード（API・ログイン・画面の状態）。Kotlin Multiplatform |
+| `androidApp` | Android の画面（Jetpack Compose）と起動の入口 |
+
+Web と同じ値・同じ判定を使うものは、`shared-data/` の JSON を正本にして、TypeScript と Kotlin の両方から読みます（`test-cases/` は、両方のテストで使うデータ）。
+
+テストとビルド：
+
+```bash
+cd apps/mobile
+./gradlew :shared:allTests :androidApp:assembleDebug
+```
+
+エミュレーターから開発サーバーにつなぐには、`pnpm dev` を起動したうえで、次を実行します（開発サーバーは IPv6 の `::1` でだけ待つため、エミュレーターの `10.0.2.2` からは届きません）。
+
+```bash
+adb reverse tcp:3000 tcp:3000
+```
+
+デバッグ版は `http://localhost:3000` に、リリース版は `https://recipion.app` につなぎます。
+
 ## ディレクトリ構成
 
 ```
@@ -126,6 +152,8 @@ drizzle/           マイグレーション
 docs/              デプロイの手順書、情報漏えい時の手順
 moderation-eval/   審査の精度の評価用データと手順（アプリには入りません）
 public/            manifest、アイコン、サービスワーカー
+apps/mobile/       Android アプリ（Kotlin）
+shared-data/       Web とアプリで共通の値・テストデータ（JSON）
 ```
 
 各機能は、`domain`（規則・純粋関数）、`application`（ユースケース）、`infrastructure`（DB・IndexedDB）、`server`（サーバー関数）、`components`（UI）に分けています。

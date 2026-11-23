@@ -13,6 +13,7 @@
 			"**/index.html",
 			"**/vite.config.ts",
 			"!**/dist",
+			"!**/apps/mobile",
 			"!**/playwright-report",
 			"!**/test-results",
 			"!**/src/routeTree.gen.ts",
