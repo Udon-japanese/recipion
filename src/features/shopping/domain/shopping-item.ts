@@ -2,6 +2,10 @@ import * as v from "valibot";
 import type { InventoryTrackingMode } from "#/features/inventory/domain/apply-inventory-adjustment";
 import { inventoryTrackingModeSchema } from "#/features/inventory/domain/inventory-tracking-mode";
 import type { InventoryUnitCode } from "#/features/inventory/domain/inventory-unit";
+import {
+	type ItemCategoryId,
+	itemCategoryIdSchema,
+} from "#/features/item-category/domain/item-category";
 import { formatStockAmountWithUnit } from "#/features/quantity/domain/format-quantity";
 import {
 	findMeasureUnit,
@@ -9,15 +13,6 @@ import {
 } from "#/features/quantity/domain/measure-units";
 import { inferInventoryConversion } from "./infer-inventory-conversion";
 import type { ShoppingBranchRole } from "./shopping-branch";
-import {
-	isShoppingCategoryId,
-	type ShoppingCategoryId,
-} from "./shopping-category";
-
-const shoppingCategoryIdSchema = v.custom<ShoppingCategoryId>(
-	(input) => typeof input === "string" && isShoppingCategoryId(input),
-	"商品カテゴリを確認してください",
-);
 
 export type ShoppingCategoryAssignment = "automatic" | "manual" | null;
 
@@ -39,7 +34,7 @@ export type ShoppingItem = {
 	quantity: number;
 	unitLabel: string | null;
 	inventoryConversion: ShoppingItemInventoryConversion | null;
-	categoryId: ShoppingCategoryId | null;
+	categoryId: ItemCategoryId | null;
 	categoryAssignment: ShoppingCategoryAssignment;
 	// 買う店（ShoppingStore の ID）。null は「どこでも」。
 	storeId: string | null;
@@ -91,7 +86,7 @@ export const createShoppingItemInputSchema = v.object({
 	),
 	unitLabel: v.optional(v.nullable(v.pipe(v.string(), v.trim()))),
 	inventoryConversion: v.optional(v.nullable(inventoryConversionSchema)),
-	categoryId: v.optional(v.nullable(shoppingCategoryIdSchema)),
+	categoryId: v.optional(v.nullable(itemCategoryIdSchema)),
 	categoryAssignment: v.optional(v.nullable(shoppingCategoryAssignmentSchema)),
 	storeId: v.optional(v.nullable(v.string())),
 	branchId: v.optional(v.nullable(v.string())),
@@ -115,7 +110,7 @@ export const updateShoppingItemInputSchema = v.object({
 	),
 	inventoryConversion: v.optional(v.nullable(inventoryConversionSchema)),
 	unitLabel: v.nullable(v.pipe(v.string(), v.trim())),
-	categoryId: v.optional(v.nullable(shoppingCategoryIdSchema)),
+	categoryId: v.optional(v.nullable(itemCategoryIdSchema)),
 	categoryAssignment: v.optional(v.nullable(shoppingCategoryAssignmentSchema)),
 	storeId: v.optional(v.nullable(v.string())),
 });

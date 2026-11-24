@@ -1,4 +1,5 @@
 import * as v from "valibot";
+import { itemCategoryIdSchema } from "#/features/item-category/domain/item-category";
 import type {
 	ShoppingConversionMemoryRecord,
 	ShoppingStoreDefault,
@@ -8,10 +9,6 @@ import {
 	maxShoppingBranchLabelLength,
 	type ShoppingBranch,
 } from "./shopping-branch";
-import {
-	isShoppingCategoryId,
-	type ShoppingCategoryId,
-} from "./shopping-category";
 import { inventoryConversionSchema, type ShoppingItem } from "./shopping-item";
 import type { ShoppingItemMemory } from "./shopping-item-memory";
 import {
@@ -63,11 +60,7 @@ const unitLabelSchema = v.nullable(
 	v.pipe(v.string(), v.maxLength(shoppingRecordLimits.maxNameLength)),
 );
 
-const categoryIdSchema = v.nullable(
-	v.custom<ShoppingCategoryId>(
-		(input) => typeof input === "string" && isShoppingCategoryId(input),
-	),
-);
+const categoryIdSchema = v.nullable(itemCategoryIdSchema);
 const categoryAssignmentSchema = v.nullable(
 	v.picklist(["automatic", "manual"]),
 );

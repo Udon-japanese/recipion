@@ -1624,6 +1624,34 @@ describe("InventoryList", () => {
 				displayName: null,
 			});
 		});
+
+		it("未設定のカテゴリは名前から推定して出し、「カテゴリを変える」で選んだカテゴリを保存する", async () => {
+			const user = userEvent.setup();
+			const setInventoryItemCategory = vi
+				.fn()
+				.mockImplementation(async (command) => command);
+
+			renderList([chicken()], { setInventoryItemCategory });
+
+			const dialog = await openPanel(user, "鶏もも肉");
+
+			expect(within(dialog).getByText("肉・肉加工品")).toBeInTheDocument();
+
+			await chooseFromMenu(user, dialog, "鶏もも肉", "カテゴリを変える");
+			expect(screen.getByLabelText("カテゴリ")).toHaveValue("meat");
+			await user.selectOptions(screen.getByLabelText("カテゴリ"), "household");
+			await user.click(
+				screen.getByRole("button", { name: "このカテゴリにする" }),
+			);
+
+			expect(
+				await within(screen.getByRole("dialog")).findByText("日用品"),
+			).toBeInTheDocument();
+			expect(setInventoryItemCategory).toHaveBeenCalledWith({
+				inventoryItemId: chickenId,
+				categoryId: "household",
+			});
+		});
 	});
 
 	describe("単位を変える", () => {

@@ -48,7 +48,7 @@
     "@valibot/to-json-schema": "1.8.0",
     "@vanilla-extract/css": "^1.21.3",
     "@vanilla-extract/recipes": "^0.5.7",
-    "better-auth": "^1.7.26",
+    "better-auth": "^1.7.27",
     "clsx": "^2.1.1",
     "destyle.css": "^4.0.1",
     "dexie": "^4.4.7",
@@ -91,6 +91,6 @@
     "vite": "^8.3.8",
     "vitest": "^5.1.1",
     "vitest-browser-react": "^2.3.0",
-    "wrangler": "^4.165.0"
+    "wrangler": "^4.166.0"
   }
 }

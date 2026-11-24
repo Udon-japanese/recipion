@@ -41,6 +41,7 @@ export function buildBackupInventoryItem(
 		name: "卵",
 		displayName: null,
 		art: null,
+		categoryId: null,
 		stockUnitCode: "count",
 		stockUnitLabel: "個",
 		trackingMode: "exact",

@@ -1,5 +1,6 @@
 import * as v from "valibot";
 import { UserFacingError } from "#/errors/user-facing-error";
+import { itemCategoryIdSchema } from "#/features/item-category/domain/item-category";
 import { inventoryTrackingModeSchema } from "../domain/inventory-tracking-mode";
 import {
 	inventoryUnitCodeSchema,
@@ -32,6 +33,9 @@ export const registerInventoryItemInputSchema = v.object({
 	stockUnitCode: inventoryUnitCodeSchema,
 	stockUnitLabel: requiredTextSchema,
 	trackingMode: v.optional(inventoryTrackingModeSchema, "estimated"),
+	// 登録のパネルで選んだカテゴリ。在庫の項目が未設定のときだけ入る。
+	// 移行のため optional（古い画面・送信待ちの古い買い物は送らない）。2026-12-08 以降に、必須（null は可）にする。
+	categoryId: v.optional(v.nullable(itemCategoryIdSchema)),
 	// 0 は「数量を入れずに、食材だけ登録する」（塩のように、有無だけを知りたい食材など）。
 	initialQuantity: v.pipe(
 		v.number(),
@@ -84,6 +88,7 @@ export async function registerInventoryItem(
 			stockUnitLabel: input.stockUnitLabel,
 			// 「ある」は、有無だけで登録する（すでにある食材は、下で切り替える）。
 			trackingMode: input.markAsAvailable ? "presence" : input.trackingMode,
+			categoryId: input.categoryId,
 		});
 
 	let inventoryItem = resolved;

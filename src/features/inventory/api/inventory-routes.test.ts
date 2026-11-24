@@ -32,6 +32,7 @@ function createRepository(
 		deleteItem: vi.fn(async () => true),
 		renameItem: vi.fn(),
 		setItemArt: vi.fn(),
+		setItemCategory: vi.fn(),
 		...overrides,
 	};
 }

@@ -10,6 +10,7 @@ export function buildInventoryListItem(
 		name: "卵",
 		displayName: null,
 		art: null,
+		categoryId: null,
 		quantity: 6,
 		lots: [],
 		stockUnitCode: "count",

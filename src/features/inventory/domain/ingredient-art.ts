@@ -1,7 +1,7 @@
 import type { DishPlacement } from "#/features/dish-art/domain/dish-cover";
 import { pickDishPlaceholder } from "#/features/dish-art/domain/dish-placeholder";
 import { findIngredientCatalogEntry } from "#/features/ingredients/domain/ingredient-catalog";
-import type { ShoppingCategoryId } from "#/features/shopping/domain/shopping-category";
+import type { ItemCategoryId } from "#/features/item-category/domain/item-category";
 
 type IngredientArt = {
 	// 料理の絵の部品の ID（dish-part.ts）。
@@ -253,7 +253,7 @@ const artByCatalogId: Record<string, IngredientArt> = {
 };
 
 // 表にない食材は、そのカテゴリの食材をいくつか寄せ集めた絵にする（部品の ID と、位置 %）。
-const clusters: Record<ShoppingCategoryId, [string, number, number][]> = {
+const clusters: Record<ItemCategoryId, [string, number, number][]> = {
 	produce: [
 		["tomato", 33, 60],
 		["carrot", 67, 58],
@@ -351,6 +351,7 @@ export function resolveInventoryItemArt(item: {
 	art?: readonly DishPlacement[] | null;
 	sourceRecipePublicId?: string;
 	sourceRecipeCover?: readonly DishPlacement[];
+	categoryId?: ItemCategoryId | null;
 }): readonly DishPlacement[] {
 	if (item.art && item.art.length > 0) {
 		return item.art;
@@ -362,7 +363,7 @@ export function resolveInventoryItemArt(item: {
 			: pickDishPlaceholder(item.sourceRecipePublicId);
 	}
 
-	return resolveIngredientArt(item.name);
+	return resolveIngredientArt(item.name, item.categoryId ?? undefined);
 }
 
 // 食材の名前から、在庫の絵（料理の絵の部品の置き方）を決める。
@@ -371,7 +372,7 @@ export function resolveInventoryItemArt(item: {
 //    渡された categoryId（なければ「その他」）の寄せ集め。
 export function resolveIngredientArt(
 	name: string,
-	fallbackCategoryId?: ShoppingCategoryId,
+	fallbackCategoryId?: ItemCategoryId,
 ): DishPlacement[] {
 	const entry = findIngredientCatalogEntry(name);
 	const art = entry ? artByCatalogId[entry.id] : undefined;

@@ -11,6 +11,7 @@ import {
 	customStockUnitValue,
 	maxStockUnitLabelLength,
 } from "#/features/ingredients/domain/list-stock-unit-options";
+import { ItemCategoryField } from "#/features/item-category/components/item-category-field";
 import { QuantityInput } from "#/features/quantity/components/quantity-input";
 import { formatQuantity } from "#/features/quantity/domain/format-quantity";
 import { ExpiryFields } from "../expiry-fields";
@@ -71,6 +72,15 @@ function RegistrationForm({
 				name={ingredientName}
 				onReplace={registration.changeName}
 			/>
+
+			{registration.isCategoryLocked ? null : (
+				<ItemCategoryField
+					label="カテゴリ"
+					value={registration.categoryId ?? ""}
+					onChange={registration.chooseCategory}
+					disabled={registration.isSubmitting}
+				/>
+			)}
 
 			{isPresence ? null : (
 				<Field label="数量">

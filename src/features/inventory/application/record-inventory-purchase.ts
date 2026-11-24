@@ -1,6 +1,7 @@
 import { UserFacingError } from "#/errors/user-facing-error";
 import { convertToStockQuantity } from "#/features/ingredients/domain/convert-to-stock-quantity";
 import { findIngredientCatalogEntry } from "#/features/ingredients/domain/ingredient-catalog";
+import type { ItemCategoryId } from "#/features/item-category/domain/item-category";
 import {
 	type InventoryLotInput,
 	type InventoryLotPurchaseUnit,
@@ -20,6 +21,7 @@ export type RecordInventoryPurchaseInput = CreateIngredientRegistrationInput & {
 	inputQuantity: number;
 	inputUnitCode: string;
 	stockQuantityPerInputUnit: number;
+	categoryId?: ItemCategoryId | null;
 	lot?: InventoryLotInput;
 };
 
@@ -38,6 +40,7 @@ export async function recordInventoryPurchase(
 			stockUnitCode: input.stockUnitCode,
 			stockUnitLabel: input.stockUnitLabel,
 			trackingMode: input.trackingMode,
+			categoryId: input.categoryId,
 		});
 
 	// すでにある在庫の単位が、買い物メモの換算の単位と違うとき（在庫の単位を変えた、先に別の単位で登録した、など）は、
