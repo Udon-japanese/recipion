@@ -4,6 +4,12 @@ import { Chip } from "#/components/chip/chip";
 import { CornerSheet } from "#/components/corner-sheet/corner-sheet";
 import { Field, TextInput } from "#/components/field/field";
 import { Icon } from "#/components/icon/icon";
+import { ItemCategoryField } from "#/features/item-category/components/item-category-field";
+import { inferItemCategory } from "#/features/item-category/domain/infer-item-category";
+import {
+	type ItemCategoryId,
+	isItemCategoryId,
+} from "#/features/item-category/domain/item-category";
 import { formatQuantity } from "#/features/quantity/domain/format-quantity";
 import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
 import { describeAmountDraftError } from "../domain/amount-draft";
@@ -12,10 +18,6 @@ import {
 	maxShoppingBranchConditionLength,
 	maxShoppingBranchLabelLength,
 } from "../domain/shopping-branch";
-import {
-	isShoppingCategoryId,
-	type ShoppingCategoryId,
-} from "../domain/shopping-category";
 import type {
 	CreateShoppingItemInput,
 	ShoppingItem,
@@ -23,7 +25,6 @@ import type {
 } from "../domain/shopping-item";
 import {
 	getShoppingItemPresets,
-	inferShoppingCategory,
 	isShoppingItemPresetSelected,
 } from "../domain/shopping-item-suggestion";
 import type { ShoppingStore } from "../domain/shopping-store";
@@ -34,7 +35,6 @@ import {
 	ShoppingConversionField,
 } from "./shopping-conversion-field";
 import {
-	ShoppingCategoryField,
 	ShoppingNameField,
 	ShoppingQuantityUnitFields,
 	ShoppingStoreField,
@@ -46,7 +46,7 @@ export type BranchConditionValue = {
 	// 入力中の文字（数量は、入力のまま持つ）。
 	quantity: string;
 	unitLabel: string;
-	categoryId: ShoppingCategoryId | "";
+	categoryId: ItemCategoryId | "";
 	// カテゴリを、自分で選んだか（選んでいなければ、名前から自動で決める）。
 	isCategoryManual: boolean;
 	// 「よく使う数量」を選んだとき・換算を直したときだけ（在庫への換算）。どちらもなければ、null。
@@ -172,7 +172,7 @@ export function ShoppingBranchConditionEditor({
 			name,
 			categoryId: draft.isCategoryManual
 				? draft.categoryId
-				: (inferShoppingCategory(name) ?? ""),
+				: (inferItemCategory(name) ?? ""),
 		});
 	}
 
@@ -428,12 +428,12 @@ export function ShoppingBranchConditionEditor({
 					くわしい設定（カテゴリ）
 				</summary>
 				<div className={styles.advancedBody}>
-					<ShoppingCategoryField
+					<ItemCategoryField
 						label="カテゴリ"
 						value={draft.categoryId}
 						onChange={(next) =>
 							update({
-								categoryId: isShoppingCategoryId(next) ? next : "",
+								categoryId: isItemCategoryId(next) ? next : "",
 								isCategoryManual: true,
 							})
 						}

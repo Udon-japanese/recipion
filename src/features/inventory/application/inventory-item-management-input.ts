@@ -1,11 +1,13 @@
 import * as v from "valibot";
 import { dishPlacementsSchema } from "#/features/dish-art/domain/dish-cover";
 import { maxStockUnitLabelLength } from "#/features/ingredients/domain/list-stock-unit-options";
+import { itemCategoryIdSchema } from "#/features/item-category/domain/item-category";
 import {
 	type ChangeStockUnitCommand,
 	maxInventoryDisplayNameLength,
 	type RenameInventoryItemCommand,
 	type SetInventoryItemArtCommand,
+	type SetInventoryItemCategoryCommand,
 } from "./inventory-item-management-repository";
 
 const inventoryItemIdSchema = v.pipe(
@@ -41,6 +43,17 @@ export function parseSetInventoryItemArtInput(
 	input: unknown,
 ): SetInventoryItemArtCommand {
 	return v.parse(setInventoryItemArtInputSchema, input);
+}
+
+export const setInventoryItemCategoryInputSchema = v.object({
+	inventoryItemId: inventoryItemIdSchema,
+	categoryId: v.nullable(itemCategoryIdSchema),
+});
+
+export function parseSetInventoryItemCategoryInput(
+	input: unknown,
+): SetInventoryItemCategoryCommand {
+	return v.parse(setInventoryItemCategoryInputSchema, input);
 }
 
 export const changeStockUnitInputSchema = v.object({

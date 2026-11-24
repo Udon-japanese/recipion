@@ -15,6 +15,11 @@ import {
 	type StockUnitOption,
 	toStockUnitValue,
 } from "#/features/ingredients/domain/list-stock-unit-options";
+import { inferItemCategory } from "#/features/item-category/domain/infer-item-category";
+import {
+	type ItemCategoryId,
+	isItemCategoryId,
+} from "#/features/item-category/domain/item-category";
 import { formatAmountForUnit } from "#/features/quantity/domain/format-quantity";
 import {
 	findMeasureUnit,
@@ -104,6 +109,8 @@ type UseInventoryRegistrationOptions = {
 
 // 在庫にすでにある食材の、登録に使うところ。
 export type ExistingInventoryItem = StockUnitOption & {
+	// 保存したカテゴリ、なければ名前から推定したもの。
+	categoryId: ItemCategoryId | null;
 	// ロットの換算（新しい順）。
 	purchaseUnits: readonly InventoryLotPurchaseUnit[];
 };
@@ -147,6 +154,10 @@ export function useInventoryRegistration({
 	const [isUnitTouched, setIsUnitTouched] = useState(false);
 	const [isTrackingModeTouched, setIsTrackingModeTouched] = useState(false);
 	const [initialQuantity, setInitialQuantity] = useState("");
+	// 選んだカテゴリ（"" は「未設定」を選んだ）。null は選んでいない（名前から推定する）。
+	const [chosenCategoryId, setChosenCategoryId] = useState<
+		ItemCategoryId | "" | null
+	>(null);
 	// ロットの換算（「1個＝110g」「1パック＝300g」。量が空なら、なし）。個数の食材では、呼び名は在庫の単位。
 	const [purchaseUnitDraft, setPurchaseUnitDraft] = useState<PurchaseUnitDraft>(
 		() => emptyPurchaseUnitDraft("個"),
@@ -261,6 +272,10 @@ export function useInventoryRegistration({
 		}
 	}
 
+	function chooseCategory(value: string) {
+		setChosenCategoryId(isItemCategoryId(value) ? value : "");
+	}
+
 	function changeTrackingMode(value: string) {
 		setTrackingMode(v.parse(inventoryTrackingModeSchema, value));
 		setIsTrackingModeTouched(true);
@@ -286,6 +301,12 @@ export function useInventoryRegistration({
 		: null;
 	const allowsCustomUnit =
 		!existingUnit && allowsCustomStockUnit(ingredientName);
+	// 在庫にある食材のカテゴリは、在庫の食材のパネルで変える（登録では変えない）。
+	const categoryId: ItemCategoryId | null = existingItem
+		? existingItem.categoryId
+		: chosenCategoryId === null
+			? inferItemCategory(ingredientName)
+			: chosenCategoryId || null;
 	const unitOptions = existingUnit
 		? [existingUnit]
 		: listStockUnitOptions(ingredientName);
@@ -384,6 +405,7 @@ export function useInventoryRegistration({
 				stockUnitCode: stockUnit.stockUnitCode,
 				stockUnitLabel: stockUnit.stockUnitLabel,
 				trackingMode,
+				categoryId,
 				// 空欄は、数量なしで食材だけを登録する。
 				// kg・L で打った量は、在庫の単位（g・ml）にする。
 				initialQuantity:
@@ -419,6 +441,7 @@ export function useInventoryRegistration({
 			setInitialQuantity("");
 			// 単位は食材ごとなので、次の食材では、選び直していなければ、名前に合わせて入れ直す。
 			setIsUnitTouched(false);
+			setChosenCategoryId(null);
 			setPurchaseUnitDraft(emptyPurchaseUnitDraft("個"));
 			// 決めた換算は、買い物メモの候補にもなるよう、覚える。
 			if (purchaseUnit) {
@@ -485,6 +508,9 @@ export function useInventoryRegistration({
 		stockUnit,
 		allowsCustomUnit,
 		isStockUnitLocked: existingUnit !== null,
+		categoryId,
+		chooseCategory,
+		isCategoryLocked: existingItem !== null,
 		trackingMode,
 		changeTrackingMode,
 		initialQuantity,

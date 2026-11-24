@@ -1,5 +1,5 @@
 import type { InventoryTrackingMode } from "#/features/inventory/domain/inventory-tracking-mode";
-import type { ShoppingCategoryId } from "#/features/shopping/domain/shopping-category";
+import type { ItemCategoryId } from "#/features/item-category/domain/item-category";
 import { ingredientCatalogEntries } from "./ingredient-catalog-data/index";
 import {
 	foldKatakanaToHiragana,
@@ -77,7 +77,7 @@ export type IngredientCatalogEntry = {
 		approximate: boolean;
 	};
 	// 買い物メモでの売り場（カテゴリの自動判定に使う）。
-	categoryId?: ShoppingCategoryId;
+	categoryId?: ItemCategoryId;
 	// 買うときの、よく使う数量。ある食材は、登録のとき、在庫の単位と管理方法をカタログに固定する
 	// （換算のプリセットと、在庫の単位がずれて、数量が狂うのを防ぐため）。
 	presets?: readonly IngredientPurchasePreset[];

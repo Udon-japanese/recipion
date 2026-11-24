@@ -1,13 +1,13 @@
 import {
-	type ShoppingCategoryId,
-	shoppingCategories,
-} from "./shopping-category";
+	type ItemCategoryId,
+	itemCategories,
+} from "#/features/item-category/domain/item-category";
 import type { ShoppingItem } from "./shopping-item";
 
 export type ShoppingAisleDirection = "forward" | "reverse";
 
 type SortShoppingItemsByCategoryOptions = {
-	categoryOrder?: readonly ShoppingCategoryId[];
+	categoryOrder?: readonly ItemCategoryId[];
 	direction?: ShoppingAisleDirection;
 	now?: Date;
 };
@@ -17,7 +17,7 @@ export function sortShoppingItemsByCategory(
 	options: SortShoppingItemsByCategoryOptions = {},
 ): ShoppingItem[] {
 	const categoryOrder =
-		options.categoryOrder ?? shoppingCategories.map((category) => category.id);
+		options.categoryOrder ?? itemCategories.map((category) => category.id);
 	const timestamp = (options.now ?? new Date()).toISOString();
 	const categoryRanks = new Map(
 		categoryOrder.map((categoryId, index) => [categoryId, index]),

@@ -10,6 +10,7 @@ import type {
 	ChangeStockUnitCommand,
 	RenameInventoryItemCommand,
 	SetInventoryItemArtCommand,
+	SetInventoryItemCategoryCommand,
 } from "#/features/inventory/application/inventory-item-management-repository";
 import type { UpdateInventoryLotCommand } from "#/features/inventory/application/inventory-lot-repository";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
@@ -21,6 +22,7 @@ import {
 	deleteInventoryItemWithCache,
 	renameInventoryItemWithCache,
 	setInventoryItemArtWithCache,
+	setInventoryItemCategoryWithCache,
 } from "#/features/inventory/application/manage-inventory-item-with-cache";
 import type { RegisterInventoryItemInput } from "#/features/inventory/application/register-inventory-item";
 import { updateInventoryLotWithCache } from "#/features/inventory/application/update-inventory-lot-with-cache";
@@ -157,6 +159,23 @@ function InventoryPage() {
 		[ownerScope],
 	);
 
+	const setInventoryItemCategory = useCallback(
+		async (command: SetInventoryItemCategoryCommand) => {
+			if (!ownerScope || ownerScope === "guest") {
+				throw new Error("カテゴリを変えられるユーザーではありません");
+			}
+
+			return setInventoryItemCategoryWithCache(
+				ownerScope,
+				command,
+				(categoryCommand) =>
+					inventoryApi.setInventoryItemCategory(categoryCommand),
+				createDexieInventoryCacheRepository(),
+			);
+		},
+		[ownerScope],
+	);
+
 	const renameInventoryItem = useCallback(
 		async (command: RenameInventoryItemCommand) => {
 			if (!ownerScope || ownerScope === "guest") {
@@ -227,6 +246,7 @@ function InventoryPage() {
 				deleteInventoryItem={deleteInventoryItem}
 				renameInventoryItem={renameInventoryItem}
 				setInventoryItemArt={setInventoryItemArt}
+				setInventoryItemCategory={setInventoryItemCategory}
 				changeStockUnit={changeStockUnit}
 				refreshKey={inventoryRefreshKey}
 				registration={{

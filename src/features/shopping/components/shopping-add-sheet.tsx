@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useButtonAction } from "#/components/button/use-button-action";
 import { CornerSheet } from "#/components/corner-sheet/corner-sheet";
 import { Icon } from "#/components/icon/icon";
+import { inferItemCategory } from "#/features/item-category/domain/infer-item-category";
 import {
 	formatAmountForUnit,
 	formatQuantity,
@@ -18,7 +19,6 @@ import {
 	listRememberedShoppingChoices,
 	type ShoppingItemMemories,
 } from "../domain/shopping-item-memory";
-import { inferShoppingCategory } from "../domain/shopping-item-suggestion";
 import type { ShoppingStore } from "../domain/shopping-store";
 import * as styles from "./shopping-add-sheet.css";
 import {
@@ -156,7 +156,7 @@ export function ShoppingAddSheet({
 			conversionDefaults,
 		);
 		const memory = findShoppingItemMemory(itemMemories, next.name);
-		const inferredCategoryId = inferShoppingCategory(next.name);
+		const inferredCategoryId = inferItemCategory(next.name);
 
 		return {
 			...next,

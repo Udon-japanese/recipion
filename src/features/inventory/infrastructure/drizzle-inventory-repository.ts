@@ -27,6 +27,7 @@ import type {
 	InventoryItemManagementRepository,
 	RenameInventoryItemCommand,
 	SetInventoryItemArtCommand,
+	SetInventoryItemCategoryCommand,
 } from "../application/inventory-item-management-repository";
 import type {
 	InventoryItemResolver,
@@ -216,6 +217,7 @@ export function createDrizzleInventoryRepository(
 					name: ingredient.name,
 					displayName: inventoryItem.displayName,
 					art: inventoryItem.art,
+					categoryId: inventoryItem.categoryId,
 					stockUnitCode: ingredient.stockUnitCode,
 					stockUnitLabel: ingredient.stockUnitLabel,
 					defaultExpiryKind: ingredient.defaultExpiryKind,
@@ -286,6 +288,7 @@ export function createDrizzleInventoryRepository(
 					name: row.name,
 					displayName: row.displayName,
 					art: parseDishCover(row.art),
+					categoryId: row.categoryId,
 					quantity: sumLotQuantities(lots),
 					lots,
 					stockUnitCode: parseInventoryUnitCode(row.stockUnitCode),
@@ -460,6 +463,11 @@ export function createDrizzleInventoryRepository(
 						.update(inventoryItem)
 						.set({
 							archivedAt: null,
+							...(command.categoryId
+								? {
+										categoryId: sql`coalesce(${inventoryItem.categoryId}, ${command.categoryId})`,
+									}
+								: {}),
 						})
 						.where(
 							and(
@@ -501,6 +509,7 @@ export function createDrizzleInventoryRepository(
 							userId,
 							ingredientId: storedIngredient.id,
 							trackingMode: registration.defaultTrackingMode,
+							categoryId: command.categoryId ?? null,
 						})
 						.returning({
 							id: inventoryItem.id,
@@ -1615,6 +1624,30 @@ export function createDrizzleInventoryRepository(
 				inventoryItemId: updated.inventoryItemId,
 				art: parseDishCover(updated.art),
 			};
+		},
+
+		async setItemCategory(command: SetInventoryItemCategoryCommand) {
+			const [updated] = await db
+				.update(inventoryItem)
+				.set({ categoryId: command.categoryId })
+				.where(
+					and(
+						eq(inventoryItem.id, command.inventoryItemId),
+						eq(inventoryItem.userId, userId),
+					),
+				)
+				.returning({
+					inventoryItemId: inventoryItem.id,
+					categoryId: inventoryItem.categoryId,
+				});
+
+			if (!updated) {
+				throw new UserFacingError("在庫項目が見つかりません", {
+					code: "NOT_FOUND",
+				});
+			}
+
+			return updated;
 		},
 
 		async changeTrackingMode(command: ChangeInventoryTrackingModeCommand) {

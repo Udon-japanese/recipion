@@ -2,6 +2,12 @@ import { useMemo } from "react";
 import { Chip } from "#/components/chip/chip";
 import { Icon } from "#/components/icon/icon";
 import { PickerSelect } from "#/components/select/picker-select";
+import { ItemCategoryOptions } from "#/features/item-category/components/item-category-field";
+import { inferItemCategory } from "#/features/item-category/domain/infer-item-category";
+import {
+	type ItemCategoryId,
+	isItemCategoryId,
+} from "#/features/item-category/domain/item-category";
 import { formatQuantity } from "#/features/quantity/domain/format-quantity";
 import { toggleMeasureUnit } from "#/features/quantity/domain/measure-units";
 import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
@@ -9,10 +15,6 @@ import {
 	preferMeasureUnit,
 	rememberMeasureUnit,
 } from "#/features/quantity/infrastructure/measure-unit-preference-storage";
-import {
-	isShoppingCategoryId,
-	type ShoppingCategoryId,
-} from "../domain/shopping-category";
 import type { ShoppingItemInventoryConversion } from "../domain/shopping-item";
 import type {
 	RememberedShoppingChoice,
@@ -20,7 +22,6 @@ import type {
 } from "../domain/shopping-item-memory";
 import {
 	getShoppingItemPresets,
-	inferShoppingCategory,
 	isShoppingItemPresetSelected,
 } from "../domain/shopping-item-suggestion";
 import type { ShoppingStore } from "../domain/shopping-store";
@@ -30,7 +31,6 @@ import {
 } from "../domain/shopping-unit-chips";
 import * as styles from "./shopping-add-sheet.css";
 import {
-	ShoppingCategoryOptions,
 	ShoppingNameField,
 	ShoppingQuantityUnitFields,
 } from "./shopping-item-fields";
@@ -43,7 +43,7 @@ export type ShoppingItemDraft = {
 	unitLabel: string;
 	// チップで選んだ換算（名前・単位を変えたら、外す）。
 	inventoryConversion: ShoppingItemInventoryConversion | null;
-	categoryId: ShoppingCategoryId | "";
+	categoryId: ItemCategoryId | "";
 	isCategoryManual: boolean;
 	storeId: string | null;
 };
@@ -168,7 +168,7 @@ export function ShoppingItemSheetFields({
 			inventoryConversion: null,
 			categoryId: value.isCategoryManual
 				? value.categoryId
-				: (inferShoppingCategory(name) ?? ""),
+				: (inferItemCategory(name) ?? ""),
 		};
 
 		onChange(onNameChange ? onNameChange(next) : next);
@@ -298,13 +298,13 @@ export function ShoppingItemSheetFields({
 
 							onChange({
 								...value,
-								categoryId: isShoppingCategoryId(categoryId) ? categoryId : "",
+								categoryId: isItemCategoryId(categoryId) ? categoryId : "",
 								isCategoryManual: true,
 							});
 							onCategoryChange?.();
 						}}
 					>
-						<ShoppingCategoryOptions />
+						<ItemCategoryOptions />
 					</PickerSelect>
 					<span className={styles.categoryChevron} aria-hidden="true">
 						<Icon name="chevron-down" size={16} />

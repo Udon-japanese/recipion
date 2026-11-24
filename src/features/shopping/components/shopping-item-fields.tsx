@@ -1,10 +1,10 @@
-import { Field, SelectBox } from "#/components/field/field";
+import { Field } from "#/components/field/field";
 import { input as fieldInput } from "#/components/field/field.css";
 import { IngredientNameInput } from "#/features/ingredients/components/ingredient-name-input";
 import { IngredientSuggestionHint } from "#/features/ingredients/components/ingredient-suggestion-hint";
 import type { IngredientCatalogEntry } from "#/features/ingredients/domain/ingredient-catalog";
+import { getItemCategoryLabel } from "#/features/item-category/domain/item-category";
 import { QuantityInput } from "#/features/quantity/components/quantity-input";
-import { shoppingCategories } from "../domain/shopping-category";
 import type { ShoppingStore } from "../domain/shopping-store";
 import * as styles from "./shopping-page.css";
 import { ShoppingStoreSelect } from "./shopping-store-select";
@@ -13,8 +13,7 @@ import { ShoppingStoreSelect } from "./shopping-store-select";
 export function describeCatalogEntry(
 	entry: IngredientCatalogEntry,
 ): string | undefined {
-	return shoppingCategories.find((category) => category.id === entry.categoryId)
-		?.label;
+	return entry.categoryId ? getItemCategoryLabel(entry.categoryId) : undefined;
 }
 
 type NameFieldProps = {
@@ -106,50 +105,6 @@ export function ShoppingQuantityUnitFields({
 				</Field>
 			</div>
 		</div>
-	);
-}
-
-type CategoryFieldProps = {
-	label: string;
-	name?: string;
-	value: string;
-	onChange: (value: string) => void;
-};
-
-// カテゴリの選択肢（未設定と、売り場の順のカテゴリ）。
-export function ShoppingCategoryOptions() {
-	return (
-		<>
-			<option value="">未設定</option>
-
-			{shoppingCategories.map((category) => (
-				<option value={category.id} key={category.id}>
-					{category.label}
-				</option>
-			))}
-		</>
-	);
-}
-
-export function ShoppingCategoryField({
-	label,
-	name,
-	value,
-	onChange,
-}: CategoryFieldProps) {
-	return (
-		<Field label={label}>
-			{(control) => (
-				<SelectBox
-					id={control.id}
-					name={name}
-					value={value}
-					onChange={(event) => onChange(event.target.value)}
-				>
-					<ShoppingCategoryOptions />
-				</SelectBox>
-			)}
-		</Field>
 	);
 }
 

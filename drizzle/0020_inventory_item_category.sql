@@ -1,0 +1,2 @@
+ALTER TABLE "inventory_item" ADD COLUMN "category_id" text;--> statement-breakpoint
+ALTER TABLE "inventory_item" ADD CONSTRAINT "inventory_item_category_id_valid" CHECK ("inventory_item"."category_id" is null or "inventory_item"."category_id" in ('produce', 'chilled', 'household', 'meat', 'seafood', 'dairy', 'eggs', 'pantry', 'frozen', 'snacks', 'staples', 'beverages', 'deli', 'bakery', 'other'));

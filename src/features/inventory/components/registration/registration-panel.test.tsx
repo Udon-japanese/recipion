@@ -84,6 +84,7 @@ describe("InventoryRegistrationPanel", () => {
 					stockUnitCode: "count",
 					stockUnitLabel: "個",
 					trackingMode: "exact",
+					categoryId: "eggs",
 					initialQuantity: 6,
 					transactionId: expect.any(String),
 				}),
@@ -92,6 +93,67 @@ describe("InventoryRegistrationPanel", () => {
 		expect(onRegistered).toHaveBeenCalledTimes(1);
 		expect(await findAddedList()).toHaveTextContent("卵 6個");
 		expect(screen.getByLabelText("食材名")).toHaveValue("");
+	});
+
+	it("カテゴリは名前から推定し、選び直した日用品で登録する。登録したら、選んだカテゴリは推定に戻る", async () => {
+		const user = userEvent.setup();
+		const registerInventoryItem = vi.fn().mockResolvedValue({});
+
+		render(
+			<Harness
+				registerInventoryItem={registerInventoryItem}
+				onRegistered={vi.fn()}
+			/>,
+		);
+
+		await user.type(screen.getByLabelText("食材名"), "トイレットペーパー");
+		expect(screen.getByLabelText("カテゴリ")).toHaveValue("household");
+
+		await user.selectOptions(screen.getByLabelText("カテゴリ"), "other");
+		await user.selectOptions(screen.getByLabelText("カテゴリ"), "household");
+		await user.click(screen.getByRole("button", { name: "追加" }));
+
+		await waitFor(() =>
+			expect(registerInventoryItem).toHaveBeenCalledWith(
+				expect.objectContaining({
+					ingredientName: "トイレットペーパー",
+					categoryId: "household",
+				}),
+			),
+		);
+
+		await user.type(screen.getByLabelText("食材名"), "卵");
+		expect(screen.getByLabelText("カテゴリ")).toHaveValue("eggs");
+	});
+
+	it("在庫にある食材は、カテゴリの欄を出さず、在庫のカテゴリのまま送る", async () => {
+		const user = userEvent.setup();
+		const registerInventoryItem = vi.fn().mockResolvedValue({});
+
+		render(
+			<Harness
+				registerInventoryItem={registerInventoryItem}
+				onRegistered={vi.fn()}
+				findExistingItem={() => ({
+					stockUnitCode: "count",
+					stockUnitLabel: "個",
+					categoryId: "other",
+					purchaseUnits: [],
+				})}
+			/>,
+		);
+
+		await user.type(screen.getByLabelText("食材名"), "卵");
+		expect(screen.queryByLabelText("カテゴリ")).not.toBeInTheDocument();
+
+		await user.type(screen.getByLabelText(/^数量/u), "2");
+		await user.click(screen.getByRole("button", { name: "追加" }));
+
+		await waitFor(() =>
+			expect(registerInventoryItem).toHaveBeenCalledWith(
+				expect.objectContaining({ categoryId: "other" }),
+			),
+		);
 	});
 
 	it("個数の食材は、換算の行（1個＝110g）を決めて登録でき、候補から選べ、買い物メモの記憶にも覚える", async () => {
@@ -107,6 +169,7 @@ describe("InventoryRegistrationPanel", () => {
 				findExistingItem={() => ({
 					stockUnitCode: "count",
 					stockUnitLabel: "個",
+					categoryId: null,
 					purchaseUnits: [
 						{ label: "個", quantity: 200, quantityUnitLabel: "g" },
 						{ label: "パック", quantity: 3, quantityUnitLabel: "個" },
@@ -215,6 +278,7 @@ describe("InventoryRegistrationPanel", () => {
 						? {
 								stockUnitCode: "count",
 								stockUnitLabel: "袋",
+								categoryId: null,
 								purchaseUnits: [],
 							}
 						: null
@@ -280,6 +344,7 @@ describe("InventoryRegistrationPanel", () => {
 				findExistingItem={() => ({
 					stockUnitCode: "g",
 					stockUnitLabel: "g",
+					categoryId: null,
 					purchaseUnits: [
 						{ label: "枚", quantity: 250, quantityUnitLabel: "g" },
 					],

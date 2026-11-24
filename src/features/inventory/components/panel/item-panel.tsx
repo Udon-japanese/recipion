@@ -26,6 +26,8 @@ import {
 	maxStockUnitLabelLength,
 	toStockUnitValue,
 } from "#/features/ingredients/domain/list-stock-unit-options";
+import { ItemCategoryField } from "#/features/item-category/components/item-category-field";
+import { getItemCategoryLabel } from "#/features/item-category/domain/item-category";
 import { QuantityInput } from "#/features/quantity/components/quantity-input";
 import { formatStockAmountWithUnit } from "#/features/quantity/domain/format-quantity";
 import { preferMeasureUnit } from "#/features/quantity/infrastructure/measure-unit-preference-storage";
@@ -35,6 +37,7 @@ import {
 	formatShortDate,
 	storageLabels,
 } from "../../domain/expiry-labels";
+import { resolveInventoryItemCategory } from "../../domain/inventory-category";
 import {
 	findNearestExpiry,
 	getLotZone,
@@ -185,6 +188,7 @@ export function ItemPanel({
 		: item.name;
 	const { view } = panel;
 	const isPresence = item.trackingMode === "presence";
+	const categoryId = resolveInventoryItemCategory(item);
 
 	// 量が変わったら、短く強調する。
 	useEffect(() => {
@@ -401,6 +405,29 @@ export function ItemPanel({
 				</Button>
 			</div>
 		);
+	} else if (view.name === "category") {
+		heading = `${displayName}のカテゴリ`;
+		body = (
+			<div className={styles.formStack}>
+				<ItemCategoryField
+					label="カテゴリ"
+					value={panel.categoryForm.value}
+					onChange={panel.categoryForm.setValue}
+				/>
+			</div>
+		);
+		bar = (
+			<div className={styles.bar} data-columns="2">
+				{cancel}
+				<Button
+					fullWidth
+					status={status}
+					onClick={() => runPrimary(panel.run.changeCategory)}
+				>
+					このカテゴリにする
+				</Button>
+			</div>
+		);
 	} else if (view.name === "tracking") {
 		const nextMode = panel.trackingForm.mode;
 		// 数えない → 数える、のときだけ、いまの量を入れてもらう（数えない食材は、量を持っていない）。
@@ -458,6 +485,7 @@ export function ItemPanel({
 							{inAmountUnit(lotsQuantityInUnit(item.lots, amountUnit, item))}
 						</p>
 					)}
+					{categoryId ? <Tag>{getItemCategoryLabel(categoryId)}</Tag> : null}
 				</div>
 
 				{isPresence && actions.adjustInventoryItem ? (
@@ -594,6 +622,15 @@ export function ItemPanel({
 						label: "名前を変更",
 						icon: "edit" as const,
 						onSelect: guard(panel.open.rename),
+					},
+				]
+			: []),
+		...(actions.setInventoryItemCategory
+			? [
+					{
+						label: "カテゴリを変える",
+						icon: "list" as const,
+						onSelect: guard(panel.open.category),
 					},
 				]
 			: []),

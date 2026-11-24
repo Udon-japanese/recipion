@@ -10,6 +10,7 @@ function tile(overrides: Partial<InventoryTile> = {}): InventoryTile {
 		name: "鶏むね肉",
 		ingredientName: "鶏むね肉",
 		art: [],
+		categoryId: null,
 		lotCount: 1,
 		quantity: 300,
 		trackingMode: "estimated",
