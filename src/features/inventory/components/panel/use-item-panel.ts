@@ -10,6 +10,10 @@ import {
 	type StockUnitOption,
 	toStockUnitValue,
 } from "#/features/ingredients/domain/list-stock-unit-options";
+import {
+	type ItemCategoryId,
+	isItemCategoryId,
+} from "#/features/item-category/domain/item-category";
 import { formatQuantity } from "#/features/quantity/domain/format-quantity";
 import { toBaseMeasureAmount } from "#/features/quantity/domain/measure-units";
 import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
@@ -18,6 +22,7 @@ import { createManualInventoryAdjustment } from "../../application/create-manual
 import type { InventoryListItem } from "../../application/inventory-query-repository";
 import type { ChangeInventoryTrackingModeCommand } from "../../application/inventory-tracking-mode-repository";
 import type { InventoryOperation } from "../../domain/apply-inventory-adjustment";
+import { resolveInventoryItemCategory } from "../../domain/inventory-category";
 import {
 	type InventoryLot,
 	type InventoryLotPurchaseUnit,
@@ -36,6 +41,7 @@ export type ItemPanelView =
 	| { name: "main" }
 	| { name: "unit" }
 	| { name: "rename" }
+	| { name: "category" }
 	| { name: "tracking" };
 
 // 「使った」「買い足した」の打ち方：打った単位（省略は在庫の単位）と、打った量を覚えるか（省略は覚える）。
@@ -96,6 +102,8 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 	>({});
 	// 呼び名
 	const [renameValue, setRenameValue] = useState("");
+	// カテゴリ（"" は未設定）
+	const [categoryValue, setCategoryValue] = useState<ItemCategoryId | "">("");
 	// 数え方を変える（数えない → 数える、のときだけ、いまの量を入れてもらう）
 	const [trackingQuantity, setTrackingQuantity] = useState("");
 	const [trackingMode, setTrackingMode] = useState<InventoryTrackingMode>(
@@ -212,6 +220,12 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 		setErrorMessage(null);
 		setRenameValue(item.displayName ?? "");
 		setView({ name: "rename" });
+	}
+
+	function openCategory() {
+		setErrorMessage(null);
+		setCategoryValue(resolveInventoryItemCategory(item) ?? "");
+		setView({ name: "category" });
 	}
 
 	function openTracking() {
@@ -484,6 +498,29 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 		return done;
 	}
 
+	async function changeCategory(): Promise<boolean> {
+		const { setInventoryItemCategory } = actions;
+
+		if (!setInventoryItemCategory) {
+			return false;
+		}
+
+		const done = await attempt("カテゴリを変更できませんでした", async () => {
+			const result = await setInventoryItemCategory({
+				inventoryItemId: item.inventoryItemId,
+				categoryId: categoryValue === "" ? null : categoryValue,
+			});
+
+			onUpdate(item.inventoryItemId, { categoryId: result.categoryId });
+		});
+
+		if (done) {
+			goMain();
+		}
+
+		return done;
+	}
+
 	async function changeTracking(
 		command: Omit<ChangeInventoryTrackingModeCommand, "inventoryItemId">,
 	): Promise<boolean> {
@@ -570,6 +607,11 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 				setUnitLotQuantities((current) => ({ ...current, [lotId]: value })),
 		},
 		renameForm: { value: renameValue, setValue: setRenameValue },
+		categoryForm: {
+			value: categoryValue,
+			setValue: (value: string) =>
+				setCategoryValue(isItemCategoryId(value) ? value : ""),
+		},
 		trackingForm: {
 			quantity: trackingQuantity,
 			setQuantity: setTrackingQuantity,
@@ -579,6 +621,7 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 		open: {
 			unit: openUnit,
 			rename: openRename,
+			category: openCategory,
 			tracking: openTracking,
 		},
 		run: {
@@ -593,6 +636,7 @@ export function useItemPanel({ item, actions, onUpdate, onDeleted }: Options) {
 			saveLotEdits,
 			changeUnit,
 			rename,
+			changeCategory,
 			applyTracking,
 			remove,
 		},

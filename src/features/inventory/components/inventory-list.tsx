@@ -24,6 +24,7 @@ import { useStorageItem } from "#/local-storage/use-storage-item";
 import type { InventoryPurchaseOwnerScope } from "../application/inventory-purchase-outbox";
 import type { InventoryListItem } from "../application/inventory-query-repository";
 import type { LoadInventoryItemsResult } from "../application/load-inventory-items-with-cache";
+import { resolveInventoryItemCategory } from "../domain/inventory-category";
 import {
 	buildInventoryFridge,
 	compareTiles,
@@ -147,6 +148,7 @@ export function InventoryList({
 			? {
 					stockUnitCode: item.stockUnitCode,
 					stockUnitLabel: item.stockUnitLabel,
+					categoryId: resolveInventoryItemCategory(item),
 					purchaseUnits: [...item.lots]
 						.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
 						.flatMap((lot) => lot.purchaseUnit ?? []),

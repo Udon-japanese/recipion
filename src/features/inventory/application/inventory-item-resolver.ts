@@ -1,9 +1,13 @@
+import type { ItemCategoryId } from "#/features/item-category/domain/item-category";
 import type { InventoryTrackingMode } from "../domain/apply-inventory-adjustment";
 import type { InventoryUnitCode } from "../domain/inventory-unit";
 import type { CreateIngredientRegistrationInput } from "./create-ingredient-registration";
 
 export type ResolveOrCreateInventoryItemCommand =
-	CreateIngredientRegistrationInput;
+	CreateIngredientRegistrationInput & {
+		// 新しく作る項目と、カテゴリが未設定の項目にだけ入れる（在庫で決めたカテゴリは上書きしない）。
+		categoryId?: ItemCategoryId | null;
+	};
 
 export type ResolvedInventoryItem = {
 	ingredientId: string;

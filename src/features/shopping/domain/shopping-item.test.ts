@@ -121,7 +121,7 @@ describe("createShoppingItem", () => {
 				name: "謎の商品",
 				categoryId: "unknown",
 			} as never),
-		).toThrow("商品カテゴリを確認してください");
+		).toThrow("カテゴリを確認してください");
 	});
 
 	it("指定された並び順を設定する", () => {

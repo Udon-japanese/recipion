@@ -98,6 +98,7 @@ export function createBackupOperations({ db, userId }: ResolvedSession) {
 				name: item.name,
 				displayName: item.displayName,
 				art: item.art,
+				categoryId: item.categoryId,
 				stockUnitCode: item.stockUnitCode,
 				stockUnitLabel: item.stockUnitLabel,
 				trackingMode: item.trackingMode,

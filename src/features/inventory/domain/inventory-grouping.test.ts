@@ -14,6 +14,7 @@ function tile(overrides: Partial<InventoryTile>): InventoryTile {
 		name: "鶏むね肉",
 		ingredientName: "鶏むね肉",
 		art: [],
+		categoryId: null,
 		lotCount: 1,
 		quantity: 1,
 		trackingMode: "exact",
@@ -77,8 +78,17 @@ describe("inventoryGroupOf", () => {
 		expect(inventoryGroupOf(tile({ sortReading }), "kana", today)).toBe(row);
 	});
 
+	it.each([
+		["household", "household"],
+		[null, "none"],
+	] as const)("カテゴリ %s → %s", (categoryId, group) => {
+		expect(inventoryGroupOf(tile({ categoryId }), "category", today)).toBe(
+			group,
+		);
+	});
+
 	it("どの分類のタイルも、一覧のグループのどれかに入る", () => {
-		for (const by of ["zone", "expiry", "added", "kana"] as const) {
+		for (const by of ["zone", "expiry", "added", "kana", "category"] as const) {
 			const ids = listInventoryGroups(by).map((group) => group.id);
 
 			expect(ids).toContain(inventoryGroupOf(tile({}), by, today));

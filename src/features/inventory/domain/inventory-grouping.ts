@@ -1,3 +1,4 @@
+import { itemCategories } from "#/features/item-category/domain/item-category";
 import {
 	compareTiles,
 	type InventoryTile,
@@ -5,8 +6,13 @@ import {
 } from "./inventory-fridge";
 import { daysBetween, toDateString } from "./inventory-lot";
 
-// 在庫の一覧の「まとめ方」：場所・期限・入れた日・あいうえお。
-export type InventoryGroupBy = "zone" | "expiry" | "added" | "kana";
+// 在庫の一覧の「まとめ方」：場所・期限・入れた日・あいうえお・カテゴリ。
+export type InventoryGroupBy =
+	| "zone"
+	| "expiry"
+	| "added"
+	| "kana"
+	| "category";
 
 export type InventoryGroup = { id: string; label: string };
 
@@ -18,7 +24,10 @@ export const inventoryGroupByOptions: readonly {
 	{ value: "expiry", label: "期限" },
 	{ value: "added", label: "入れた日" },
 	{ value: "kana", label: "あいうえお" },
+	{ value: "category", label: "カテゴリ" },
 ];
+
+const noCategoryGroup: InventoryGroup = { id: "none", label: "カテゴリなし" };
 
 const expiryGroups: readonly InventoryGroup[] = [
 	{ id: "expired", label: "切れている" },
@@ -115,6 +124,11 @@ export function listInventoryGroups(by: InventoryGroupBy): InventoryGroup[] {
 				id: label,
 				label,
 			}));
+		case "category":
+			return [
+				...itemCategories.map(({ id, label }) => ({ id, label })),
+				noCategoryGroup,
+			];
 	}
 }
 
@@ -133,6 +147,8 @@ export function inventoryGroupOf(
 			return addedGroupOf(tile, today);
 		case "kana":
 			return kanaRowOf(tile.sortReading);
+		case "category":
+			return tile.categoryId ?? noCategoryGroup.id;
 	}
 }
 

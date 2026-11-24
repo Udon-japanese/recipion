@@ -43,6 +43,7 @@ export function prepareShoppingItemPurchase(
 			stockUnitLabel: conversion.stockUnitLabel,
 			stockQuantityPerInputUnit: conversion.stockQuantityPerInputUnit,
 			trackingMode: conversion.trackingMode,
+			categoryId: item.categoryId,
 			// 買った日は、購入確定した日（在庫への反映が、あとになっても、この日で記録する）。
 			lot: { acquiredOn: toDateString(now), ...lot },
 		},

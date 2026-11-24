@@ -6,12 +6,13 @@ import {
 import { prepareShoppingItemPurchase } from "./prepare-shopping-item-purchase";
 
 describe("prepareShoppingItemPurchase", () => {
-	it("チェック済み商品を購入済みにして在庫反映待ちを作る", () => {
+	it("チェック済み商品を購入済みにして在庫反映待ちを作る（メモのカテゴリも在庫に渡す）", () => {
 		const item = toggleShoppingItem(
 			createShoppingItem({
 				name: "ホットケーキミックス",
 				quantity: 2,
 				unitLabel: "袋",
+				categoryId: "snacks",
 				inventoryConversion: {
 					inputUnitCode: "bag",
 					stockUnitCode: "g",
@@ -51,6 +52,7 @@ describe("prepareShoppingItemPurchase", () => {
 				stockUnitLabel: "g",
 				stockQuantityPerInputUnit: 200,
 				trackingMode: "estimated",
+				categoryId: "snacks",
 				// 日本時間では 9/23（UTC の 9/22 18:00）。
 				lot: { acquiredOn: "2026-09-23" },
 			},

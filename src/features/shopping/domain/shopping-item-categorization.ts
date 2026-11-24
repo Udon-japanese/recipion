@@ -1,5 +1,5 @@
+import { inferItemCategory } from "#/features/item-category/domain/infer-item-category";
 import type { ShoppingItem } from "./shopping-item";
-import { inferShoppingCategory } from "./shopping-item-suggestion";
 
 export function categorizeUnassignedShoppingItems(
 	items: readonly ShoppingItem[],
@@ -20,7 +20,7 @@ export function categorizeUnassignedShoppingItems(
 			};
 		}
 
-		const inferredCategoryId = inferShoppingCategory(item.name);
+		const inferredCategoryId = inferItemCategory(item.name);
 
 		if (inferredCategoryId === null) {
 			return item;

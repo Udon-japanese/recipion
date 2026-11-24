@@ -9,6 +9,8 @@ import type {
 	RenameInventoryItemResult,
 	SetInventoryItemArtCommand,
 	SetInventoryItemArtResult,
+	SetInventoryItemCategoryCommand,
+	SetInventoryItemCategoryResult,
 } from "./inventory-item-management-repository";
 
 /** 在庫の食材を削除し、キャッシュからも消す。見つからなかった（すでに消えている）ときは false。 */
@@ -73,6 +75,32 @@ export async function setInventoryItemArtWithCache(
 			ownerScope,
 			result.inventoryItemId,
 			{ art: result.art },
+			now,
+		);
+	} catch {
+		// サーバー側の変更は完了しているので、キャッシュの更新だけの失敗では、操作を失敗にしない。
+	}
+
+	return result;
+}
+
+/** 在庫のカテゴリを変え、キャッシュにも反映する。 */
+export async function setInventoryItemCategoryWithCache(
+	ownerScope: InventoryCacheOwnerScope,
+	command: SetInventoryItemCategoryCommand,
+	setRemote: (
+		command: SetInventoryItemCategoryCommand,
+	) => Promise<SetInventoryItemCategoryResult>,
+	cacheRepository: InventoryCacheRepository,
+	now = new Date(),
+): Promise<SetInventoryItemCategoryResult> {
+	const result = await setRemote(command);
+
+	try {
+		await cacheRepository.updateItemFields(
+			ownerScope,
+			result.inventoryItemId,
+			{ categoryId: result.categoryId },
 			now,
 		);
 	} catch {

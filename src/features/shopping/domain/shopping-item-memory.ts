@@ -1,6 +1,6 @@
+import type { ItemCategoryId } from "#/features/item-category/domain/item-category";
 import { formatAmountForUnit } from "#/features/quantity/domain/format-quantity";
 import { inferInventoryConversion } from "./infer-inventory-conversion";
-import type { ShoppingCategoryId } from "./shopping-category";
 import {
 	findConversionDefault,
 	maxConversionMemoriesPerItem,
@@ -21,7 +21,7 @@ export type ShoppingItemMemory = {
 	nameKey: string;
 	quantity: number;
 	unitLabel: string | null;
-	categoryId: ShoppingCategoryId | null;
+	categoryId: ItemCategoryId | null;
 	categoryAssignment: ShoppingCategoryAssignment;
 	// 最後に使った時刻（ミリ秒）。
 	usedAt: number;

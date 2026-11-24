@@ -4,6 +4,7 @@ import { dishPlacementsSchema } from "#/features/dish-art/domain/dish-cover";
 import { isValidDateString } from "#/features/inventory/domain/inventory-lot";
 import { inventoryTrackingModeSchema } from "#/features/inventory/domain/inventory-tracking-mode";
 import { inventoryUnitCodeSchema } from "#/features/inventory/domain/inventory-unit";
+import { itemCategoryIdSchema } from "#/features/item-category/domain/item-category";
 import type { RecipeEditorDocument } from "#/features/recipes/domain/recipe-editor-document";
 import { recipeLimits } from "#/features/recipes/domain/recipe-limits";
 import {
@@ -80,6 +81,8 @@ export const backupInventoryItemSchema = v.object({
 	displayName: v.nullable(v.pipe(requiredText, v.maxLength(50))),
 	// ユーザーが組み立てた在庫の絵（null・なしは、名前から決める絵）。
 	art: v.optional(v.nullable(dishPlacementsSchema), null),
+	// 在庫のカテゴリ（null・なしは未設定。カテゴリより前のファイルにはない）。
+	categoryId: v.optional(v.nullable(itemCategoryIdSchema), null),
 	stockUnitCode: inventoryUnitCodeSchema,
 	stockUnitLabel: v.pipe(requiredText, v.maxLength(10)),
 	trackingMode: inventoryTrackingModeSchema,

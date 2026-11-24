@@ -19,6 +19,7 @@ import {
 import { useDelayedFlag } from "#/components/use-delayed-flag";
 import { useMediaQuery } from "#/components/use-media-query";
 import type { InventoryPurchaseOwnerScope } from "#/features/inventory/application/inventory-purchase-outbox";
+import { inferItemCategory } from "#/features/item-category/domain/infer-item-category";
 import { useStorageItem } from "#/local-storage/use-storage-item";
 import type { ShoppingBranchRepository } from "../application/shopping-branch-repository";
 import type { ShoppingConversionDefaultRepository } from "../application/shopping-conversion-default-repository";
@@ -36,7 +37,6 @@ import {
 	toggleShoppingItem,
 } from "../domain/shopping-item";
 import { findShoppingItemMemory } from "../domain/shopping-item-memory";
-import { inferShoppingCategory } from "../domain/shopping-item-suggestion";
 import { groupShoppingByStore } from "../domain/shopping-store";
 import { useShoppingBranches } from "../hooks/use-shopping-branches";
 import { useShoppingConversionDefaults } from "../hooks/use-shopping-conversion-defaults";
@@ -318,7 +318,7 @@ export function ShoppingList({
 			);
 			const categoryId = memory
 				? memory.categoryId
-				: inferShoppingCategory(line.name);
+				: inferItemCategory(line.name);
 			const ok = await shopping.addItem({
 				categoryId,
 				categoryAssignment: memory

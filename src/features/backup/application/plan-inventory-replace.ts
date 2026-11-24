@@ -14,6 +14,7 @@ import {
 	madeRecipeAliasKey,
 	madeRecipeUnitLabel,
 } from "#/features/inventory/domain/made-recipe-ingredient";
+import type { ItemCategoryId } from "#/features/item-category/domain/item-category";
 import type { BackupInventoryItem, BackupLot } from "../domain/backup-file";
 
 type CreateId = () => string;
@@ -40,6 +41,7 @@ export type InventoryReplacePlan = {
 		trackingMode: InventoryTrackingMode;
 		displayName: string | null;
 		art: DishPlacement[] | null;
+		categoryId: ItemCategoryId | null;
 		sourceRecipeId: string | null;
 	}[];
 	lots: (BackupLot & { id: string; inventoryItemId: string })[];
@@ -138,6 +140,7 @@ export function planInventoryReplace(
 				trackingMode: isMadeRecipe ? "exact" : item.trackingMode,
 				displayName: item.displayName,
 				art: item.art,
+				categoryId: item.categoryId,
 				sourceRecipeId: sourceRecipeId ?? null,
 			});
 		}

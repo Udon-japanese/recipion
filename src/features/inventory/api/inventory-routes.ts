@@ -29,8 +29,10 @@ import {
 	parseDeleteInventoryItemInput,
 	parseRenameInventoryItemInput,
 	parseSetInventoryItemArtInput,
+	parseSetInventoryItemCategoryInput,
 	renameInventoryItemInputSchema,
 	setInventoryItemArtInputSchema,
+	setInventoryItemCategoryInputSchema,
 } from "../application/inventory-item-management-input";
 import type { InventoryItemManagementRepository } from "../application/inventory-item-management-repository";
 import type { InventoryItemResolver } from "../application/inventory-item-resolver";
@@ -200,6 +202,18 @@ export function createInventoryRoutes(
 					const repository = await repositoryFor(c);
 
 					return c.json(await repository.setItemArt(command), 200);
+				},
+			)
+			.post(
+				"/items/category",
+				validate("json", setInventoryItemCategoryInputSchema),
+				async (c) => {
+					const command = parseSetInventoryItemCategoryInput(
+						c.req.valid("json"),
+					);
+					const repository = await repositoryFor(c);
+
+					return c.json(await repository.setItemCategory(command), 200);
 				},
 			)
 			.post(

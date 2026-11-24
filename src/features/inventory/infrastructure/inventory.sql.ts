@@ -15,6 +15,10 @@ import {
 
 import type { DishPlacement } from "#/features/dish-art/domain/dish-cover";
 import { ingredient } from "#/features/ingredients/infrastructure/ingredient.sql";
+import {
+	type ItemCategoryId,
+	itemCategories,
+} from "#/features/item-category/domain/item-category";
 import { recipe } from "#/features/recipes/infrastructure/recipe.sql";
 import { user } from "#/integrations/better-auth/auth.sql";
 
@@ -33,6 +37,9 @@ export const inventoryItem = pgTable(
 		displayName: text("display_name"),
 		// ユーザーが組み立てた、在庫の絵（料理の絵の部品の置き方）。null は、名前から決める絵（作り置きは、元のレシピの絵）。
 		art: jsonb("art").$type<DishPlacement[]>(),
+		// 在庫のカテゴリ（買い物メモと同じ一覧）。null は未設定で、画面では名前から推定して出す。
+		// 日用品（household）は推定に頼らず、ここに保存したものだけを日用品として扱う。
+		categoryId: text("category_id").$type<ItemCategoryId>(),
 		// 「作った」で在庫に入れた、できあがりの元のレシピ（作り置き）。レシピを消すと、ふつうの食材として残る。
 		sourceRecipeId: uuid("source_recipe_id").references(() => recipe.id, {
 			onDelete: "set null",
@@ -71,6 +78,12 @@ export const inventoryItem = pgTable(
 		check(
 			"inventory_item_display_name_valid",
 			sql`${table.displayName} is null or char_length(btrim(${table.displayName})) between 1 and 50`,
+		),
+		check(
+			"inventory_item_category_id_valid",
+			sql`${table.categoryId} is null or ${table.categoryId} in (${sql.raw(
+				itemCategories.map((category) => `'${category.id}'`).join(", "),
+			)})`,
 		),
 		check(
 			"inventory_item_tracking_mode_valid",

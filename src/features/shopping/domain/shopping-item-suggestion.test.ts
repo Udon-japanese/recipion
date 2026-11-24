@@ -1,10 +1,9 @@
 import { describe, expect, it } from "vitest";
-
 import { normalizeIngredientName } from "#/features/ingredients/domain/normalize-ingredient-name";
+import { inferItemCategory } from "#/features/item-category/domain/infer-item-category";
 
 import {
 	getShoppingItemPresets,
-	inferShoppingCategory,
 	shoppingItemSuggestions,
 } from "./shopping-item-suggestion";
 
@@ -16,7 +15,7 @@ describe("買い物候補のデータ", () => {
 
 		for (const suggestion of shoppingItemSuggestions) {
 			for (const alias of suggestion.aliases) {
-				if (inferShoppingCategory(alias) !== suggestion.categoryId) {
+				if (inferItemCategory(alias) !== suggestion.categoryId) {
 					mismatches.push(`${alias}: カテゴリ`);
 				}
 
@@ -78,12 +77,12 @@ describe("買い物候補の正規化", () => {
 	it.each(["milk", "Milk", "MILK", "mILK", "ＭｉＬＫ"])(
 		"英字の大文字小文字に関係なく%sを牛乳として扱う",
 		(name) => {
-			expect(inferShoppingCategory(name)).toBe("dairy");
+			expect(inferItemCategory(name)).toBe("dairy");
 		},
 	);
 
 	it("Unicode表現と前後の空白を正規化する", () => {
-		expect(inferShoppingCategory("  タマゴ  ")).toBe("eggs");
+		expect(inferItemCategory("  タマゴ  ")).toBe("eggs");
 	});
 });
 
@@ -93,11 +92,11 @@ describe("未登録の商品", () => {
 	});
 
 	it("カテゴリを推測しない", () => {
-		expect(inferShoppingCategory("謎の商品")).toBeNull();
+		expect(inferItemCategory("謎の商品")).toBeNull();
 	});
 
 	it("空の商品名を分類しない", () => {
-		expect(inferShoppingCategory("　 ")).toBeNull();
+		expect(inferItemCategory("　 ")).toBeNull();
 	});
 });
 
@@ -111,7 +110,7 @@ describe("日用品のカテゴリ判定", () => {
 		"ジッパー付き保存袋M",
 		"可燃ゴミ袋",
 	])("%sを日用品に分類し、数量候補は出さない", (name) => {
-		expect(inferShoppingCategory(name)).toBe("household");
+		expect(inferItemCategory(name)).toBe("household");
 		expect(getShoppingItemPresets(name)).toEqual([]);
 	});
 });

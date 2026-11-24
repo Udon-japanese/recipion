@@ -58,6 +58,12 @@ export async function setInventoryItemArt(
 	return readApiResponse(await inventory.items.art.$post({ json: input }));
 }
 
+export async function setInventoryItemCategory(
+	input: JsonOf<typeof inventory.items.category>,
+) {
+	return readApiResponse(await inventory.items.category.$post({ json: input }));
+}
+
 export async function changeStockUnit(
 	input: JsonOf<(typeof inventory.items)["stock-unit"]>,
 ) {

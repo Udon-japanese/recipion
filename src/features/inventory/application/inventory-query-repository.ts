@@ -1,4 +1,5 @@
 import type { DishPlacement } from "#/features/dish-art/domain/dish-cover";
+import type { ItemCategoryId } from "#/features/item-category/domain/item-category";
 import type { InventoryTrackingMode } from "../domain/apply-inventory-adjustment";
 import type {
 	InventoryExpiryKind,
@@ -16,6 +17,8 @@ export type InventoryListItem = {
 	displayName: string | null;
 	// ユーザーが組み立てた絵（null は、名前から決める絵。作り置きは、元のレシピの絵）。
 	art: DishPlacement[] | null;
+	// 保存したカテゴリ（null は未設定。画面では名前から推定する）。
+	categoryId: ItemCategoryId | null;
 	// ロットの数量の合計。
 	quantity: number;
 	// 在庫のあるロット（期限の早い順）。

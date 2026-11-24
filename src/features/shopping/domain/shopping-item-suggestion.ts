@@ -1,8 +1,8 @@
 import { ingredientCatalogEntries } from "#/features/ingredients/domain/ingredient-catalog";
 import { normalizeIngredientName } from "#/features/ingredients/domain/normalize-ingredient-name";
+import { householdItemNames } from "#/features/item-category/domain/household-item-names";
+import type { ItemCategoryId } from "#/features/item-category/domain/item-category";
 import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
-import { householdItemNames } from "./household-item-names";
-import type { ShoppingCategoryId } from "./shopping-category";
 import type { ShoppingItemInventoryConversion } from "./shopping-item";
 
 export type ShoppingItemPresetSelection = {
@@ -36,7 +36,7 @@ export type ShoppingItemPreset = {
 
 export type ShoppingItemSuggestion = {
 	aliases: readonly string[];
-	categoryId: ShoppingCategoryId;
+	categoryId: ItemCategoryId;
 	presets: readonly ShoppingItemPreset[];
 };
 
@@ -101,10 +101,4 @@ export function getShoppingItemPresets(
 	itemName: string,
 ): readonly ShoppingItemPreset[] {
 	return findShoppingItemSuggestion(itemName)?.presets ?? [];
-}
-
-export function inferShoppingCategory(
-	itemName: string,
-): ShoppingCategoryId | null {
-	return findShoppingItemSuggestion(itemName)?.categoryId ?? null;
 }
