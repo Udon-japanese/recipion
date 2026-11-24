@@ -5,18 +5,18 @@ version: 'v0.0.3'
 workflows:
     '.github/workflows/audit.yml':
         - 'actions/checkout@v7.0.1'
-        - 'jdx/mise-action@v5.2.8'
+        - 'jdx/mise-action@v5.3.0'
     '.github/workflows/ci.yml':
         - 'actions/checkout@v7.0.1'
-        - 'jdx/mise-action@v5.2.8'
+        - 'jdx/mise-action@v5.3.0'
     '.github/workflows/dependabot-auto-merge.yml':
         - 'dependabot/fetch-metadata@v3.1.0'
     '.github/workflows/deploy.yml':
         - 'actions/checkout@v7.0.1'
-        - 'jdx/mise-action@v5.2.8'
+        - 'jdx/mise-action@v5.3.0'
     '.github/workflows/maintenance.yml':
         - 'actions/checkout@v7.0.1'
-        - 'jdx/mise-action@v5.2.8'
+        - 'jdx/mise-action@v5.3.0'
     '.github/workflows/verify-lockfile.yml':
         - 'actions/checkout@v7.0.1'
 dependencies:
@@ -30,8 +30,8 @@ dependencies:
         commit: 'sha1-25dd0e34f4fe68f24cc83900b1fe3fe149efef98'
         owner_id: 27347476
         repo_id: 371068214
-    'jdx/mise-action@v5.2.8':
-        ref: 'v5.2.8'
-        commit: 'sha1-d5574b52816a478f9d4e6529a3f6ff17a8a36785'
+    'jdx/mise-action@v5.3.0':
+        ref: 'v5.3.0'
+        commit: 'sha1-924e7c586e33d7d4bae9c14e26c5d22e2beb6e78'
         owner_id: 216188
         repo_id: 738284564
