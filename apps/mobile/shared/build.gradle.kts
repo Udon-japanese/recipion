@@ -4,6 +4,8 @@ plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.android.kmp.library)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.room)
 }
 
 val sharedDataDir = rootProject.layout.projectDirectory.dir("../../shared-data")
@@ -42,11 +44,18 @@ val generateSharedTestData = registerJsonConstants(
         "EMAIL_ADDRESS_CASES_JSON" to "test-cases/email-address.json",
         "OTP_DIGITS_CASES_JSON" to "test-cases/otp-digits.json",
         "SEND_CODE_REQUEST_HASH_CASES_JSON" to "test-cases/send-code-request-hash.json",
+        "SHOPPING_MEMO_ADOPTION_CASES_JSON" to "test-cases/shopping-memo-adoption.json",
+        "SHOPPING_SYNC_RECORDS_JSON" to "test-cases/shopping-sync-records.json",
     ),
     "commonTest",
 )
 
 kotlin {
+    // Room の生成する expect/actual の object（LocalDatabaseConstructor）に要る。
+    compilerOptions {
+        freeCompilerArgs.add("-Xexpect-actual-classes")
+    }
+
     android {
         namespace = "app.recipion.shared"
         compileSdk = 37
@@ -70,6 +79,8 @@ kotlin {
                 implementation(libs.ktor.client.content.negotiation)
                 implementation(libs.ktor.serialization.json)
                 api(libs.lifecycle.viewmodel)
+                implementation(libs.room.runtime)
+                implementation(libs.sqlite.bundled)
             }
         }
         commonTest {
@@ -81,4 +92,12 @@ kotlin {
             implementation(libs.coroutines.test)
         }
     }
+}
+
+room {
+    schemaDirectory("$projectDir/schemas")
+}
+
+dependencies {
+    listOf("kspAndroid", "kspJvm", "kspIosArm64", "kspIosSimulatorArm64").forEach { add(it, libs.room.compiler) }
 }

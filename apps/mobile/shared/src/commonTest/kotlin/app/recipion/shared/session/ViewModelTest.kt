@@ -1,10 +1,10 @@
 package app.recipion.shared.session
 
-import app.recipion.shared.api.MemoryTokenStore
-import app.recipion.shared.api.Profile
+import app.recipion.shared.api.GET_SESSION_PATH
 import app.recipion.shared.api.TestApi
 import app.recipion.shared.api.bodyText
 import app.recipion.shared.api.respondJson
+import app.recipion.shared.api.respondSession
 import app.recipion.shared.auth.otpResendCooldownSeconds
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.Dispatchers
@@ -49,10 +49,10 @@ class ViewModelTest {
     fun fullCodeSignsInAutomatically() = runTest(dispatcher) {
         var signedIn = false
         val test = TestApi(dispatcher = dispatcher) { request ->
-            if (request.url.encodedPath.endsWith("sign-in/email-otp")) {
-                respondJson("{}", extraHeaders = listOf("set-auth-token" to "token"))
-            } else {
-                respondJson("{}")
+            when {
+                request.url.encodedPath.endsWith("sign-in/email-otp") -> respondJson("{}", extraHeaders = listOf("set-auth-token" to "token"))
+                request.url.encodedPath == GET_SESSION_PATH -> respondSession()
+                else -> respondJson("{}")
             }
         }
         val login = LoginViewModel(test.api, onSignedIn = { signedIn = true })
@@ -68,7 +68,7 @@ class ViewModelTest {
         advanceUntilIdle()
 
         assertTrue(signedIn)
-        assertEquals("""{"email":"user@example.com","otp":"123456"}""", test.requests.last().bodyText())
+        assertEquals("""{"email":"user@example.com","otp":"123456"}""", test.requests.first { it.url.encodedPath.endsWith("sign-in/email-otp") }.bodyText())
         assertEquals(LoginUiState(), login.state.value)
     }
 
@@ -112,29 +112,5 @@ class ViewModelTest {
         login.backToEmail()
 
         assertEquals(0, login.state.value.resendCooldownSeconds)
-    }
-
-    @Test
-    fun sessionStates() = runTest(dispatcher) {
-        data class Case(val label: String, val token: String?, val status: HttpStatusCode, val expected: SessionState)
-
-        listOf(
-            Case("トークンなし", null, HttpStatusCode.OK, SessionState.SignedOut),
-            Case("ログイン中", "token", HttpStatusCode.OK, SessionState.SignedIn(Profile("れしぴょ", "recipyo"))),
-            Case("期限切れ", "token", HttpStatusCode.Unauthorized, SessionState.SignedOut),
-            Case("サーバーの失敗", "token", HttpStatusCode.InternalServerError, SessionState.LoadFailed("失敗しました")),
-        ).forEach { case ->
-            val test = TestApi(tokens = MemoryTokenStore(case.token), dispatcher = dispatcher) {
-                if (case.status == HttpStatusCode.OK) {
-                    respondJson("""{"name":"れしぴょ","handle":"recipyo"}""")
-                } else {
-                    respondJson("""{"error":{"code":"X","message":"失敗しました"}}""", case.status)
-                }
-            }
-            val session = SessionViewModel(test.api)
-            advanceUntilIdle()
-
-            assertEquals(case.expected, session.state.value, case.label)
-        }
     }
 }

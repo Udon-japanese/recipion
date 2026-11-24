@@ -17,6 +17,7 @@ class RecipionApiTest {
         val test = TestApi { request ->
             when (request.url.encodedPath) {
                 "/api/auth/sign-in/email-otp" -> respondJson("{}", extraHeaders = listOf("set-auth-token" to "token-1"))
+                GET_SESSION_PATH -> respondSession("u1")
                 else -> respondJson("""{"name":"れしぴょ","handle":"recipyo"}""")
             }
         }
@@ -26,6 +27,7 @@ class RecipionApiTest {
 
         assertEquals(Profile(name = "れしぴょ", handle = "recipyo"), profile)
         assertEquals("token-1", test.tokens.token)
+        assertEquals("u1", test.tokens.userId)
         assertEquals("Bearer token-1", test.requests.last().headers[HttpHeaders.Authorization])
         assertEquals("android/1.2.3", test.requests.last().headers["x-recipion-client"])
     }
@@ -125,6 +127,15 @@ class RecipionApiTest {
         val test = TestApi(tokens = MemoryTokenStore("token")) { respondJson("{}", HttpStatusCode.InternalServerError) }
 
         assertFailsWith<ApiException> { test.api.signOut() }
+
+        assertNull(test.tokens.token)
+    }
+
+    @Test
+    fun missingSessionSignsOut() = runTest {
+        val test = TestApi(tokens = MemoryTokenStore("expired")) { respondJson("null") }
+
+        assertFailsWith<ApiException> { test.api.fetchUserId() }
 
         assertNull(test.tokens.token)
     }

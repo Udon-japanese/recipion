@@ -12,12 +12,12 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
-        val api = (application as RecipionApplication).api
+        val application = application as RecipionApplication
 
         setContent {
             MaterialTheme {
                 Surface {
-                    App(api)
+                    App(application.api, application.shoppingSyncer)
                 }
             }
         }

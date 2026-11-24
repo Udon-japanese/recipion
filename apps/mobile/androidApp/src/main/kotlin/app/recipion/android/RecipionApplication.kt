@@ -5,6 +5,9 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.preferencesDataStoreFile
 import app.recipion.shared.api.ApiSettings
 import app.recipion.shared.api.RecipionApi
+import app.recipion.shared.localdb.createLocalDatabase
+import app.recipion.shared.shopping.ShoppingMemoStore
+import app.recipion.shared.shopping.ShoppingSyncer
 import io.ktor.client.engine.okhttp.OkHttp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.MainScope
@@ -29,6 +32,10 @@ class RecipionApplication : Application() {
             tokenStore = KeystoreTokenStore(dataStore),
             attestation = { hash -> attestation?.token(hash) },
         )
+    }
+
+    val shoppingSyncer: ShoppingSyncer by lazy {
+        ShoppingSyncer(ShoppingMemoStore(createLocalDatabase(this)), api.shoppingSync)
     }
 
     override fun onCreate() {

@@ -1,0 +1,457 @@
+{
+	"plan": [
+		{
+			"name": "同じ名前の店にまとめ、アカウントにある記憶を残す",
+			"guest": {
+				"items": [
+					{
+						"id": "g2",
+						"name": "牛乳",
+						"quantity": 1,
+						"unitLabel": null,
+						"inventoryConversion": null,
+						"categoryId": null,
+						"categoryAssignment": null,
+						"storeId": "g-store1",
+						"branchId": null,
+						"branchSide": null,
+						"status": "pending",
+						"sortOrder": 5,
+						"createdAt": "2026-11-20T09:00:00.000Z",
+						"updatedAt": "2026-11-20T09:00:00.000Z"
+					},
+					{
+						"id": "g1",
+						"name": "湿布",
+						"quantity": 1,
+						"unitLabel": null,
+						"inventoryConversion": null,
+						"categoryId": null,
+						"categoryAssignment": null,
+						"storeId": "g-store2",
+						"branchId": null,
+						"branchSide": null,
+						"status": "pending",
+						"sortOrder": 1,
+						"createdAt": "2026-11-20T09:00:00.000Z",
+						"updatedAt": "2026-11-20T09:00:00.000Z"
+					}
+				],
+				"stores": [
+					{
+						"id": "g-store1",
+						"name": " スーパーＡ ",
+						"sortOrder": 0,
+						"createdAt": "2026-11-20T09:00:00.000Z"
+					},
+					{
+						"id": "g-store2",
+						"name": "薬局",
+						"sortOrder": 1,
+						"createdAt": "2026-11-20T09:00:00.000Z"
+					}
+				],
+				"branches": [
+					{
+						"id": "g-branch",
+						"condition": "特売なら",
+						"thenLabel": "2つ",
+						"elseLabel": null,
+						"sortOrder": 4,
+						"createdAt": "2026-11-20T09:00:00.000Z"
+					}
+				],
+				"storeDefaults": [
+					{
+						"nameKey": "牛乳",
+						"storeId": "g-store2"
+					},
+					{
+						"nameKey": "パン",
+						"storeId": "g-store1"
+					}
+				],
+				"conversionMemories": [
+					{
+						"key": "牛乳\u0000パック",
+						"nameKey": "牛乳",
+						"unitLabel": "本",
+						"inventoryConversion": {
+							"inputUnitCode": "本",
+							"stockUnitCode": "ml",
+							"stockUnitLabel": "ml",
+							"stockQuantityPerInputUnit": 1000,
+							"trackingMode": "estimated"
+						},
+						"usedAt": 1700000000000
+					},
+					{
+						"key": "米\u0000袋",
+						"nameKey": "米",
+						"unitLabel": "本",
+						"inventoryConversion": {
+							"inputUnitCode": "本",
+							"stockUnitCode": "ml",
+							"stockUnitLabel": "ml",
+							"stockQuantityPerInputUnit": 1000,
+							"trackingMode": "estimated"
+						},
+						"usedAt": 1700000000000
+					}
+				],
+				"itemMemories": [
+					{
+						"nameKey": "卵",
+						"quantity": 2,
+						"unitLabel": "個",
+						"categoryId": "eggs",
+						"categoryAssignment": "manual",
+						"usedAt": 1700000000000
+					},
+					{
+						"nameKey": "バター",
+						"quantity": 2,
+						"unitLabel": "個",
+						"categoryId": "eggs",
+						"categoryAssignment": "manual",
+						"usedAt": 1700000000000
+					}
+				]
+			},
+			"account": {
+				"items": [
+					{
+						"id": "a-item",
+						"name": "にんじん",
+						"quantity": 1,
+						"unitLabel": null,
+						"inventoryConversion": null,
+						"categoryId": null,
+						"categoryAssignment": null,
+						"storeId": "a-store",
+						"branchId": null,
+						"branchSide": null,
+						"status": "pending",
+						"sortOrder": 3,
+						"createdAt": "2026-11-20T09:00:00.000Z",
+						"updatedAt": "2026-11-20T09:00:00.000Z"
+					}
+				],
+				"stores": [
+					{
+						"id": "a-store",
+						"name": "スーパーA",
+						"sortOrder": 0,
+						"createdAt": "2026-11-20T09:00:00.000Z"
+					}
+				],
+				"branches": [],
+				"storeDefaults": [
+					{
+						"nameKey": "牛乳",
+						"storeId": "a-store"
+					}
+				],
+				"conversionMemories": [
+					{
+						"key": "牛乳\u0000本",
+						"nameKey": "牛乳",
+						"unitLabel": "本",
+						"inventoryConversion": {
+							"inputUnitCode": "本",
+							"stockUnitCode": "ml",
+							"stockUnitLabel": "ml",
+							"stockQuantityPerInputUnit": 1000,
+							"trackingMode": "estimated"
+						},
+						"usedAt": 1700000000000
+					}
+				],
+				"itemMemories": [
+					{
+						"nameKey": "卵",
+						"quantity": 2,
+						"unitLabel": "個",
+						"categoryId": "eggs",
+						"categoryAssignment": "manual",
+						"usedAt": 1700000000000
+					}
+				]
+			},
+			"expected": {
+				"items": [
+					{
+						"id": "g1",
+						"name": "湿布",
+						"quantity": 1,
+						"unitLabel": null,
+						"inventoryConversion": null,
+						"categoryId": null,
+						"categoryAssignment": null,
+						"storeId": "g-store2",
+						"branchId": null,
+						"branchSide": null,
+						"status": "pending",
+						"sortOrder": 4,
+						"createdAt": "2026-11-20T09:00:00.000Z",
+						"updatedAt": "2026-11-20T09:00:00.000Z"
+					},
+					{
+						"id": "g2",
+						"name": "牛乳",
+						"quantity": 1,
+						"unitLabel": null,
+						"inventoryConversion": null,
+						"categoryId": null,
+						"categoryAssignment": null,
+						"storeId": "a-store",
+						"branchId": null,
+						"branchSide": null,
+						"status": "pending",
+						"sortOrder": 5,
+						"createdAt": "2026-11-20T09:00:00.000Z",
+						"updatedAt": "2026-11-20T09:00:00.000Z"
+					}
+				],
+				"stores": [
+					{
+						"id": "g-store2",
+						"name": "薬局",
+						"sortOrder": 1,
+						"createdAt": "2026-11-20T09:00:00.000Z"
+					}
+				],
+				"branches": [
+					{
+						"id": "g-branch",
+						"condition": "特売なら",
+						"thenLabel": "2つ",
+						"elseLabel": null,
+						"sortOrder": 0,
+						"createdAt": "2026-11-20T09:00:00.000Z"
+					}
+				],
+				"storeDefaults": [
+					{
+						"nameKey": "パン",
+						"storeId": "a-store"
+					}
+				],
+				"conversionMemories": [
+					{
+						"key": "米\u0000袋",
+						"nameKey": "米",
+						"unitLabel": "本",
+						"inventoryConversion": {
+							"inputUnitCode": "本",
+							"stockUnitCode": "ml",
+							"stockUnitLabel": "ml",
+							"stockQuantityPerInputUnit": 1000,
+							"trackingMode": "estimated"
+						},
+						"usedAt": 1700000000000
+					}
+				],
+				"itemMemories": [
+					{
+						"nameKey": "バター",
+						"quantity": 2,
+						"unitLabel": "個",
+						"categoryId": "eggs",
+						"categoryAssignment": "manual",
+						"usedAt": 1700000000000
+					}
+				],
+				"mergedStoreCount": 1
+			}
+		},
+		{
+			"name": "アカウントが空なら、並びを0から振り直して、すべて足す",
+			"guest": {
+				"items": [
+					{
+						"id": "g1",
+						"name": "豆腐",
+						"quantity": 1,
+						"unitLabel": null,
+						"inventoryConversion": null,
+						"categoryId": null,
+						"categoryAssignment": null,
+						"storeId": "s1",
+						"branchId": null,
+						"branchSide": null,
+						"status": "pending",
+						"sortOrder": 7,
+						"createdAt": "2026-11-20T09:00:00.000Z",
+						"updatedAt": "2026-11-20T09:00:00.000Z"
+					}
+				],
+				"stores": [
+					{
+						"id": "s1",
+						"name": "八百屋",
+						"sortOrder": 3,
+						"createdAt": "2026-11-20T09:00:00.000Z"
+					}
+				],
+				"branches": [],
+				"storeDefaults": [],
+				"conversionMemories": [],
+				"itemMemories": []
+			},
+			"account": {
+				"items": [],
+				"stores": [],
+				"branches": [],
+				"storeDefaults": [],
+				"conversionMemories": [],
+				"itemMemories": []
+			},
+			"expected": {
+				"items": [
+					{
+						"id": "g1",
+						"name": "豆腐",
+						"quantity": 1,
+						"unitLabel": null,
+						"inventoryConversion": null,
+						"categoryId": null,
+						"categoryAssignment": null,
+						"storeId": "s1",
+						"branchId": null,
+						"branchSide": null,
+						"status": "pending",
+						"sortOrder": 0,
+						"createdAt": "2026-11-20T09:00:00.000Z",
+						"updatedAt": "2026-11-20T09:00:00.000Z"
+					}
+				],
+				"stores": [
+					{
+						"id": "s1",
+						"name": "八百屋",
+						"sortOrder": 0,
+						"createdAt": "2026-11-20T09:00:00.000Z"
+					}
+				],
+				"branches": [],
+				"storeDefaults": [],
+				"conversionMemories": [],
+				"itemMemories": [],
+				"mergedStoreCount": 0
+			}
+		}
+	],
+	"hasMemo": [
+		{
+			"name": "空",
+			"guest": {
+				"items": [],
+				"stores": [],
+				"branches": [],
+				"storeDefaults": [],
+				"conversionMemories": [],
+				"itemMemories": []
+			},
+			"expected": false
+		},
+		{
+			"name": "購入済みだけ",
+			"guest": {
+				"items": [
+					{
+						"id": "p",
+						"name": "にんじん",
+						"quantity": 1,
+						"unitLabel": null,
+						"inventoryConversion": null,
+						"categoryId": null,
+						"categoryAssignment": null,
+						"storeId": null,
+						"branchId": null,
+						"branchSide": null,
+						"status": "purchased",
+						"sortOrder": 0,
+						"createdAt": "2026-11-20T09:00:00.000Z",
+						"updatedAt": "2026-11-20T09:00:00.000Z"
+					}
+				],
+				"stores": [],
+				"branches": [],
+				"storeDefaults": [],
+				"conversionMemories": [],
+				"itemMemories": []
+			},
+			"expected": false
+		},
+		{
+			"name": "まだ買っていない項目",
+			"guest": {
+				"items": [
+					{
+						"id": "p",
+						"name": "にんじん",
+						"quantity": 1,
+						"unitLabel": null,
+						"inventoryConversion": null,
+						"categoryId": null,
+						"categoryAssignment": null,
+						"storeId": null,
+						"branchId": null,
+						"branchSide": null,
+						"status": "checked",
+						"sortOrder": 0,
+						"createdAt": "2026-11-20T09:00:00.000Z",
+						"updatedAt": "2026-11-20T09:00:00.000Z"
+					}
+				],
+				"stores": [],
+				"branches": [],
+				"storeDefaults": [],
+				"conversionMemories": [],
+				"itemMemories": []
+			},
+			"expected": true
+		},
+		{
+			"name": "店だけ",
+			"guest": {
+				"items": [],
+				"stores": [
+					{
+						"id": "s",
+						"name": "八百屋",
+						"sortOrder": 0,
+						"createdAt": "2026-11-20T09:00:00.000Z"
+					}
+				],
+				"branches": [],
+				"storeDefaults": [],
+				"conversionMemories": [],
+				"itemMemories": []
+			},
+			"expected": true
+		},
+		{
+			"name": "条件つきメモだけ",
+			"guest": {
+				"items": [],
+				"stores": [],
+				"branches": [
+					{
+						"id": "b",
+						"condition": "特売なら",
+						"thenLabel": "2つ",
+						"elseLabel": null,
+						"sortOrder": 0,
+						"createdAt": "2026-11-20T09:00:00.000Z"
+					}
+				],
+				"storeDefaults": [],
+				"conversionMemories": [],
+				"itemMemories": []
+			},
+			"expected": true
+		}
+	]
+}

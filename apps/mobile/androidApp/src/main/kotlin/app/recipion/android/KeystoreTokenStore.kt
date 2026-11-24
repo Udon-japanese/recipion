@@ -23,6 +23,7 @@ private const val IV_SIZE = 12
 private const val TAG_BITS = 128
 
 private val tokenKey = stringPreferencesKey("session_token")
+private val userIdKey = stringPreferencesKey("session_user_id")
 
 class KeystoreTokenStore(private val dataStore: DataStore<Preferences>) : TokenStore {
     override suspend fun read(): String? {
@@ -45,8 +46,18 @@ class KeystoreTokenStore(private val dataStore: DataStore<Preferences>) : TokenS
         dataStore.edit { it[tokenKey] = encrypted }
     }
 
+    // ID は秘密ではないので、暗号化しない。
+    override suspend fun readUserId(): String? = dataStore.data.first()[userIdKey]
+
+    override suspend fun writeUserId(userId: String) {
+        dataStore.edit { it[userIdKey] = userId }
+    }
+
     override suspend fun clear() {
-        dataStore.edit { it.remove(tokenKey) }
+        dataStore.edit {
+            it.remove(tokenKey)
+            it.remove(userIdKey)
+        }
     }
 
     private fun encrypt(text: String): String {

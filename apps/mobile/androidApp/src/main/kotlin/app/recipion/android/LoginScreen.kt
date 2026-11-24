@@ -1,5 +1,6 @@
 package app.recipion.android
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -30,8 +31,10 @@ import app.recipion.shared.session.LoginStep
 import app.recipion.shared.session.LoginViewModel
 
 @Composable
-fun LoginScreen(viewModel: LoginViewModel) {
+fun LoginScreen(viewModel: LoginViewModel, onCancel: () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+
+    BackHandler(onBack = onCancel)
 
     Column(
         modifier = Modifier.verticalScroll(rememberScrollState()).padding(24.dp),
@@ -85,6 +88,8 @@ fun LoginScreen(viewModel: LoginViewModel) {
         state.errorMessage?.let {
             Text(it, color = MaterialTheme.colorScheme.error)
         }
+
+        TextButton(onClick = onCancel) { Text("ログインせずに使う") }
     }
 }
 

@@ -13,17 +13,29 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import kotlinx.coroutines.CoroutineDispatcher
 
-class MemoryTokenStore(var token: String? = null) : TokenStore {
+class MemoryTokenStore(var token: String? = null, var userId: String? = null) : TokenStore {
     override suspend fun read(): String? = token
 
     override suspend fun write(token: String) {
         this.token = token
     }
 
+    override suspend fun readUserId(): String? = userId
+
+    override suspend fun writeUserId(userId: String) {
+        this.userId = userId
+    }
+
     override suspend fun clear() {
         token = null
+        userId = null
     }
 }
+
+const val GET_SESSION_PATH = "/api/auth/get-session"
+
+fun MockRequestHandleScope.respondSession(userId: String = "u1"): HttpResponseData =
+    respondJson("""{"session":{"id":"s"},"user":{"id":"$userId"}}""")
 
 class TestApi(
     settings: ApiSettings = ApiSettings(baseUrl = "http://localhost", clientVersion = "1.2.3"),

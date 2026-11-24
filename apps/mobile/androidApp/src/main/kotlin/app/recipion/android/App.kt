@@ -12,12 +12,15 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -29,24 +32,83 @@ import app.recipion.shared.api.RecipionApi
 import app.recipion.shared.session.LoginViewModel
 import app.recipion.shared.session.SessionState
 import app.recipion.shared.session.SessionViewModel
+import app.recipion.shared.shopping.OwnerScope
+import app.recipion.shared.shopping.ShoppingMemoViewModel
+import app.recipion.shared.shopping.ShoppingSyncer
 
 @Composable
-fun App(api: RecipionApi) {
-    val session = viewModel { SessionViewModel(api) }
+fun App(api: RecipionApi, shoppingSyncer: ShoppingSyncer) {
+    val session = viewModel { SessionViewModel(api, shoppingSyncer) }
     val state by session.state.collectAsStateWithLifecycle()
     val updateRequired by session.updateRequired.collectAsStateWithLifecycle()
+    val unsentCount by session.unsentCount.collectAsStateWithLifecycle()
+    var showLogin by rememberSaveable { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
         when (val current = state) {
             SessionState.Checking -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-            SessionState.SignedOut -> LoginScreen(viewModel { LoginViewModel(api, onSignedIn = session::load) })
-            is SessionState.SignedIn -> HomeScreen(current.profile, onSignOut = session::signOut)
+            SessionState.SignedOut ->
+                if (showLogin) {
+                    LoginScreen(
+                        viewModel {
+                            LoginViewModel(api, onSignedIn = {
+                                showLogin = false
+                                session.load()
+                            })
+                        },
+                        onCancel = { showLogin = false },
+                    )
+                } else {
+                    ShoppingFor(OwnerScope.Guest, shoppingSyncer) {
+                        TextButton(onClick = { showLogin = true }) { Text("ログイン") }
+                    }
+                }
+            is SessionState.SignedIn -> ShoppingFor(current.ownerScope, shoppingSyncer) {
+                AccountMenu(name = current.profile?.name, onSignOut = session::signOut)
+            }
             is SessionState.LoadFailed -> LoadFailed(current.message, onRetry = session::load)
         }
     }
 
+    unsentCount?.let { count ->
+        AlertDialog(
+            onDismissRequest = session::cancelSignOut,
+            title = { Text("送れていない変更があります") },
+            text = { Text("買い物メモの${count}件の変更を、まだサーバーに送れていません。ログアウトすると、この変更は消えます。") },
+            dismissButton = { TextButton(onClick = session::cancelSignOut) { Text("やめる") } },
+            confirmButton = { TextButton(onClick = session::confirmSignOut) { Text("消してログアウト") } },
+        )
+    }
+
     if (updateRequired) {
         UpdateRequiredDialog()
+    }
+}
+
+// 持ち主ごとに、画面の状態を分ける（ログインの前後で、別のメモ）。
+@Composable
+private fun ShoppingFor(ownerScope: OwnerScope, shoppingSyncer: ShoppingSyncer, account: @Composable () -> Unit) {
+    ShoppingScreen(
+        viewModel(key = ownerScope.key) { ShoppingMemoViewModel(ownerScope, shoppingSyncer) },
+        account = account,
+    )
+}
+
+@Composable
+private fun AccountMenu(name: String?, onSignOut: () -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Box {
+        TextButton(onClick = { expanded = true }) { Text(name?.let { "$it さん" } ?: "アカウント") }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = { Text("ログアウト") },
+                onClick = {
+                    expanded = false
+                    onSignOut()
+                },
+            )
+        }
     }
 }
 

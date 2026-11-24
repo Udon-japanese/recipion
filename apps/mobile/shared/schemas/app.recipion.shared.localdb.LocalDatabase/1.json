@@ -1,0 +1,157 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "d822808b95afe62610625a2e96695820",
+    "entities": [
+      {
+        "tableName": "shopping_record",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`ownerScope` TEXT NOT NULL, `kind` TEXT NOT NULL, `id` TEXT NOT NULL, `data` TEXT NOT NULL, PRIMARY KEY(`ownerScope`, `kind`, `id`))",
+        "fields": [
+          {
+            "fieldPath": "ownerScope",
+            "columnName": "ownerScope",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "data",
+            "columnName": "data",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "ownerScope",
+            "kind",
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "shopping_outbox",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`ownerScope` TEXT NOT NULL, `kind` TEXT NOT NULL, `id` TEXT NOT NULL, `changeId` TEXT NOT NULL, PRIMARY KEY(`ownerScope`, `kind`, `id`))",
+        "fields": [
+          {
+            "fieldPath": "ownerScope",
+            "columnName": "ownerScope",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "changeId",
+            "columnName": "changeId",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "ownerScope",
+            "kind",
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "shopping_version",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`ownerScope` TEXT NOT NULL, `kind` TEXT NOT NULL, `id` TEXT NOT NULL, `version` INTEGER NOT NULL, `unackedChangeIds` TEXT NOT NULL, PRIMARY KEY(`ownerScope`, `kind`, `id`))",
+        "fields": [
+          {
+            "fieldPath": "ownerScope",
+            "columnName": "ownerScope",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "version",
+            "columnName": "version",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "unackedChangeIds",
+            "columnName": "unackedChangeIds",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "ownerScope",
+            "kind",
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "shopping_sync_state",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`ownerScope` TEXT NOT NULL, `cursor` INTEGER NOT NULL, PRIMARY KEY(`ownerScope`))",
+        "fields": [
+          {
+            "fieldPath": "ownerScope",
+            "columnName": "ownerScope",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cursor",
+            "columnName": "cursor",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "ownerScope"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'd822808b95afe62610625a2e96695820')"
+    ]
+  }
+}
