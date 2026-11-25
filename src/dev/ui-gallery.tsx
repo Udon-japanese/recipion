@@ -826,6 +826,7 @@ function BranchGallery() {
 				<ShoppingBranchConditionEditor
 					value={value}
 					stores={galleryStores}
+					memories={{ itemMemories: {}, conversionDefaults: {} }}
 					onCreateStore={async () => null}
 					onCancel={() => setIsEditing(false)}
 					onSave={async (next) => {

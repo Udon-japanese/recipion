@@ -255,6 +255,8 @@ export type PlanShoppingFromRecipeInput = {
 	// 入れる量（省略は recipe）。usual は、いつもの買い方を覚えている食材だけ、その量にする。
 	amountMode?: ShoppingAmountMode;
 	itemMemories?: ShoppingItemMemories;
+	// 別の形で買うことになっている材料（条件つきのメモの「そうなら」に入れるときの、条件の材料）。同じ食材の行は、初期でチェックしない。
+	plannedItems?: readonly { name: string }[];
 };
 
 function toIngredientStock(item: RecipeShoppingStockItem): IngredientStock {
@@ -460,6 +462,12 @@ export function planShoppingFromRecipe(
 			null;
 
 		if (!existing) {
+			const isPlanned = (input.plannedItems ?? []).some(
+				(planned) =>
+					findInventoryItemByName([planned], matchName, input.dictionary) !==
+					undefined,
+			);
+
 			return {
 				need,
 				stock,
@@ -468,7 +476,7 @@ export function planShoppingFromRecipe(
 				plan: "add" as const,
 				keepReason: null,
 				nextQuantity: amount.quantity,
-				defaultChecked: isNeeded,
+				defaultChecked: isNeeded && !isPlanned,
 			};
 		}
 

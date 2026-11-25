@@ -104,6 +104,8 @@ export function useRecipeShoppingPlan({
 		null,
 	);
 	const [memoItems, setMemoItems] = useState<ShoppingItem[]>([]);
+	// 「そうなら」の側に入れるときの、条件の材料（そう決まれば、買うことになる）。
+	const [plannedItems, setPlannedItems] = useState<ShoppingItem[]>([]);
 	const [duplicateMode, setDuplicateMode] = useState<DuplicateMode>("max");
 	const [memories, setMemories] = useState<ShoppingMemories>(noMemories);
 	const [amountMode, setAmountMode] = useStorageItem(shoppingAmountModeItem);
@@ -178,6 +180,7 @@ export function useRecipeShoppingPlan({
 				dictionary,
 				amountMode,
 				itemMemories: memories.itemMemories,
+				plannedItems,
 			}),
 		[
 			needs,
@@ -188,6 +191,7 @@ export function useRecipeShoppingPlan({
 			dictionary,
 			amountMode,
 			memories,
+			plannedItems,
 		],
 	);
 
@@ -207,6 +211,16 @@ export function useRecipeShoppingPlan({
 
 		setHighestSortOrder(
 			all.reduce((highest, item) => Math.max(highest, item.sortOrder), -1),
+		);
+
+		setPlannedItems(
+			destination?.side === "then"
+				? all.filter(
+						(item) =>
+							item.branchId === destination.branchId &&
+							item.branchSide === "condition",
+					)
+				: [],
 		);
 
 		return destination

@@ -597,6 +597,7 @@ export function ShoppingList({
 			{isCreatingBranch ? (
 				<ShoppingBranchCreate
 					stores={stores}
+					memories={shoppingMemories}
 					onCreateStore={storeState.addStore}
 					onAddBranch={branchState.addBranch}
 					onClose={() => setIsCreatingBranch(false)}

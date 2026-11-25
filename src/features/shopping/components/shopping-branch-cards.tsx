@@ -247,14 +247,21 @@ export function ShoppingBranchCards({
 							branchId: pickedSide.branch.id,
 							side: pickedSide.side,
 						},
+						suggestedRecipeName:
+							(pickedSide.side === "then"
+								? pickedSide.branch.thenLabel
+								: pickedSide.branch.elseLabel) ?? undefined,
 						open: shownPickTarget.open,
 						onClose: () => setPickTarget(null),
-						onApplied: (recipeName) =>
+						// 条件つきのメモには、1つのレシピを入れれば足りるので、入れたら閉じる。
+						onApplied: (recipeName) => {
 							context.onRecipeApplied?.(
 								pickedSide.branch,
 								pickedSide.side,
 								recipeName,
-							),
+							);
+							setPickTarget(null);
+						},
 					})
 				: null}
 
@@ -306,6 +313,10 @@ export function ShoppingBranchCards({
 						elseLabel: editingBranch.elseLabel ?? "",
 					}}
 					stores={context.stores}
+					memories={{
+						itemMemories: context.itemMemories ?? {},
+						conversionDefaults: context.conversionDefaults ?? {},
+					}}
 					onCreateStore={context.onCreateStore}
 					onCancel={() => setEditingBranch(null)}
 					onSave={async (draft, { isConversionEdited }) => {

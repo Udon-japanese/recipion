@@ -1,16 +1,10 @@
 import { useState } from "react";
 import { useButtonAction } from "#/components/button/use-button-action";
-import { Chip } from "#/components/chip/chip";
 import { CornerSheet } from "#/components/corner-sheet/corner-sheet";
 import { Field, TextInput } from "#/components/field/field";
 import { Icon } from "#/components/icon/icon";
-import { ItemCategoryField } from "#/features/item-category/components/item-category-field";
 import { inferItemCategory } from "#/features/item-category/domain/infer-item-category";
-import {
-	type ItemCategoryId,
-	isItemCategoryId,
-} from "#/features/item-category/domain/item-category";
-import { formatQuantity } from "#/features/quantity/domain/format-quantity";
+import type { ItemCategoryId } from "#/features/item-category/domain/item-category";
 import { parseQuantityInput } from "#/features/quantity/domain/parse-quantity-input";
 import { describeAmountDraftError } from "../domain/amount-draft";
 import {
@@ -23,12 +17,11 @@ import type {
 	ShoppingItem,
 	ShoppingItemInventoryConversion,
 } from "../domain/shopping-item";
-import {
-	getShoppingItemPresets,
-	isShoppingItemPresetSelected,
-} from "../domain/shopping-item-suggestion";
+import type { ShoppingMemories } from "../domain/shopping-item-memory";
 import type { ShoppingStore } from "../domain/shopping-store";
+import { ShoppingAmountChoices } from "./shopping-amount-choices";
 import * as styles from "./shopping-branch-condition-editor.css";
+import { ShoppingCategoryPicker } from "./shopping-category-picker";
 import {
 	type ConversionEdit,
 	resolveEditedConversion,
@@ -120,6 +113,8 @@ type ShoppingBranchConditionEditorProps = {
 	// 直すときの、条件の材料（在庫への換算を、ここで直せる）。
 	item?: ShoppingItem;
 	stores: readonly ShoppingStore[];
+	// いつもの買い方・換算の記憶（数量の候補・単位のチップを、食材ごとに並べる）。
+	memories: ShoppingMemories;
 	onCreateStore: (name: string) => Promise<ShoppingStore | null>;
 	onCancel: () => void;
 	// 保存できたら true（閉じるのは、呼ぶ側）。
@@ -137,6 +132,7 @@ export function ShoppingBranchConditionEditor({
 	value,
 	item,
 	stores,
+	memories,
 	onCreateStore,
 	onCancel,
 	onSave,
@@ -160,7 +156,6 @@ export function ShoppingBranchConditionEditor({
 	const storeName = stores.find((store) => store.id === draft.storeId)?.name;
 	const amount = `${draft.quantity}${draft.unitLabel}`.trim();
 	const isCreate = mode === "create";
-	const presets = getShoppingItemPresets(draft.name);
 	const isValid = draft.name.trim() !== "" && draft.condition.trim() !== "";
 
 	function update(patch: Partial<BranchConditionValue>) {
@@ -305,11 +300,20 @@ export function ShoppingBranchConditionEditor({
 							/>
 						) : null}
 						{part === "name" ? (
-							<ShoppingNameField
-								label="材料"
-								value={draft.name}
-								onChange={handleNameChange}
-							/>
+							<>
+								<ShoppingNameField
+									label="材料"
+									value={draft.name}
+									onChange={handleNameChange}
+								/>
+								<ShoppingCategoryPicker
+									value={draft.categoryId}
+									isManual={draft.isCategoryManual}
+									onChange={(categoryId) =>
+										update({ categoryId, isCategoryManual: true })
+									}
+								/>
+							</>
 						) : null}
 						{part === "amount" ? (
 							<>
@@ -321,37 +325,25 @@ export function ShoppingBranchConditionEditor({
 										update({ unitLabel, presetConversion: null })
 									}
 								/>
-								{presets.length > 0 ? (
-									<fieldset className={styles.presets}>
-										<legend className={styles.groupLabel}>よく使う数量</legend>
-										<div className={styles.chips}>
-											{presets.map((preset) => (
-												<Chip
-													key={preset.label}
-													pressed={isShoppingItemPresetSelected(preset, {
-														quantity: draft.quantity,
-														unitLabel: draft.unitLabel,
-														inventoryConversion: draft.presetConversion,
-													})}
-													onClick={() => {
-														update({
-															quantity: formatQuantity(preset.quantity, {
-																grouping: false,
-															}),
-															unitLabel: preset.unitLabel,
-															presetConversion: preset.inventoryConversion,
-														});
-														// チップで換算を選んだら、直しかけの換算の入力より、そちらを使う。
-														setConversionEdit(null);
-														setConversionError(undefined);
-													}}
-												>
-													{preset.label}
-												</Chip>
-											))}
-										</div>
-									</fieldset>
-								) : null}
+								<ShoppingAmountChoices
+									itemName={draft.name}
+									value={{
+										quantity: draft.quantity,
+										unitLabel: draft.unitLabel,
+										inventoryConversion: draft.presetConversion,
+									}}
+									onChange={(amount) => {
+										update({
+											quantity: amount.quantity,
+											unitLabel: amount.unitLabel,
+											presetConversion: amount.inventoryConversion,
+										});
+										// チップで換算を選んだら、直しかけの換算の入力より、そちらを使う。
+										setConversionEdit(null);
+										setConversionError(undefined);
+									}}
+									memories={memories}
+								/>
 								{preview && isTracked ? (
 									<ShoppingConversionField
 										item={preview}
@@ -422,24 +414,6 @@ export function ShoppingBranchConditionEditor({
 					</Field>
 				</div>
 			</fieldset>
-
-			<details className={styles.advanced}>
-				<summary className={styles.advancedSummary}>
-					くわしい設定（カテゴリ）
-				</summary>
-				<div className={styles.advancedBody}>
-					<ItemCategoryField
-						label="カテゴリ"
-						value={draft.categoryId}
-						onChange={(next) =>
-							update({
-								categoryId: isItemCategoryId(next) ? next : "",
-								isCategoryManual: true,
-							})
-						}
-					/>
-				</div>
-			</details>
 		</CornerSheet>
 	);
 }

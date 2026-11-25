@@ -1,6 +1,7 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { getToasts } from "#/components/toast/toast-store";
 import { asGuest } from "#/test/builders/as-guest";
 import { getLocalDatabase } from "../../../local-db/database";
 import { createShoppingBranch } from "../domain/shopping-branch";
@@ -149,6 +150,22 @@ describe("ShoppingList の条件つきのメモ", () => {
 
 		await expect(getLocalDatabase().shoppingBranches.count()).resolves.toBe(0);
 		await expect(getLocalDatabase().shoppingItems.count()).resolves.toBe(2);
+
+		// 決めたあとの「元に戻す」で、分岐と、選ばなかった側の材料も、元の側に戻る。
+		const undo = getToasts().find(
+			(toast) => toast.action?.label === "元に戻す",
+		);
+
+		undo?.action?.onClick();
+
+		expect(
+			await screen.findByRole("heading", { name: /合い挽きが売っていたら/ }),
+		).toBeInTheDocument();
+		expect(
+			screen.queryByRole("checkbox", { name: "玉ねぎをチェック" }),
+		).not.toBeInTheDocument();
+		await expect(getLocalDatabase().shoppingBranches.count()).resolves.toBe(1);
+		await expect(getLocalDatabase().shoppingItems.count()).resolves.toBe(3);
 	});
 
 	it("条件つきのメモの削除は、確認のあとに行い、やめれば残る", async () => {

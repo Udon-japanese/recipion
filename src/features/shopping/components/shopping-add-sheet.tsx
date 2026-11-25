@@ -124,16 +124,6 @@ export function ShoppingAddSheet({
 		() => ({ itemMemories, conversionDefaults }),
 		[itemMemories, conversionDefaults],
 	);
-	const rememberedChoices = useMemo(
-		() =>
-			listRememberedShoppingChoices(
-				draft.name,
-				itemMemories,
-				conversionDefaults,
-			),
-		[draft.name, itemMemories, conversionDefaults],
-	);
-
 	function focusNameField() {
 		formRef.current
 			?.querySelector<HTMLInputElement>('input[role="combobox"]')
@@ -300,7 +290,6 @@ export function ShoppingAddSheet({
 					namePlaceholder="卵、牛乳など"
 					stores={stores}
 					onCreateStore={onCreateStore}
-					rememberedChoices={rememberedChoices}
 					memories={memories}
 					onNameChange={(next) => {
 						setIsNameMissing(false);

@@ -28,3 +28,33 @@ export function filterLinkTargets(
 
 	return [...prefix, ...partial].slice(0, limit);
 }
+
+// 呼び名（条件つきのメモの側の名前など）に似たレシピを、先に並べる。同じ名前 → 名前の一方がもう一方を含む の順。ほかは、元の順のまま。
+export function putSimilarTargetsFirst(
+	targets: readonly RecipeLinkTarget[],
+	name: string,
+): RecipeLinkTarget[] {
+	const folded = foldIngredientSearchText(name.trim());
+
+	if (folded === "") {
+		return [...targets];
+	}
+
+	const same: RecipeLinkTarget[] = [];
+	const similar: RecipeLinkTarget[] = [];
+	const rest: RecipeLinkTarget[] = [];
+
+	for (const target of targets) {
+		const targetName = foldIngredientSearchText(target.name);
+
+		if (targetName === folded) {
+			same.push(target);
+		} else if (targetName.includes(folded) || folded.includes(targetName)) {
+			similar.push(target);
+		} else {
+			rest.push(target);
+		}
+	}
+
+	return [...same, ...similar, ...rest];
+}

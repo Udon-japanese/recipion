@@ -289,6 +289,20 @@ describe("planShoppingFromRecipe：買い物メモに、同じ食材がある", 
 	});
 });
 
+describe("planShoppingFromRecipe：条件つきのメモの、条件の材料", () => {
+	it("条件の材料と同じ食材（別名も）は、初期でチェックしない。ほかの材料は、いつもどおり", () => {
+		const rows = plan({
+			needs: [need("合挽き肉", 300, "g"), need("玉ねぎ", 1, "個")],
+			plannedItems: [{ name: "合い挽き肉" }],
+		});
+
+		expect(rows.map((row) => [row.need.name, row.defaultChecked])).toEqual([
+			["合挽き肉", false],
+			["玉ねぎ", true],
+		]);
+	});
+});
+
 describe("planShoppingFromRecipe：冷凍野菜が代わりになる", () => {
 	const frozenBroccoli = {
 		name: "冷凍ブロッコリー",

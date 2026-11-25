@@ -2,7 +2,9 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { buildShoppingItem } from "#/test/builders/build-shopping-item";
+import { toConversionDefaultKey } from "../domain/shopping-conversion-default";
 import type { ShoppingItem } from "../domain/shopping-item";
+import type { ShoppingMemories } from "../domain/shopping-item-memory";
 import {
 	type BranchConditionValue,
 	emptyBranchConditionValue,
@@ -23,7 +25,12 @@ const value: BranchConditionValue = {
 	elseLabel: "生姜焼き",
 };
 
-function setup(item?: ShoppingItem) {
+const noMemories: ShoppingMemories = {
+	itemMemories: {},
+	conversionDefaults: {},
+};
+
+function setup(item?: ShoppingItem, memories: ShoppingMemories = noMemories) {
 	const onSave = vi.fn(async () => true);
 	const onCancel = vi.fn();
 
@@ -39,6 +46,7 @@ function setup(item?: ShoppingItem) {
 					createdAt: "2026-10-01T00:00:00.000Z",
 				},
 			]}
+			memories={memories}
 			onCreateStore={async () => null}
 			onCancel={onCancel}
 			onSave={onSave}
@@ -59,6 +67,66 @@ describe("ShoppingBranchConditionEditor", () => {
 		expect(screen.getByText("そうでなければ：生姜焼き")).toBeInTheDocument();
 		// 文章の店の部品は、店の名前だけ（「イオン店」としない）。
 		expect(screen.getByRole("button", { name: "イオン" })).toBeInTheDocument();
+	});
+
+	it("数量の入力では、追加のシートと同じく、前の買い方とよく使う単位を出す", async () => {
+		const user = userEvent.setup();
+		const nameKey = toConversionDefaultKey("合い挽き肉");
+
+		if (!nameKey) {
+			throw new Error("食材名のキーを作れませんでした");
+		}
+
+		setup(undefined, {
+			itemMemories: {
+				[nameKey]: {
+					nameKey,
+					quantity: 300,
+					unitLabel: "g",
+					categoryId: "meat",
+					categoryAssignment: "automatic",
+					usedAt: 1,
+				},
+			},
+			conversionDefaults: {},
+		});
+
+		await user.click(screen.getByRole("button", { name: "1パック" }));
+
+		expect(
+			screen.getByRole("group", { name: "前の買い方・よく使う数量" }),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("group", { name: "よく使う単位" }),
+		).toBeInTheDocument();
+
+		await user.click(screen.getByRole("button", { name: "300g" }));
+
+		expect(
+			screen.getByText(/イオンに合い挽き肉 300gが売っていたら/u),
+		).toBeInTheDocument();
+	});
+
+	it("カテゴリは、材料を開いたときだけ出し、選ぶと、自分で選んだカテゴリとして保存する", async () => {
+		const user = userEvent.setup();
+		const { onSave } = setup();
+
+		expect(screen.queryByRole("combobox", { name: "カテゴリ" })).toBeNull();
+
+		await user.click(screen.getByRole("button", { name: "合い挽き肉" }));
+		await user.selectOptions(
+			screen.getByRole("combobox", { name: "カテゴリ" }),
+			"household",
+		);
+		await user.click(screen.getByRole("button", { name: "保存" }));
+
+		expect(onSave).toHaveBeenCalledWith(
+			expect.objectContaining({
+				categoryId: "household",
+				isCategoryManual: true,
+			}),
+			expect.anything(),
+		);
 	});
 
 	it("押した部品の入力だけが開き、直すと、文章がすぐに変わる", async () => {
@@ -128,6 +196,7 @@ describe("ShoppingBranchConditionEditor", () => {
 				mode="create"
 				value={emptyBranchConditionValue}
 				stores={[]}
+				memories={noMemories}
 				onCreateStore={async () => null}
 				onCancel={() => undefined}
 				onSave={onSave}
