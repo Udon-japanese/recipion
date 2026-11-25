@@ -46,17 +46,23 @@ describe("ShoppingBranchCard", () => {
 				name: "イオンに合い挽き肉 1パックが売っていたら",
 			}),
 		).toBeInTheDocument();
-		expect(screen.getByText("ハンバーグ 1件")).toBeInTheDocument();
-		expect(screen.getByText("そうでなければ 2件")).toBeInTheDocument();
+		expect(
+			screen.getByRole("button", { name: "ハンバーグにする 1件" }),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("button", { name: "いいえ 2件" }),
+		).toBeInTheDocument();
 		expect(screen.queryByText("豚バラ肉")).toBeNull();
 	});
 
-	it("「そうだった」「ちがった」は、側を渡して決める", async () => {
+	it("「〇〇にする」（名前がなければ「いいえ」）は、側を渡して決める", async () => {
 		const user = userEvent.setup();
 		const { onDecide } = setup();
 
-		await user.click(screen.getByRole("button", { name: "そうだった" }));
-		await user.click(screen.getByRole("button", { name: "ちがった" }));
+		await user.click(
+			screen.getByRole("button", { name: "ハンバーグにする 1件" }),
+		);
+		await user.click(screen.getByRole("button", { name: "いいえ 2件" }));
 
 		expect(onDecide.mock.calls).toEqual([["then"], ["else"]]);
 	});

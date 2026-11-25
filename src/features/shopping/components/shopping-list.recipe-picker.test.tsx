@@ -153,15 +153,19 @@ describe("ShoppingList の「レシピから入れる」", () => {
 		await waitFor(() => {
 			expect(within(card).getByText(/じゃがいも/)).toBeInTheDocument();
 		});
-		// 呼び名が空だった側は、レシピの名前になる（件数のタグに出る）。
+		// 呼び名が空だった側は、レシピの名前になる（決めるボタンに出る）。
 		await waitFor(() => {
-			expect(within(card).getByText(/^カレー \d+件$/)).toBeInTheDocument();
+			expect(
+				within(card).getByRole("button", { name: /^カレーにする \d+件$/ }),
+			).toBeInTheDocument();
 		});
 		// 通常の一覧には出ない。
 		expect(
 			screen.queryByRole("checkbox", { name: "じゃがいもをチェック" }),
 		).toBeNull();
 		// もう一方の側の呼び名は、そのまま。
-		expect(within(card).getByText("チキン南蛮 0件")).toBeInTheDocument();
+		expect(
+			within(card).getByRole("button", { name: "チキン南蛮にする 0件" }),
+		).toBeInTheDocument();
 	});
 });

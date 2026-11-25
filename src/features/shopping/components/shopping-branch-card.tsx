@@ -45,11 +45,25 @@ function sideName(view: BranchCardSideView, side: BranchCardSide): string {
 	return view.label ?? (side === "then" ? "そうなら" : "そうでなければ");
 }
 
+// 決めるボタンの文言：名前があれば「〇〇にする」、なければ「はい」「いいえ」。件数は、小さく添える。
+function decideLabel(view: BranchCardSideView, side: BranchCardSide) {
+	const text = view.label
+		? `${view.label}にする`
+		: side === "then"
+			? "はい"
+			: "いいえ";
+	return (
+		<>
+			{text} <span className={styles.decideCount}>{view.items.length}件</span>
+		</>
+	);
+}
+
 function pickSide(branch: BranchCardView, side: BranchCardSide) {
 	return side === "then" ? branch.ifTrue : branch.ifFalse;
 }
 
-// 条件つきのメモ：ふだんは1枚にたたむ（条件・2つの側の件数・「そうだった／ちがった」）。
+// 条件つきのメモ：ふだんは1枚にたたむ（条件・2つの側の件数・「〇〇にする」のボタン）。
 // 「中身を見る」で、タブで1側ずつ、材料を見て直せる。編集と削除は、「その他」メニューの中。
 export function ShoppingBranchCard({
 	branch,
@@ -72,7 +86,7 @@ export function ShoppingBranchCard({
 			<div className={styles.head}>
 				<div className={styles.headText}>
 					<p className={styles.eyebrow}>
-						<Icon name="swap" size={16} />
+						<Icon name="branch-arrow" size={16} />
 						条件つき
 					</p>
 					<h2 className={styles.condition}>{branch.condition}</h2>
@@ -92,15 +106,6 @@ export function ShoppingBranchCard({
 				/>
 			</div>
 
-			<div className={styles.summary}>
-				<Tag icon="check-circle">
-					{`${sideName(branch.ifTrue, "then")} ${branch.ifTrue.items.length}件`}
-				</Tag>
-				<Tag icon="ban-circle">
-					{`${sideName(branch.ifFalse, "else")} ${branch.ifFalse.items.length}件`}
-				</Tag>
-			</div>
-
 			<div className={styles.decide}>
 				<Button
 					size="lg"
@@ -108,7 +113,7 @@ export function ShoppingBranchCard({
 					leadingIcon={<Icon name="check" size={20} />}
 					onClick={() => onDecide("then")}
 				>
-					そうだった
+					{decideLabel(branch.ifTrue, "then")}
 				</Button>
 				<Button
 					variant="secondary"
@@ -117,7 +122,7 @@ export function ShoppingBranchCard({
 					leadingIcon={<Icon name="close" size={20} />}
 					onClick={() => onDecide("else")}
 				>
-					ちがった
+					{decideLabel(branch.ifFalse, "else")}
 				</Button>
 			</div>
 

@@ -809,9 +809,7 @@ function BranchGallery() {
 				<ShoppingBranchCard
 					branch={branch}
 					onDecide={(side) =>
-						setMessage(
-							`「${side === "then" ? "そうだった" : "ちがった"}」を押しました`,
-						)
+						setMessage(`${side === "then" ? "then" : "else"} 側を押しました`)
 					}
 					onEdit={() => setIsEditing(true)}
 					onRemove={() => setMessage("削除の確認を出します")}

@@ -133,7 +133,7 @@ function sideAddTitle(branch: ShoppingBranch, side: BranchCardSide): string {
 }
 
 // 分類のカードの中に置く、条件つきのメモ（1つ1枚のカード）。
-// ふだんはたたんで、条件・2つの側の件数・「そうだった／ちがった」。中身は、開いてタブで1側ずつ。
+// ふだんはたたんで、条件・2つの側の件数・「〇〇にする」のボタン。中身は、開いてタブで1側ずつ。
 export function ShoppingBranchCards({
 	branches,
 	context,
