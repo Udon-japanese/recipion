@@ -42,6 +42,11 @@ export const decide = style({
 	gridTemplateColumns: "1fr 1fr",
 	gap: 10,
 	padding: "14px 16px",
+
+	// 狭い幅では、横に並べると文言と件数が折れるので、縦に積む。
+	"@media": {
+		"(max-width: 479px)": { gridTemplateColumns: "1fr" },
+	},
 });
 
 // 決めるボタンの中の件数：名前より小さく、薄く。
