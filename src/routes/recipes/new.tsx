@@ -9,6 +9,7 @@ import { useOwnerScope } from "#/features/inventory/hooks/use-owner-scope";
 import { RecipeEditor } from "#/features/recipes/components/recipe-editor";
 import { createForkDocument } from "#/features/recipes/domain/create-fork-document";
 import { collectOwnRecipeTags } from "#/features/recipes/domain/filter-own-recipes";
+import { newRecipeYieldText } from "#/features/recipes/domain/household-size";
 import * as recipesApi from "#/features/recipes/infrastructure/recipes-api";
 
 type OwnRecipes = Awaited<ReturnType<typeof recipesApi.listRecipes>>;
@@ -80,13 +81,18 @@ export const Route = createFileRoute("/recipes/new")({
 	loaderDeps: ({ search }) => ({ from: search.from }),
 	// リンクできるレシピは、前もって取る（ログインしていなければ、取らない）。
 	loader: async ({ deps }) => {
-		const [recipes, fork] = await Promise.all([
+		const [recipes, fork, householdSize] = await Promise.all([
 			recipesApi.listRecipes().catch(() => undefined),
 			loadForkSource(deps.from),
+			// もとにして作るときは、もとのレシピの量を使うので、取らない。
+			deps.from === undefined
+				? recipesApi.getHouseholdSize().catch(() => null)
+				: null,
 		]);
 
 		return {
 			linkTargets: recipes ? toLinkTargets(recipes) : undefined,
+			initialYieldText: newRecipeYieldText(householdSize),
 			// タグのシートの候補（自分が使った個人用のタグ）。
 			personalTagSuggestions: recipes
 				? collectOwnRecipeTags(recipes).personalTags
@@ -103,7 +109,8 @@ function NewRecipePage() {
 	const { dictionary, mergeNames } =
 		useIngredientDictionaryWithActions(ownerScope);
 	const navigate = useNavigate();
-	const { linkTargets, personalTagSuggestions, fork } = Route.useLoaderData();
+	const { linkTargets, initialYieldText, personalTagSuggestions, fork } =
+		Route.useLoaderData();
 
 	if (ownerScope === null) return null;
 
@@ -125,6 +132,7 @@ function NewRecipePage() {
 			<RecipeEditor
 				key={fork?.publicId ?? "new"}
 				initialDocument={fork?.document}
+				initialYieldText={initialYieldText}
 				forkedFrom={
 					fork ? { name: fork.name, authorName: fork.authorName } : undefined
 				}

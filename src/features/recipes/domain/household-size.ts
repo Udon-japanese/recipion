@@ -1,8 +1,19 @@
 // うちの人数（設定）と、レシピを最初にどの量で見せるか。
-import { normalizeYieldUnit, parseRecipeYield } from "./recipe-yield";
+import {
+	defaultRecipeYieldText,
+	normalizeYieldUnit,
+	parseRecipeYield,
+} from "./recipe-yield";
 
 export const minHouseholdSize = 1;
 export const maxHouseholdSize = 20;
+
+// 新しく登録するレシピの、できあがりの量の初期値（うちの人数がなければ、2人分）。
+export function newRecipeYieldText(householdSize: number | null): string {
+	return householdSize === null
+		? defaultRecipeYieldText
+		: `${householdSize}人分`;
+}
 
 // うちの人数を使うレシピか（できあがりの単位が「人分」で、量を変えられる）。
 export function usesHouseholdSize(recipe: {
