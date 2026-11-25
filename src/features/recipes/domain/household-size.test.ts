@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { resolveWantedYield, usesHouseholdSize } from "./household-size";
+import {
+	newRecipeYieldText,
+	resolveWantedYield,
+	usesHouseholdSize,
+} from "./household-size";
 
 describe("usesHouseholdSize", () => {
 	it.each([
@@ -11,6 +15,15 @@ describe("usesHouseholdSize", () => {
 		[{ yieldText: "2人分", scalable: false }, false],
 	])("%j は %s", (recipe, expected) => {
 		expect(usesHouseholdSize(recipe)).toBe(expected);
+	});
+});
+
+describe("newRecipeYieldText", () => {
+	it.each([
+		[3, "3人分"],
+		[null, "2人分"],
+	])("うちの人数 %s なら %s", (householdSize, expected) => {
+		expect(newRecipeYieldText(householdSize)).toBe(expected);
 	});
 });
 

@@ -110,6 +110,8 @@ type RecipeEditorProps = {
 	onSaved?: (recipe: SavedRecipe) => void;
 	// 保存済みのレシピを編集するときの初期値。なければ、新規登録。
 	initialDocument?: RecipeEditorDocument;
+	// 新規登録の、できあがりの量の初期値（うちの人数）。なければ、2人分。
+	initialYieldText?: string;
 	// 「このレシピをもとに作る」：initialDocument は親の中身の写しで、新規登録として保存する
 	// （もとにしたレシピの知らせは、画面の側で、見出しの上に出す）。
 	forkedFrom?: { name: string; authorName: string | null };
@@ -201,6 +203,7 @@ export function RecipeEditor({
 	onSave,
 	onSaved,
 	initialDocument,
+	initialYieldText,
 	forkedFrom,
 	publicId,
 	loadLinkTargets,
@@ -222,7 +225,7 @@ export function RecipeEditor({
 	const [title, setTitle] = useState(initialDocument?.name ?? "");
 	const [isTitleEditing, setIsTitleEditing] = useState(false);
 	const [yieldText, setYieldText] = useState(
-		initialDocument?.yieldText ?? defaultRecipeYieldText,
+		initialDocument?.yieldText ?? initialYieldText ?? defaultRecipeYieldText,
 	);
 	// 見出しの「材料（2人分）」から、できあがりの量を入れるのは、その欄を自分で触るまで。
 	const [isYieldTouched, setIsYieldTouched] = useState(hasInitialContent);

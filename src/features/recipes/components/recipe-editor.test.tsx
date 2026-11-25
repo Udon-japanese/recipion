@@ -1153,6 +1153,15 @@ describe("RecipeEditor", () => {
 		expect(decrease()).toHaveProperty("disabled", true);
 	});
 
+	it("新規登録は、渡された初期値（うちの人数）で、できあがりの量を始める", () => {
+		render(<RecipeEditor onSave={vi.fn()} initialYieldText="4人分" />);
+
+		expect(screen.getByRole("textbox", { name: "できあがり" })).toHaveProperty(
+			"value",
+			"4人分",
+		);
+	});
+
 	it("数のない量（作りやすい分量）は、ボタンで増減しない", async () => {
 		const user = userEvent.setup();
 
