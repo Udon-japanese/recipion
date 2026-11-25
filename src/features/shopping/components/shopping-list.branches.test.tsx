@@ -134,7 +134,7 @@ describe("ShoppingList の条件つきのメモ", () => {
 			screen.queryByRole("checkbox", { name: "合い挽きをチェック" }),
 		).not.toBeInTheDocument();
 
-		await user.click(screen.getByRole("button", { name: "そうだった" }));
+		await user.click(screen.getByRole("button", { name: /^はい \d+件$/ }));
 
 		expect(
 			await screen.findByRole("checkbox", { name: "玉ねぎをチェック" }),
@@ -305,7 +305,9 @@ describe("ShoppingList の条件つきのメモ", () => {
 		expect(
 			await screen.findByRole("heading", { name: /牛ひきが安ければ/ }),
 		).toBeInTheDocument();
-		expect(screen.getByText("ハンバーグ 0件")).toBeInTheDocument();
+		expect(
+			screen.getByRole("button", { name: "ハンバーグにする 0件" }),
+		).toBeInTheDocument();
 		await expect(
 			getLocalDatabase().shoppingBranches.get("branch-1"),
 		).resolves.toMatchObject({

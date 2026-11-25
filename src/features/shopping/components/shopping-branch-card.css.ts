@@ -37,18 +37,19 @@ export const condition = style({
 	lineHeight: "var(--line-height-tight)",
 });
 
-export const summary = style({
-	display: "flex",
-	flexWrap: "wrap",
-	gap: 6,
-	padding: "10px 16px 0",
-});
-
 export const decide = style({
 	display: "grid",
 	gridTemplateColumns: "1fr 1fr",
 	gap: 10,
 	padding: "14px 16px",
+});
+
+// 決めるボタンの中の件数：名前より小さく、薄く。
+export const decideCount = style({
+	marginLeft: 4,
+	fontSize: "var(--font-size-sm)",
+	fontWeight: "var(--font-weight-normal)",
+	opacity: 0.75,
 });
 
 export const toggleButton = style({
