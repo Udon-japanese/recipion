@@ -1,5 +1,6 @@
 import type { CreateShoppingBranchInput } from "../domain/shopping-branch";
 import type { CreateShoppingItemInput } from "../domain/shopping-item";
+import type { ShoppingMemories } from "../domain/shopping-item-memory";
 import type { ShoppingStore } from "../domain/shopping-store";
 import {
 	emptyBranchConditionValue,
@@ -9,6 +10,7 @@ import {
 
 type ShoppingBranchCreateProps = {
 	stores: readonly ShoppingStore[];
+	memories: ShoppingMemories;
 	onCreateStore: (name: string) => Promise<ShoppingStore | null>;
 	onAddBranch: (
 		input: CreateShoppingBranchInput,
@@ -20,6 +22,7 @@ type ShoppingBranchCreateProps = {
 // 条件つきのメモを作るフォーム（条件を直すときと同じ、文章の形）。開くのは、呼ぶ側（メニュー）。
 export function ShoppingBranchCreate({
 	stores,
+	memories,
 	onCreateStore,
 	onAddBranch,
 	onClose,
@@ -29,6 +32,7 @@ export function ShoppingBranchCreate({
 			mode="create"
 			value={emptyBranchConditionValue}
 			stores={stores}
+			memories={memories}
 			onCreateStore={onCreateStore}
 			onCancel={() => onClose()}
 			onSave={async (draft) => {

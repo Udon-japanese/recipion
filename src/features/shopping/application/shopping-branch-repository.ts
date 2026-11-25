@@ -23,6 +23,11 @@ export interface ShoppingBranchRepository {
 		side: ShoppingBranchSide,
 		label: string | null,
 	): Promise<void>;
+	// 決めた条件を、元に戻す。分岐と、決める前の中の項目（選ばなかった側も）を、まとめて書き戻す（1つの処理で）。
+	restore(
+		branch: ShoppingBranch,
+		items: readonly ShoppingItem[],
+	): Promise<void>;
 	// 条件が決まったとき。選んだ側を通常の項目にして保存し、選ばなかった側と分岐を消す（1つの処理で）。
 	applyDecision(
 		branchId: string,

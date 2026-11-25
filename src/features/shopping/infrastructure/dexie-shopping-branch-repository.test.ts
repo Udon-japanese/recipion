@@ -73,6 +73,33 @@ describe("dexieShoppingBranchRepository", () => {
 		await expect(dexieShoppingBranchRepository.list()).resolves.toEqual([]);
 	});
 
+	it("決めたあとで元に戻すと、分岐と、選ばなかった側も含む、中の項目が戻る", async () => {
+		const { branch, thenItem, elseItem } = await seed();
+		const items = await dexieShoppingRepository.list();
+		const original = items.filter((item) => item.branchId === branch.id);
+		const { released, discardedIds } = decideShoppingBranch(
+			items,
+			branch.id,
+			"then",
+			5,
+		);
+
+		await dexieShoppingBranchRepository.applyDecision(
+			branch.id,
+			released,
+			discardedIds,
+		);
+		await dexieShoppingBranchRepository.restore(branch, original);
+
+		const after = await dexieShoppingRepository.list();
+
+		expect(after.find((item) => item.id === thenItem.id)?.branchId).toBe(
+			branch.id,
+		);
+		expect(after.some((item) => item.id === elseItem.id)).toBe(true);
+		await expect(dexieShoppingBranchRepository.list()).resolves.toHaveLength(1);
+	});
+
 	it("分岐を消すと、中の項目も消え、通常の項目は残る", async () => {
 		const { branch, plainItem } = await seed();
 

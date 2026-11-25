@@ -14,7 +14,10 @@ import type { InventoryPurchaseOwnerScope } from "#/features/inventory/applicati
 import type { InventoryListItem } from "#/features/inventory/application/inventory-query-repository";
 import type { RecipePickerContext } from "#/features/shopping/components/recipe-picker-slot";
 import type { RecipeDetail } from "../application/recipe-repository";
-import { filterLinkTargets } from "../domain/filter-link-targets";
+import {
+	filterLinkTargets,
+	putSimilarTargetsFirst,
+} from "../domain/filter-link-targets";
 import { resolveWantedYield } from "../domain/household-size";
 import type { RecipeLinkTarget } from "../domain/recipe-links";
 import { describeShoppingAmount, ratioForYield } from "../domain/recipe-yield";
@@ -157,8 +160,15 @@ export function RecipeToShoppingPicker({
 		}
 	}
 
+	// 絞り込んでいないときは、条件つきのメモの側の呼び名に似たレシピを、上に並べる。
 	const shown = recipes
-		? filterLinkTargets(recipes, query, maxListedRecipes)
+		? filterLinkTargets(
+				context.suggestedRecipeName && query.trim() === ""
+					? putSimilarTargetsFirst(recipes, context.suggestedRecipeName)
+					: recipes,
+				query,
+				maxListedRecipes,
+			)
 		: [];
 
 	const title = selected ? `${selected.name}の材料` : "レシピから入れる";

@@ -12,6 +12,8 @@ export type RecipePickerContext = {
 	loadShoppingMemories?: () => Promise<ShoppingMemories>;
 	// 入れ先。省略は通常のメモ。条件つきのメモの側にも入れられる。
 	destination?: { branchId: string; side: ShoppingBranchSide };
+	// 一覧の上に並べたいレシピの名前（条件つきのメモの側の呼び名）。
+	suggestedRecipeName?: string;
 	// false のあいだは、閉じる動きを見せている途中（省略は true）。
 	open?: boolean;
 	onClose: () => void;

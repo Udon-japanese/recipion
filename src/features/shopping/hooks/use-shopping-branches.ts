@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { showToast } from "#/components/toast/toast-store";
 import type { ShoppingBranchRepository } from "../application/shopping-branch-repository";
 import { getShoppingErrorMessage } from "../components/shopping-error-message";
 import {
@@ -17,6 +18,8 @@ import {
 	type ShoppingItem,
 } from "../domain/shopping-item";
 import { upsertById } from "../domain/upsert-by-id";
+
+const decisionToastId = "shopping-branch-decision";
 
 type UseShoppingBranchesOptions = {
 	repository: ShoppingBranchRepository;
@@ -166,6 +169,8 @@ export function useShoppingBranches({
 		onError(null);
 
 		try {
+			// 元に戻すために、決める前の、中の項目（選ばなかった側も）を覚えておく。
+			const original = allItems.filter((item) => item.branchId === branch.id);
 			const startSortOrder =
 				allItems
 					.filter((item) => !item.branchId)
@@ -190,12 +195,47 @@ export function useShoppingBranches({
 					.filter((item) => !discarded.has(item.id))
 					.map((item) => releasedById.get(item.id) ?? item),
 			);
+			showToast({
+				id: decisionToastId,
+				message: "条件を決めました",
+				action: {
+					label: "元に戻す",
+					icon: "undo",
+					onClick: () => void undoDecision(branch, original),
+				},
+			});
 
 			return true;
 		} catch (error) {
 			onError(getShoppingErrorMessage(error));
 
 			return false;
+		}
+	}
+
+	// 決めた条件を、元に戻す：分岐と、中の項目（通常の項目になったものも、元の側に戻す）を書き戻す。
+	async function undoDecision(
+		branch: ShoppingBranch,
+		original: readonly ShoppingItem[],
+	): Promise<void> {
+		onError(null);
+
+		try {
+			await repository.restore(branch, original);
+
+			const originalById = new Map(original.map((item) => [item.id, item]));
+
+			setBranches((current) => upsertById(current, branch));
+			setItems((current) => {
+				const restored = current.map(
+					(item) => originalById.get(item.id) ?? item,
+				);
+				const known = new Set(current.map((item) => item.id));
+
+				return [...restored, ...original.filter((item) => !known.has(item.id))];
+			});
+		} catch (error) {
+			onError(getShoppingErrorMessage(error));
 		}
 	}
 

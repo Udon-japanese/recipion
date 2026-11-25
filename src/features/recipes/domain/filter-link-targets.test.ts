@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { filterLinkTargets } from "./filter-link-targets";
+import {
+	filterLinkTargets,
+	putSimilarTargetsFirst,
+} from "./filter-link-targets";
 
 const targets = [
 	{
@@ -44,4 +47,52 @@ describe("filterLinkTargets", () => {
 	it("一致がなければ、空", () => {
 		expect(filterLinkTargets(targets, "ラーメン", 10)).toEqual([]);
 	});
+});
+
+describe("putSimilarTargetsFirst", () => {
+	it.each([
+		{
+			name: "カレー",
+			expected: [
+				"トマトカレー",
+				"カレーうどん",
+				"ミニトマトのマリネ",
+				"ハンバーグ",
+			],
+		},
+		{
+			name: "はんばーぐ",
+			expected: [
+				"ハンバーグ",
+				"ミニトマトのマリネ",
+				"トマトカレー",
+				"カレーうどん",
+			],
+		},
+		{
+			name: "煮込みハンバーグ",
+			expected: [
+				"ハンバーグ",
+				"ミニトマトのマリネ",
+				"トマトカレー",
+				"カレーうどん",
+			],
+		},
+		{
+			name: "",
+			expected: [
+				"ミニトマトのマリネ",
+				"トマトカレー",
+				"ハンバーグ",
+				"カレーうどん",
+			],
+		},
+	])(
+		"呼び名「$name」に似たレシピを、先に並べる（ほかは元の順）",
+		({ name, expected }) => {
+			expect(putSimilarTargetsFirst(targets, name).map((t) => t.name)).toEqual(
+				expected,
+			);
+		},
+	);
 });

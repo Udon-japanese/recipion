@@ -56,6 +56,22 @@ export function createDexieShoppingBranchRepository(
 			);
 		},
 
+		async restore(branch, items) {
+			const database = getLocalDatabase();
+
+			await database.transaction(
+				"rw",
+				database.shoppingBranches,
+				database.shoppingItems,
+				async () => {
+					await database.shoppingBranches.put(withOwner(branch, ownerScope));
+					await database.shoppingItems.bulkPut(
+						items.map((item) => withOwner(item, ownerScope)),
+					);
+				},
+			);
+		},
+
 		async update(branch) {
 			const database = getLocalDatabase();
 

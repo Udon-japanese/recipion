@@ -159,6 +159,12 @@ describe("ShoppingList の「レシピから入れる」", () => {
 				within(card).getByRole("button", { name: /^カレーにする \d+件$/ }),
 			).toBeInTheDocument();
 		});
+		// 条件つきのメモに入れたら、レシピの一覧は閉じる。
+		await waitFor(() => {
+			expect(
+				screen.queryByRole("button", { name: "カレーの材料を入れる" }),
+			).toBeNull();
+		});
 		// 通常の一覧には出ない。
 		expect(
 			screen.queryByRole("checkbox", { name: "じゃがいもをチェック" }),
