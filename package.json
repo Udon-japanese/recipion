@@ -53,7 +53,7 @@
     "dexie": "^4.4.7",
     "drizzle-kit": "^0.31.11",
     "drizzle-orm": "^0.45.4",
-    "hono": "4.13.20",
+    "hono": "4.13.21",
     "hono-openapi": "1.6.0",
     "jose": "6.2.18",
     "nanoid": "^6.0.2",
@@ -90,6 +90,6 @@
     "vite": "^8.3.8",
     "vitest": "^5.1.1",
     "vitest-browser-react": "^2.3.0",
-    "wrangler": "^4.166.0"
+    "wrangler": "^4.167.0"
   }
 }
