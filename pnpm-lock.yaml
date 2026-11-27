@@ -65,8 +65,8 @@ importers:
         specifier: ^6.0.2
         version: 6.0.2
       node-diff3:
-        specifier: 3.2.1
-        version: 3.2.1
+        specifier: 4.0.0
+        version: 4.0.0
       pg:
         specifier: ^8.23.1
         version: 8.23.1
@@ -2750,8 +2750,8 @@ packages:
     resolution: {integrity: sha512-rQLB6eV4f2AW/n3L0JmwCROpaisYy9EDEADvEFSd1C/qG8hB6O5TPlh9A791JRbJr4CnMQBzptDcvD9OR1+6WA==}
     engines: {node: ^20.0.0 || >=22.0.0}
 
-  node-diff3@3.2.1:
-    resolution: {integrity: sha512-eKZcJ8RtMQ3cIaA15EgmtwG927fYnRlhtdA4Q9HAcCpAZPQhhU2XptnTH9GeAkMiX2bAXxlJSAFa9shFbztPgw==}
+  node-diff3@4.0.0:
+    resolution: {integrity: sha512-U6ROYD85/70rtvHRa3mmB2PUHNT9R+K3Oo5WLnCtVl3aZ2GPY+lgB+vrIfwy5P/fr+Avng+loYDgk+MglPgwMQ==}
     engines: {bun: '>=1.3.10'}
 
   node-domexception@1.0.0:
@@ -5709,7 +5709,7 @@ snapshots:
 
   nanostores@1.5.3: {}
 
-  node-diff3@3.2.1: {}
+  node-diff3@4.0.0: {}
 
   node-domexception@1.0.0: {}
 
