@@ -22,19 +22,35 @@ export const legacyPresetUnitLabels: Readonly<Record<string, string>> = {
 	can: "缶",
 };
 
-// 移行のため（2026-11-28）：英語のコードを、呼び名から作り直す（呼び名がなければ、対応表で）。英語のコードでなければ、そのまま。
-// 端末の買い物メモの項目・換算の記憶を直す upgrade（local-db/database.ts の version 8）で使う。
-export function fixLegacyInputUnitCode(
-	inputUnitCode: string,
-	unitLabel: string | null,
-): string {
-	const legacyLabel = legacyPresetUnitLabels[inputUnitCode];
+// 移行のため（2026-11-28）：買い物メモの項目・換算の記憶の、単位名と inputUnitCode に残る英語のコードを直す。直すものがなければ null。
+// 単位名も英語のことがある（在庫の画面で、「pack」で保存されたロットの換算を覚えた記憶）。
+// 単位名があれば、それから inputUnitCode を作り直す（房・ボトルも正確に直る）。なければ、対応表で。
+// local-db/database.ts の version 9 の upgrade で使う。消す条件は docs/todo.md。
+export function fixLegacyUnit(unit: {
+	unitLabel: string | null;
+	inputUnitCode: string | null;
+}): { unitLabel: string | null; inputUnitCode: string | null } | null {
+	const label = unit.unitLabel?.trim() || null;
+	const legacyLabel =
+		label === null ? undefined : legacyPresetUnitLabels[label];
+	const legacyCode =
+		unit.inputUnitCode === null
+			? undefined
+			: legacyPresetUnitLabels[unit.inputUnitCode];
 
-	if (legacyLabel === undefined) {
-		return inputUnitCode;
+	if (legacyLabel === undefined && legacyCode === undefined) {
+		return null;
 	}
 
-	const label = unitLabel?.trim();
+	const unitLabel = legacyLabel ?? label;
 
-	return label ? toInputUnitCode(label) : legacyLabel;
+	return {
+		unitLabel,
+		inputUnitCode:
+			unit.inputUnitCode === null
+				? null
+				: unitLabel === null
+					? (legacyCode ?? unit.inputUnitCode)
+					: toInputUnitCode(unitLabel),
+	};
 }
