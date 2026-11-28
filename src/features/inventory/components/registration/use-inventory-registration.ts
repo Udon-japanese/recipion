@@ -176,26 +176,6 @@ export function useInventoryRegistration({
 	// 開いている間に追加したもの（「卵 6個」「塩」。連続して登録していることの手応え）。
 	const [added, setAdded] = useState<readonly string[]>([]);
 
-	// 食材名・目安の設定が変わったとき、期限の欄（触っていなければ）に、目安を入れ直す。
-	// biome-ignore lint/correctness/useExhaustiveDependencies: 食材名と設定が変わったときだけ、入れ直す。
-	useEffect(() => {
-		if (isExpiryTouched) {
-			return;
-		}
-
-		setExpiry(
-			ingredientName.trim() === ""
-				? emptyExpiryFields
-				: buildExpiryPrefill({
-						ingredientName,
-						acquiredOn: today,
-						level: expiryEstimateLevel,
-						learnedRemainingDays: getLearnedRemainingDays(ingredientName),
-						userDefaults: lookupIngredientDefaults?.(ingredientName) ?? null,
-					}),
-		);
-	}, [ingredientName, expiryEstimateLevel, lookupIngredientDefaults, today]);
-
 	function changeName(value: string) {
 		setIngredientName(value);
 
@@ -307,6 +287,33 @@ export function useInventoryRegistration({
 		: chosenCategoryId === null
 			? inferItemCategory(ingredientName)
 			: chosenCategoryId || null;
+
+	// 食材名・カテゴリ・目安の設定が変わったとき、期限の欄（触っていなければ）に、目安を入れ直す。
+	// biome-ignore lint/correctness/useExhaustiveDependencies: 食材名・カテゴリと設定が変わったときだけ、入れ直す。
+	useEffect(() => {
+		if (isExpiryTouched) {
+			return;
+		}
+
+		setExpiry(
+			ingredientName.trim() === ""
+				? emptyExpiryFields
+				: buildExpiryPrefill({
+						ingredientName,
+						acquiredOn: today,
+						level: expiryEstimateLevel,
+						learnedRemainingDays: getLearnedRemainingDays(ingredientName),
+						userDefaults: lookupIngredientDefaults?.(ingredientName) ?? null,
+						categoryId,
+					}),
+		);
+	}, [
+		ingredientName,
+		categoryId,
+		expiryEstimateLevel,
+		lookupIngredientDefaults,
+		today,
+	]);
 	const unitOptions = existingUnit
 		? [existingUnit]
 		: listStockUnitOptions(ingredientName);

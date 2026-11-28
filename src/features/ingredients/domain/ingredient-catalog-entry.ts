@@ -4,6 +4,7 @@ import type {
 	IngredientPurchasePreset,
 	IngredientStockUnitCode,
 } from "./ingredient-catalog";
+import { toInputUnitCode } from "./input-unit-code";
 
 type CatalogEntryInput = Omit<IngredientCatalogEntry, "defaultTrackingMode"> &
 	Partial<Pick<IngredientCatalogEntry, "defaultTrackingMode">>;
@@ -53,10 +54,8 @@ export function withDefaultTrackingMode(
 type PurchasePresetSpec = {
 	label: string;
 	quantity: number;
-	// 買い物メモに表示する単位（「袋」「パック」「ml」など）。
+	// 買い物メモに表示する単位（「袋」「パック」「ml」など）。換算の inputUnitCode も、これから作る。
 	unit: string;
-	// 買った単位の、英小文字のコード（count、g、kg、ml、l、bag、pack、bottle、can、box）。
-	code: string;
 	// 買った単位1つが、在庫の単位でいくつか。
 	per: number;
 };
@@ -75,7 +74,7 @@ export function presetsFor(
 		quantity: spec.quantity,
 		unitLabel: spec.unit,
 		inventoryConversion: {
-			inputUnitCode: spec.code,
+			inputUnitCode: toInputUnitCode(spec.unit),
 			stockUnitCode,
 			stockUnitLabel: stockUnitLabels[stockUnitCode],
 			stockQuantityPerInputUnit: spec.per,

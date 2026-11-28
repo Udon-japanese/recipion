@@ -113,6 +113,28 @@ describe("buildInventoryFridge", () => {
 
 	it.each([
 		{
+			name: "保存方法のないロットは、冷凍室",
+			lotStorage: null,
+			zone: "freezer",
+		},
+		{ name: "ロットの保存方法が優先", lotStorage: "fridge", zone: "vegetable" },
+	] as const)("カテゴリが冷凍食品の野菜：$name", ({ lotStorage, zone }) => {
+		const items = [
+			buildInventoryListItem({
+				inventoryItemId: "a",
+				name: "にんじん",
+				categoryId: "frozen",
+				// 食材の初期値（冷蔵）より、カテゴリを優先する。
+				defaultStorage: "fridge",
+				lots: [lot({ id: "a1", storage: lotStorage })],
+			}),
+		];
+
+		expect(tilesOf(items, zone).map((t) => t.inventoryItemId)).toEqual(["a"]);
+	});
+
+	it.each([
+		{
 			name: "量のあるロットのうち、いちばん新しく入れた日時",
 			lots: [
 				lot({ id: "x1", createdAt: "2026-10-12T00:00:00.000Z" }),

@@ -3,7 +3,10 @@ import { findIngredientCatalogEntry } from "#/features/ingredients/domain/ingred
 import type { ItemCategoryId } from "#/features/item-category/domain/item-category";
 import type { InventoryListItem } from "../application/inventory-query-repository";
 import { resolveInventoryItemArt } from "./ingredient-art";
-import { resolveInventoryItemCategory } from "./inventory-category";
+import {
+	resolveInventoryItemCategory,
+	storageForCategory,
+} from "./inventory-category";
 import {
 	daysBetween,
 	type InventoryExpiryKind,
@@ -146,11 +149,29 @@ export function assignInventoryZone(input: ZoneInput): InventoryZoneId {
 	return "fridge";
 }
 
+type FallbackStorageItem = Pick<
+	InventoryListItem,
+	"name" | "defaultStorage" | "categoryId"
+>;
+
+// 保存方法のないロットの保存方法：カテゴリで決まるもの（冷凍食品）→ ユーザーが決めた食材の初期値 → カタログ。
+function resolveFallbackStorage(
+	item: FallbackStorageItem,
+	catalog: ReturnType<InventoryCatalogLookup>,
+): InventoryStorage | null {
+	return (
+		storageForCategory(resolveInventoryItemCategory(item)) ??
+		item.defaultStorage ??
+		catalog?.defaultStorage ??
+		null
+	);
+}
+
 /**
- * ロットのゾーン。ロットの保存方法がなければ、食材の初期の保存方法（ユーザーが決めたもの→カタログ）。
+ * ロットのゾーン。ロットの保存方法がなければ、resolveFallbackStorage の順で決める。
  */
 export function getLotZone(
-	item: Pick<InventoryListItem, "name" | "trackingMode" | "defaultStorage">,
+	item: FallbackStorageItem & Pick<InventoryListItem, "trackingMode">,
 	lot: Pick<InventoryLot, "storage">,
 	lookup: InventoryCatalogLookup = defaultCatalogLookup,
 ): InventoryZoneId {
@@ -158,8 +179,7 @@ export function getLotZone(
 
 	return assignInventoryZone({
 		trackingMode: item.trackingMode,
-		storage:
-			lot.storage ?? item.defaultStorage ?? catalog?.defaultStorage ?? null,
+		storage: lot.storage ?? resolveFallbackStorage(item, catalog),
 		isProduce: catalog?.isProduce ?? false,
 	});
 }
@@ -292,8 +312,7 @@ export function buildInventoryFridge(
 	for (const item of items) {
 		const catalog = lookup(item.name);
 		const isProduce = catalog?.isProduce ?? false;
-		const fallbackStorage =
-			item.defaultStorage ?? catalog?.defaultStorage ?? null;
+		const fallbackStorage = resolveFallbackStorage(item, catalog);
 		const name = item.displayName ?? item.name;
 		const sortReading = item.displayName
 			? item.displayName

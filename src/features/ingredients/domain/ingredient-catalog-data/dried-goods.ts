@@ -13,7 +13,7 @@ export const driedGoodsEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["海苔", "のり", "焼き海苔"],
 			stockUnitCode: "count",
 			presets: presetsFor("count", [
-				{ label: "10枚入り", quantity: 1, unit: "袋", code: "bag", per: 10 },
+				{ label: "10枚入り", quantity: 1, unit: "袋", per: 10 },
 			]),
 			// 全形1枚は約3g。
 			unitWeights: [{ unit: "枚", grams: 3, approximate: false }],
@@ -28,7 +28,6 @@ export const driedGoodsEntries: readonly IngredientCatalogEntry[] =
 					label: "小分け5袋(15g)",
 					quantity: 1,
 					unit: "袋",
-					code: "bag",
 					per: 15,
 				},
 			]),
@@ -42,7 +41,7 @@ export const driedGoodsEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["乾燥わかめ", "カットわかめ"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "20g袋", quantity: 1, unit: "袋", code: "bag", per: 20 },
+				{ label: "20g袋", quantity: 1, unit: "袋", per: 20 },
 			]),
 			// 大さじ1が約3g。水で戻すと約10倍（ユーザー提供の換算表）。
 			density: { gramsPerMl: 0.2, approximate: true },
@@ -53,7 +52,7 @@ export const driedGoodsEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["昆布", "こんぶ", "だし昆布"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "50g袋", quantity: 1, unit: "袋", code: "bag", per: 50 },
+				{ label: "50g袋", quantity: 1, unit: "袋", per: 50 },
 			]),
 			// 10cm角1枚が約10g（ユーザー提供の換算表）。
 			unitWeights: [{ unit: "枚", grams: 10, approximate: true }],
@@ -64,7 +63,7 @@ export const driedGoodsEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["春雨", "はるさめ"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "100g袋", quantity: 1, unit: "袋", code: "bag", per: 100 },
+				{ label: "100g袋", quantity: 1, unit: "袋", per: 100 },
 			]),
 		}),
 		entry({
@@ -73,7 +72,7 @@ export const driedGoodsEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["乾燥ひじき", "ひじき"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "20g袋", quantity: 1, unit: "袋", code: "bag", per: 20 },
+				{ label: "20g袋", quantity: 1, unit: "袋", per: 20 },
 			]),
 			// 大さじ1が約5g。水で戻すと約7〜8倍（ユーザー提供の換算表）。
 			density: { gramsPerMl: 0.33, approximate: true },
@@ -84,7 +83,7 @@ export const driedGoodsEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["切り干し大根", "切干大根", "切り干し"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "30g袋", quantity: 1, unit: "袋", code: "bag", per: 30 },
+				{ label: "30g袋", quantity: 1, unit: "袋", per: 30 },
 			]),
 			// 大さじ1が約3〜4g（ユーザー提供の換算表）。「ひとつかみ」は約10〜15g。
 			density: { gramsPerMl: 0.23, approximate: true },
@@ -95,7 +94,7 @@ export const driedGoodsEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["白ごま", "白胡麻"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "60g袋", quantity: 1, unit: "袋", code: "bag", per: 60 },
+				{ label: "60g袋", quantity: 1, unit: "袋", per: 60 },
 			]),
 			density: { gramsPerMl: 0.6, approximate: false },
 		}),
@@ -105,7 +104,7 @@ export const driedGoodsEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["黒ごま", "黒胡麻"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "60g袋", quantity: 1, unit: "袋", code: "bag", per: 60 },
+				{ label: "60g袋", quantity: 1, unit: "袋", per: 60 },
 			]),
 			// 白ごまの値を仮置きしている。
 			density: { gramsPerMl: 0.6, approximate: true },

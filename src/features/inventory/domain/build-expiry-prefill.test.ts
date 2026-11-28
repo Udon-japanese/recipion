@@ -57,6 +57,30 @@ describe("buildExpiryPrefill", () => {
 		});
 	});
 
+	it.each([
+		{ categoryId: null, expected: { storage: "", expiresOn: "2026-10-12" } },
+		// 冷凍のパプリカに、冷蔵の日持ち（7日）を付けない（冷凍の日数はカタログにないので、空）。
+		{ categoryId: "frozen", expected: { storage: "freezer", expiresOn: "" } },
+	] as const)(
+		"カテゴリ $categoryId のパプリカは、保存方法 $expected.storage",
+		({ categoryId, expected }) => {
+			expect(
+				buildExpiryPrefill({ ...base, ingredientName: "パプリカ", categoryId }),
+			).toMatchObject(expected);
+		},
+	);
+
+	it("カテゴリが冷凍食品なら、ユーザーが決めた保存方法より、冷凍を優先する", () => {
+		expect(
+			buildExpiryPrefill({
+				...base,
+				ingredientName: "パプリカ",
+				categoryId: "frozen",
+				userDefaults: { expiryKind: null, storage: "fridge" },
+			}),
+		).toMatchObject({ storage: "freezer" });
+	});
+
 	it("カタログにない食材は、過去の入力があるときだけ、日付を入れる", () => {
 		expect(buildExpiryPrefill({ ...base, ingredientName: "謎の食材" })).toEqual(
 			emptyExpiryFields,

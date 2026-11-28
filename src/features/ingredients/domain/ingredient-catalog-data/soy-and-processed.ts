@@ -13,12 +13,11 @@ export const soyAndProcessedEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["木綿豆腐", "もめん豆腐"],
 			stockUnitCode: "count",
 			presets: presetsFor("count", [
-				{ label: "1丁", quantity: 1, unit: "丁", code: "count", per: 1 },
+				{ label: "1丁", quantity: 1, unit: "丁", per: 1 },
 				{
 					label: "3個パック",
 					quantity: 1,
 					unit: "パック",
-					code: "pack",
 					per: 3,
 				},
 			]),
@@ -30,12 +29,11 @@ export const soyAndProcessedEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["絹ごし豆腐", "絹豆腐", "絹ごし"],
 			stockUnitCode: "count",
 			presets: presetsFor("count", [
-				{ label: "1丁", quantity: 1, unit: "丁", code: "count", per: 1 },
+				{ label: "1丁", quantity: 1, unit: "丁", per: 1 },
 				{
 					label: "3個パック",
 					quantity: 1,
 					unit: "パック",
-					code: "pack",
 					per: 3,
 				},
 			]),
@@ -47,8 +45,8 @@ export const soyAndProcessedEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["油揚げ", "薄揚げ"],
 			stockUnitCode: "count",
 			presets: presetsFor("count", [
-				{ label: "3枚入り", quantity: 1, unit: "袋", code: "bag", per: 3 },
-				{ label: "5枚入り", quantity: 1, unit: "袋", code: "bag", per: 5 },
+				{ label: "3枚入り", quantity: 1, unit: "袋", per: 3 },
+				{ label: "5枚入り", quantity: 1, unit: "袋", per: 5 },
 			]),
 			unitWeights: [{ unit: "枚", grams: 30, approximate: true }],
 		}),
@@ -58,7 +56,7 @@ export const soyAndProcessedEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["厚揚げ", "生揚げ"],
 			stockUnitCode: "count",
 			presets: presetsFor("count", [
-				{ label: "2枚入り", quantity: 1, unit: "パック", code: "pack", per: 2 },
+				{ label: "2枚入り", quantity: 1, unit: "パック", per: 2 },
 			]),
 			// 出典によって、135〜200g。
 			unitWeights: [{ unit: "枚", grams: 150, approximate: true }],
@@ -73,7 +71,6 @@ export const soyAndProcessedEntries: readonly IngredientCatalogEntry[] =
 					label: "3個パック",
 					quantity: 1,
 					unit: "パック",
-					code: "pack",
 					per: 3,
 				},
 			]),
@@ -85,8 +82,8 @@ export const soyAndProcessedEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["豆乳", "無調整豆乳"],
 			stockUnitCode: "ml",
 			presets: presetsFor("ml", [
-				{ label: "200ml", quantity: 200, unit: "ml", code: "ml", per: 1 },
-				{ label: "1L", quantity: 1, unit: "L", code: "l", per: 1000 },
+				{ label: "200ml", quantity: 200, unit: "ml", per: 1 },
+				{ label: "1L", quantity: 1, unit: "L", per: 1000 },
 			]),
 			categoryId: "dairy",
 			// 大さじ1が15g（ユーザー提供の換算表）。
@@ -98,8 +95,8 @@ export const soyAndProcessedEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["ちくわ", "竹輪"],
 			stockUnitCode: "count",
 			presets: presetsFor("count", [
-				{ label: "4本入り", quantity: 1, unit: "袋", code: "bag", per: 4 },
-				{ label: "5本入り", quantity: 1, unit: "袋", code: "bag", per: 5 },
+				{ label: "4本入り", quantity: 1, unit: "袋", per: 4 },
+				{ label: "5本入り", quantity: 1, unit: "袋", per: 5 },
 			]),
 			unitWeights: [{ unit: "本", grams: 30, approximate: true }],
 		}),
@@ -109,7 +106,7 @@ export const soyAndProcessedEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["かまぼこ", "蒲鉾"],
 			stockUnitCode: "count",
 			presets: presetsFor("count", [
-				{ label: "1本", quantity: 1, unit: "本", code: "count", per: 1 },
+				{ label: "1本", quantity: 1, unit: "本", per: 1 },
 			]),
 			// 板つき1本。商品によって、100〜150g。
 			unitWeights: [{ unit: "本", grams: 145, approximate: true }],
@@ -120,7 +117,7 @@ export const soyAndProcessedEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["こんにゃく", "コンニャク", "板こんにゃく"],
 			stockUnitCode: "count",
 			presets: presetsFor("count", [
-				{ label: "1枚", quantity: 1, unit: "枚", code: "count", per: 1 },
+				{ label: "1枚", quantity: 1, unit: "枚", per: 1 },
 			]),
 			// 出典によって、250〜300g。
 			unitWeights: [{ unit: "枚", grams: 250, approximate: true }],
@@ -131,7 +128,7 @@ export const soyAndProcessedEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["しらたき", "白滝", "糸こんにゃく"],
 			stockUnitCode: "count",
 			presets: presetsFor("count", [
-				{ label: "1袋", quantity: 1, unit: "袋", code: "bag", per: 1 },
+				{ label: "1袋", quantity: 1, unit: "袋", per: 1 },
 			]),
 			unitWeights: [{ unit: "袋", grams: 200, approximate: true }],
 		}),

@@ -14,7 +14,6 @@ function frozenBag(grams: number) {
 			label: grams >= 1000 ? `${grams / 1000}kg袋` : `${grams}g袋`,
 			quantity: 1,
 			unit: "袋",
-			code: "bag",
 			per: grams,
 		},
 	]);

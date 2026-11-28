@@ -13,8 +13,8 @@ export const vegetablesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["玉ねぎ", "たまねぎ", "玉葱", "タマネギ", "オニオン"],
 			stockUnitCode: "count",
 			presets: presetsFor("count", [
-				{ label: "1個", quantity: 1, unit: "個", code: "count", per: 1 },
-				{ label: "3個ネット", quantity: 1, unit: "袋", code: "bag", per: 3 },
+				{ label: "1個", quantity: 1, unit: "個", per: 1 },
+				{ label: "3個ネット", quantity: 1, unit: "袋", per: 3 },
 			]),
 			unitWeights: [{ unit: "個", size: "中", grams: 200, approximate: true }],
 		}),
@@ -24,8 +24,8 @@ export const vegetablesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["じゃがいも", "ジャガイモ", "じゃが芋", "ポテト(じゃがいも)"],
 			stockUnitCode: "count",
 			presets: presetsFor("count", [
-				{ label: "1個", quantity: 1, unit: "個", code: "count", per: 1 },
-				{ label: "1袋(4個)", quantity: 1, unit: "袋", code: "bag", per: 4 },
+				{ label: "1個", quantity: 1, unit: "個", per: 1 },
+				{ label: "1袋(4個)", quantity: 1, unit: "袋", per: 4 },
 			]),
 			unitWeights: [{ unit: "個", size: "中", grams: 150, approximate: true }],
 		}),
@@ -35,8 +35,8 @@ export const vegetablesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["にんじん", "人参", "ニンジン"],
 			stockUnitCode: "count",
 			presets: presetsFor("count", [
-				{ label: "1本", quantity: 1, unit: "本", code: "count", per: 1 },
-				{ label: "3本袋", quantity: 1, unit: "袋", code: "bag", per: 3 },
+				{ label: "1本", quantity: 1, unit: "本", per: 1 },
+				{ label: "3本袋", quantity: 1, unit: "袋", per: 3 },
 			]),
 			unitWeights: [{ unit: "本", grams: 150, approximate: true }],
 		}),
@@ -50,14 +50,12 @@ export const vegetablesEntries: readonly IngredientCatalogEntry[] =
 					label: "1/2カット",
 					quantity: 1,
 					unit: "パック",
-					code: "pack",
 					per: 600,
 				},
 				{
 					label: "1/4カット",
 					quantity: 1,
 					unit: "パック",
-					code: "pack",
 					per: 300,
 				},
 			]),
@@ -72,7 +70,7 @@ export const vegetablesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["ほうれん草", "ほうれんそう", "ホウレンソウ"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "1束", quantity: 1, unit: "束", code: "bag", per: 200 },
+				{ label: "1束", quantity: 1, unit: "束", per: 200 },
 			]),
 			unitWeights: [{ unit: "束", grams: 200, approximate: true }],
 		}),
@@ -82,12 +80,11 @@ export const vegetablesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["トマト"],
 			stockUnitCode: "count",
 			presets: presetsFor("count", [
-				{ label: "1個", quantity: 1, unit: "個", code: "count", per: 1 },
+				{ label: "1個", quantity: 1, unit: "個", per: 1 },
 				{
 					label: "1パック(3個)",
 					quantity: 1,
 					unit: "パック",
-					code: "pack",
 					per: 3,
 				},
 			]),
@@ -103,7 +100,6 @@ export const vegetablesEntries: readonly IngredientCatalogEntry[] =
 					label: "1パック",
 					quantity: 1,
 					unit: "パック",
-					code: "pack",
 					per: 12,
 				},
 			]),
@@ -116,7 +112,7 @@ export const vegetablesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["パプリカ", "パプリカ(赤)", "赤パプリカ"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "1個", quantity: 1, unit: "個", code: "count", per: 150 },
+				{ label: "1個", quantity: 1, unit: "個", per: 150 },
 			]),
 			unitWeights: [{ unit: "個", grams: 150, approximate: true }],
 		}),
@@ -126,7 +122,7 @@ export const vegetablesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["ピーマン"],
 			stockUnitCode: "count",
 			presets: presetsFor("count", [
-				{ label: "1袋(5個)", quantity: 1, unit: "袋", code: "bag", per: 5 },
+				{ label: "1袋(5個)", quantity: 1, unit: "袋", per: 5 },
 			]),
 			unitWeights: [{ unit: "個", grams: 35, approximate: true }],
 		}),
@@ -136,8 +132,8 @@ export const vegetablesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["なす", "ナス", "茄子"],
 			stockUnitCode: "count",
 			presets: presetsFor("count", [
-				{ label: "1本", quantity: 1, unit: "本", code: "count", per: 1 },
-				{ label: "1袋(3本)", quantity: 1, unit: "袋", code: "bag", per: 3 },
+				{ label: "1本", quantity: 1, unit: "本", per: 1 },
+				{ label: "1袋(3本)", quantity: 1, unit: "袋", per: 3 },
 			]),
 			unitWeights: [{ unit: "本", grams: 80, approximate: true }],
 		}),
@@ -147,8 +143,8 @@ export const vegetablesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["きゅうり", "キュウリ", "胡瓜"],
 			stockUnitCode: "count",
 			presets: presetsFor("count", [
-				{ label: "1本", quantity: 1, unit: "本", code: "count", per: 1 },
-				{ label: "1袋(3本)", quantity: 1, unit: "袋", code: "bag", per: 3 },
+				{ label: "1本", quantity: 1, unit: "本", per: 1 },
+				{ label: "1袋(3本)", quantity: 1, unit: "袋", per: 3 },
 			]),
 			unitWeights: [{ unit: "本", grams: 100, approximate: true }],
 		}),
@@ -158,8 +154,8 @@ export const vegetablesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["長ねぎ", "長ネギ", "長葱", "白ねぎ", "白ネギ", "白葱"],
 			stockUnitCode: "count",
 			presets: presetsFor("count", [
-				{ label: "1本", quantity: 1, unit: "本", code: "count", per: 1 },
-				{ label: "1束(3本)", quantity: 1, unit: "束", code: "bag", per: 3 },
+				{ label: "1本", quantity: 1, unit: "本", per: 1 },
+				{ label: "1束(3本)", quantity: 1, unit: "束", per: 3 },
 			]),
 			unitWeights: [{ unit: "本", grams: 100, approximate: true }],
 		}),
@@ -176,7 +172,7 @@ export const vegetablesEntries: readonly IngredientCatalogEntry[] =
 			],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "1束", quantity: 1, unit: "束", code: "bag", per: 100 },
+				{ label: "1束", quantity: 1, unit: "束", per: 100 },
 			]),
 		}),
 		entry({
@@ -205,7 +201,7 @@ export const vegetablesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["レモン"],
 			stockUnitCode: "count",
 			presets: presetsFor("count", [
-				{ label: "1個", quantity: 1, unit: "個", code: "count", per: 1 },
+				{ label: "1個", quantity: 1, unit: "個", per: 1 },
 			]),
 			// 出典を確認できていない。
 			unitWeights: [{ unit: "個", grams: 120, approximate: true }],
@@ -220,7 +216,6 @@ export const vegetablesEntries: readonly IngredientCatalogEntry[] =
 					label: "1パック(10枚)",
 					quantity: 1,
 					unit: "パック",
-					code: "pack",
 					per: 10,
 				},
 			]),
@@ -237,7 +232,6 @@ export const vegetablesEntries: readonly IngredientCatalogEntry[] =
 					label: "1パック",
 					quantity: 1,
 					unit: "パック",
-					code: "pack",
 					per: 100,
 				},
 			]),
@@ -253,7 +247,6 @@ export const vegetablesEntries: readonly IngredientCatalogEntry[] =
 					label: "1パック",
 					quantity: 1,
 					unit: "パック",
-					code: "pack",
 					per: 100,
 				},
 			]),
@@ -273,14 +266,12 @@ export const vegetablesEntries: readonly IngredientCatalogEntry[] =
 					label: "200gパック",
 					quantity: 1,
 					unit: "パック",
-					code: "pack",
 					per: 200,
 				},
 				{
 					label: "300gパック",
 					quantity: 1,
 					unit: "パック",
-					code: "pack",
 					per: 300,
 				},
 			]),
@@ -292,8 +283,8 @@ export const vegetablesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["大根", "だいこん", "ダイコン"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "1/2本", quantity: 0.5, unit: "本", code: "count", per: 1000 },
-				{ label: "1本", quantity: 1, unit: "本", code: "count", per: 1000 },
+				{ label: "1/2本", quantity: 0.5, unit: "本", per: 1000 },
+				{ label: "1本", quantity: 1, unit: "本", per: 1000 },
 			]),
 			// 出典によって、1000〜1200g。
 			unitWeights: [{ unit: "本", grams: 1000, approximate: true }],
@@ -308,14 +299,12 @@ export const vegetablesEntries: readonly IngredientCatalogEntry[] =
 					label: "1/4カット",
 					quantity: 1,
 					unit: "パック",
-					code: "pack",
 					per: 500,
 				},
 				{
 					label: "1/2カット",
 					quantity: 1,
 					unit: "パック",
-					code: "pack",
 					per: 1000,
 				},
 			]),
@@ -328,7 +317,7 @@ export const vegetablesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["もやし", "モヤシ"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "1袋(200g)", quantity: 1, unit: "袋", code: "bag", per: 200 },
+				{ label: "1袋(200g)", quantity: 1, unit: "袋", per: 200 },
 			]),
 			// 出典によって、200〜250g。
 			unitWeights: [{ unit: "袋", grams: 200, approximate: true }],
@@ -339,7 +328,7 @@ export const vegetablesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["ブロッコリー"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "1株", quantity: 1, unit: "株", code: "count", per: 250 },
+				{ label: "1株", quantity: 1, unit: "株", per: 250 },
 			]),
 			// 出典によって、200〜300g。
 			unitWeights: [{ unit: "株", grams: 250, approximate: true }],
@@ -350,7 +339,7 @@ export const vegetablesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["レタス"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "1玉", quantity: 1, unit: "玉", code: "count", per: 400 },
+				{ label: "1玉", quantity: 1, unit: "玉", per: 400 },
 			]),
 			// 1玉が約400g、1枚が約30g（ユーザー提供の換算表）。
 			unitWeights: [
@@ -364,8 +353,8 @@ export const vegetablesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["さつまいも", "サツマイモ", "さつま芋"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "1本", quantity: 1, unit: "本", code: "count", per: 200 },
-				{ label: "1袋", quantity: 1, unit: "袋", code: "bag", per: 500 },
+				{ label: "1本", quantity: 1, unit: "本", per: 200 },
+				{ label: "1袋", quantity: 1, unit: "袋", per: 500 },
 			]),
 			unitWeights: [{ unit: "本", grams: 200, approximate: true }],
 		}),
@@ -379,7 +368,6 @@ export const vegetablesEntries: readonly IngredientCatalogEntry[] =
 					label: "1/4カット",
 					quantity: 1,
 					unit: "パック",
-					code: "pack",
 					per: 300,
 				},
 			]),
@@ -392,7 +380,7 @@ export const vegetablesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["ごぼう", "ゴボウ", "牛蒡"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "1袋(2本)", quantity: 1, unit: "袋", code: "bag", per: 200 },
+				{ label: "1袋(2本)", quantity: 1, unit: "袋", per: 200 },
 			]),
 			// 出典によって、150〜180g。
 			unitWeights: [{ unit: "本", grams: 180, approximate: true }],
@@ -407,7 +395,6 @@ export const vegetablesEntries: readonly IngredientCatalogEntry[] =
 					label: "1パック",
 					quantity: 1,
 					unit: "パック",
-					code: "pack",
 					per: 200,
 				},
 			]),
@@ -419,7 +406,7 @@ export const vegetablesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["えのき", "えのきだけ", "エノキ"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "1袋(200g)", quantity: 1, unit: "袋", code: "bag", per: 200 },
+				{ label: "1袋(200g)", quantity: 1, unit: "袋", per: 200 },
 			]),
 			// 出典によって、100〜200g。
 			unitWeights: [{ unit: "袋", grams: 200, approximate: true }],
@@ -434,7 +421,6 @@ export const vegetablesEntries: readonly IngredientCatalogEntry[] =
 					label: "1パック(6個)",
 					quantity: 1,
 					unit: "パック",
-					code: "pack",
 					per: 100,
 				},
 			]),
@@ -450,7 +436,6 @@ export const vegetablesEntries: readonly IngredientCatalogEntry[] =
 					label: "1パック",
 					quantity: 1,
 					unit: "パック",
-					code: "pack",
 					per: 100,
 				},
 			]),

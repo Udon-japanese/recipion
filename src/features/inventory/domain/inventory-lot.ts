@@ -127,6 +127,18 @@ const plainInputUnitCodes: ReadonlySet<string> = new Set([
 	"cc",
 ]);
 
+// 移行のため（2026-11-27）：以前のカタログのプリセットは、inputUnitCode に英語のコードを入れていた。
+// 端末に残る買い物メモの項目・換算の記憶と、更新前のクライアントから届く値を、日本語の呼び名に読み替える
+// （房・ボトルなど、元の呼び名は分からないので、いちばん多い呼び名にする）。
+// 消す条件：利用者が新しい版に移り、英語のコードを持つ買い物メモの項目・換算の記憶が残っていないと見てよくなったとき。
+const legacyPresetUnitLabels: Readonly<Record<string, string>> = {
+	pack: "パック",
+	bag: "袋",
+	bottle: "ボトル",
+	box: "箱",
+	can: "缶",
+};
+
 /**
  * 買った単位と換算から、ロットに残す換算を決める。
  * - 玉・袋・パック・個などの単位で、1単位が何g・何個などかを持つものだけ。g・ml・kg・l そのもので買ったときは、なし。
@@ -140,7 +152,12 @@ export function toPurchaseUnit(input: {
 	quantityUnitLabel: string;
 }): InventoryLotPurchaseUnit | null {
 	const code = input.inputUnitCode.trim();
-	const label = code === "count" ? "個" : code === "unit" ? "つ" : code;
+	const label =
+		code === "count"
+			? "個"
+			: code === "unit"
+				? "つ"
+				: (legacyPresetUnitLabels[code] ?? code);
 	const quantityUnitLabel = input.quantityUnitLabel.trim();
 
 	if (
