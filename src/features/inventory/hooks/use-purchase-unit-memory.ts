@@ -1,6 +1,6 @@
 import { useMemo } from "react";
+import { toInputUnitCode } from "#/features/ingredients/domain/input-unit-code";
 import type { ShoppingConversionDefaultRepository } from "#/features/shopping/application/shopping-conversion-default-repository";
-import { toInputUnitCode } from "#/features/shopping/domain/infer-inventory-conversion";
 import {
 	type ShoppingConversionEntry,
 	toConversionDefaultKey,

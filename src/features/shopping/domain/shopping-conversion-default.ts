@@ -2,9 +2,9 @@ import {
 	findIngredientCatalogEntry,
 	getDefaultStockUnitLabel,
 } from "#/features/ingredients/domain/ingredient-catalog";
+import { toInputUnitCode } from "#/features/ingredients/domain/input-unit-code";
 import { normalizeIngredientName } from "#/features/ingredients/domain/normalize-ingredient-name";
 import { formatAmountForUnit } from "#/features/quantity/domain/format-quantity";
-import { toInputUnitCode } from "./infer-inventory-conversion";
 import type { ParsedShoppingMemoLine } from "./parse-shopping-memo";
 import {
 	isSameUnitConversion,

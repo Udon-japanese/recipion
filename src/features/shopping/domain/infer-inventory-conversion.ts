@@ -6,6 +6,7 @@ import {
 	findIngredientCatalogEntry,
 	getDefaultStockUnitLabel,
 } from "#/features/ingredients/domain/ingredient-catalog";
+import { toInputUnitCode } from "#/features/ingredients/domain/input-unit-code";
 import type {
 	ShoppingItem,
 	ShoppingItemInventoryConversion,
@@ -25,18 +26,6 @@ const countLikeUnits: ReadonlySet<string> = new Set([
 	"片",
 	"尾",
 ]);
-
-const unitCodes: Record<string, string> = {
-	個: "count",
-	g: "g",
-	kg: "kg",
-	ml: "ml",
-	l: "l",
-};
-
-export function toInputUnitCode(unit: string): string {
-	return unitCodes[unit.toLocaleLowerCase("ja-JP")] ?? unit;
-}
 
 /**
  * 買い物メモの項目（食材名と単位）から、在庫への換算を決める。決められなければ null。

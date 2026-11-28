@@ -13,7 +13,7 @@ export const powdersAndSpicesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["塩", "食塩", "精製塩"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "1kg袋", quantity: 1, unit: "袋", code: "bag", per: 1000 },
+				{ label: "1kg袋", quantity: 1, unit: "袋", per: 1000 },
 			]),
 			density: { gramsPerMl: 1.2, approximate: false },
 		}),
@@ -23,7 +23,7 @@ export const powdersAndSpicesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["粗塩", "天然塩"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "500g袋", quantity: 1, unit: "袋", code: "bag", per: 500 },
+				{ label: "500g袋", quantity: 1, unit: "袋", per: 500 },
 			]),
 			// 小さじ5g、大さじ15g（白ごはん.com）。
 			density: { gramsPerMl: 1, approximate: false },
@@ -34,7 +34,7 @@ export const powdersAndSpicesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["岩塩"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "100g袋", quantity: 1, unit: "袋", code: "bag", per: 100 },
+				{ label: "100g袋", quantity: 1, unit: "袋", per: 100 },
 			]),
 			// 粒の大きさで違う。出典未確認。
 			density: { gramsPerMl: 1, approximate: true },
@@ -49,7 +49,6 @@ export const powdersAndSpicesEntries: readonly IngredientCatalogEntry[] =
 					label: "80gボトル",
 					quantity: 1,
 					unit: "ボトル",
-					code: "bottle",
 					per: 80,
 				},
 			]),
@@ -66,7 +65,6 @@ export const powdersAndSpicesEntries: readonly IngredientCatalogEntry[] =
 					label: "110g瓶",
 					quantity: 1,
 					unit: "ボトル",
-					code: "bottle",
 					per: 110,
 				},
 			]),
@@ -79,7 +77,7 @@ export const powdersAndSpicesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["砂糖", "上白糖", "さとう"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "1kg袋", quantity: 1, unit: "袋", code: "bag", per: 1000 },
+				{ label: "1kg袋", quantity: 1, unit: "袋", per: 1000 },
 			]),
 			density: { gramsPerMl: 0.6, approximate: false },
 		}),
@@ -89,7 +87,7 @@ export const powdersAndSpicesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["グラニュー糖"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "1kg袋", quantity: 1, unit: "袋", code: "bag", per: 1000 },
+				{ label: "1kg袋", quantity: 1, unit: "袋", per: 1000 },
 			]),
 			// 小さじ4g、大さじ12g（イチビキ）。
 			density: { gramsPerMl: 0.8, approximate: false },
@@ -100,7 +98,7 @@ export const powdersAndSpicesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["三温糖"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "1kg袋", quantity: 1, unit: "袋", code: "bag", per: 1000 },
+				{ label: "1kg袋", quantity: 1, unit: "袋", per: 1000 },
 			]),
 			// 上白糖に近い値を仮置きしている。
 			density: { gramsPerMl: 0.6, approximate: true },
@@ -111,7 +109,7 @@ export const powdersAndSpicesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["きび砂糖", "きびざとう"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "750g袋", quantity: 1, unit: "袋", code: "bag", per: 750 },
+				{ label: "750g袋", quantity: 1, unit: "袋", per: 750 },
 			]),
 			// 上白糖に近い値を仮置きしている。
 			density: { gramsPerMl: 0.6, approximate: true },
@@ -122,7 +120,7 @@ export const powdersAndSpicesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["黒糖", "粉黒糖"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "300g袋", quantity: 1, unit: "袋", code: "bag", per: 300 },
+				{ label: "300g袋", quantity: 1, unit: "袋", per: 300 },
 			]),
 			// 粉末の黒糖。出典未確認（上白糖に近い値を仮置き）。
 			density: { gramsPerMl: 0.6, approximate: true },
@@ -137,7 +135,6 @@ export const powdersAndSpicesEntries: readonly IngredientCatalogEntry[] =
 					label: "1000gボトル",
 					quantity: 1,
 					unit: "ボトル",
-					code: "bottle",
 					per: 1000,
 				},
 			]),
@@ -154,7 +151,6 @@ export const powdersAndSpicesEntries: readonly IngredientCatalogEntry[] =
 					label: "15g瓶",
 					quantity: 1,
 					unit: "ボトル",
-					code: "bottle",
 					per: 15,
 				},
 			]),
@@ -177,7 +173,6 @@ export const powdersAndSpicesEntries: readonly IngredientCatalogEntry[] =
 					label: "15g瓶",
 					quantity: 1,
 					unit: "ボトル",
-					code: "bottle",
 					per: 15,
 				},
 			]),
@@ -194,7 +189,6 @@ export const powdersAndSpicesEntries: readonly IngredientCatalogEntry[] =
 					label: "14g瓶",
 					quantity: 1,
 					unit: "ボトル",
-					code: "bottle",
 					per: 14,
 				},
 			]),
@@ -211,7 +205,6 @@ export const powdersAndSpicesEntries: readonly IngredientCatalogEntry[] =
 					label: "15g瓶",
 					quantity: 1,
 					unit: "ボトル",
-					code: "bottle",
 					per: 15,
 				},
 			]),
@@ -227,7 +220,6 @@ export const powdersAndSpicesEntries: readonly IngredientCatalogEntry[] =
 					label: "15g瓶",
 					quantity: 1,
 					unit: "ボトル",
-					code: "bottle",
 					per: 15,
 				},
 			]),
@@ -240,7 +232,7 @@ export const powdersAndSpicesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["薄力粉", "小麦粉"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "1kg袋", quantity: 1, unit: "袋", code: "bag", per: 1000 },
+				{ label: "1kg袋", quantity: 1, unit: "袋", per: 1000 },
 			]),
 			categoryId: "staples",
 			density: { gramsPerMl: 0.6, approximate: false },
@@ -251,7 +243,7 @@ export const powdersAndSpicesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["中力粉"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "1kg袋", quantity: 1, unit: "袋", code: "bag", per: 1000 },
+				{ label: "1kg袋", quantity: 1, unit: "袋", per: 1000 },
 			]),
 			categoryId: "staples",
 			// 薄力粉の値を仮置きしている。
@@ -263,7 +255,7 @@ export const powdersAndSpicesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["強力粉"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "1kg袋", quantity: 1, unit: "袋", code: "bag", per: 1000 },
+				{ label: "1kg袋", quantity: 1, unit: "袋", per: 1000 },
 			]),
 			categoryId: "staples",
 			// 薄力粉の値を仮置きしている。
@@ -275,7 +267,7 @@ export const powdersAndSpicesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["片栗粉"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "200g袋", quantity: 1, unit: "袋", code: "bag", per: 200 },
+				{ label: "200g袋", quantity: 1, unit: "袋", per: 200 },
 			]),
 			categoryId: "staples",
 			density: { gramsPerMl: 0.6, approximate: false },
@@ -286,8 +278,8 @@ export const powdersAndSpicesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["パン粉", "乾燥パン粉", "細目パン粉", "粗目パン粉"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "100g袋", quantity: 1, unit: "袋", code: "bag", per: 100 },
-				{ label: "200g袋", quantity: 1, unit: "袋", code: "bag", per: 200 },
+				{ label: "100g袋", quantity: 1, unit: "袋", per: 100 },
+				{ label: "200g袋", quantity: 1, unit: "袋", per: 200 },
 			]),
 			categoryId: "staples",
 			density: { gramsPerMl: 0.2, approximate: false },
@@ -298,7 +290,7 @@ export const powdersAndSpicesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["生パン粉"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "120g袋", quantity: 1, unit: "袋", code: "bag", per: 120 },
+				{ label: "120g袋", quantity: 1, unit: "袋", per: 120 },
 			]),
 			categoryId: "staples",
 			// 大さじ1が約3〜5g、小さじ1が約1.5g（ユーザー提供の換算表）。乾燥パン粉より、水分を含む分、少し重い。
@@ -319,7 +311,7 @@ export const powdersAndSpicesEntries: readonly IngredientCatalogEntry[] =
 					quantity: 3,
 					unitLabel: "袋",
 					inventoryConversion: {
-						inputUnitCode: "bag",
+						inputUnitCode: "袋",
 						stockUnitCode: "g",
 						stockUnitLabel: "g",
 						stockQuantityPerInputUnit: 150,
@@ -331,7 +323,7 @@ export const powdersAndSpicesEntries: readonly IngredientCatalogEntry[] =
 					quantity: 3,
 					unitLabel: "袋",
 					inventoryConversion: {
-						inputUnitCode: "bag",
+						inputUnitCode: "袋",
 						stockUnitCode: "g",
 						stockUnitLabel: "g",
 						stockQuantityPerInputUnit: 200,
@@ -346,12 +338,11 @@ export const powdersAndSpicesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["鶏がらスープの素", "鶏がらスープ", "鶏ガラスープ"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "50g袋", quantity: 1, unit: "袋", code: "bag", per: 50 },
+				{ label: "50g袋", quantity: 1, unit: "袋", per: 50 },
 				{
 					label: "100g瓶",
 					quantity: 1,
 					unit: "ボトル",
-					code: "bottle",
 					per: 100,
 				},
 			]),
@@ -363,7 +354,7 @@ export const powdersAndSpicesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["コンソメ", "コンソメスープの素", "固形コンソメ"],
 			stockUnitCode: "count",
 			presets: presetsFor("count", [
-				{ label: "21個箱", quantity: 1, unit: "箱", code: "box", per: 21 },
+				{ label: "21個箱", quantity: 1, unit: "箱", per: 21 },
 			]),
 			// 固形1個。顆粒のときは、大さじ1が約9g。
 			unitWeights: [{ unit: "個", grams: 5, approximate: true }],
@@ -381,7 +372,7 @@ export const powdersAndSpicesEntries: readonly IngredientCatalogEntry[] =
 			],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "8g×8袋", quantity: 1, unit: "箱", code: "box", per: 64 },
+				{ label: "8g×8袋", quantity: 1, unit: "箱", per: 64 },
 			]),
 			// 小さじ1＝約3g、大さじ1＝約9g（ほんだしの計量表）。
 			density: { gramsPerMl: 0.6, approximate: false },
@@ -392,7 +383,7 @@ export const powdersAndSpicesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["カレールー", "カレールゥ"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "1箱(8皿分)", quantity: 1, unit: "箱", code: "box", per: 160 },
+				{ label: "1箱(8皿分)", quantity: 1, unit: "箱", per: 160 },
 			]),
 			// 1かけ（1皿分）は、約18〜20g。
 			unitWeights: [{ unit: "かけ", grams: 20, approximate: true }],
@@ -403,7 +394,7 @@ export const powdersAndSpicesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["シチュールー", "シチュールゥ"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "1箱(8皿分)", quantity: 1, unit: "箱", code: "box", per: 160 },
+				{ label: "1箱(8皿分)", quantity: 1, unit: "箱", per: 160 },
 			]),
 			// 1かけ（1皿分）は、約18〜20g（ユーザー提供の換算表）。
 			unitWeights: [{ unit: "かけ", grams: 20, approximate: true }],

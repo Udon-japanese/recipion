@@ -33,7 +33,7 @@ describe("recordInventoryPurchase", () => {
 				stockUnitLabel: "個",
 				trackingMode: "exact",
 				inputQuantity: 1,
-				inputUnitCode: "pack",
+				inputUnitCode: "パック",
 				stockQuantityPerInputUnit: 10,
 			},
 			{
@@ -55,15 +55,19 @@ describe("recordInventoryPurchase", () => {
 			transactionId: "transaction-id",
 			inventoryItemId: "inventory-item-id",
 			inputQuantity: 1,
-			inputUnitCode: "pack",
+			inputUnitCode: "パック",
 			stockQuantityPerInputUnit: 10,
 			operation: "increase",
 			reason: "purchase",
 			sourceType: "shopping-item",
 			sourceId: "shopping-item-id",
-			// 買った単位の換算（1pack＝10個）を、ロットに残す。
+			// 買った単位の換算（1パック＝10個）を、ロットに残す。
 			lot: {
-				purchaseUnit: { label: "pack", quantity: 10, quantityUnitLabel: "個" },
+				purchaseUnit: {
+					label: "パック",
+					quantity: 10,
+					quantityUnitLabel: "個",
+				},
 			},
 		});
 

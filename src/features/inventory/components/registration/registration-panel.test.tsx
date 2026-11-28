@@ -809,6 +809,8 @@ describe("InventoryRegistrationPanel", () => {
 							expiresOn: addDays(today, 90),
 							expirySource: "estimated",
 							expiryKind: "best-before",
+							// 名前から推定したカテゴリ（冷凍食品）で、冷凍として入れる。
+							storage: "freezer",
 						},
 					}),
 				),

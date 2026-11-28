@@ -4,10 +4,12 @@ import {
 	toCanonicalIngredientName,
 } from "#/features/ingredients/domain/ingredient-dictionary";
 import { normalizeIngredientName } from "#/features/ingredients/domain/normalize-ingredient-name";
+import type { ItemCategoryId } from "#/features/item-category/domain/item-category";
 import {
 	type ExpiryEstimateLevel,
 	estimateLotExpiry,
 } from "./estimate-lot-expiry";
+import { storageForCategory } from "./inventory-category";
 import type { InventoryExpiryKind, InventoryStorage } from "./inventory-lot";
 
 // 期限の入力欄の値（日付の空は、入力なし）。
@@ -40,23 +42,27 @@ export type BuildExpiryPrefillInput = {
 	// 自分の過去の入力から求めた日数（ない場合は null）。
 	learnedRemainingDays: number | null;
 	userDefaults: IngredientExpiryDefaults | null;
+	// 買い物メモの項目・登録のカテゴリ。冷凍食品なら、冷凍で入れる。
+	categoryId?: ItemCategoryId | null;
 };
 
 /**
  * 入力欄の初期値を作る。期限の種類は、ユーザーが決めたもの、なければカタログの一般的な種類を入れる
  * （日付だけ入れればよいようにする）。日付は、目安を付けられるときだけ入れ、出所は estimated にする。
- * 保存方法の欄は、空のまま（食材の初期値に従う）。
+ * 保存方法の欄は、空のまま（食材の初期値に従う）。カテゴリで保存方法が決まるとき（冷凍食品）だけ、それを入れる
+ * （冷凍のパプリカを、カタログの冷蔵で入れない）。
  */
 export function buildExpiryPrefill(
 	input: BuildExpiryPrefillInput,
 ): ExpiryFieldsValue {
 	const entry = findIngredientCatalogEntry(input.ingredientName);
 	const kind = input.userDefaults?.expiryKind ?? entry?.expiry?.kind ?? null;
+	const categoryStorage = storageForCategory(input.categoryId ?? null);
 
 	const estimated = estimateLotExpiry({
 		expiry: entry?.expiry,
 		acquiredOn: input.acquiredOn,
-		storage: input.userDefaults?.storage ?? null,
+		storage: categoryStorage ?? input.userDefaults?.storage ?? null,
 		userExpiryKind: input.userDefaults?.expiryKind ?? null,
 		learnedRemainingDays: input.learnedRemainingDays,
 		level: input.level,
@@ -65,7 +71,7 @@ export function buildExpiryPrefill(
 	return {
 		expiresOn: estimated?.expiresOn ?? "",
 		expiryKind: estimated?.expiryKind ?? kind ?? "",
-		storage: "",
+		storage: categoryStorage ?? "",
 		expirySource: estimated ? "estimated" : "",
 	};
 }

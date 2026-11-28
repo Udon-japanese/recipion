@@ -13,8 +13,8 @@ export const staplesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["スパゲティ", "スパゲッティ"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "300g袋", quantity: 1, unit: "袋", code: "bag", per: 300 },
-				{ label: "500g袋", quantity: 1, unit: "袋", code: "bag", per: 500 },
+				{ label: "300g袋", quantity: 1, unit: "袋", per: 300 },
+				{ label: "500g袋", quantity: 1, unit: "袋", per: 500 },
 			]),
 		}),
 		entry({
@@ -23,7 +23,7 @@ export const staplesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["そうめん", "素麺"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "300g袋", quantity: 1, unit: "袋", code: "bag", per: 300 },
+				{ label: "300g袋", quantity: 1, unit: "袋", per: 300 },
 			]),
 			unitWeights: [{ unit: "束", grams: 50, approximate: true }],
 		}),
@@ -33,9 +33,9 @@ export const staplesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["米", "お米", "白米", "精米"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "2kg袋", quantity: 1, unit: "袋", code: "bag", per: 2000 },
-				{ label: "5kg袋", quantity: 1, unit: "袋", code: "bag", per: 5000 },
-				{ label: "10kg袋", quantity: 1, unit: "袋", code: "bag", per: 10000 },
+				{ label: "2kg袋", quantity: 1, unit: "袋", per: 2000 },
+				{ label: "5kg袋", quantity: 1, unit: "袋", per: 5000 },
+				{ label: "10kg袋", quantity: 1, unit: "袋", per: 10000 },
 			]),
 			// 1合（米用の計量カップすりきり、約180ml）の精米の重さ。品種や水分で差がある（パナソニック「お米1合は何グラム？」）。
 			unitWeights: [{ unit: "合", grams: 150, approximate: true }],
@@ -50,7 +50,6 @@ export const staplesEntries: readonly IngredientCatalogEntry[] =
 					label: "3食パック(600g)",
 					quantity: 1,
 					unit: "パック",
-					code: "pack",
 					per: 600,
 				},
 			]),
@@ -67,7 +66,6 @@ export const staplesEntries: readonly IngredientCatalogEntry[] =
 					label: "1kg袋(約20個)",
 					quantity: 1,
 					unit: "袋",
-					code: "bag",
 					per: 20,
 				},
 			]),
@@ -80,8 +78,8 @@ export const staplesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["食パン"],
 			stockUnitCode: "count",
 			presets: presetsFor("count", [
-				{ label: "6枚切", quantity: 1, unit: "袋", code: "bag", per: 6 },
-				{ label: "8枚切", quantity: 1, unit: "袋", code: "bag", per: 8 },
+				{ label: "6枚切", quantity: 1, unit: "袋", per: 6 },
+				{ label: "8枚切", quantity: 1, unit: "袋", per: 8 },
 			]),
 			categoryId: "bakery",
 			// 6枚切り。8枚切りは約45g。
@@ -93,7 +91,7 @@ export const staplesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["バンズ", "ハンバーガー用パン"],
 			stockUnitCode: "count",
 			presets: presetsFor("count", [
-				{ label: "4個入り", quantity: 1, unit: "袋", code: "bag", per: 4 },
+				{ label: "4個入り", quantity: 1, unit: "袋", per: 4 },
 			]),
 			categoryId: "bakery",
 			// 出典を確認できていない。
@@ -105,12 +103,11 @@ export const staplesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["ゆでうどん", "茹でうどん"],
 			stockUnitCode: "count",
 			presets: presetsFor("count", [
-				{ label: "1玉", quantity: 1, unit: "玉", code: "count", per: 1 },
+				{ label: "1玉", quantity: 1, unit: "玉", per: 1 },
 				{
 					label: "3玉パック",
 					quantity: 1,
 					unit: "パック",
-					code: "pack",
 					per: 3,
 				},
 			]),
@@ -128,7 +125,6 @@ export const staplesEntries: readonly IngredientCatalogEntry[] =
 					label: "5食パック",
 					quantity: 1,
 					unit: "パック",
-					code: "pack",
 					per: 5,
 				},
 			]),
@@ -141,7 +137,7 @@ export const staplesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["そば", "蕎麦", "乾そば"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "300g袋", quantity: 1, unit: "袋", code: "bag", per: 300 },
+				{ label: "300g袋", quantity: 1, unit: "袋", per: 300 },
 			]),
 			// 乾麺1束は100g（ユーザー提供の換算表）。
 			unitWeights: [{ unit: "束", grams: 100, approximate: true }],
@@ -152,12 +148,11 @@ export const staplesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["中華麺", "中華めん"],
 			stockUnitCode: "count",
 			presets: presetsFor("count", [
-				{ label: "1玉", quantity: 1, unit: "玉", code: "count", per: 1 },
+				{ label: "1玉", quantity: 1, unit: "玉", per: 1 },
 				{
 					label: "3食パック",
 					quantity: 1,
 					unit: "パック",
-					code: "pack",
 					per: 3,
 				},
 			]),
@@ -171,8 +166,8 @@ export const staplesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["マカロニ"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "150g袋", quantity: 1, unit: "袋", code: "bag", per: 150 },
-				{ label: "200g袋", quantity: 1, unit: "袋", code: "bag", per: 200 },
+				{ label: "150g袋", quantity: 1, unit: "袋", per: 150 },
+				{ label: "200g袋", quantity: 1, unit: "袋", per: 200 },
 			]),
 			// 大さじ1が約8〜10g。形状でぶれる（ユーザー提供の換算表）。
 			density: { gramsPerMl: 0.6, approximate: true },
@@ -183,7 +178,7 @@ export const staplesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["トマト缶"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "1缶(400g)", quantity: 1, unit: "缶", code: "can", per: 400 },
+				{ label: "1缶(400g)", quantity: 1, unit: "缶", per: 400 },
 			]),
 			categoryId: "pantry",
 			unitWeights: [{ unit: "缶", grams: 400, approximate: false }],
@@ -194,7 +189,7 @@ export const staplesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["カットトマト缶", "カットトマト"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "1缶(400g)", quantity: 1, unit: "缶", code: "can", per: 400 },
+				{ label: "1缶(400g)", quantity: 1, unit: "缶", per: 400 },
 			]),
 			categoryId: "pantry",
 			unitWeights: [{ unit: "缶", grams: 400, approximate: false }],
@@ -205,7 +200,7 @@ export const staplesEntries: readonly IngredientCatalogEntry[] =
 			aliases: ["ホールトマト缶", "ホールトマト"],
 			stockUnitCode: "g",
 			presets: presetsFor("g", [
-				{ label: "1缶(400g)", quantity: 1, unit: "缶", code: "can", per: 400 },
+				{ label: "1缶(400g)", quantity: 1, unit: "缶", per: 400 },
 			]),
 			categoryId: "pantry",
 			unitWeights: [{ unit: "缶", grams: 400, approximate: false }],

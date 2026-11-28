@@ -181,6 +181,7 @@ export function useShoppingPurchase({
 			level,
 			learnedRemainingDays: getLearnedRemainingDays(item.name),
 			userDefaults: lookupIngredientDefaults(item.name),
+			categoryId: item.categoryId,
 		});
 	}
 

@@ -10,6 +10,7 @@ import {
 import { ingredientExpiryById } from "./ingredient-catalog-data/expiry";
 import { ingredientReadingById } from "./ingredient-catalog-data/readings";
 import { usualRetailUnitById } from "./ingredient-catalog-data/usual-retail-units";
+import { toInputUnitCode } from "./input-unit-code";
 import { normalizeIngredientName } from "./normalize-ingredient-name";
 
 describe("食材のカタログのデータ", () => {
@@ -126,9 +127,29 @@ describe("買うときの数量プリセット", () => {
 				expect(
 					preset.inventoryConversion.stockQuantityPerInputUnit,
 				).toBeGreaterThan(0);
+				// 買った単位は、表示する単位から作る（英語のコードだと、ロットの換算に「1pack」と出る）。
+				expect(preset.inventoryConversion.inputUnitCode).toBe(
+					toInputUnitCode(preset.unitLabel),
+				);
 			}
 		}
 	});
+
+	it.each([
+		{ name: "木綿豆腐", unitLabel: "パック", inputUnitCode: "パック" },
+		{ name: "大根", unitLabel: "本", inputUnitCode: "本" },
+		{ name: "バナナ", unitLabel: "房", inputUnitCode: "房" },
+		{ name: "卵", unitLabel: "個", inputUnitCode: "count" },
+	])(
+		"$name の $unitLabel のプリセットは、inputUnitCode が $inputUnitCode",
+		({ name, unitLabel, inputUnitCode }) => {
+			const preset = findIngredientCatalogEntry(name)?.presets?.find(
+				(candidate) => candidate.unitLabel === unitLabel,
+			);
+
+			expect(preset?.inventoryConversion.inputUnitCode).toBe(inputUnitCode);
+		},
+	);
 });
 
 describe("searchIngredientCatalog", () => {
