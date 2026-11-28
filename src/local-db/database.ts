@@ -1,5 +1,6 @@
 import Dexie, { type Table } from "dexie";
 import type { IngredientDictionarySnapshot } from "../features/ingredients/application/ingredient-dictionary-cache";
+import { fixLegacyInputUnitCode } from "../features/ingredients/domain/input-unit-code";
 import type { InventoryCacheSnapshot } from "../features/inventory/application/inventory-cache-repository";
 import type {
 	InventoryPurchaseOutboxEntry,
@@ -63,6 +64,12 @@ export type ShoppingSyncVersionRecord = {
 	version: number;
 	// 送ったが、返事を受け取れなかった変更（届いていたら、その変更の上に、次の変更を当ててよい）。
 	unackedChangeIds: string[];
+};
+
+// 換算を持つ行（買い物メモの項目・換算の記憶）のうち、version 8 の upgrade で見る欄。
+type ConvertedRow = {
+	unitLabel: string | null;
+	inventoryConversion?: ShoppingItemInventoryConversion | null;
 };
 
 export class LocalDatabase extends Dexie {
@@ -176,6 +183,43 @@ export class LocalDatabase extends Dexie {
 		this.version(7).stores({
 			scopedShoppingItemMemories: "[ownerScope+nameKey], ownerScope",
 		});
+		// 移行のため（2026-11-28）：以前のカタログのプリセットが入れた英語の inputUnitCode（pack など）を、呼び名から作り直す。
+		// 書き直した行には、同期の印が付くので、ログインした人はサーバーの写しも直る。英語のコードの行だけを書く（ほかの行を送り直さない）。
+		// 消す条件は docs/todo.md（消すのは upgrade だけ。version(8).stores({}) は残す）。
+		this.version(8)
+			.stores({})
+			.upgrade(async (transaction) => {
+				const hasLegacyCode = (row: ConvertedRow) =>
+					row.inventoryConversion != null &&
+					fixLegacyInputUnitCode(
+						row.inventoryConversion.inputUnitCode,
+						row.unitLabel,
+					) !== row.inventoryConversion.inputUnitCode;
+				const fix = (row: ConvertedRow) => {
+					if (row.inventoryConversion) {
+						row.inventoryConversion = {
+							...row.inventoryConversion,
+							inputUnitCode: fixLegacyInputUnitCode(
+								row.inventoryConversion.inputUnitCode,
+								row.unitLabel,
+							),
+						};
+					}
+				};
+
+				await Promise.all([
+					transaction
+						.table<ShoppingItemRecord>("shoppingItems")
+						.filter(hasLegacyCode)
+						.modify(fix),
+					transaction
+						.table<ScopedShoppingConversionMemoryRecord>(
+							"scopedShoppingConversionMemories",
+						)
+						.filter(hasLegacyCode)
+						.modify(fix),
+				]);
+			});
 
 		// 買い物メモの行を書いたら、同じトランザクションで、送る印を付ける。
 		this.use(createShoppingSyncTrackingMiddleware());
