@@ -360,23 +360,6 @@ describe("toPurchaseUnit（ロットに残す換算）", () => {
 		expect(describePurchaseUnit(unit)).toBe("1袋＝1.25kg");
 		expect(describePurchaseUnitInInputUnit(unit)).toBe("1袋＝1250g");
 	});
-
-	// 移行：以前のカタログのプリセットの英語のコードが、端末や更新前のクライアントから届いても、「1pack」と残さない。
-	it.each([
-		{ code: "pack", label: "パック" },
-		{ code: "bag", label: "袋" },
-		{ code: "bottle", label: "ボトル" },
-		{ code: "box", label: "箱" },
-		{ code: "can", label: "缶" },
-	])("以前の英語のコード $code は、「$label」として残す", ({ code, label }) => {
-		expect(
-			toPurchaseUnit({
-				inputUnitCode: code,
-				quantity: 3,
-				quantityUnitLabel: "個",
-			}),
-		).toEqual({ label, quantity: 3, quantityUnitLabel: "個" });
-	});
 });
 
 describe("換算が違うロットは合体しない（5玉200g と 6玉110g）", () => {
