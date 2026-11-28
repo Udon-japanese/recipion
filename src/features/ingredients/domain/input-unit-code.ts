@@ -13,8 +13,8 @@ export function toInputUnitCode(unit: string): string {
 
 // 移行のため（2026-11-27）：以前のカタログのプリセットは、inputUnitCode に英語のコードを入れていた。
 // 呼び名が分からないときの読み替え（房・ボトルなど、元の呼び名は分からないので、いちばん多い呼び名にする）。
-// 消す条件は docs/todo.md（サーバーの読み替えと、端末の upgrade で、消す時期が違う）。
-export const legacyPresetUnitLabels: Readonly<Record<string, string>> = {
+// fixLegacyUnit だけが使う。消す条件は docs/todo.md（fixLegacyUnit と一緒に消す）。
+const legacyPresetUnitLabels: Readonly<Record<string, string>> = {
 	pack: "パック",
 	bag: "袋",
 	bottle: "ボトル",

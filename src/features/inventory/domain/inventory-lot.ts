@@ -1,5 +1,4 @@
 import { UserFacingError } from "#/errors/user-facing-error";
-import { legacyPresetUnitLabels } from "#/features/ingredients/domain/input-unit-code";
 import {
 	formatQuantity,
 	formatStockAmountWithUnit,
@@ -147,9 +146,7 @@ export function toPurchaseUnit(input: {
 	quantityUnitLabel: string;
 }): InventoryLotPurchaseUnit | null {
 	const code = input.inputUnitCode.trim();
-	// legacyPresetUnitLabels は移行のため（更新前の画面などから届く英語のコード）。消す条件は docs/todo.md。
-	const label =
-		inputUnitCodeLabels[code] ?? legacyPresetUnitLabels[code] ?? code;
+	const label = inputUnitCodeLabels[code] ?? code;
 	const quantityUnitLabel = input.quantityUnitLabel.trim();
 
 	if (
