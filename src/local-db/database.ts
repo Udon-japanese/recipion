@@ -1,6 +1,6 @@
 import Dexie, { type Table } from "dexie";
 import type { IngredientDictionarySnapshot } from "../features/ingredients/application/ingredient-dictionary-cache";
-import { fixLegacyInputUnitCode } from "../features/ingredients/domain/input-unit-code";
+import { fixLegacyUnit } from "../features/ingredients/domain/input-unit-code";
 import type { InventoryCacheSnapshot } from "../features/inventory/application/inventory-cache-repository";
 import type {
 	InventoryPurchaseOutboxEntry,
@@ -66,7 +66,7 @@ export type ShoppingSyncVersionRecord = {
 	unackedChangeIds: string[];
 };
 
-// 換算を持つ行（買い物メモの項目・換算の記憶）のうち、version 8 の upgrade で見る欄。
+// 換算を持つ行（買い物メモの項目・換算の記憶）のうち、version 9 の upgrade で見る欄。
 type ConvertedRow = {
 	unitLabel: string | null;
 	inventoryConversion?: ShoppingItemInventoryConversion | null;
@@ -183,26 +183,32 @@ export class LocalDatabase extends Dexie {
 		this.version(7).stores({
 			scopedShoppingItemMemories: "[ownerScope+nameKey], ownerScope",
 		});
-		// 移行のため（2026-11-28）：以前のカタログのプリセットが入れた英語の inputUnitCode（pack など）を、呼び名から作り直す。
-		// 書き直した行には、同期の印が付くので、ログインした人はサーバーの写しも直る。英語のコードの行だけを書く（ほかの行を送り直さない）。
-		// 消す条件は docs/todo.md（消すのは upgrade だけ。version(8).stores({}) は残す）。
-		this.version(8)
+		// version 8 は、単位名も英語の行（unitLabel が "pack"）を直せていなかった。直す処理は version 9 に移した（版は残す）。
+		this.version(8).stores({});
+		// 移行のため（2026-11-28）：以前のカタログのプリセットが入れた英語のコード（pack など）を、単位名と inputUnitCode から直す。
+		// 書き直した行には、同期の印が付くので、ログインした人はサーバーの写しも直る。直す行だけを書く（ほかの行を送り直さない）。
+		// 消す条件は docs/todo.md（消すのは upgrade だけ。version(9).stores({}) は残す）。
+		this.version(9)
 			.stores({})
 			.upgrade(async (transaction) => {
-				const hasLegacyCode = (row: ConvertedRow) =>
-					row.inventoryConversion != null &&
-					fixLegacyInputUnitCode(
-						row.inventoryConversion.inputUnitCode,
-						row.unitLabel,
-					) !== row.inventoryConversion.inputUnitCode;
+				const fixedUnit = (row: ConvertedRow) =>
+					fixLegacyUnit({
+						unitLabel: row.unitLabel,
+						inputUnitCode: row.inventoryConversion?.inputUnitCode ?? null,
+					});
 				const fix = (row: ConvertedRow) => {
-					if (row.inventoryConversion) {
+					const fixed = fixedUnit(row);
+
+					if (!fixed) {
+						return;
+					}
+
+					row.unitLabel = fixed.unitLabel;
+
+					if (row.inventoryConversion && fixed.inputUnitCode !== null) {
 						row.inventoryConversion = {
 							...row.inventoryConversion,
-							inputUnitCode: fixLegacyInputUnitCode(
-								row.inventoryConversion.inputUnitCode,
-								row.unitLabel,
-							),
+							inputUnitCode: fixed.inputUnitCode,
 						};
 					}
 				};
@@ -210,13 +216,13 @@ export class LocalDatabase extends Dexie {
 				await Promise.all([
 					transaction
 						.table<ShoppingItemRecord>("shoppingItems")
-						.filter(hasLegacyCode)
+						.filter((row) => fixedUnit(row) !== null)
 						.modify(fix),
 					transaction
 						.table<ScopedShoppingConversionMemoryRecord>(
 							"scopedShoppingConversionMemories",
 						)
-						.filter(hasLegacyCode)
+						.filter((row) => fixedUnit(row) !== null)
 						.modify(fix),
 				]);
 			});

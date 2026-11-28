@@ -176,100 +176,126 @@ describe("LocalDatabase のバージョンアップ", () => {
 		database.close();
 	});
 
-	it("version 7 の英語の inputUnitCode（pack など）は、呼び名から作り直し、ログインした人の直した行だけに同期の印を付ける", async () => {
-		const name = `upgrade-test-${crypto.randomUUID()}`;
+	// version 8 は、単位名も英語の記憶を直せていなかった（すでに 8 になった端末も、9 で直る）。
+	it.each([7, 8])(
+		"version %i の英語の単位名・inputUnitCode（pack など）を直し、ログインした人の直した行だけに同期の印を付ける",
+		async (installedVersion) => {
+			const name = `upgrade-test-${crypto.randomUUID()}`;
 
-		names.push(name);
+			names.push(name);
 
-		const legacy = new Dexie(name);
-		const conversion = (inputUnitCode: string) => ({
-			inputUnitCode,
-			stockUnitCode: "count",
-			stockUnitLabel: "個",
-			stockQuantityPerInputUnit: 3,
-			trackingMode: "estimated",
-		});
+			const legacy = new Dexie(name);
+			const conversion = (inputUnitCode: string) => ({
+				inputUnitCode,
+				stockUnitCode: "count",
+				stockUnitLabel: "個",
+				stockQuantityPerInputUnit: 3,
+				trackingMode: "estimated",
+			});
 
-		legacy.version(7).stores({
-			shoppingItems:
-				"id, ownerScope, [ownerScope+sortOrder], [ownerScope+status], status, categoryId, categoryAssignment, storeId, branchId, sortOrder, createdAt, updatedAt",
-			inventoryPurchaseOutbox: "id, ownerScope, status, createdAt, updatedAt",
-			inventorySnapshots: "ownerScope, cachedAt",
-			shoppingStores: "id, ownerScope, [ownerScope+sortOrder], sortOrder",
-			shoppingBranches: "id, ownerScope, [ownerScope+sortOrder], sortOrder",
-			scopedShoppingStoreDefaults: "[ownerScope+nameKey], ownerScope, storeId",
-			scopedShoppingConversionMemories: "[ownerScope+key], ownerScope",
-			ingredientDictionaries: "ownerScope",
-			shoppingSyncOutbox: "[ownerScope+kind+id], ownerScope",
-			shoppingSyncStates: "ownerScope",
-			shoppingSyncVersions: "[ownerScope+kind+id], ownerScope",
-			scopedShoppingItemMemories: "[ownerScope+nameKey], ownerScope",
-		});
-		await legacy.table("shoppingItems").bulkPut([
-			{
-				id: "tofu",
-				ownerScope: "user:u1",
-				unitLabel: "パック",
-				inventoryConversion: conversion("pack"),
-			},
-			{
-				id: "banana",
-				ownerScope: "guest",
-				unitLabel: "房",
-				inventoryConversion: conversion("pack"),
-			},
-			{
-				id: "fixed",
-				ownerScope: "user:u1",
-				unitLabel: "パック",
-				inventoryConversion: conversion("パック"),
-			},
-			{
-				id: "no-conversion",
-				ownerScope: "user:u1",
-				unitLabel: null,
-				inventoryConversion: null,
-			},
-		]);
-		await legacy.table("scopedShoppingConversionMemories").put({
-			ownerScope: "user:u1",
-			key: "木綿豆腐\tパック",
-			nameKey: "木綿豆腐",
-			unitLabel: "パック",
-			inventoryConversion: conversion("pack"),
-			usedAt: 1,
-		});
-		legacy.close();
+			legacy.version(installedVersion).stores({
+				shoppingItems:
+					"id, ownerScope, [ownerScope+sortOrder], [ownerScope+status], status, categoryId, categoryAssignment, storeId, branchId, sortOrder, createdAt, updatedAt",
+				inventoryPurchaseOutbox: "id, ownerScope, status, createdAt, updatedAt",
+				inventorySnapshots: "ownerScope, cachedAt",
+				shoppingStores: "id, ownerScope, [ownerScope+sortOrder], sortOrder",
+				shoppingBranches: "id, ownerScope, [ownerScope+sortOrder], sortOrder",
+				scopedShoppingStoreDefaults:
+					"[ownerScope+nameKey], ownerScope, storeId",
+				scopedShoppingConversionMemories: "[ownerScope+key], ownerScope",
+				ingredientDictionaries: "ownerScope",
+				shoppingSyncOutbox: "[ownerScope+kind+id], ownerScope",
+				shoppingSyncStates: "ownerScope",
+				shoppingSyncVersions: "[ownerScope+kind+id], ownerScope",
+				scopedShoppingItemMemories: "[ownerScope+nameKey], ownerScope",
+			});
+			await legacy.table("shoppingItems").bulkPut([
+				{
+					id: "tofu",
+					ownerScope: "user:u1",
+					unitLabel: "パック",
+					inventoryConversion: conversion("pack"),
+				},
+				{
+					id: "banana",
+					ownerScope: "guest",
+					unitLabel: "房",
+					inventoryConversion: conversion("pack"),
+				},
+				{
+					id: "fixed",
+					ownerScope: "user:u1",
+					unitLabel: "パック",
+					inventoryConversion: conversion("パック"),
+				},
+				{
+					id: "no-conversion",
+					ownerScope: "user:u1",
+					unitLabel: null,
+					inventoryConversion: null,
+				},
+			]);
+			await legacy.table("scopedShoppingConversionMemories").bulkPut([
+				{
+					ownerScope: "user:u1",
+					key: "木綿豆腐\tパック",
+					nameKey: "木綿豆腐",
+					unitLabel: "パック",
+					inventoryConversion: conversion("pack"),
+					usedAt: 1,
+				},
+				// 在庫の画面で、「pack」で保存されたロットの換算を覚えた記憶（単位名も英語）。
+				{
+					ownerScope: "user:u1",
+					key: "memory-pack-label",
+					nameKey: "絹ごし豆腐",
+					unitLabel: "pack",
+					inventoryConversion: conversion("pack"),
+					usedAt: 2,
+				},
+			]);
+			legacy.close();
 
-		const database = new LocalDatabase(name);
+			const database = new LocalDatabase(name);
 
-		expect(
-			(await database.shoppingItems.toArray()).map((item) => [
-				item.id,
-				item.inventoryConversion?.inputUnitCode ?? null,
-			]),
-		).toEqual(
-			expect.arrayContaining([
-				["tofu", "パック"],
-				["banana", "房"],
-				["fixed", "パック"],
-				["no-conversion", null],
-			]),
-		);
-		expect(
-			(
-				await database.scopedShoppingConversionMemories.get([
-					"user:u1",
-					"木綿豆腐\tパック",
-				])
-			)?.inventoryConversion.inputUnitCode,
-		).toBe("パック");
-		// ゲストの行と、直していない行には、印を付けない（送り直さない）。
-		expect(
-			(await database.shoppingSyncOutbox.toArray())
-				.map((entry) => `${entry.kind}:${entry.id}`)
-				.sort(),
-		).toEqual(["conversionMemory:木綿豆腐\tパック", "item:tofu"]);
-		database.close();
-	});
+			expect(
+				(await database.shoppingItems.toArray()).map((item) => [
+					item.id,
+					item.inventoryConversion?.inputUnitCode ?? null,
+				]),
+			).toEqual(
+				expect.arrayContaining([
+					["tofu", "パック"],
+					["banana", "房"],
+					["fixed", "パック"],
+					["no-conversion", null],
+				]),
+			);
+			expect(
+				(await database.scopedShoppingConversionMemories.toArray()).map(
+					(memory) => [
+						memory.key,
+						memory.unitLabel,
+						memory.inventoryConversion.inputUnitCode,
+					],
+				),
+			).toEqual(
+				expect.arrayContaining([
+					["木綿豆腐\tパック", "パック", "パック"],
+					["memory-pack-label", "パック", "パック"],
+				]),
+			);
+			// ゲストの行と、直していない行には、印を付けない（送り直さない）。
+			expect(
+				(await database.shoppingSyncOutbox.toArray())
+					.map((entry) => `${entry.kind}:${entry.id}`)
+					.sort(),
+			).toEqual([
+				"conversionMemory:memory-pack-label",
+				"conversionMemory:木綿豆腐\tパック",
+				"item:tofu",
+			]);
+			database.close();
+		},
+	);
 });
