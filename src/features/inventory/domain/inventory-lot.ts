@@ -1,4 +1,5 @@
 import { UserFacingError } from "#/errors/user-facing-error";
+import { legacyPresetUnitLabels } from "#/features/ingredients/domain/input-unit-code";
 import {
 	formatQuantity,
 	formatStockAmountWithUnit,
@@ -127,16 +128,10 @@ const plainInputUnitCodes: ReadonlySet<string> = new Set([
 	"cc",
 ]);
 
-// 移行のため（2026-11-27）：以前のカタログのプリセットは、inputUnitCode に英語のコードを入れていた。
-// 端末に残る買い物メモの項目・換算の記憶と、更新前のクライアントから届く値を、日本語の呼び名に読み替える
-// （房・ボトルなど、元の呼び名は分からないので、いちばん多い呼び名にする）。
-// 消す条件：利用者が新しい版に移り、英語のコードを持つ買い物メモの項目・換算の記憶が残っていないと見てよくなったとき。
-const legacyPresetUnitLabels: Readonly<Record<string, string>> = {
-	pack: "パック",
-	bag: "袋",
-	bottle: "ボトル",
-	box: "箱",
-	can: "缶",
+// 換算のコードのうち、呼び名ではないもの（個数の総称・単位を書かなかった印）の表し方。
+const inputUnitCodeLabels: Readonly<Record<string, string>> = {
+	count: "個",
+	unit: "つ",
 };
 
 /**
@@ -152,12 +147,9 @@ export function toPurchaseUnit(input: {
 	quantityUnitLabel: string;
 }): InventoryLotPurchaseUnit | null {
 	const code = input.inputUnitCode.trim();
+	// legacyPresetUnitLabels は移行のため（更新前の画面などから届く英語のコード）。消す条件は docs/todo.md。
 	const label =
-		code === "count"
-			? "個"
-			: code === "unit"
-				? "つ"
-				: (legacyPresetUnitLabels[code] ?? code);
+		inputUnitCodeLabels[code] ?? legacyPresetUnitLabels[code] ?? code;
 	const quantityUnitLabel = input.quantityUnitLabel.trim();
 
 	if (
